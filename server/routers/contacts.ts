@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
+import { isValidE164, normalizeToE164, E164_ERROR_MESSAGE } from "../../shared/phone";
 import {
   createContact,
   getContactById,
@@ -82,10 +83,22 @@ export const contactsRouter = router({
 
       const { tags, ...contactData } = input;
       // Normalize empty strings to null
+      let phone = contactData.phone || null;
+      // Validate and normalize phone to E.164 if provided
+      if (phone) {
+        const normalized = normalizeToE164(phone);
+        if (!normalized || !isValidE164(normalized)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: E164_ERROR_MESSAGE,
+          });
+        }
+        phone = normalized;
+      }
       const normalizedData = {
         ...contactData,
         email: contactData.email || null,
-        phone: contactData.phone || null,
+        phone,
       };
 
       const { id } = await createContact(normalizedData);
@@ -186,6 +199,17 @@ export const contactsRouter = router({
         if (value !== undefined) {
           normalized[key] = value === "" ? null : value;
         }
+      }
+      // Validate and normalize phone to E.164 if provided
+      if (normalized.phone && typeof normalized.phone === "string") {
+        const normalizedPhone = normalizeToE164(normalized.phone);
+        if (!normalizedPhone || !isValidE164(normalizedPhone)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: E164_ERROR_MESSAGE,
+          });
+        }
+        normalized.phone = normalizedPhone;
       }
 
       await updateContact(id, accountId, normalized);

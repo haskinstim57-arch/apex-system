@@ -1335,6 +1335,18 @@ export async function updateAICall(
   await db.update(aiCalls).set(data as any).where(eq(aiCalls.id, id));
 }
 
+/** Get a single AI call by external (VAPI) call ID */
+export async function getAICallByExternalId(externalCallId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(aiCalls)
+    .where(eq(aiCalls.externalCallId, externalCallId))
+    .limit(1);
+  return result[0];
+}
+
 /** Delete an AI call record */
 export async function deleteAICall(id: number) {
   const db = await getDb();

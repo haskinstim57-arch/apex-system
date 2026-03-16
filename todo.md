@@ -167,4 +167,16 @@
 - [x] Ensure customer.number and customer.name are correctly structured
 - [x] Verify AI Calls module works with updated payload
 - [x] All 182 tests pass
+- [x] Checkpoint saved
+
+## n8n Webhook Payload Processing + E.164 Validation
+- [x] Audit current webhook handler for incoming payload compatibility
+- [x] Ensure webhook endpoint accepts n8n forwarded payloads (status, transcript, recording)
+- [x] Add public REST endpoint POST /api/webhooks/vapi for n8n (accepts native + simplified formats)
+- [x] Add getAICallByExternalId() DB helper for webhook call resolution
+- [x] Add E.164 phone validation on contact creation and update (backend)
+- [x] Add E.164 phone validation on contact creation and update (frontend)
+- [x] Auto-normalize US phone numbers (10-digit → +1XXXXXXXXXX)
+- [x] Write tests for webhook payload processing and E.164 validation (33 tests)
+- [x] All 215 tests pass
 - [ ] Checkpoint saved

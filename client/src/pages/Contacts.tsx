@@ -697,6 +697,7 @@ function ContactFormDialog({
   const [lastName, setLastName] = useState(defaultValues?.lastName || "");
   const [email, setEmail] = useState(defaultValues?.email || "");
   const [phone, setPhone] = useState(defaultValues?.phone || "");
+  const [phoneError, setPhoneError] = useState("");
   const [company, setCompany] = useState(defaultValues?.company || "");
   const [jobTitle, setJobTitle] = useState(defaultValues?.title || "");
   const [leadSource, setLeadSource] = useState(
@@ -713,12 +714,32 @@ function ContactFormDialog({
       toast.error("First name and last name are required");
       return;
     }
+    // Validate phone if provided
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone) {
+      const e164Regex = /^\+[1-9]\d{1,14}$/;
+      // Try to auto-normalize US numbers
+      let normalized = trimmedPhone;
+      if (!e164Regex.test(normalized)) {
+        const digits = normalized.replace(/\D/g, "");
+        if (digits.length === 10) normalized = `+1${digits}`;
+        else if (digits.length === 11 && digits.startsWith("1")) normalized = `+${digits}`;
+        else if (digits.length >= 7 && digits.length <= 15) normalized = `+${digits}`;
+      }
+      if (!e164Regex.test(normalized)) {
+        setPhoneError("Phone must be E.164 format (e.g., +15551234567)");
+        toast.error("Phone must be in E.164 format (e.g., +15551234567)");
+        return;
+      }
+      setPhone(normalized);
+    }
+    setPhoneError("");
     const data: any = {
       accountId,
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim() || undefined,
-      phone: phone.trim() || undefined,
+      phone: trimmedPhone ? phone.trim() : undefined,
       company: company.trim() || undefined,
       title: jobTitle.trim() || undefined,
       leadSource: leadSource || undefined,
@@ -775,10 +796,17 @@ function ContactFormDialog({
               <Label className="text-xs">Phone</Label>
               <Input
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(555) 123-4567"
-                className="h-9 text-sm"
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  setPhoneError("");
+                }}
+                placeholder="+15551234567"
+                className={`h-9 text-sm ${phoneError ? "border-red-500" : ""}`}
               />
+              {phoneError && (
+                <p className="text-xs text-red-500">{phoneError}</p>
+              )}
+              <p className="text-xs text-muted-foreground">E.164 format: +1 followed by 10 digits</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
