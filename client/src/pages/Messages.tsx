@@ -58,6 +58,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
+import { NoAccountSelected } from "@/components/NoAccountSelected";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
@@ -223,6 +224,10 @@ export default function Messages() {
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     );
+  }
+
+  if (!accountId && !accountsLoading) {
+    return <NoAccountSelected />;
   }
 
   return (

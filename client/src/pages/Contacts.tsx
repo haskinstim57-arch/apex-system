@@ -54,6 +54,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
+import { NoAccountSelected } from "@/components/NoAccountSelected";
 
 const STATUSES = [
   "new",
@@ -200,16 +201,7 @@ export default function Contacts() {
   }
 
   if (!accountId && !accountsLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <p className="text-muted-foreground mb-2">
-          You don't have access to any accounts yet.
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Ask an admin to invite you to a sub-account.
-        </p>
-      </div>
-    );
+    return <NoAccountSelected />;
   }
 
   return (

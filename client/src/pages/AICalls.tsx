@@ -51,6 +51,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAccount } from "@/contexts/AccountContext";
+import { NoAccountSelected } from "@/components/NoAccountSelected";
 import { toast } from "sonner";
 
 const STATUS_CONFIG: Record<
@@ -263,14 +264,7 @@ export default function AICalls() {
   }
 
   if (!accountId && !accountsLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <Phone className="h-12 w-12 text-muted-foreground" />
-        <p className="text-muted-foreground">
-          No accounts found. Create a sub-account to get started.
-        </p>
-      </div>
-    );
+    return <NoAccountSelected />;
   }
 
   return (

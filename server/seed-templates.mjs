@@ -153,9 +153,20 @@ async function seed() {
   const connection = await createConnection(DATABASE_URL);
   const db = drizzle(connection);
 
+  // Idempotency check: skip if global templates already exist
+  const [rows] = await connection.execute(
+    "SELECT COUNT(*) as cnt FROM campaign_templates WHERE accountId = 0"
+  );
+  const existingCount = rows[0]?.cnt ?? 0;
+  if (existingCount >= templates.length) {
+    console.log(`\n⏭  Seed skipped — ${existingCount} global templates already exist.`);
+    await connection.end();
+    return;
+  }
+
   console.log("Seeding prebuilt campaign templates...\n");
 
-  // Clear any existing global templates (accountId = 0) to avoid duplicates
+  // Clear any existing global templates (accountId = 0) to avoid partial state
   await connection.execute("DELETE FROM campaign_templates WHERE accountId = 0");
 
   for (const t of templates) {

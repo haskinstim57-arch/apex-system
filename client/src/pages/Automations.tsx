@@ -57,6 +57,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useCallback } from "react";
 import { useAccount } from "@/contexts/AccountContext";
+import { NoAccountSelected } from "@/components/NoAccountSelected";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -182,11 +183,7 @@ export default function Automations() {
 
       {/* Content */}
       {!accountId ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            No accounts found. Create a sub-account first.
-          </CardContent>
-        </Card>
+        <NoAccountSelected />
       ) : view === "list" && !selectedWorkflowId ? (
         <WorkflowsList
           accountId={accountId}

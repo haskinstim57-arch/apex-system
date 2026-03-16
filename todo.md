@@ -365,4 +365,39 @@
 - [x] Fix Automations page to scope by current account
 - [x] Fix Home page to use useAccount() for admin/account state
 - [x] Write vitest tests for tenant isolation (28 tests across 10 sections — all pass)
-- [ ] Checkpoint saved
+- [x] Checkpoint saved
+
+## Final Multi-Tenant Stabilization Pass
+### 1. Account Context
+- [x] Audit and confirm single source of truth for currentAccountId (AccountContext.tsx)
+- [x] Priority: impersonation > session > admin-selected (verified in context.ts + AccountContext)
+- [x] Fix: Admin default mode — start in agency scope, not auto-select first account
+- [x] Added isAgencyScope and clearAccount to AccountContext
+- [x] AccountSwitcher shows "Agency Overview" option
+- [x] All pages use NoAccountSelected component for agency scope prompt
+### 2. Query Enforcement
+- [x] Audit contacts router queries — all scoped via requireAccountMember
+- [x] Audit messages router queries — all scoped via requireAccountMember
+- [x] Audit campaigns router queries — all scoped via requireAccountAccess
+- [x] Audit pipelines router queries — all scoped via requireAccountMember
+- [x] Audit calls router queries — all scoped via requireAccountAccess
+- [x] Audit automations router queries — all scoped via requireAccountMember
+### 3. Contact Creation Fix
+- [x] Audit manual contact creation path — uses accountId input with requireAccountMember guard
+- [x] Audit Facebook webhook contact creation path — uses page mapping → accountId
+- [x] Audit API routes contact creation path — all go through contacts.create with accountId
+### 4. Frontend Account Switcher
+- [x] Verify AccountSwitcher only renders for agency_admin (gated by isAdmin in DashboardLayout)
+### 5. Admin Default Mode
+- [x] Fix: Admins start in agency scope, not auto-switched to client account
+- [x] Home.tsx shows sub-accounts overview in agency scope
+- [x] Quick Overview only shows when account is selected
+### 6. Client UI Permissions
+- [x] Verify clients cannot see Sub-Accounts, Admin Settings, Facebook Pages, Analytics (AdminRoute + sidebar gating)
+- [x] Verify clients see Dashboard, Contacts, Messages, Campaigns, AI Calls, Pipeline, Automations
+### 7. Seed Data Cleanup
+- [x] Fix: Prevent duplicate test accounts on repeated builds (idempotency check in seed script)
+### 8. Contact Page Verification
+- [x] Contacts page loads contacts scoped to currentAccountId (uses useAccount() hook)
+- [x] Write vitest stabilization tests (20 tests — all pass)
+- [x] Checkpoint saved

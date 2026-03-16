@@ -65,6 +65,7 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
+import { NoAccountSelected } from "@/components/NoAccountSelected";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
@@ -189,15 +190,9 @@ export default function Campaigns() {
   }
 
   if (!accountId && !accountsLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-3">
-        <Send className="h-10 w-10 text-muted-foreground/50" />
-        <p className="text-muted-foreground">
-          No accounts available. Create a sub-account first.
-        </p>
-      </div>
-    );
+    return <NoAccountSelected />;
   }
+
 
   return (
     <div className="space-y-6">

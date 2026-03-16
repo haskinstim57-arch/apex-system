@@ -12,6 +12,7 @@ import { Building2 } from "lucide-react";
  * AccountSwitcher — admin-only dropdown to switch between sub-accounts.
  * Clients never see this component.
  * When impersonating, the impersonated account is shown and the selector is disabled.
+ * Includes "Agency Overview" option to return to agency scope.
  */
 export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
   const {
@@ -20,6 +21,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
     isAdmin,
     isImpersonating,
     switchAccount,
+    clearAccount,
   } = useAccount();
 
   // Only admins see the account switcher
@@ -42,17 +44,26 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
         Active Account
       </p>
       <Select
-        value={currentAccountId?.toString() ?? ""}
-        onValueChange={(val) => switchAccount(parseInt(val, 10))}
+        value={currentAccountId?.toString() ?? "__agency__"}
+        onValueChange={(val) => {
+          if (val === "__agency__") {
+            clearAccount();
+          } else {
+            switchAccount(parseInt(val, 10));
+          }
+        }}
         disabled={isImpersonating}
       >
         <SelectTrigger className="h-8 text-xs bg-sidebar-accent/30 border-sidebar-border/50">
           <div className="flex items-center gap-2 truncate">
             <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
-            <SelectValue placeholder="Select account" />
+            <SelectValue placeholder="Agency Overview" />
           </div>
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="__agency__" className="text-xs font-medium">
+            Agency Overview
+          </SelectItem>
           {accounts.map((account) => (
             <SelectItem
               key={account.id}

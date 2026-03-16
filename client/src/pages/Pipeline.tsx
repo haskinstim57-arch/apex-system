@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useRef, useCallback } from "react";
 import { useAccount } from "@/contexts/AccountContext";
+import { NoAccountSelected } from "@/components/NoAccountSelected";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -233,13 +234,7 @@ export default function Pipeline() {
   }
 
   if (!accountId && !accountsLoading) {
-    return (
-      <div className="p-6">
-        <p className="text-muted-foreground">
-          No accounts found. Create a sub-account first.
-        </p>
-      </div>
-    );
+    return <NoAccountSelected />;
   }
 
   const stages = pipelineData?.stages || [];

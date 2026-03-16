@@ -16,7 +16,7 @@ import { useAccount } from "@/contexts/AccountContext";
 
 export default function Home() {
   const { user } = useAuth();
-  const { isAdmin, accounts } = useAccount();
+  const { isAdmin, accounts, isAgencyScope, currentAccountId } = useAccount();
 
   // Admin stats
   const { data: adminStats } = trpc.accounts.adminStats.useQuery(undefined, {
@@ -76,7 +76,49 @@ export default function Home() {
         </div>
       )}
 
-      {/* User's Accounts */}
+      {/* Agency scope: show accounts overview for admins */}
+      {isAdmin && isAgencyScope && accounts && accounts.length > 0 && (
+        <div>
+          <h2 className="text-lg font-medium tracking-tight mb-4">
+            Sub-Accounts
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {accounts.map((account) => (
+              <Card
+                key={account.id}
+                className="card-hover cursor-pointer border-border/50 bg-card"
+                onClick={() => {
+                  // Switch to this account in the sidebar
+                  window.location.href = `/contacts`;
+                }}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">
+                      {account.name}
+                    </CardTitle>
+                    <Badge
+                      variant={
+                        account.status === "active" ? "default" : "secondary"
+                      }
+                      className="text-[10px] h-5"
+                    >
+                      {account.status}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-xs text-muted-foreground">
+                    {account.industry || "Mortgage"}
+                  </p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* User's Accounts (clients only) */}
       {!isAdmin && accounts && accounts.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.map((account) => (
@@ -112,8 +154,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* Quick Actions / Module Placeholders */}
-      <div>
+      {/* Quick Actions / Module Placeholders — only show when account is selected */}
+      {currentAccountId && <div>
         <h2 className="text-lg font-medium tracking-tight mb-4">
           Quick Overview
         </h2>
@@ -143,7 +185,7 @@ export default function Home() {
             subtitle="Active campaigns"
           />
         </div>
-      </div>
+      </div>}
     </div>
   );
 }
