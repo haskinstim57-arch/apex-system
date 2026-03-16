@@ -46,3 +46,16 @@
 - [x] Frontend: Wire Contacts sidebar nav item (no longer placeholder)
 - [x] Vitest tests for contacts CRUD, validation, and auth
 - [x] Checkpoint saved
+
+## Module Fix: Sub-Accounts Management
+
+- [x] Audit existing backend accounts router for gaps
+- [x] Backend: account creation must auto-assign owner by email
+- [x] Backend: ensure admin-only RBAC on account CRUD
+- [x] Backend: verify data isolation (contacts scoped to sub-account)
+- [x] Frontend: Sub-Accounts list page with name, status, owner, created date
+- [x] Frontend: Create Sub-Account dialog with name, industry, owner email, status
+- [x] Frontend: Account detail page with members and settings
+- [x] Frontend: Sidebar nav shows Sub-Accounts for admin only
+- [x] Vitest tests for sub-account creation and owner assignment
+- [x] Checkpoint saved

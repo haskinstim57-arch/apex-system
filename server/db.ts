@@ -194,6 +194,77 @@ export async function listAccounts(parentId?: number | null) {
     .orderBy(desc(accounts.createdAt));
 }
 
+/** List all accounts with owner name/email joined (admin view) */
+export async function listAccountsWithOwner() {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      slug: accounts.slug,
+      parentId: accounts.parentId,
+      ownerId: accounts.ownerId,
+      industry: accounts.industry,
+      website: accounts.website,
+      phone: accounts.phone,
+      email: accounts.email,
+      address: accounts.address,
+      logoUrl: accounts.logoUrl,
+      status: accounts.status,
+      onboardingComplete: accounts.onboardingComplete,
+      createdAt: accounts.createdAt,
+      updatedAt: accounts.updatedAt,
+      ownerName: users.name,
+      ownerEmail: users.email,
+    })
+    .from(accounts)
+    .leftJoin(users, eq(accounts.ownerId, users.id))
+    .orderBy(desc(accounts.createdAt));
+}
+
+/** List accounts for a specific user with owner info joined */
+export async function listAccountsForUserWithOwner(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const memberships = await db
+    .select({ accountId: accountMembers.accountId })
+    .from(accountMembers)
+    .where(
+      and(eq(accountMembers.userId, userId), eq(accountMembers.isActive, true))
+    );
+
+  if (memberships.length === 0) return [];
+
+  const accountIds = memberships.map((m) => m.accountId);
+  return db
+    .select({
+      id: accounts.id,
+      name: accounts.name,
+      slug: accounts.slug,
+      parentId: accounts.parentId,
+      ownerId: accounts.ownerId,
+      industry: accounts.industry,
+      website: accounts.website,
+      phone: accounts.phone,
+      email: accounts.email,
+      address: accounts.address,
+      logoUrl: accounts.logoUrl,
+      status: accounts.status,
+      onboardingComplete: accounts.onboardingComplete,
+      createdAt: accounts.createdAt,
+      updatedAt: accounts.updatedAt,
+      ownerName: users.name,
+      ownerEmail: users.email,
+    })
+    .from(accounts)
+    .leftJoin(users, eq(accounts.ownerId, users.id))
+    .where(inArray(accounts.id, accountIds))
+    .orderBy(desc(accounts.createdAt));
+}
+
 export async function listAccountsForUser(userId: number) {
   const db = await getDb();
   if (!db) return [];

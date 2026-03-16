@@ -30,7 +30,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import {
   Building2,
@@ -41,8 +40,7 @@ import {
   ExternalLink,
   Users,
   Mail,
-  Phone,
-  Globe,
+  Calendar,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -58,11 +56,12 @@ export default function Accounts() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
   const [createOpen, setCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [newIndustry, setNewIndustry] = useState("mortgage");
-  const [newEmail, setNewEmail] = useState("");
-  const [newPhone, setNewPhone] = useState("");
+  const [newOwnerEmail, setNewOwnerEmail] = useState("");
+  const [newStatus, setNewStatus] = useState<"active" | "suspended">("active");
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const isAdmin = user?.role === "admin";
@@ -77,9 +76,9 @@ export default function Accounts() {
       setCreateOpen(false);
       setNewName("");
       setNewIndustry("mortgage");
-      setNewEmail("");
-      setNewPhone("");
-      toast.success("Account created successfully");
+      setNewOwnerEmail("");
+      setNewStatus("active");
+      toast.success("Sub-account created successfully");
     },
     onError: (err) => {
       toast.error("Failed to create account", { description: err.message });
@@ -98,18 +97,31 @@ export default function Accounts() {
     },
   });
 
-  const filteredAccounts = accounts?.filter((a) =>
-    a.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const updateMutation = trpc.accounts.update.useMutation({
+    onSuccess: () => {
+      utils.accounts.list.invalidate();
+      toast.success("Account status updated");
+    },
+    onError: (err) => {
+      toast.error("Failed to update account", { description: err.message });
+    },
+  });
+
+  const filteredAccounts = accounts?.filter((a) => {
+    const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase()) ||
+      (a.ownerEmail ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      (a.ownerName ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === "all" || a.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const handleCreate = () => {
-    if (!newName.trim()) return;
+    if (!newName.trim() || !newOwnerEmail.trim()) return;
     createMutation.mutate({
       name: newName.trim(),
-      ownerId: user!.id,
+      ownerEmail: newOwnerEmail.trim(),
       industry: newIndustry,
-      email: newEmail || undefined,
-      phone: newPhone || undefined,
+      status: newStatus,
     });
   };
 
@@ -120,12 +132,15 @@ export default function Accounts() {
           <Building2 className="h-12 w-12 text-muted-foreground/30 mx-auto" />
           <h2 className="text-lg font-medium">Access Restricted</h2>
           <p className="text-sm text-muted-foreground">
-            Only administrators can manage sub-accounts.
+            Only agency administrators can manage sub-accounts.
           </p>
         </div>
       </div>
     );
   }
+
+  const activeCount = accounts?.filter((a) => a.status === "active").length ?? 0;
+  const suspendedCount = accounts?.filter((a) => a.status === "suspended").length ?? 0;
 
   return (
     <div className="space-y-6">
@@ -136,7 +151,7 @@ export default function Accounts() {
             Sub-Accounts
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage client accounts and their teams.
+            Manage client accounts, assign owners, and control access.
           </p>
         </div>
 
@@ -144,19 +159,19 @@ export default function Accounts() {
           <DialogTrigger asChild>
             <Button size="sm" className="gap-2">
               <Plus className="h-4 w-4" />
-              New Account
+              New Sub-Account
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Create Sub-Account</DialogTitle>
               <DialogDescription>
-                Set up a new client account. You can configure details later.
+                Set up a new client account. The owner will be assigned automatically.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Account Name</Label>
+                <Label htmlFor="name">Account Name *</Label>
                 <Input
                   id="name"
                   placeholder="e.g. Smith Mortgage Team"
@@ -165,41 +180,50 @@ export default function Accounts() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="industry">Industry</Label>
-                <Select value={newIndustry} onValueChange={setNewIndustry}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="mortgage">Mortgage</SelectItem>
-                    <SelectItem value="real_estate">Real Estate</SelectItem>
-                    <SelectItem value="insurance">Insurance</SelectItem>
-                    <SelectItem value="financial_services">
-                      Financial Services
-                    </SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="ownerEmail">Owner Email *</Label>
+                <Input
+                  id="ownerEmail"
+                  type="email"
+                  placeholder="owner@example.com"
+                  value={newOwnerEmail}
+                  onChange={(e) => setNewOwnerEmail(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  If this user hasn't signed up yet, an invitation will be sent automatically.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="team@example.com"
-                    value={newEmail}
-                    onChange={(e) => setNewEmail(e.target.value)}
-                  />
+                  <Label htmlFor="industry">Industry</Label>
+                  <Select value={newIndustry} onValueChange={setNewIndustry}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mortgage">Mortgage</SelectItem>
+                      <SelectItem value="real_estate">Real Estate</SelectItem>
+                      <SelectItem value="insurance">Insurance</SelectItem>
+                      <SelectItem value="financial_services">
+                        Financial Services
+                      </SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    placeholder="(555) 123-4567"
-                    value={newPhone}
-                    onChange={(e) => setNewPhone(e.target.value)}
-                  />
+                  <Label htmlFor="status">Status</Label>
+                  <Select
+                    value={newStatus}
+                    onValueChange={(v) => setNewStatus(v as "active" | "suspended")}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
@@ -212,7 +236,11 @@ export default function Accounts() {
               </Button>
               <Button
                 onClick={handleCreate}
-                disabled={!newName.trim() || createMutation.isPending}
+                disabled={
+                  !newName.trim() ||
+                  !newOwnerEmail.trim() ||
+                  createMutation.isPending
+                }
               >
                 {createMutation.isPending ? "Creating..." : "Create Account"}
               </Button>
@@ -221,120 +249,180 @@ export default function Accounts() {
         </Dialog>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search accounts..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-9 bg-muted/50 border-border/50"
-        />
+      {/* Stats Row */}
+      <div className="grid grid-cols-3 gap-4">
+        <Card className="border-border/50 bg-card">
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground mb-1">Total Accounts</p>
+            <p className="text-xl font-semibold">{accounts?.length ?? 0}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card">
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground mb-1">Active</p>
+            <p className="text-xl font-semibold text-green-400">{activeCount}</p>
+          </CardContent>
+        </Card>
+        <Card className="border-border/50 bg-card">
+          <CardContent className="pt-4 pb-3 px-4">
+            <p className="text-xs text-muted-foreground mb-1">Suspended</p>
+            <p className="text-xl font-semibold text-orange-400">{suspendedCount}</p>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Accounts Grid */}
+      {/* Search + Filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or owner..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 bg-muted/50 border-border/50"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[140px] h-9 bg-muted/50 border-border/50">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="suspended">Suspended</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Accounts Table */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="border-border/50 bg-card animate-pulse">
-              <CardContent className="pt-5 pb-4 px-5 h-36" />
-            </Card>
+            <div
+              key={i}
+              className="h-16 bg-muted/30 animate-pulse rounded-lg border border-border/30"
+            />
           ))}
         </div>
       ) : filteredAccounts && filteredAccounts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="border border-border/50 rounded-lg overflow-hidden">
+          {/* Table Header */}
+          <div className="grid grid-cols-[1fr_1fr_120px_140px_48px] gap-4 px-5 py-3 bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30">
+            <span>Account</span>
+            <span>Owner</span>
+            <span>Status</span>
+            <span>Created</span>
+            <span></span>
+          </div>
+
+          {/* Table Rows */}
           {filteredAccounts.map((account) => (
-            <Card
+            <div
               key={account.id}
-              className="card-hover border-border/50 bg-card group"
+              className="grid grid-cols-[1fr_1fr_120px_140px_48px] gap-4 px-5 py-3.5 items-center border-b border-border/20 last:border-b-0 hover:bg-muted/20 transition-colors group"
             >
-              <CardContent className="pt-5 pb-4 px-5">
-                <div className="flex items-start justify-between mb-3">
-                  <div
-                    className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
+              {/* Account Name + Industry */}
+              <div
+                className="flex items-center gap-3 cursor-pointer min-w-0"
+                onClick={() => setLocation(`/accounts/${account.id}`)}
+              >
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <Building2 className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate">{account.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">
+                    {account.industry?.replace("_", " ") || "Mortgage"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Owner */}
+              <div className="min-w-0">
+                <p className="text-sm truncate">
+                  {account.ownerName || "Pending"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {account.ownerEmail || account.email || "—"}
+                </p>
+              </div>
+
+              {/* Status */}
+              <div>
+                <Badge
+                  variant={account.status === "active" ? "default" : "secondary"}
+                  className={`text-[10px] h-5 cursor-pointer ${
+                    account.status === "active"
+                      ? "bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20"
+                      : account.status === "suspended"
+                        ? "bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20"
+                        : ""
+                  }`}
+                  onClick={() => {
+                    const newStatus = account.status === "active" ? "suspended" : "active";
+                    updateMutation.mutate({ id: account.id, status: newStatus });
+                  }}
+                >
+                  {account.status}
+                </Badge>
+              </div>
+
+              {/* Created Date */}
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Calendar className="h-3 w-3" />
+                {new Date(account.createdAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </div>
+
+              {/* Actions */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <MoreVertical className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
                     onClick={() => setLocation(`/accounts/${account.id}`)}
                   >
-                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Building2 className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-medium truncate">
-                        {account.name}
-                      </h3>
-                      <p className="text-xs text-muted-foreground capitalize">
-                        {account.industry?.replace("_", " ") || "Mortgage"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <MoreVertical className="h-3.5 w-3.5" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() =>
-                          setLocation(`/accounts/${account.id}`)
-                        }
-                      >
-                        <ExternalLink className="mr-2 h-3.5 w-3.5" />
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => setDeleteId(account.id)}
-                      >
-                        <Trash2 className="mr-2 h-3.5 w-3.5" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                <div className="flex items-center gap-3 mt-4 pt-3 border-t border-border/30">
-                  <Badge
-                    variant={
-                      account.status === "active" ? "default" : "secondary"
-                    }
-                    className="text-[10px] h-5"
+                    <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                    View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const newStatus = account.status === "active" ? "suspended" : "active";
+                      updateMutation.mutate({ id: account.id, status: newStatus });
+                    }}
                   >
-                    {account.status}
-                  </Badge>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    {account.email && (
-                      <span className="flex items-center gap-1">
-                        <Mail className="h-3 w-3" />
-                      </span>
-                    )}
-                    {account.phone && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-3 w-3" />
-                      </span>
-                    )}
-                    {account.website && (
-                      <span className="flex items-center gap-1">
-                        <Globe className="h-3 w-3" />
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                    <Users className="mr-2 h-3.5 w-3.5" />
+                    {account.status === "active" ? "Suspend" : "Activate"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setDeleteId(account.id)}
+                  >
+                    <Trash2 className="mr-2 h-3.5 w-3.5" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           ))}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <Building2 className="h-12 w-12 text-muted-foreground/30 mb-4" />
-          <h3 className="text-lg font-medium">No accounts yet</h3>
+          <h3 className="text-lg font-medium">No sub-accounts yet</h3>
           <p className="text-sm text-muted-foreground mt-1 max-w-sm">
-            Create your first client sub-account to get started with the
-            multi-tenant CRM.
+            Create your first client sub-account to start managing teams and contacts.
           </p>
         </div>
       )}
@@ -346,11 +434,11 @@ export default function Accounts() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Account</AlertDialogTitle>
+            <AlertDialogTitle>Delete Sub-Account</AlertDialogTitle>
             <AlertDialogDescription>
               This will permanently delete this sub-account and all associated
-              data including members and invitations. This action cannot be
-              undone.
+              data including contacts, members, and invitations. This action
+              cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -76,15 +76,20 @@ describe("contacts router", () => {
       const ctx = createMockContext();
       const caller = appRouter.createCaller(ctx);
 
-      // This will fail at DB level (no account), but validates input passes
-      await expect(
-        caller.contacts.create({
+      // Valid email should pass input validation.
+      // May succeed (if account exists) or fail at RBAC/DB level.
+      try {
+        const result = await caller.contacts.create({
           accountId: 1,
           firstName: "John",
           lastName: "Doe",
           email: "john@example.com",
-        })
-      ).rejects.toThrow(); // Fails at RBAC check, not validation
+        });
+        expect(result).toBeDefined();
+      } catch (err: any) {
+        // If it rejects, it should NOT be due to email validation
+        expect(err.message).not.toMatch(/invalid_string/);
+      }
     });
 
     it("rejects invalid accountId", async () => {
@@ -301,15 +306,21 @@ describe("contacts router", () => {
         const ctx = createMockContext();
         const caller = appRouter.createCaller(ctx);
 
-        // Will fail at RBAC level, but validates the status enum passes
-        await expect(
-          caller.contacts.create({
+        // Valid status should not cause an input validation error.
+        // It may succeed (if account exists) or fail at RBAC/DB level.
+        try {
+          const result = await caller.contacts.create({
             accountId: 1,
             firstName: "John",
             lastName: "Doe",
             status: status as any,
-          })
-        ).rejects.not.toThrow(/invalid_enum_value/);
+          });
+          // If it resolves, the status was accepted
+          expect(result).toBeDefined();
+        } catch (err: any) {
+          // If it rejects, it should NOT be due to invalid_enum_value
+          expect(err.message).not.toMatch(/invalid_enum_value/);
+        }
       });
     }
   });

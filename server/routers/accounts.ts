@@ -7,6 +7,7 @@ import {
   router,
 } from "../_core/trpc";
 import * as db from "../db";
+import { eq } from "drizzle-orm";
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -59,32 +60,58 @@ export const accountsRouter = router({
     .input(
       z.object({
         name: z.string().min(1).max(255),
-        ownerId: z.number().int().positive(),
+        ownerEmail: z.string().email().max(320),
         industry: z.string().max(100).optional(),
         website: z.string().max(500).optional(),
         phone: z.string().max(30).optional(),
-        email: z.string().email().max(320).optional(),
-        address: z.string().optional(),
+        status: z.enum(["active", "suspended"]).default("active"),
         parentId: z.number().int().positive().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
       const slug = generateSlug(input.name);
 
-      // If parentId not provided, find or create agency root
-      let parentId = input.parentId ?? null;
+      // Look up the owner user by email
+      let ownerUser = await db.getUserByEmail(input.ownerEmail);
+      let ownerId: number;
+
+      if (ownerUser) {
+        ownerId = ownerUser.id;
+      } else {
+        // Owner hasn't signed up yet — use the admin as placeholder owner
+        // The real owner will be assigned when they accept an invitation
+        ownerId = ctx.user.id;
+      }
 
       const result = await db.createAccount({
         name: input.name,
         slug,
-        parentId,
-        ownerId: input.ownerId,
+        parentId: input.parentId ?? null,
+        ownerId,
         industry: input.industry ?? "mortgage",
         website: input.website ?? null,
         phone: input.phone ?? null,
-        email: input.email ?? null,
-        address: input.address ?? null,
+        email: input.ownerEmail,
+        status: input.status,
       });
+
+      // If the owner user exists and is different from admin, they're already
+      // added as owner member by createAccount. If owner doesn't exist yet,
+      // auto-create a pending invitation for them.
+      if (!ownerUser) {
+        const token = nanoid(32);
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+        await db.createInvitation({
+          accountId: result.id,
+          invitedById: ctx.user.id,
+          email: input.ownerEmail,
+          role: "owner",
+          token,
+          status: "pending",
+          message: `You've been assigned as the owner of ${input.name}.`,
+          expiresAt,
+        });
+      }
 
       await db.createAuditLog({
         accountId: result.id,
@@ -92,7 +119,7 @@ export const accountsRouter = router({
         action: "account.created",
         resourceType: "account",
         resourceId: result.id,
-        metadata: JSON.stringify({ name: input.name }),
+        metadata: JSON.stringify({ name: input.name, ownerEmail: input.ownerEmail }),
       });
 
       return result;
@@ -101,9 +128,9 @@ export const accountsRouter = router({
   /** List all accounts (admin) or user's accounts */
   list: protectedProcedure.query(async ({ ctx }) => {
     if (ctx.user.role === "admin") {
-      return db.listAccounts();
+      return db.listAccountsWithOwner();
     }
-    return db.listAccountsForUser(ctx.user.id);
+    return db.listAccountsForUserWithOwner(ctx.user.id);
   }),
 
   /** Get a single account by ID (with access check) */
