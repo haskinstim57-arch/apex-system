@@ -9,7 +9,41 @@ import {
   Bell,
   Key,
   Palette,
+  Facebook,
+  ChevronRight,
 } from "lucide-react";
+import { useLocation } from "wouter";
+
+function IntegrationLink({
+  icon: Icon,
+  label,
+  description,
+  href,
+  iconColor = "text-muted-foreground",
+}: {
+  icon: React.ElementType;
+  label: string;
+  description: string;
+  href: string;
+  iconColor?: string;
+}) {
+  const [, setLocation] = useLocation();
+  return (
+    <button
+      onClick={() => setLocation(href)}
+      className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg hover:bg-accent transition-colors text-left group"
+    >
+      <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+        <Icon className={`h-4 w-4 ${iconColor}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
+      </div>
+      <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+    </button>
+  );
+}
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -122,6 +156,30 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Admin Integrations */}
+      {isAdmin && (
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Palette className="h-4 w-4 text-muted-foreground" />
+              Integrations
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Manage external service connections and integrations.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 -mt-2">
+            <IntegrationLink
+              icon={Facebook}
+              label="Facebook Pages"
+              description="Map Facebook pages to sub-accounts for lead routing"
+              href="/settings/facebook-pages"
+              iconColor="text-blue-500"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Placeholder sections for future modules */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

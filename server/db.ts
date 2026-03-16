@@ -2076,3 +2076,15 @@ export async function deleteFacebookPageMapping(id: number) {
   if (!db) return;
   await db.delete(facebookPageMappings).where(eq(facebookPageMappings.id, id));
 }
+
+export async function updateFacebookPageMapping(
+  id: number,
+  data: Partial<Omit<InsertFacebookPageMapping, "id">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db
+    .update(facebookPageMappings)
+    .set(data)
+    .where(eq(facebookPageMappings.id, id));
+}

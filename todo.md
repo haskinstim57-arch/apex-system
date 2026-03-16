@@ -321,4 +321,14 @@
 - [x] Add call_completed trigger to VAPI webhook (end-of-call-report + simplified)
 - [x] Add onCallCompleted to workflowTriggers.ts
 - [x] Write vitest tests for all new infrastructure (21 tests pass)
-- [ ] Checkpoint saved
+- [x] Checkpoint saved
+
+## Facebook Page Mappings Admin Settings UI
+- [x] Audit existing backend CRUD routes for facebook_page_mappings
+- [x] Add tRPC procedures for CRUD (facebookPagesRouter with list/getByPageId/create/update/delete)
+- [x] Add updateFacebookPageMapping helper to db.ts
+- [x] Build FacebookPages settings panel component (table, create/edit dialog, delete confirm)
+- [x] Wire panel into Settings navigation (Admin → Settings → Facebook Pages)
+- [x] Add Integrations section to Settings page with Facebook Pages link (admin-only)
+- [x] Write vitest tests for new tRPC procedures (11 tests)
+- [x] Checkpoint saved

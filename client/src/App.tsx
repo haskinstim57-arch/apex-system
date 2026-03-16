@@ -20,6 +20,7 @@ import AICalls from "./pages/AICalls";
 import Automations from "./pages/Automations";
 import Pipeline from "./pages/Pipeline";
 import SubAccountLogin from "./pages/SubAccountLogin";
+import FacebookPages from "./pages/FacebookPages";
 
 function Router() {
   return (
@@ -102,6 +103,11 @@ function Router() {
       <Route path="/settings">
         <DashboardLayout>
           <SettingsPage />
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings/facebook-pages">
+        <DashboardLayout>
+          <FacebookPages />
         </DashboardLayout>
       </Route>
       <Route path="/404" component={NotFound} />
