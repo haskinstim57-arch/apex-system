@@ -23,3 +23,26 @@
 - [x] Frontend: Account settings page
 - [x] Vitest tests for RBAC, account isolation, invitation flow
 - [x] Final checkpoint saved
+
+## Module 2: Contact Management System
+
+- [x] Schema: contacts table (name, email, phone, source, status, assigned user, accountId)
+- [x] Schema: contact_tags table (many-to-many tags)
+- [x] Schema: contact_notes table (timestamped notes per contact)
+- [x] DB migration pushed
+- [x] Backend: contact CRUD helpers in server/db.ts
+- [x] Backend: tRPC router — contacts (create, list, get, update, delete)
+- [x] Backend: contact search and filter (by status, source, assigned user, tags)
+- [x] Backend: contact assignment to team member
+- [x] Backend: contact notes CRUD
+- [x] Backend: contact tags management
+- [x] Backend: tenant isolation — contacts scoped to sub-account
+- [x] Frontend: Contact list view with table, search, and filters
+- [x] Frontend: Create new contact dialog
+- [x] Frontend: Edit contact dialog
+- [x] Frontend: Delete contact confirmation
+- [x] Frontend: Contact profile page with details, notes, tags, assignment
+- [x] Frontend: Assign contact to team member UI
+- [x] Frontend: Wire Contacts sidebar nav item (no longer placeholder)
+- [x] Vitest tests for contacts CRUD, validation, and auth
+- [x] Checkpoint saved

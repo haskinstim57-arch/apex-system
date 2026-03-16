@@ -15,6 +15,13 @@
       "when": 1773622848365,
       "tag": "0001_neat_puck",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1773624597603,
+      "tag": "0002_pink_gargoyle",
+      "breakpoints": true
     }
   ]
 }

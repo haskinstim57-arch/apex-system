@@ -122,3 +122,85 @@ export const auditLogs = mysqlTable("audit_logs", {
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type InsertAuditLog = typeof auditLogs.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CONTACTS — core CRM entity, scoped to sub-account
+// ─────────────────────────────────────────────
+export const contacts = mysqlTable("contacts", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this contact belongs to */
+  accountId: int("accountId").notNull(),
+  firstName: varchar("firstName", { length: 100 }).notNull(),
+  lastName: varchar("lastName", { length: 100 }).notNull(),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 30 }),
+  /** Where the lead came from */
+  leadSource: varchar("leadSource", { length: 100 }),
+  /** Pipeline status */
+  status: mysqlEnum("status", [
+    "new",
+    "contacted",
+    "qualified",
+    "proposal",
+    "negotiation",
+    "won",
+    "lost",
+    "nurture",
+  ])
+    .default("new")
+    .notNull(),
+  /** User ID of the assigned team member */
+  assignedUserId: int("assignedUserId"),
+  /** Company / organization */
+  company: varchar("company", { length: 255 }),
+  /** Job title / position */
+  title: varchar("title", { length: 255 }),
+  /** Full address */
+  address: text("address"),
+  /** City */
+  city: varchar("city", { length: 100 }),
+  /** State / province */
+  state: varchar("state", { length: 100 }),
+  /** ZIP / postal code */
+  zip: varchar("zip", { length: 20 }),
+  /** Date of birth */
+  dateOfBirth: timestamp("dateOfBirth"),
+  /** Custom fields JSON */
+  customFields: text("customFields"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = typeof contacts.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CONTACT TAGS — many-to-many tagging system
+// ─────────────────────────────────────────────
+export const contactTags = mysqlTable("contact_tags", {
+  id: int("id").autoincrement().primaryKey(),
+  contactId: int("contactId").notNull(),
+  tag: varchar("tag", { length: 100 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContactTag = typeof contactTags.$inferSelect;
+export type InsertContactTag = typeof contactTags.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CONTACT NOTES — timestamped notes per contact
+// ─────────────────────────────────────────────
+export const contactNotes = mysqlTable("contact_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  contactId: int("contactId").notNull(),
+  /** User who wrote the note */
+  authorId: int("authorId").notNull(),
+  content: text("content").notNull(),
+  /** pinned notes float to top */
+  isPinned: boolean("isPinned").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ContactNote = typeof contactNotes.$inferSelect;
+export type InsertContactNote = typeof contactNotes.$inferInsert;

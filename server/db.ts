@@ -1,5 +1,6 @@
-import { and, eq, desc, sql, inArray } from "drizzle-orm";
+import { and, eq, desc, asc, sql, inArray, count } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
+import { like, or } from "drizzle-orm";
 import {
   InsertUser,
   users,
@@ -7,10 +8,15 @@ import {
   accountMembers,
   invitations,
   auditLogs,
+  contacts,
+  contactTags,
+  contactNotes,
   type InsertAccount,
   type InsertAccountMember,
   type InsertInvitation,
   type InsertAuditLog,
+  type InsertContact,
+  type InsertContactNote,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -455,4 +461,289 @@ export async function getAdminStats() {
     totalUsers: userResult?.count ?? 0,
     activeAccounts: activeResult?.count ?? 0,
   };
+}
+
+// ─────────────────────────────────────────────
+// CONTACT HELPERS
+// ─────────────────────────────────────────────
+
+export interface ContactListFilters {
+  accountId: number;
+  search?: string;
+  status?: string;
+  leadSource?: string;
+  assignedUserId?: number;
+  tag?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function createContact(data: InsertContact) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contacts).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function getContactById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(contacts)
+    .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function listContacts(filters: ContactListFilters) {
+  const db = await getDb();
+  if (!db) return { data: [], total: 0 };
+
+  const conditions = [eq(contacts.accountId, filters.accountId)];
+
+  if (filters.status) {
+    conditions.push(eq(contacts.status, filters.status as any));
+  }
+  if (filters.leadSource) {
+    conditions.push(eq(contacts.leadSource, filters.leadSource));
+  }
+  if (filters.assignedUserId) {
+    conditions.push(eq(contacts.assignedUserId, filters.assignedUserId));
+  }
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    conditions.push(
+      or(
+        like(contacts.firstName, term),
+        like(contacts.lastName, term),
+        like(contacts.email, term),
+        like(contacts.phone, term),
+        like(contacts.company, term)
+      )!
+    );
+  }
+
+  // If filtering by tag, get matching contact IDs first
+  let tagContactIds: number[] | undefined;
+  if (filters.tag) {
+    const tagResults = await db
+      .select({ contactId: contactTags.contactId })
+      .from(contactTags)
+      .where(eq(contactTags.tag, filters.tag));
+    tagContactIds = tagResults.map((r) => r.contactId);
+    if (tagContactIds.length === 0) return { data: [], total: 0 };
+    conditions.push(inArray(contacts.id, tagContactIds));
+  }
+
+  const whereClause = and(...conditions);
+
+  const [countResult] = await db
+    .select({ total: sql<number>`count(*)` })
+    .from(contacts)
+    .where(whereClause);
+
+  const limit = filters.limit ?? 50;
+  const offset = filters.offset ?? 0;
+
+  const data = await db
+    .select()
+    .from(contacts)
+    .where(whereClause)
+    .orderBy(desc(contacts.createdAt))
+    .limit(limit)
+    .offset(offset);
+
+  return { data, total: countResult?.total ?? 0 };
+}
+
+export async function updateContact(
+  id: number,
+  accountId: number,
+  data: Partial<InsertContact>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(contacts)
+    .set(data)
+    .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
+}
+
+export async function deleteContact(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete related data first
+  await db.delete(contactTags).where(eq(contactTags.contactId, id));
+  await db.delete(contactNotes).where(eq(contactNotes.contactId, id));
+  await db
+    .delete(contacts)
+    .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
+}
+
+export async function assignContact(
+  id: number,
+  accountId: number,
+  assignedUserId: number | null
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(contacts)
+    .set({ assignedUserId })
+    .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
+}
+
+export async function getContactStats(accountId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, new: 0, qualified: 0, won: 0 };
+
+  const [totalResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contacts)
+    .where(eq(contacts.accountId, accountId));
+
+  const [newResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contacts)
+    .where(
+      and(eq(contacts.accountId, accountId), eq(contacts.status, "new"))
+    );
+
+  const [qualifiedResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.accountId, accountId),
+        eq(contacts.status, "qualified")
+      )
+    );
+
+  const [wonResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contacts)
+    .where(
+      and(eq(contacts.accountId, accountId), eq(contacts.status, "won"))
+    );
+
+  return {
+    total: totalResult?.count ?? 0,
+    new: newResult?.count ?? 0,
+    qualified: qualifiedResult?.count ?? 0,
+    won: wonResult?.count ?? 0,
+  };
+}
+
+// ─────────────────────────────────────────────
+// CONTACT TAG HELPERS
+// ─────────────────────────────────────────────
+
+export async function getContactTags(contactId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(contactTags)
+    .where(eq(contactTags.contactId, contactId))
+    .orderBy(asc(contactTags.tag));
+}
+
+export async function addContactTag(contactId: number, tag: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Prevent duplicates
+  const existing = await db
+    .select()
+    .from(contactTags)
+    .where(
+      and(eq(contactTags.contactId, contactId), eq(contactTags.tag, tag))
+    )
+    .limit(1);
+  if (existing.length > 0) return existing[0];
+  const result = await db
+    .insert(contactTags)
+    .values({ contactId, tag });
+  return { id: result[0].insertId, contactId, tag };
+}
+
+export async function removeContactTag(contactId: number, tag: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(contactTags)
+    .where(
+      and(eq(contactTags.contactId, contactId), eq(contactTags.tag, tag))
+    );
+}
+
+export async function listAllTagsForAccount(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  // Get distinct tags used across all contacts in this account
+  const result = await db
+    .selectDistinct({ tag: contactTags.tag })
+    .from(contactTags)
+    .innerJoin(contacts, eq(contactTags.contactId, contacts.id))
+    .where(eq(contacts.accountId, accountId))
+    .orderBy(asc(contactTags.tag));
+  return result.map((r) => r.tag);
+}
+
+// ─────────────────────────────────────────────
+// CONTACT NOTE HELPERS
+// ─────────────────────────────────────────────
+
+export async function createContactNote(data: InsertContactNote) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contactNotes).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function listContactNotes(contactId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: contactNotes.id,
+      contactId: contactNotes.contactId,
+      authorId: contactNotes.authorId,
+      content: contactNotes.content,
+      isPinned: contactNotes.isPinned,
+      createdAt: contactNotes.createdAt,
+      updatedAt: contactNotes.updatedAt,
+      authorName: users.name,
+      authorEmail: users.email,
+    })
+    .from(contactNotes)
+    .leftJoin(users, eq(contactNotes.authorId, users.id))
+    .where(eq(contactNotes.contactId, contactId))
+    .orderBy(desc(contactNotes.isPinned), desc(contactNotes.createdAt));
+}
+
+export async function updateContactNote(
+  id: number,
+  data: { content?: string; isPinned?: boolean }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(contactNotes).set(data).where(eq(contactNotes.id, id));
+}
+
+export async function deleteContactNote(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(contactNotes).where(eq(contactNotes.id, id));
+}
+
+export async function getContactNoteById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(contactNotes)
+    .where(eq(contactNotes.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
 }

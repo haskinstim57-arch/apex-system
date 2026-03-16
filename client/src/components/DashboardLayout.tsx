@@ -45,7 +45,7 @@ import { toast } from "sonner";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Users, label: "Contacts", path: "/contacts", placeholder: true },
+  { icon: Users, label: "Contacts", path: "/contacts" },
   { icon: MessageSquare, label: "Messages", path: "/messages", placeholder: true },
   { icon: Send, label: "Campaigns", path: "/campaigns", placeholder: true },
   { icon: Phone, label: "AI Calls", path: "/ai-calls", placeholder: true },

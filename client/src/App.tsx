@@ -11,6 +11,8 @@ import AccountDetail from "./pages/AccountDetail";
 import TeamMembers from "./pages/TeamMembers";
 import SettingsPage from "./pages/Settings";
 import InviteAccept from "./pages/InviteAccept";
+import Contacts from "./pages/Contacts";
+import ContactDetail from "./pages/ContactDetail";
 
 function Router() {
   return (
@@ -40,6 +42,22 @@ function Router() {
         <DashboardLayout>
           <TeamMembers />
         </DashboardLayout>
+      </Route>
+      <Route path="/contacts">
+        <DashboardLayout>
+          <Contacts />
+        </DashboardLayout>
+      </Route>
+      <Route path="/contacts/:id">
+        {(params) => {
+          const searchParams = new URLSearchParams(window.location.search);
+          const accountId = parseInt(searchParams.get("account") || "0");
+          return (
+            <DashboardLayout>
+              <ContactDetail id={parseInt(params.id)} accountId={accountId} />
+            </DashboardLayout>
+          );
+        }}
       </Route>
       <Route path="/settings">
         <DashboardLayout>
