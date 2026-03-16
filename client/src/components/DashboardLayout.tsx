@@ -27,6 +27,7 @@ import {
   BarChart3,
   Building2,
   Globe,
+  Kanban,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -51,6 +52,7 @@ const menuItems = [
   { icon: Phone, label: "AI Calls", path: "/ai-calls" },
   { icon: Globe, label: "Websites", path: "/websites", placeholder: true },
   { icon: BarChart3, label: "Analytics", path: "/analytics", placeholder: true },
+  { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: Zap, label: "Automations", path: "/automations" },
 ];
 

@@ -18,6 +18,7 @@ import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import AICalls from "./pages/AICalls";
 import Automations from "./pages/Automations";
+import Pipeline from "./pages/Pipeline";
 
 function Router() {
   return (
@@ -78,6 +79,11 @@ function Router() {
       <Route path="/automations">
         <DashboardLayout>
           <Automations />
+        </DashboardLayout>
+      </Route>
+      <Route path="/pipeline">
+        <DashboardLayout>
+          <Pipeline />
         </DashboardLayout>
       </Route>
       <Route path="/contacts/:id">

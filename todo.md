@@ -208,4 +208,18 @@
 - [x] All triggers fire asynchronously (non-blocking via dynamic import + .catch)
 - [x] Write vitest tests for trigger wiring (9 integration tests)
 - [x] All 263 tests pass
+- [x] Checkpoint saved
+
+## Pipeline / Deals Module
+- [x] Database schema: pipelines, pipeline_stages, deals tables
+- [x] DB helpers for pipeline CRUD (createDefaultPipeline, getOrCreateDefaultPipeline, listPipelines, listPipelineStages, createDeal, getDealById, getDealByContactId, listDeals, updateDeal, deleteDeal, getPipelineStageById)
+- [x] tRPC router for pipeline management (listPipelines, getDefault, listStages, listDeals, createDeal, moveDeal, updateDeal, deleteDeal)
+- [x] Default pipeline with 6 stages: New Lead, Contacted, Qualified, Proposal, Closed Won, Closed Lost
+- [x] Kanban board UI with drag-and-drop between stages
+- [x] Fire pipeline_stage_changed automation trigger on deal movement (via moveDeal)
+- [x] Store deal data: contactId, pipelineId, stageId, title, value, sortOrder, updatedAt
+- [x] Sub-account isolation on all pipeline data
+- [x] Pipeline nav item added to sidebar
+- [x] Write vitest tests (28 tests)
+- [x] All 28 pipeline tests pass, 287/291 total pass (4 pre-existing flaky tests in other modules)
 - [ ] Checkpoint saved

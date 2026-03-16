@@ -57,6 +57,13 @@
       "when": 1773665527681,
       "tag": "0007_exotic_nighthawk",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1773671482901,
+      "tag": "0008_condemned_cloak",
+      "breakpoints": true
     }
   ]
 }

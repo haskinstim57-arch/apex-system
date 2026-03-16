@@ -37,6 +37,12 @@ import {
   type InsertWorkflowExecution,
   type InsertWorkflowExecutionStep,
   type InsertTask,
+  pipelines,
+  pipelineStages,
+  deals,
+  type InsertPipeline,
+  type InsertPipelineStage,
+  type InsertDeal,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1777,4 +1783,196 @@ export async function updateTask(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.update(tasks).set(data as any).where(eq(tasks.id, id));
+}
+
+// ─────────────────────────────────────────────
+// PIPELINE HELPERS
+// ─────────────────────────────────────────────
+
+const DEFAULT_STAGES = [
+  { name: "New Lead", color: "#3b82f6", sortOrder: 0, isWon: false, isLost: false },
+  { name: "Contacted", color: "#8b5cf6", sortOrder: 1, isWon: false, isLost: false },
+  { name: "Qualified", color: "#f59e0b", sortOrder: 2, isWon: false, isLost: false },
+  { name: "Proposal", color: "#ec4899", sortOrder: 3, isWon: false, isLost: false },
+  { name: "Closed Won", color: "#10b981", sortOrder: 4, isWon: true, isLost: false },
+  { name: "Closed Lost", color: "#ef4444", sortOrder: 5, isWon: false, isLost: true },
+];
+
+export async function createPipeline(data: InsertPipeline) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(pipelines).values(data);
+  return { id: result.insertId };
+}
+
+export async function createDefaultPipeline(accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Create the pipeline
+  const [pipelineResult] = await db.insert(pipelines).values({
+    accountId,
+    name: "Sales Pipeline",
+    isDefault: true,
+  });
+  const pipelineId = pipelineResult.insertId;
+
+  // Create default stages
+  for (const stage of DEFAULT_STAGES) {
+    await db.insert(pipelineStages).values({
+      pipelineId,
+      accountId,
+      ...stage,
+    });
+  }
+
+  return { id: pipelineId };
+}
+
+export async function listPipelines(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(pipelines)
+    .where(eq(pipelines.accountId, accountId))
+    .orderBy(desc(pipelines.isDefault), asc(pipelines.createdAt));
+}
+
+export async function getPipelineById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(pipelines)
+    .where(and(eq(pipelines.id, id), eq(pipelines.accountId, accountId)));
+  return rows[0] || null;
+}
+
+export async function listPipelineStages(pipelineId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(pipelineStages)
+    .where(
+      and(
+        eq(pipelineStages.pipelineId, pipelineId),
+        eq(pipelineStages.accountId, accountId)
+      )
+    )
+    .orderBy(asc(pipelineStages.sortOrder));
+}
+
+export async function createDeal(data: InsertDeal) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(deals).values(data);
+  return { id: result.insertId };
+}
+
+export async function getDealById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(deals)
+    .where(and(eq(deals.id, id), eq(deals.accountId, accountId)));
+  return rows[0] || null;
+}
+
+export async function getDealByContactId(contactId: number, pipelineId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(deals)
+    .where(
+      and(
+        eq(deals.contactId, contactId),
+        eq(deals.pipelineId, pipelineId),
+        eq(deals.accountId, accountId)
+      )
+    );
+  return rows[0] || null;
+}
+
+export async function listDeals(pipelineId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      deal: deals,
+      contact: {
+        id: contacts.id,
+        firstName: contacts.firstName,
+        lastName: contacts.lastName,
+        email: contacts.email,
+        phone: contacts.phone,
+        status: contacts.status,
+        leadSource: contacts.leadSource,
+        company: contacts.company,
+      },
+    })
+    .from(deals)
+    .innerJoin(contacts, eq(deals.contactId, contacts.id))
+    .where(
+      and(
+        eq(deals.pipelineId, pipelineId),
+        eq(deals.accountId, accountId)
+      )
+    )
+    .orderBy(asc(deals.sortOrder));
+}
+
+export async function updateDeal(
+  id: number,
+  accountId: number,
+  data: Partial<Pick<InsertDeal, "stageId" | "title" | "value" | "sortOrder">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(deals)
+    .set(data)
+    .where(and(eq(deals.id, id), eq(deals.accountId, accountId)));
+}
+
+export async function deleteDeal(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(deals)
+    .where(and(eq(deals.id, id), eq(deals.accountId, accountId)));
+}
+
+export async function getDefaultPipeline(accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(pipelines)
+    .where(
+      and(eq(pipelines.accountId, accountId), eq(pipelines.isDefault, true))
+    );
+  return rows[0] || null;
+}
+
+export async function getOrCreateDefaultPipeline(accountId: number) {
+  let pipeline = await getDefaultPipeline(accountId);
+  if (!pipeline) {
+    const { id } = await createDefaultPipeline(accountId);
+    pipeline = await getPipelineById(id, accountId);
+  }
+  return pipeline!;
+}
+
+export async function getPipelineStageById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(pipelineStages)
+    .where(and(eq(pipelineStages.id, id), eq(pipelineStages.accountId, accountId)));
+  return rows[0] || null;
 }

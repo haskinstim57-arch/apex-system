@@ -578,3 +578,55 @@ export const tasks = mysqlTable("tasks", {
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = typeof tasks.$inferInsert;
+
+// ─────────────────────────────────────────────
+// PIPELINES — Pipeline definitions per account
+// ─────────────────────────────────────────────
+export const pipelines = mysqlTable("pipelines", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Pipeline = typeof pipelines.$inferSelect;
+export type InsertPipeline = typeof pipelines.$inferInsert;
+
+// ─────────────────────────────────────────────
+// PIPELINE STAGES — Ordered stages within a pipeline
+// ─────────────────────────────────────────────
+export const pipelineStages = mysqlTable("pipeline_stages", {
+  id: int("id").autoincrement().primaryKey(),
+  pipelineId: int("pipeline_id").notNull(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  color: varchar("color", { length: 20 }).default("#6b7280").notNull(),
+  sortOrder: int("sort_order").default(0).notNull(),
+  isWon: boolean("is_won").default(false).notNull(),
+  isLost: boolean("is_lost").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PipelineStage = typeof pipelineStages.$inferSelect;
+export type InsertPipelineStage = typeof pipelineStages.$inferInsert;
+
+// ─────────────────────────────────────────────
+// DEALS — Contacts placed in pipeline stages
+// ─────────────────────────────────────────────
+export const deals = mysqlTable("deals", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  pipelineId: int("pipeline_id").notNull(),
+  stageId: int("stage_id").notNull(),
+  contactId: int("contact_id").notNull(),
+  title: varchar("title", { length: 500 }),
+  value: int("value").default(0),
+  sortOrder: int("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Deal = typeof deals.$inferSelect;
+export type InsertDeal = typeof deals.$inferInsert;
