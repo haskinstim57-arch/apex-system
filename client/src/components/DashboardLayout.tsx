@@ -44,6 +44,8 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { AccountSwitcher } from "./AccountSwitcher";
+import { useAccount } from "@/contexts/AccountContext";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -170,14 +172,7 @@ function DashboardLayoutContent({
     (item) => item.path === location
   );
   const isMobile = useIsMobile();
-  const isAdmin = user?.role === "admin";
-
-  // Check impersonation status to add top padding when banner is visible
-  const { data: impersonationStatus } = trpc.impersonation.status.useQuery(undefined, {
-    enabled: isAdmin,
-    refetchOnWindowFocus: false,
-  });
-  const isImpersonating = impersonationStatus?.isImpersonating ?? false;
+  const { isAdmin, isImpersonating } = useAccount();
 
   useEffect(() => {
     if (isCollapsed) {
@@ -256,6 +251,9 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent className="gap-0">
+            {/* Account Switcher — admin only */}
+            <AccountSwitcher collapsed={isCollapsed} />
+
             {/* Main navigation */}
             <SidebarMenu className="px-2 py-2">
               {!isCollapsed && (

@@ -50,6 +50,7 @@ import {
   Users,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useAccount } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 
 const STATUS_CONFIG: Record<
@@ -96,19 +97,7 @@ const STATUS_CONFIG: Record<
 export default function AICalls() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-
-  // Account selection
-  const { data: userAccounts, isLoading: accountsLoading } =
-    trpc.accounts.list.useQuery();
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
-    null
-  );
-
-  const accountId = useMemo(() => {
-    if (selectedAccountId) return selectedAccountId;
-    if (userAccounts && userAccounts.length > 0) return userAccounts[0].id;
-    return null;
-  }, [selectedAccountId, userAccounts]);
+  const { currentAccountId: accountId, isLoading: accountsLoading } = useAccount();
 
   // Filters
   const [search, setSearch] = useState("");
@@ -273,7 +262,7 @@ export default function AICalls() {
     );
   }
 
-  if (!userAccounts || userAccounts.length === 0) {
+  if (!accountId && !accountsLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <Phone className="h-12 w-12 text-muted-foreground" />
@@ -295,27 +284,7 @@ export default function AICalls() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Account selector */}
-          {userAccounts.length > 1 && (
-            <Select
-              value={accountId?.toString() ?? ""}
-              onValueChange={(v) => {
-                setSelectedAccountId(Number(v));
-                setPage(1);
-              }}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {userAccounts.map((acc: any) => (
-                  <SelectItem key={acc.id} value={acc.id.toString()}>
-                    {acc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Account selector removed — use sidebar AccountSwitcher */}
           <Button
             variant="outline"
             onClick={() => setBulkCallOpen(true)}

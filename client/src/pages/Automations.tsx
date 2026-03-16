@@ -56,6 +56,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { useMemo, useState, useCallback } from "react";
+import { useAccount } from "@/contexts/AccountContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -107,17 +108,7 @@ const CONTACT_FIELDS = [
 export default function Automations() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-
-  // Account selection
-  const { data: userAccounts, isLoading: accountsLoading } =
-    trpc.accounts.list.useQuery();
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-
-  const accountId = useMemo(() => {
-    if (selectedAccountId) return selectedAccountId;
-    if (userAccounts && userAccounts.length > 0) return userAccounts[0].id;
-    return null;
-  }, [selectedAccountId, userAccounts]);
+  const { currentAccountId: accountId, isLoading: accountsLoading } = useAccount();
 
   // View state
   const [view, setView] = useState<"list" | "builder" | "logs">("list");
@@ -152,24 +143,7 @@ export default function Automations() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Account selector */}
-          {userAccounts && userAccounts.length > 1 && (
-            <Select
-              value={accountId?.toString() ?? ""}
-              onValueChange={(v) => setSelectedAccountId(parseInt(v))}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {userAccounts.map((acc) => (
-                  <SelectItem key={acc.id} value={acc.id.toString()}>
-                    {acc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Account selector removed — use sidebar AccountSwitcher */}
 
           {/* View tabs */}
           <div className="flex bg-muted rounded-lg p-0.5">

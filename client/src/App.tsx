@@ -22,6 +22,8 @@ import Pipeline from "./pages/Pipeline";
 import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
+import { AccountProvider } from "./contexts/AccountContext";
+import { AdminRoute } from "./components/AdminRoute";
 
 function Router() {
   return (
@@ -38,13 +40,17 @@ function Router() {
       </Route>
       <Route path="/accounts">
         <DashboardLayout>
-          <Accounts />
+          <AdminRoute>
+            <Accounts />
+          </AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/accounts/:id">
         {(params) => (
           <DashboardLayout>
-            <AccountDetail id={parseInt(params.id)} />
+            <AdminRoute>
+              <AccountDetail id={parseInt(params.id)} />
+            </AdminRoute>
           </DashboardLayout>
         )}
       </Route>
@@ -108,7 +114,9 @@ function Router() {
       </Route>
       <Route path="/settings/facebook-pages">
         <DashboardLayout>
-          <FacebookPages />
+          <AdminRoute>
+            <FacebookPages />
+          </AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/404" component={NotFound} />
@@ -133,7 +141,9 @@ function App() {
             }}
           />
           <ImpersonationBanner />
-          <Router />
+          <AccountProvider>
+            <Router />
+          </AccountProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>

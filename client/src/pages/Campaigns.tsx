@@ -61,9 +61,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useAccount } from "@/contexts/AccountContext";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
@@ -86,17 +87,7 @@ export default function Campaigns() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
-
-  // Account selection
-  const { data: userAccounts, isLoading: accountsLoading } =
-    trpc.accounts.list.useQuery();
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-
-  const accountId = useMemo(() => {
-    if (selectedAccountId) return selectedAccountId;
-    if (userAccounts && userAccounts.length > 0) return userAccounts[0].id;
-    return null;
-  }, [selectedAccountId, userAccounts]);
+  const { currentAccountId: accountId, isLoading: accountsLoading } = useAccount();
 
   // Tab state
   const [activeTab, setActiveTab] = useState("campaigns");
@@ -197,7 +188,7 @@ export default function Campaigns() {
     );
   }
 
-  if (!userAccounts || userAccounts.length === 0) {
+  if (!accountId && !accountsLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <Send className="h-10 w-10 text-muted-foreground/50" />
@@ -219,27 +210,7 @@ export default function Campaigns() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Account selector */}
-          {userAccounts.length > 1 && (
-            <Select
-              value={String(accountId)}
-              onValueChange={(v) => {
-                setSelectedAccountId(Number(v));
-                setPage(0);
-              }}
-            >
-              <SelectTrigger className="w-[200px] h-9 text-sm border-border/50">
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {userAccounts.map((a: any) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
-                    {a.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Account selector removed — use sidebar AccountSwitcher */}
         </div>
       </div>
 

@@ -38,6 +38,7 @@ import {
   Mail,
 } from "lucide-react";
 import { useMemo, useState, useRef, useCallback } from "react";
+import { useAccount } from "@/contexts/AccountContext";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -84,17 +85,7 @@ export default function Pipeline() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
-
-  // Account selection
-  const { data: userAccounts, isLoading: accountsLoading } =
-    trpc.accounts.list.useQuery();
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
-
-  const accountId = useMemo(() => {
-    if (selectedAccountId) return selectedAccountId;
-    if (userAccounts && userAccounts.length > 0) return userAccounts[0].id;
-    return null;
-  }, [selectedAccountId, userAccounts]);
+  const { currentAccountId: accountId, isLoading: accountsLoading, isAdmin } = useAccount();
 
   // Pipeline data
   const { data: pipelineData, isLoading: pipelineLoading } =
@@ -241,7 +232,7 @@ export default function Pipeline() {
     );
   }
 
-  if (!userAccounts || userAccounts.length === 0) {
+  if (!accountId && !accountsLoading) {
     return (
       <div className="p-6">
         <p className="text-muted-foreground">
@@ -252,7 +243,6 @@ export default function Pipeline() {
   }
 
   const stages = pipelineData?.stages || [];
-  const isMultiAccount = userAccounts.length > 1 || user?.role === "admin";
 
   return (
     <div className="flex flex-col h-full">
@@ -267,23 +257,7 @@ export default function Pipeline() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {isMultiAccount && (
-            <Select
-              value={accountId?.toString() || ""}
-              onValueChange={(v) => setSelectedAccountId(parseInt(v))}
-            >
-              <SelectTrigger className="w-[200px] h-8 text-xs">
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {userAccounts.map((acc) => (
-                  <SelectItem key={acc.id} value={acc.id.toString()}>
-                    {acc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Account selector removed — use sidebar AccountSwitcher */}
           <Button
             size="sm"
             onClick={() => {

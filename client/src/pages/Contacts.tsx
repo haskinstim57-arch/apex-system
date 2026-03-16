@@ -50,9 +50,10 @@ import {
   PhoneForwarded,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useAccount } from "@/contexts/AccountContext";
 
 const STATUSES = [
   "new",
@@ -97,20 +98,7 @@ export default function Contacts() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
-
-  // Account selection — user's accounts
-  const { data: userAccounts, isLoading: accountsLoading } =
-    trpc.accounts.list.useQuery();
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
-    null
-  );
-
-  // Resolve account ID
-  const accountId = useMemo(() => {
-    if (selectedAccountId) return selectedAccountId;
-    if (userAccounts && userAccounts.length > 0) return userAccounts[0].id;
-    return null;
-  }, [selectedAccountId, userAccounts]);
+  const { currentAccountId: accountId, isLoading: accountsLoading, accounts: userAccounts } = useAccount();
 
   // Filters
   const [search, setSearch] = useState("");
@@ -211,7 +199,7 @@ export default function Contacts() {
     );
   }
 
-  if (!userAccounts || userAccounts.length === 0) {
+  if (!accountId && !accountsLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-center">
         <p className="text-muted-foreground mb-2">
@@ -235,27 +223,7 @@ export default function Contacts() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Account selector */}
-          {userAccounts.length > 1 && (
-            <Select
-              value={String(accountId)}
-              onValueChange={(v) => {
-                setSelectedAccountId(parseInt(v));
-                setPage(0);
-              }}
-            >
-              <SelectTrigger className="w-[180px] h-9 text-xs bg-card border-border/50">
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {userAccounts.map((acc) => (
-                  <SelectItem key={acc.id} value={String(acc.id)}>
-                    {acc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Account selector removed — use sidebar AccountSwitcher instead */}
           <Button
             size="sm"
             onClick={() => setCreateOpen(true)}

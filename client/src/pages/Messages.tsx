@@ -54,9 +54,10 @@ import {
   ArrowDownLeft,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useAccount } from "@/contexts/AccountContext";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
@@ -70,19 +71,7 @@ export default function Messages() {
   const { user } = useAuth();
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
-
-  // Account selection
-  const { data: userAccounts, isLoading: accountsLoading } =
-    trpc.accounts.list.useQuery();
-  const [selectedAccountId, setSelectedAccountId] = useState<number | null>(
-    null
-  );
-
-  const accountId = useMemo(() => {
-    if (selectedAccountId) return selectedAccountId;
-    if (userAccounts && userAccounts.length > 0) return userAccounts[0].id;
-    return null;
-  }, [selectedAccountId, userAccounts]);
+  const { currentAccountId: accountId, isLoading: accountsLoading } = useAccount();
 
   // Filters
   const [search, setSearch] = useState("");
@@ -248,27 +237,7 @@ export default function Messages() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          {/* Account selector */}
-          {userAccounts && userAccounts.length > 1 && (
-            <Select
-              value={accountId?.toString() || ""}
-              onValueChange={(v) => {
-                setSelectedAccountId(parseInt(v));
-                setPage(0);
-              }}
-            >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select account" />
-              </SelectTrigger>
-              <SelectContent>
-                {userAccounts.map((acc: any) => (
-                  <SelectItem key={acc.id} value={acc.id.toString()}>
-                    {acc.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+          {/* Account selector removed — use sidebar AccountSwitcher */}
           <Button
             onClick={() => setComposeOpen(true)}
             disabled={!accountId}

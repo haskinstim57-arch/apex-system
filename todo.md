@@ -342,4 +342,27 @@
 - [x] Add impersonation warning banner when active
 - [x] Add "Stop Impersonation" button to restore admin session
 - [x] Write vitest tests for impersonation (16 tests pass)
+- [x] Checkpoint saved
+
+## Tenant Isolation Audit & Enforcement
+- [x] Audit existing routers, middleware, context, and DashboardLayout
+- [x] Create AccountContext provider (single source of truth for currentAccountId)
+- [x] Wire AccountProvider into App.tsx
+- [x] Enforce WHERE account_id scoping in contacts router (already enforced via requireAccountMember)
+- [x] Enforce WHERE account_id scoping in messages router (already enforced via requireAccountMember)
+- [x] Enforce WHERE account_id scoping in campaigns router (already enforced via requireAccountAccess)
+- [x] Enforce WHERE account_id scoping in pipelines router (already enforced via requireAccountMember)
+- [x] Enforce WHERE account_id scoping in automations router (already enforced via requireAccountMember)
+- [x] Enforce WHERE account_id scoping in AI calls router (already enforced via requireAccountAccess)
+- [x] Update frontend: hide admin-only menu items for clients (AdminRoute guard + sidebar gating)
+- [x] Update frontend: admin-only account selector in sidebar (AccountSwitcher component)
+- [x] Update frontend: clients don't see account selector or Sub-Accounts menu
+- [x] Fix Contacts page to scope by current account (uses useAccount() hook)
+- [x] Fix Messages page to scope by current account
+- [x] Fix Campaigns page to scope by current account
+- [x] Fix AICalls page to scope by current account
+- [x] Fix Pipeline page to scope by current account
+- [x] Fix Automations page to scope by current account
+- [x] Fix Home page to use useAccount() for admin/account state
+- [x] Write vitest tests for tenant isolation (28 tests across 10 sections — all pass)
 - [ ] Checkpoint saved

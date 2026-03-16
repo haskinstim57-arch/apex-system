@@ -12,18 +12,16 @@ import {
   MessageSquare,
   BarChart3,
 } from "lucide-react";
+import { useAccount } from "@/contexts/AccountContext";
 
 export default function Home() {
   const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { isAdmin, accounts } = useAccount();
 
   // Admin stats
   const { data: adminStats } = trpc.accounts.adminStats.useQuery(undefined, {
     enabled: isAdmin,
   });
-
-  // User's accounts
-  const { data: accounts } = trpc.accounts.list.useQuery();
 
   const greeting = () => {
     const hour = new Date().getHours();
