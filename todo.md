@@ -268,4 +268,22 @@
 - [x] Update contact form leadSource dropdown: Facebook, Instagram, Google Ads, TikTok (added at top of list)
 - [x] Existing leadSource values remain compatible (Website, Referral, etc. still present)
 - [x] All 344 tests pass
+- [x] Checkpoint saved
+
+## Sub-Account Authentication
+- [x] Audit current auth system (OAuth, sessions, user-account mapping)
+- [x] Add passwordHash column to users table
+- [x] Add getUserWithPassword, setUserPassword, getUserAccountMemberships DB helpers
+- [x] Build sub-account login endpoint (email/password via tRPC subAccountAuth.login)
+- [x] Build sub-account login screen UI (/login route)
+- [x] Sub-account owners log in with own credentials (email + password)
+- [x] Employees log in under their sub-account (membership-based routing)
+- [x] Session maps user to accountId via getUserAccountMemberships
+- [x] Data isolation: all 9 routers enforce requireAccountMember/requireAccountAccess
+- [x] Preserve existing OAuth and role system (admin OAuth + sub-account email/password)
+- [x] Admin endpoints: createSubAccountUser, setPassword, resetPassword
+- [x] User endpoints: changePassword, myAccounts
+- [x] Login screen with "Admin Sign In" (OAuth) and "Sub-Account Login" (email/password) options
+- [x] Write vitest tests (25 tests)
+- [x] All 369 tests pass
 - [ ] Checkpoint saved

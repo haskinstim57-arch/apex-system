@@ -19,12 +19,14 @@ import CampaignDetail from "./pages/CampaignDetail";
 import AICalls from "./pages/AICalls";
 import Automations from "./pages/Automations";
 import Pipeline from "./pages/Pipeline";
+import SubAccountLogin from "./pages/SubAccountLogin";
 
 function Router() {
   return (
     <Switch>
-      {/* Public route: accept invite */}
+      {/* Public routes */}
       <Route path="/invite/:token" component={InviteAccept} />
+      <Route path="/login" component={SubAccountLogin} />
 
       {/* Dashboard routes wrapped in layout */}
       <Route path="/">

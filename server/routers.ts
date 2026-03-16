@@ -11,6 +11,7 @@ import { campaignsRouter } from "./routers/campaigns";
 import { aiCallsRouter } from "./routers/aiCalls";
 import { automationsRouter } from "./routers/automations";
 import { pipelineRouter } from "./routers/pipeline";
+import { subAccountAuthRouter } from "./routers/subAccountAuth";
 
 export const appRouter = router({
   system: systemRouter,
@@ -33,6 +34,7 @@ export const appRouter = router({
   aiCalls: aiCallsRouter,
   automations: automationsRouter,
   pipeline: pipelineRouter,
+  subAccountAuth: subAccountAuthRouter,
 });
 
 export type AppRouter = typeof appRouter;

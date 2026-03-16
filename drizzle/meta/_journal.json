@@ -64,6 +64,13 @@
       "when": 1773671482901,
       "tag": "0008_condemned_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1773678367578,
+      "tag": "0009_rare_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

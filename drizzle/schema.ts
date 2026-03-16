@@ -17,6 +17,8 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
+  /** bcrypt hash for email/password login (sub-account users) */
+  passwordHash: varchar("passwordHash", { length: 255 }),
   /** Platform-level role: admin = agency owner, user = normal user */
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

@@ -113,7 +113,22 @@ export default function DashboardLayout({
             size="lg"
             className="w-full shadow-lg hover:shadow-xl transition-all"
           >
-            Sign in to continue
+            Admin Sign In
+          </Button>
+          <div className="flex items-center gap-3 w-full">
+            <div className="h-px flex-1 bg-border" />
+            <span className="text-xs text-muted-foreground">or</span>
+            <div className="h-px flex-1 bg-border" />
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => {
+              window.location.href = "/login";
+            }}
+            size="lg"
+            className="w-full"
+          >
+            Sub-Account Login
           </Button>
         </div>
       </div>

@@ -79,7 +79,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     const values: InsertUser = { openId: user.openId };
     const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
+    const textFields = ["name", "email", "loginMethod", "passwordHash"] as const;
     type TextField = (typeof textFields)[number];
 
     const assignNullable = (field: TextField) => {
@@ -152,6 +152,35 @@ export async function getUserByEmail(email: string) {
     .where(eq(users.email, email))
     .limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function setUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.id, userId));
+}
+
+export async function getUserAccountMemberships(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const result = await db
+    .select({
+      memberId: accountMembers.id,
+      accountId: accountMembers.accountId,
+      accountName: accounts.name,
+      accountSlug: accounts.slug,
+      accountStatus: accounts.status,
+      memberRole: accountMembers.role,
+      isActive: accountMembers.isActive,
+    })
+    .from(accountMembers)
+    .innerJoin(accounts, eq(accountMembers.accountId, accounts.id))
+    .where(and(eq(accountMembers.userId, userId), eq(accountMembers.isActive, true)))
+    .orderBy(desc(accountMembers.joinedAt));
+  return result;
 }
 
 export async function listAllUsers() {
