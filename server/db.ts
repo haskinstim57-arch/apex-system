@@ -974,7 +974,11 @@ export async function listCampaignTemplates(
 ) {
   const db = await getDb();
   if (!db) return [];
-  const conditions = [eq(campaignTemplates.accountId, accountId)];
+  const accountCondition = or(
+    eq(campaignTemplates.accountId, accountId),
+    eq(campaignTemplates.accountId, 0) // include global prebuilt templates
+  );
+  const conditions = [accountCondition];
   if (opts.type) conditions.push(eq(campaignTemplates.type, opts.type));
   return db
     .select()
@@ -990,7 +994,10 @@ export async function getCampaignTemplate(id: number, accountId: number) {
     .select()
     .from(campaignTemplates)
     .where(
-      and(eq(campaignTemplates.id, id), eq(campaignTemplates.accountId, accountId))
+      and(
+        eq(campaignTemplates.id, id),
+        or(eq(campaignTemplates.accountId, accountId), eq(campaignTemplates.accountId, 0))
+      )
     )
     .limit(1);
   return rows[0];

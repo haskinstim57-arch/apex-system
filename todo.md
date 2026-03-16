@@ -99,3 +99,10 @@
 - [x] Frontend: Recipient list with delivery status
 - [x] Vitest tests for campaigns CRUD, validation, and auth
 - [x] Checkpoint saved
+
+## Seed Data: Prebuilt Campaign Templates
+- [x] Create seed script with 4 email templates for mortgage/loan officers
+- [x] Create seed script with 4 SMS templates for mortgage/loan officers
+- [x] Templates support variables: {{first_name}}, {{last_name}}, {{agent_name}}, {{company_name}}
+- [x] Run seed script and verify templates in database
+- [x] Checkpoint saved

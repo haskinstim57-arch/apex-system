@@ -1,0 +1,71 @@
+{
+  "query": "SELECT id, name, type, subject, LEFT(body, 80) as body_preview FROM campaign_templates WHERE accountId = 0 ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, type, subject, LEFT(body, 80) as body_preview FROM campaign_templates WHERE accountId = 0 ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "New Lead Introduction",
+      "type": "email",
+      "subject": "Thanks for your mortgage inquiry",
+      "body_preview": "Hi {{first_name}},"
+    },
+    {
+      "id": "2",
+      "name": "Follow-Up Reminder",
+      "type": "email",
+      "subject": "Just checking in",
+      "body_preview": "Hi {{first_name}},"
+    },
+    {
+      "id": "3",
+      "name": "Rate Update",
+      "type": "email",
+      "subject": "Mortgage rate update",
+      "body_preview": "Hi {{first_name}},"
+    },
+    {
+      "id": "4",
+      "name": "Appointment Confirmation",
+      "type": "email",
+      "subject": "Your mortgage consultation",
+      "body_preview": "Hi {{first_name}},"
+    },
+    {
+      "id": "5",
+      "name": "New Lead SMS",
+      "type": "sms",
+      "subject": "NULL",
+      "body_preview": "Hi {{first_name}}, this is {{agent_name}} from {{company_name}}. I saw your mort"
+    },
+    {
+      "id": "6",
+      "name": "Follow-Up SMS",
+      "type": "sms",
+      "subject": "NULL",
+      "body_preview": "Hi {{first_name}}, just checking in to see if you're still interested in explori"
+    },
+    {
+      "id": "7",
+      "name": "Appointment Reminder SMS",
+      "type": "sms",
+      "subject": "NULL",
+      "body_preview": "Reminder: We have a call scheduled today regarding your mortgage options. Lookin"
+    },
+    {
+      "id": "8",
+      "name": "Quick Qualification SMS",
+      "type": "sms",
+      "subject": "NULL",
+      "body_preview": "Hi {{first_name}}, this is {{agent_name}} from {{company_name}}. I can help you "
+    }
+  ],
+  "messages": [
+    "Thank you for reaching out about your mortgage options! My n",
+    "I hope this message finds you well. I wanted to follow up on",
+    "I wanted to reach out with an important update — mortgage ra",
+    "This is a confirmation of your upcoming mortgage consultatio"
+  ],
+  "stdout": "id\tname\ttype\tsubject\tbody_preview\n1\tNew Lead Introduction\temail\tThanks for your mortgage inquiry\tHi {{first_name}},\n\nThank you for reaching out about your mortgage options! My n\n2\tFollow-Up Reminder\temail\tJust checking in\tHi {{first_name}},\n\nI hope this message finds you well. I wanted to follow up on\n3\tRate Update\temail\tMortgage rate update\tHi {{first_name}},\n\nI wanted to reach out with an important update — mortgage ra\n4\tAppointment Confirmation\temail\tYour mortgage consultation\tHi {{first_name}},\n\nThis is a confirmation of your upcoming mortgage consultatio\n5\tNew Lead SMS\tsms\tNULL\tHi {{first_name}}, this is {{agent_name}} from {{company_name}}. I saw your mort\n6\tFollow-Up SMS\tsms\tNULL\tHi {{first_name}}, just checking in to see if you're still interested in explori\n7\tAppointment Reminder SMS\tsms\tNULL\tReminder: We have a call scheduled today regarding your mortgage options. Lookin\n8\tQuick Qualification SMS\tsms\tNULL\tHi {{first_name}}, this is {{agent_name}} from {{company_name}}. I can help you \n",
+  "stderr": "",
+  "execution_time_ms": 79
+}
