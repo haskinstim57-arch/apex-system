@@ -108,6 +108,14 @@ export const contactsRouter = router({
         for (const tag of tags) {
           await addContactTag(id, tag.trim());
         }
+        // Fire tag_added triggers for each tag (async, non-blocking)
+        import("../services/workflowTriggers").then(({ onTagAdded }) => {
+          for (const tag of tags) {
+            onTagAdded(input.accountId, id, tag.trim()).catch((err: unknown) =>
+              console.error("[Trigger] onTagAdded error:", err)
+            );
+          }
+        });
       }
 
       await createAuditLog({
@@ -117,6 +125,22 @@ export const contactsRouter = router({
         resourceType: "contact",
         resourceId: id,
       });
+
+      // Fire automation triggers (async, non-blocking)
+      import("../services/workflowTriggers").then(({ onContactCreated }) => {
+        onContactCreated(input.accountId, id).catch((err: unknown) =>
+          console.error("[Trigger] onContactCreated error:", err)
+        );
+      });
+
+      // If lead source is facebook, also fire the facebook_lead_received trigger
+      if (input.leadSource?.toLowerCase().includes("facebook")) {
+        import("../services/workflowTriggers").then(({ onFacebookLeadReceived }) => {
+          onFacebookLeadReceived(input.accountId, id).catch((err: unknown) =>
+            console.error("[Trigger] onFacebookLeadReceived error:", err)
+          );
+        });
+      }
 
       return { id };
     }),
@@ -213,6 +237,20 @@ export const contactsRouter = router({
       }
 
       await updateContact(id, accountId, normalized);
+
+      // Fire pipeline stage changed trigger if status changed
+      if (normalized.status && normalized.status !== existing.status) {
+        import("../services/workflowTriggers").then(({ onPipelineStageChanged }) => {
+          onPipelineStageChanged(
+            accountId,
+            id,
+            existing.status || "new",
+            normalized.status as string
+          ).catch((err: unknown) =>
+            console.error("[Trigger] onPipelineStageChanged error:", err)
+          );
+        });
+      }
 
       await createAuditLog({
         accountId,
@@ -357,7 +395,16 @@ export const contactsRouter = router({
           message: "Contact not found",
         });
       }
-      return addContactTag(input.contactId, input.tag.trim());
+      const result = await addContactTag(input.contactId, input.tag.trim());
+
+      // Fire automation trigger (async, non-blocking)
+      import("../services/workflowTriggers").then(({ onTagAdded }) => {
+        onTagAdded(input.accountId, input.contactId, input.tag.trim()).catch((err: unknown) =>
+          console.error("[Trigger] onTagAdded error:", err)
+        );
+      });
+
+      return result;
     }),
 
   removeTag: protectedProcedure

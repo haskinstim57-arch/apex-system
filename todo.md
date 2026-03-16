@@ -197,4 +197,15 @@
 - [x] Template interpolation: {{firstName}}, {{lastName}}, {{email}}, {{phone}}, {{fullName}}
 - [x] Write vitest tests (39 tests)
 - [x] All 254 tests pass
+- [x] Checkpoint saved
+
+## Wire Automation Triggers into Existing Modules
+- [x] Add onContactCreated() call to contacts router create procedure
+- [x] Add onFacebookLeadReceived() call when leadSource contains "facebook"
+- [x] Add onTagAdded() call to contacts router addTag procedure
+- [x] Add onTagAdded() calls for tags added during contact creation
+- [x] Add onPipelineStageChanged() call to contacts router update procedure (when status changes)
+- [x] All triggers fire asynchronously (non-blocking via dynamic import + .catch)
+- [x] Write vitest tests for trigger wiring (9 integration tests)
+- [x] All 263 tests pass
 - [ ] Checkpoint saved
