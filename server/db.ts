@@ -27,6 +27,16 @@ import {
   type InsertCampaignRecipient,
   aiCalls,
   type InsertAICall,
+  workflows,
+  workflowSteps,
+  workflowExecutions,
+  workflowExecutionSteps,
+  tasks,
+  type InsertWorkflow,
+  type InsertWorkflowStep,
+  type InsertWorkflowExecution,
+  type InsertWorkflowExecutionStep,
+  type InsertTask,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1395,4 +1405,376 @@ export async function getAICallsByContact(contactId: number, accountId: number) 
     .from(aiCalls)
     .where(and(eq(aiCalls.contactId, contactId), eq(aiCalls.accountId, accountId)))
     .orderBy(desc(aiCalls.createdAt));
+}
+
+// ═══════════════════════════════════════════════
+// WORKFLOWS — Automation workflow helpers
+// ═══════════════════════════════════════════════
+
+/** Create a new workflow */
+export async function createWorkflow(data: InsertWorkflow) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(workflows).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+/** List workflows for an account */
+export async function listWorkflows(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workflows)
+    .where(eq(workflows.accountId, accountId))
+    .orderBy(desc(workflows.updatedAt));
+}
+
+/** Get a single workflow by ID */
+export async function getWorkflowById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(workflows)
+    .where(and(eq(workflows.id, id), eq(workflows.accountId, accountId)))
+    .limit(1);
+  return result[0];
+}
+
+/** Update a workflow */
+export async function updateWorkflow(
+  id: number,
+  accountId: number,
+  data: Partial<{
+    name: string;
+    description: string | null;
+    triggerType: string;
+    triggerConfig: string | null;
+    isActive: boolean;
+    executionCount: number;
+    lastExecutedAt: Date;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(workflows)
+    .set(data as any)
+    .where(and(eq(workflows.id, id), eq(workflows.accountId, accountId)));
+}
+
+/** Delete a workflow and its steps */
+export async function deleteWorkflow(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete steps first
+  await db.delete(workflowSteps).where(eq(workflowSteps.workflowId, id));
+  // Delete the workflow
+  await db
+    .delete(workflows)
+    .where(and(eq(workflows.id, id), eq(workflows.accountId, accountId)));
+}
+
+/** Get active workflows matching a trigger type for an account */
+export async function getActiveWorkflowsByTrigger(
+  accountId: number,
+  triggerType: string
+) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workflows)
+    .where(
+      and(
+        eq(workflows.accountId, accountId),
+        eq(workflows.triggerType, triggerType as any),
+        eq(workflows.isActive, true)
+      )
+    );
+}
+
+// ═══════════════════════════════════════════════
+// WORKFLOW STEPS
+// ═══════════════════════════════════════════════
+
+/** Create a workflow step */
+export async function createWorkflowStep(data: InsertWorkflowStep) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(workflowSteps).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+/** List steps for a workflow (ordered) */
+export async function listWorkflowSteps(workflowId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workflowSteps)
+    .where(eq(workflowSteps.workflowId, workflowId))
+    .orderBy(workflowSteps.stepOrder);
+}
+
+/** Update a workflow step */
+export async function updateWorkflowStep(
+  id: number,
+  data: Partial<{
+    stepOrder: number;
+    stepType: string;
+    actionType: string | null;
+    delayType: string | null;
+    delayValue: number | null;
+    config: string | null;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(workflowSteps).set(data as any).where(eq(workflowSteps.id, id));
+}
+
+/** Delete a workflow step */
+export async function deleteWorkflowStep(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(workflowSteps).where(eq(workflowSteps.id, id));
+}
+
+/** Get a single workflow step */
+export async function getWorkflowStepById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(workflowSteps)
+    .where(eq(workflowSteps.id, id))
+    .limit(1);
+  return result[0];
+}
+
+// ═══════════════════════════════════════════════
+// WORKFLOW EXECUTIONS
+// ═══════════════════════════════════════════════
+
+/** Create a workflow execution */
+export async function createWorkflowExecution(data: InsertWorkflowExecution) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(workflowExecutions).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+/** List executions for a workflow */
+export async function listWorkflowExecutions(
+  workflowId: number,
+  accountId: number,
+  opts?: { limit?: number; offset?: number }
+) {
+  const db = await getDb();
+  if (!db) return { executions: [], total: 0 };
+  const limit = opts?.limit ?? 50;
+  const offset = opts?.offset ?? 0;
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select()
+      .from(workflowExecutions)
+      .where(
+        and(
+          eq(workflowExecutions.workflowId, workflowId),
+          eq(workflowExecutions.accountId, accountId)
+        )
+      )
+      .orderBy(desc(workflowExecutions.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: count() })
+      .from(workflowExecutions)
+      .where(
+        and(
+          eq(workflowExecutions.workflowId, workflowId),
+          eq(workflowExecutions.accountId, accountId)
+        )
+      ),
+  ]);
+
+  return { executions: rows, total: countResult[0]?.total ?? 0 };
+}
+
+/** List all executions for an account (across all workflows) */
+export async function listAccountExecutions(
+  accountId: number,
+  opts?: { limit?: number; offset?: number; status?: string }
+) {
+  const db = await getDb();
+  if (!db) return { executions: [], total: 0 };
+  const limit = opts?.limit ?? 50;
+  const offset = opts?.offset ?? 0;
+
+  const conditions = [eq(workflowExecutions.accountId, accountId)];
+  if (opts?.status) {
+    conditions.push(eq(workflowExecutions.status, opts.status as any));
+  }
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select()
+      .from(workflowExecutions)
+      .where(and(...conditions))
+      .orderBy(desc(workflowExecutions.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: count() })
+      .from(workflowExecutions)
+      .where(and(...conditions)),
+  ]);
+
+  return { executions: rows, total: countResult[0]?.total ?? 0 };
+}
+
+/** Get a single execution by ID */
+export async function getWorkflowExecutionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(workflowExecutions)
+    .where(eq(workflowExecutions.id, id))
+    .limit(1);
+  return result[0];
+}
+
+/** Update a workflow execution */
+export async function updateWorkflowExecution(
+  id: number,
+  data: Partial<{
+    status: string;
+    currentStep: number;
+    nextStepAt: Date | null;
+    errorMessage: string | null;
+    completedAt: Date;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(workflowExecutions)
+    .set(data as any)
+    .where(eq(workflowExecutions.id, id));
+}
+
+/** Get pending executions that are ready to process (nextStepAt <= now) */
+export async function getPendingExecutions() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workflowExecutions)
+    .where(
+      and(
+        eq(workflowExecutions.status, "running"),
+        or(
+          sql`${workflowExecutions.nextStepAt} IS NULL`,
+          sql`${workflowExecutions.nextStepAt} <= NOW()`
+        )
+      )
+    )
+    .orderBy(workflowExecutions.createdAt)
+    .limit(50);
+}
+
+// ═══════════════════════════════════════════════
+// WORKFLOW EXECUTION STEPS
+// ═══════════════════════════════════════════════
+
+/** Create an execution step log */
+export async function createWorkflowExecutionStep(data: InsertWorkflowExecutionStep) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(workflowExecutionSteps).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+/** Update an execution step */
+export async function updateWorkflowExecutionStep(
+  id: number,
+  data: Partial<{
+    status: string;
+    result: string | null;
+    errorMessage: string | null;
+    startedAt: Date;
+    completedAt: Date;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(workflowExecutionSteps)
+    .set(data as any)
+    .where(eq(workflowExecutionSteps.id, id));
+}
+
+/** List execution steps for an execution */
+export async function listWorkflowExecutionSteps(executionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(workflowExecutionSteps)
+    .where(eq(workflowExecutionSteps.executionId, executionId))
+    .orderBy(workflowExecutionSteps.stepOrder);
+}
+
+// ═══════════════════════════════════════════════
+// TASKS
+// ═══════════════════════════════════════════════
+
+/** Create a task */
+export async function createTask(data: InsertTask) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(tasks).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+/** List tasks for an account */
+export async function listTasks(
+  accountId: number,
+  opts?: { contactId?: number; status?: string; limit?: number; offset?: number }
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(tasks.accountId, accountId)];
+  if (opts?.contactId) conditions.push(eq(tasks.contactId, opts.contactId));
+  if (opts?.status) conditions.push(eq(tasks.status, opts.status as any));
+
+  return db
+    .select()
+    .from(tasks)
+    .where(and(...conditions))
+    .orderBy(desc(tasks.createdAt))
+    .limit(opts?.limit ?? 50)
+    .offset(opts?.offset ?? 0);
+}
+
+/** Update a task */
+export async function updateTask(
+  id: number,
+  data: Partial<{
+    title: string;
+    description: string | null;
+    status: string;
+    priority: string;
+    assignedUserId: number | null;
+    dueAt: Date | null;
+    completedAt: Date | null;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(tasks).set(data as any).where(eq(tasks.id, id));
 }

@@ -17,6 +17,7 @@ import Messages from "./pages/Messages";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import AICalls from "./pages/AICalls";
+import Automations from "./pages/Automations";
 
 function Router() {
   return (
@@ -72,6 +73,11 @@ function Router() {
       <Route path="/ai-calls">
         <DashboardLayout>
           <AICalls />
+        </DashboardLayout>
+      </Route>
+      <Route path="/automations">
+        <DashboardLayout>
+          <Automations />
         </DashboardLayout>
       </Route>
       <Route path="/contacts/:id">

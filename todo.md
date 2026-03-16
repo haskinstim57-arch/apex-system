@@ -179,4 +179,22 @@
 - [x] Auto-normalize US phone numbers (10-digit → +1XXXXXXXXXX)
 - [x] Write tests for webhook payload processing and E.164 validation (33 tests)
 - [x] All 215 tests pass
+- [x] Checkpoint saved
+
+## Automations Module
+- [x] Database schema: workflows, workflow_steps, workflow_executions, workflow_execution_steps
+- [x] DB helpers for workflow CRUD (create, list, get, update, delete, reorder steps)
+- [x] tRPC router for workflow management (create, list, get, update, delete, toggle, addStep, updateStep, deleteStep, reorderSteps, triggerManual, listExecutions, listAllExecutions, getExecution, cancelExecution)
+- [x] Execution engine: background worker polling every 15s for pending executions
+- [x] Trigger system: event hooks that fire matching workflows (workflowTriggers.ts)
+- [x] Triggers: Contact Created, Tag Added, Pipeline Stage Changed, Facebook Lead Received, Manual Trigger
+- [x] Actions: Send SMS, Send Email, Start AI Call (VAPI), Add Tag, Remove Tag, Update Contact Field, Create Task
+- [x] Delay blocks: Wait Minutes, Wait Hours, Wait Days
+- [x] Workflow Builder UI: create, edit, trigger/action/delay steps, activate/deactivate
+- [x] Execution Logs tab: workflowId, contactId, step status, errors, timestamps
+- [x] Integrations: SMS → Messages module, Email → Campaigns module, AI Call → VAPI integration
+- [x] Sub-account isolation on all workflow data
+- [x] Template interpolation: {{firstName}}, {{lastName}}, {{email}}, {{phone}}, {{fullName}}
+- [x] Write vitest tests (39 tests)
+- [x] All 254 tests pass
 - [ ] Checkpoint saved

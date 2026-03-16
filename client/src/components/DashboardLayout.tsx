@@ -51,7 +51,7 @@ const menuItems = [
   { icon: Phone, label: "AI Calls", path: "/ai-calls" },
   { icon: Globe, label: "Websites", path: "/websites", placeholder: true },
   { icon: BarChart3, label: "Analytics", path: "/analytics", placeholder: true },
-  { icon: Zap, label: "Automations", path: "/automations", placeholder: true },
+  { icon: Zap, label: "Automations", path: "/automations" },
 ];
 
 const adminMenuItems = [

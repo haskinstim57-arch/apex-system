@@ -9,6 +9,7 @@ import { contactsRouter } from "./routers/contacts";
 import { messagesRouter } from "./routers/messages";
 import { campaignsRouter } from "./routers/campaigns";
 import { aiCallsRouter } from "./routers/aiCalls";
+import { automationsRouter } from "./routers/automations";
 
 export const appRouter = router({
   system: systemRouter,
@@ -29,6 +30,7 @@ export const appRouter = router({
   messages: messagesRouter,
   campaigns: campaignsRouter,
   aiCalls: aiCallsRouter,
+  automations: automationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -401,3 +401,180 @@ export const aiCalls = mysqlTable("ai_calls", {
 
 export type AICall = typeof aiCalls.$inferSelect;
 export type InsertAICall = typeof aiCalls.$inferInsert;
+
+// ─────────────────────────────────────────────
+// WORKFLOWS — automation workflow definitions
+// ─────────────────────────────────────────────
+export const workflows = mysqlTable("workflows", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this workflow belongs to */
+  accountId: int("accountId").notNull(),
+  /** Workflow display name */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Optional description */
+  description: text("description"),
+  /** Trigger type that starts this workflow */
+  triggerType: mysqlEnum("triggerType", [
+    "contact_created",
+    "tag_added",
+    "pipeline_stage_changed",
+    "facebook_lead_received",
+    "manual",
+  ]).notNull(),
+  /** JSON config for trigger (e.g., which tag, which stage) */
+  triggerConfig: text("triggerConfig"),
+  /** Whether the workflow is active */
+  isActive: boolean("isActive").default(false).notNull(),
+  /** User who created the workflow */
+  createdById: int("createdById").notNull(),
+  /** Total times this workflow has been executed */
+  executionCount: int("executionCount").default(0).notNull(),
+  /** Last time this workflow was executed */
+  lastExecutedAt: timestamp("lastExecutedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Workflow = typeof workflows.$inferSelect;
+export type InsertWorkflow = typeof workflows.$inferInsert;
+
+// ─────────────────────────────────────────────
+// WORKFLOW STEPS — ordered actions/delays in a workflow
+// ─────────────────────────────────────────────
+export const workflowSteps = mysqlTable("workflow_steps", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Parent workflow */
+  workflowId: int("workflowId").notNull(),
+  /** Step order (1-based) */
+  stepOrder: int("stepOrder").notNull(),
+  /** Step type: action or delay */
+  stepType: mysqlEnum("stepType", ["action", "delay"]).notNull(),
+  /** Action type (null for delay steps) */
+  actionType: mysqlEnum("actionType", [
+    "send_sms",
+    "send_email",
+    "start_ai_call",
+    "add_tag",
+    "remove_tag",
+    "update_contact_field",
+    "create_task",
+  ]),
+  /** Delay type (null for action steps) */
+  delayType: mysqlEnum("delayType", ["minutes", "hours", "days"]),
+  /** Delay value (null for action steps) */
+  delayValue: int("delayValue"),
+  /** JSON config for the step (template, field values, tag name, etc.) */
+  config: text("config"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WorkflowStep = typeof workflowSteps.$inferSelect;
+export type InsertWorkflowStep = typeof workflowSteps.$inferInsert;
+
+// ─────────────────────────────────────────────
+// WORKFLOW EXECUTIONS — per-contact workflow run
+// ─────────────────────────────────────────────
+export const workflowExecutions = mysqlTable("workflow_executions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Parent workflow */
+  workflowId: int("workflowId").notNull(),
+  /** Sub-account for isolation */
+  accountId: int("accountId").notNull(),
+  /** Contact being processed */
+  contactId: int("contactId").notNull(),
+  /** Overall execution status */
+  status: mysqlEnum("status", ["running", "completed", "failed", "paused", "cancelled"])
+    .default("running")
+    .notNull(),
+  /** Which step is currently being executed (step order) */
+  currentStep: int("currentStep").default(1).notNull(),
+  /** Total steps in the workflow at time of execution */
+  totalSteps: int("totalSteps").default(0).notNull(),
+  /** When the next step should execute (for delays) */
+  nextStepAt: timestamp("nextStepAt"),
+  /** Error message if execution failed */
+  errorMessage: text("errorMessage"),
+  /** What triggered this execution */
+  triggeredBy: varchar("triggeredBy", { length: 100 }),
+  startedAt: timestamp("startedAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WorkflowExecution = typeof workflowExecutions.$inferSelect;
+export type InsertWorkflowExecution = typeof workflowExecutions.$inferInsert;
+
+// ─────────────────────────────────────────────
+// WORKFLOW EXECUTION STEPS — per-step execution log
+// ─────────────────────────────────────────────
+export const workflowExecutionSteps = mysqlTable("workflow_execution_steps", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Parent execution */
+  executionId: int("executionId").notNull(),
+  /** Reference to the workflow step */
+  stepId: int("stepId").notNull(),
+  /** Step order at time of execution */
+  stepOrder: int("stepOrder").notNull(),
+  /** Step type snapshot */
+  stepType: mysqlEnum("stepType", ["action", "delay"]).notNull(),
+  /** Action type snapshot */
+  actionType: varchar("actionType", { length: 50 }),
+  /** Step execution status */
+  status: mysqlEnum("status", ["pending", "running", "completed", "failed", "skipped"])
+    .default("pending")
+    .notNull(),
+  /** JSON result/output from the step */
+  result: text("result"),
+  /** Error message if step failed */
+  errorMessage: text("errorMessage"),
+  /** When this step started executing */
+  startedAt: timestamp("startedAt"),
+  /** When this step finished */
+  completedAt: timestamp("completedAt"),
+  /** When this step is scheduled to execute (for delays) */
+  scheduledAt: timestamp("scheduledAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type WorkflowExecutionStep = typeof workflowExecutionSteps.$inferSelect;
+export type InsertWorkflowExecutionStep = typeof workflowExecutionSteps.$inferInsert;
+
+// ─────────────────────────────────────────────
+// TASKS — task management for workflow actions
+// ─────────────────────────────────────────────
+export const tasks = mysqlTable("tasks", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this task belongs to */
+  accountId: int("accountId").notNull(),
+  /** Contact this task is related to */
+  contactId: int("contactId"),
+  /** User assigned to this task */
+  assignedUserId: int("assignedUserId"),
+  /** Task title */
+  title: varchar("title", { length: 500 }).notNull(),
+  /** Task description */
+  description: text("description"),
+  /** Task status */
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "cancelled"])
+    .default("pending")
+    .notNull(),
+  /** Priority level */
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"])
+    .default("medium")
+    .notNull(),
+  /** Due date */
+  dueAt: timestamp("dueAt"),
+  /** Completed date */
+  completedAt: timestamp("completedAt"),
+  /** Source of the task (manual, workflow, etc.) */
+  source: varchar("source", { length: 50 }).default("manual"),
+  /** Reference to workflow execution that created this task */
+  workflowExecutionId: int("workflowExecutionId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Task = typeof tasks.$inferSelect;
+export type InsertTask = typeof tasks.$inferInsert;
