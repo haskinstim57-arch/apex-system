@@ -262,4 +262,10 @@
 - [x] Created server/db-safety.ts — SQL safety validator blocking DROP/TRUNCATE on protected tables
 - [x] Created DATABASE_SAFETY.md — persistence policy documentation
 - [x] Write vitest tests (22 tests) — all pass
+- [x] Checkpoint saved
+
+## Update leadSource Dropdown Options
+- [x] Update contact form leadSource dropdown: Facebook, Instagram, Google Ads, TikTok (added at top of list)
+- [x] Existing leadSource values remain compatible (Website, Referral, etc. still present)
+- [x] All 344 tests pass
 - [ ] Checkpoint saved

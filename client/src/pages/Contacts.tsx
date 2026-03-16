@@ -77,6 +77,10 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const LEAD_SOURCES = [
+  "Facebook",
+  "Instagram",
+  "Google Ads",
+  "TikTok",
   "Website",
   "Referral",
   "Social Media",
