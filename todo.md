@@ -160,4 +160,11 @@
 - [x] Ensure sub-account isolation on all VAPI call data
 - [x] Write vitest tests for VAPI service layer (30 tests)
 - [x] All 182 tests pass
+- [x] Checkpoint saved
+
+## VAPI phoneNumberId Update
+- [x] Add phoneNumberId (c9eaefc4-9227-439d-bb16-a79c2797ab58) to createVapiCall() request payload
+- [x] Ensure customer.number and customer.name are correctly structured
+- [x] Verify AI Calls module works with updated payload
+- [x] All 182 tests pass
 - [ ] Checkpoint saved

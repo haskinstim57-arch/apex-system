@@ -6,6 +6,7 @@ import { ENV } from "../_core/env";
 // ─────────────────────────────────────────────
 
 const VAPI_BASE_URL = "https://api.vapi.ai";
+const VAPI_PHONE_NUMBER_ID = "c9eaefc4-9227-439d-bb16-a79c2797ab58";
 
 /** Map lead sources to the correct VAPI assistant ID */
 export function resolveAssistantId(leadSource?: string | null): string {
@@ -99,6 +100,7 @@ export async function createVapiCall(params: {
 
   const body: Record<string, unknown> = {
     assistantId,
+    phoneNumberId: VAPI_PHONE_NUMBER_ID,
     customer: {
       number: phoneNumber,
       name: customerName,
