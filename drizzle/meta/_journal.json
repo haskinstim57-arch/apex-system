@@ -43,6 +43,13 @@
       "when": 1773631576955,
       "tag": "0005_fat_exodus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1773657676705,
+      "tag": "0006_public_spacker_dave",
+      "breakpoints": true
     }
   ]
 }

@@ -33,12 +33,14 @@ import {
   ChevronRight,
   Filter,
   Loader2,
+  Mic,
   Phone,
   PhoneCall,
   PhoneForwarded,
   PhoneMissed,
   PhoneOff,
   Play,
+  RefreshCw,
   Search,
   Trash2,
   Clock,
@@ -47,7 +49,7 @@ import {
   AlertCircle,
   Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 const STATUS_CONFIG: Record<
@@ -175,6 +177,27 @@ export default function AICalls() {
     onError: (err) => toast.error(err.message),
   });
 
+  const syncStatusMutation = trpc.aiCalls.syncStatus.useMutation({
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success(
+          `Call synced: ${result.status}${
+            result.hasTranscript ? " (transcript available)" : ""
+          }${result.hasRecording ? " (recording available)" : ""}`
+        );
+        utils.aiCalls.list.invalidate();
+        utils.aiCalls.stats.invalidate();
+        // Refresh the detail dialog data
+        if (callDetailOpen) {
+          utils.aiCalls.get.invalidate({ id: callDetailOpen.id, accountId: accountId! });
+        }
+      } else {
+        toast.error(result.error || "Failed to sync call status");
+      }
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   // Dialogs
   const [startCallOpen, setStartCallOpen] = useState(false);
   const [bulkCallOpen, setBulkCallOpen] = useState(false);
@@ -189,6 +212,21 @@ export default function AICalls() {
   const calls = callsData?.data ?? [];
   const totalCalls = callsData?.total ?? 0;
   const totalPages = Math.ceil(totalCalls / pageSize);
+
+  // Auto-refresh calls that are in active state (queued/calling)
+  useEffect(() => {
+    const hasActiveCalls = calls.some(
+      (c: any) => c.status === "queued" || c.status === "calling"
+    );
+    if (!hasActiveCalls || !accountId) return;
+
+    const interval = setInterval(() => {
+      utils.aiCalls.list.invalidate();
+      utils.aiCalls.stats.invalidate();
+    }, 10000); // Poll every 10 seconds
+
+    return () => clearInterval(interval);
+  }, [calls, accountId, utils]);
 
   // Filter contacts for bulk call dialog
   const filteredBulkContacts = useMemo(() => {
@@ -875,14 +913,45 @@ export default function AICalls() {
                 </div>
               )}
 
-              {/* Placeholder notice */}
+              {/* Sync from VAPI button — shown when call has an external ID */}
+              {callDetailOpen.externalCallId && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 w-full"
+                    disabled={syncStatusMutation.isPending}
+                    onClick={() => {
+                      if (accountId) {
+                        syncStatusMutation.mutate({
+                          id: callDetailOpen.id,
+                          accountId,
+                        });
+                      }
+                    }}
+                  >
+                    {syncStatusMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}
+                    Sync from VAPI
+                  </Button>
+                </div>
+              )}
+
+              {/* No data yet notice */}
               {!callDetailOpen.transcript &&
                 !callDetailOpen.recordingUrl &&
-                !callDetailOpen.summary && (
+                !callDetailOpen.summary &&
+                (callDetailOpen.status === "queued" || callDetailOpen.status === "calling") && (
                   <div className="bg-muted/20 border border-border/50 rounded-lg p-4 text-center">
+                    <Mic className="h-5 w-5 mx-auto mb-2 text-muted-foreground animate-pulse" />
                     <p className="text-sm text-muted-foreground">
-                      Transcript, recording, and summary will be available once
-                      VAPI integration is connected.
+                      Call is in progress. Transcript, recording, and summary will appear once the call ends.
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Click "Sync from VAPI" to fetch the latest status.
                     </p>
                   </div>
                 )}

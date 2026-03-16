@@ -1326,6 +1326,7 @@ export async function updateAICall(
     externalCallId: string;
     sentiment: string;
     errorMessage: string;
+    assistantId: string;
     metadata: string;
   }>
 ) {

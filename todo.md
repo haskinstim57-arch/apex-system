@@ -142,3 +142,22 @@
 - [x] Verified: Stats cards update in real-time (Total Calls, In Progress)
 - [x] Verified: Database records have correct accountId, contactId, phoneNumber
 - [x] Verified: All 152 tests pass after fix
+
+## VAPI API Integration
+- [x] Request VAPI_API_KEY, VAPI_AGENT_ID, VAPI_AGENT_ID_REALTOR, VAPI_AGENT_ID_INSTAGRAM environment variables
+- [x] Build VAPI service layer (server/services/vapi.ts) with real API call
+- [x] Add webhook endpoint for VAPI call status updates
+- [x] Update schema: add assistantId column to ai_calls table
+- [x] Update startAICall() to call VAPI API with contact phone, name, sub-account ID, agent config
+- [x] Store call data: call id, contact id, sub-account id, start/end time, status, transcript, recording url
+- [x] Update router to handle VAPI webhook callbacks (status, transcript, recording)
+- [x] Add syncStatus endpoint to poll VAPI for latest call data
+- [x] Frontend: display transcript and recording in call detail view
+- [x] Frontend: Sync from VAPI button in call detail dialog
+- [x] Frontend: auto-refresh for active calls (10s polling)
+- [x] Frontend: in-progress call indicator with pulse animation
+- [x] Lead source → assistant routing: Facebook → VAPI_AGENT_ID, Realtor/Referral → VAPI_AGENT_ID_REALTOR, Instagram → VAPI_AGENT_ID_INSTAGRAM
+- [x] Ensure sub-account isolation on all VAPI call data
+- [x] Write vitest tests for VAPI service layer (30 tests)
+- [x] All 182 tests pass
+- [ ] Checkpoint saved

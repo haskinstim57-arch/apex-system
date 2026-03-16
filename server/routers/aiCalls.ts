@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, publicProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   createAICall,
@@ -12,60 +12,14 @@ import {
   getMember,
   getContactById,
 } from "../db";
-
-// ─────────────────────────────────────────────
-// Placeholder VAPI integration
-// These functions will be replaced with actual VAPI API calls
-// ─────────────────────────────────────────────
-
-/**
- * Placeholder function for starting an AI call via VAPI.
- * Will be replaced with actual VAPI API integration.
- * @returns simulated external call ID
- */
-async function startAICall(contactId: number, phoneNumber: string, accountId: number): Promise<{
-  success: boolean;
-  externalCallId: string;
-  error?: string;
-}> {
-  // Simulate VAPI call initiation
-  // In production, this will:
-  // 1. Call VAPI API to start an outbound call
-  // 2. Use the appropriate VAPI assistant for the lead source
-  // 3. Return the VAPI call ID for tracking
-  const externalCallId = `vapi_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-  console.log(`[AI Call Placeholder] Starting call to ${phoneNumber} for contact ${contactId} in account ${accountId}`);
-  console.log(`[AI Call Placeholder] External call ID: ${externalCallId}`);
-
-  // Simulate a brief delay
-  await new Promise((resolve) => setTimeout(resolve, 100));
-
-  return {
-    success: true,
-    externalCallId,
-  };
-}
-
-/**
- * Placeholder for sending a bulk batch of AI calls.
- */
-async function startBulkAICalls(
-  contacts: Array<{ contactId: number; phoneNumber: string }>,
-  accountId: number
-): Promise<Array<{ contactId: number; success: boolean; externalCallId?: string; error?: string }>> {
-  const results = [];
-  for (const contact of contacts) {
-    const result = await startAICall(contact.contactId, contact.phoneNumber, accountId);
-    results.push({
-      contactId: contact.contactId,
-      success: result.success,
-      externalCallId: result.externalCallId,
-      error: result.error,
-    });
-  }
-  return results;
-}
+import {
+  createVapiCall,
+  getVapiCall,
+  resolveAssistantId,
+  mapVapiStatus,
+  mapVapiEndedReason,
+  VapiApiError,
+} from "../services/vapi";
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -82,10 +36,10 @@ async function requireAccountAccess(userId: number, accountId: number, userRole:
 }
 
 // ─────────────────────────────────────────────
-// AI Calls Router
+// AI Calls Router — VAPI Integration
 // ─────────────────────────────────────────────
 export const aiCallsRouter = router({
-  /** Start a single AI call to a contact */
+  /** Start a single AI call to a contact via VAPI */
   start: protectedProcedure
     .input(
       z.object({
@@ -111,7 +65,11 @@ export const aiCallsRouter = router({
         });
       }
 
-      // Create the call record
+      // Resolve which VAPI assistant to use based on lead source
+      const assistantId = resolveAssistantId(contact.leadSource);
+      const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+
+      // Create the call record first (status: queued)
       const { id } = await createAICall({
         accountId: input.accountId,
         contactId: input.contactId,
@@ -119,28 +77,56 @@ export const aiCallsRouter = router({
         phoneNumber: contact.phone,
         status: "queued",
         direction: "outbound",
+        assistantId,
       });
 
-      // Start the AI call via placeholder
-      const result = await startAICall(input.contactId, contact.phone, input.accountId);
-
-      if (result.success) {
-        await updateAICall(id, {
-          status: "calling",
-          externalCallId: result.externalCallId,
-          startedAt: new Date(),
+      try {
+        // Call the real VAPI API
+        const vapiResponse = await createVapiCall({
+          phoneNumber: contact.phone,
+          customerName: contactName,
+          assistantId,
+          metadata: {
+            apexAccountId: input.accountId,
+            apexContactId: input.contactId,
+            apexCallId: id,
+            leadSource: contact.leadSource ?? undefined,
+          },
         });
-      } else {
+
+        // Update our record with the VAPI call ID and status
+        const mappedStatus = mapVapiStatus(vapiResponse.status);
+        await updateAICall(id, {
+          status: mappedStatus,
+          externalCallId: vapiResponse.id,
+          startedAt: new Date(),
+          metadata: JSON.stringify(vapiResponse),
+        });
+
+        return {
+          id,
+          success: true,
+          externalCallId: vapiResponse.id,
+          vapiStatus: vapiResponse.status,
+        };
+      } catch (err) {
+        const errorMsg =
+          err instanceof VapiApiError
+            ? `VAPI error (${err.statusCode}): ${err.responseBody}`
+            : err instanceof Error
+              ? err.message
+              : "Unknown error initiating VAPI call";
+
         await updateAICall(id, {
           status: "failed",
-          errorMessage: result.error || "Failed to initiate call",
+          errorMessage: errorMsg,
         });
-      }
 
-      return { id, success: result.success, externalCallId: result.externalCallId };
+        return { id, success: false, externalCallId: null, error: errorMsg };
+      }
     }),
 
-  /** Start bulk AI calls to multiple contacts */
+  /** Start bulk AI calls to multiple contacts via VAPI */
   bulkStart: protectedProcedure
     .input(
       z.object({
@@ -158,7 +144,6 @@ export const aiCallsRouter = router({
         error?: string;
       }> = [];
 
-      // Create call records and initiate calls for each contact
       for (const contactId of input.contactIds) {
         const contact = await getContactById(contactId, input.accountId);
         if (!contact || !contact.phone) {
@@ -171,6 +156,9 @@ export const aiCallsRouter = router({
           continue;
         }
 
+        const assistantId = resolveAssistantId(contact.leadSource);
+        const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+
         const { id } = await createAICall({
           accountId: input.accountId,
           contactId,
@@ -178,29 +166,46 @@ export const aiCallsRouter = router({
           phoneNumber: contact.phone,
           status: "queued",
           direction: "outbound",
+          assistantId,
         });
 
-        const callResult = await startAICall(contactId, contact.phone, input.accountId);
-
-        if (callResult.success) {
-          await updateAICall(id, {
-            status: "calling",
-            externalCallId: callResult.externalCallId,
-            startedAt: new Date(),
+        try {
+          const vapiResponse = await createVapiCall({
+            phoneNumber: contact.phone,
+            customerName: contactName,
+            assistantId,
+            metadata: {
+              apexAccountId: input.accountId,
+              apexContactId: contactId,
+              apexCallId: id,
+              leadSource: contact.leadSource ?? undefined,
+            },
           });
-        } else {
+
+          const mappedStatus = mapVapiStatus(vapiResponse.status);
+          await updateAICall(id, {
+            status: mappedStatus,
+            externalCallId: vapiResponse.id,
+            startedAt: new Date(),
+            metadata: JSON.stringify(vapiResponse),
+          });
+
+          results.push({ contactId, callId: id, success: true });
+        } catch (err) {
+          const errorMsg =
+            err instanceof VapiApiError
+              ? `VAPI error (${err.statusCode}): ${err.responseBody}`
+              : err instanceof Error
+                ? err.message
+                : "Unknown error";
+
           await updateAICall(id, {
             status: "failed",
-            errorMessage: callResult.error || "Failed to initiate call",
+            errorMessage: errorMsg,
           });
-        }
 
-        results.push({
-          contactId,
-          callId: id,
-          success: callResult.success,
-          error: callResult.error,
-        });
+          results.push({ contactId, callId: id, success: false, error: errorMsg });
+        }
       }
 
       const successCount = results.filter((r) => r.success).length;
@@ -236,6 +241,83 @@ export const aiCallsRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Call not found." });
       }
       return call;
+    }),
+
+  /**
+   * Sync call status from VAPI.
+   * Fetches the latest state from VAPI API and updates our DB.
+   * Used for polling-based status updates.
+   */
+  syncStatus: protectedProcedure
+    .input(z.object({ id: z.number(), accountId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+
+      const call = await getAICallById(input.id);
+      if (!call || call.accountId !== input.accountId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Call not found." });
+      }
+      if (!call.externalCallId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No VAPI call ID to sync." });
+      }
+
+      try {
+        const vapiCall = await getVapiCall(call.externalCallId);
+
+        const updateData: Record<string, any> = {};
+
+        // Map status
+        if (vapiCall.status === "ended") {
+          updateData.status = mapVapiEndedReason(vapiCall.endedReason as string | undefined);
+        } else {
+          updateData.status = mapVapiStatus(vapiCall.status);
+        }
+
+        // Extract transcript from artifact or top-level
+        const transcript =
+          vapiCall.artifact?.transcript ?? vapiCall.transcript ?? null;
+        if (transcript) updateData.transcript = transcript;
+
+        // Extract recording URL from artifact or top-level
+        const recordingUrl =
+          vapiCall.artifact?.recordingUrl ?? vapiCall.recordingUrl ?? null;
+        if (recordingUrl) updateData.recordingUrl = recordingUrl;
+
+        // Extract summary from analysis or top-level
+        const summary =
+          vapiCall.analysis?.summary ?? vapiCall.summary ?? null;
+        if (summary) updateData.summary = summary;
+
+        // Calculate duration if startedAt and endedAt are available
+        if (vapiCall.startedAt && vapiCall.endedAt) {
+          const start = new Date(vapiCall.startedAt).getTime();
+          const end = new Date(vapiCall.endedAt).getTime();
+          if (start > 0 && end > start) {
+            updateData.durationSeconds = Math.round((end - start) / 1000);
+          }
+          updateData.endedAt = new Date(vapiCall.endedAt);
+        }
+
+        // Store full VAPI response as metadata
+        updateData.metadata = JSON.stringify(vapiCall);
+
+        await updateAICall(input.id, updateData);
+
+        return {
+          success: true,
+          status: updateData.status,
+          hasTranscript: !!transcript,
+          hasRecording: !!recordingUrl,
+          durationSeconds: updateData.durationSeconds ?? 0,
+        };
+      } catch (err) {
+        const errorMsg =
+          err instanceof VapiApiError
+            ? `VAPI sync error (${err.statusCode})`
+            : "Failed to sync with VAPI";
+        console.error(`[AI Calls] Sync failed for call ${input.id}:`, err);
+        return { success: false, error: errorMsg };
+      }
     }),
 
   /** Update AI call status (for webhook callbacks from VAPI) */
@@ -274,6 +356,122 @@ export const aiCallsRouter = router({
       }
 
       await updateAICall(input.id, updateData);
+      return { success: true };
+    }),
+
+  /**
+   * VAPI Webhook handler — public endpoint (no auth required).
+   * VAPI sends POST requests with call status updates.
+   */
+  webhook: publicProcedure
+    .input(
+      z.object({
+        message: z.object({
+          type: z.string(),
+          call: z.object({
+            id: z.string(),
+            status: z.string().optional(),
+            endedReason: z.string().optional(),
+            metadata: z
+              .object({
+                apex_call_id: z.string().optional(),
+                apex_account_id: z.string().optional(),
+                apex_contact_id: z.string().optional(),
+              })
+              .passthrough()
+              .optional(),
+          }).passthrough().optional(),
+          transcript: z.string().optional(),
+          artifact: z
+            .object({
+              transcript: z.string().optional(),
+              recordingUrl: z.string().optional(),
+            })
+            .passthrough()
+            .optional(),
+          analysis: z
+            .object({
+              summary: z.string().optional(),
+            })
+            .passthrough()
+            .optional(),
+        }).passthrough(),
+      }).passthrough()
+    )
+    .mutation(async ({ input }) => {
+      const { message } = input;
+      const vapiCallId = message.call?.id;
+      const apexCallIdStr = message.call?.metadata?.apex_call_id;
+
+      if (!vapiCallId && !apexCallIdStr) {
+        console.warn("[VAPI Webhook] No call ID in webhook payload");
+        return { success: false };
+      }
+
+      console.log(`[VAPI Webhook] type=${message.type} vapiCallId=${vapiCallId}`);
+
+      // Find our internal call record
+      let apexCallId = apexCallIdStr ? parseInt(apexCallIdStr, 10) : null;
+
+      // If we don't have the apex call ID from metadata, we can't process
+      if (!apexCallId || isNaN(apexCallId)) {
+        console.warn("[VAPI Webhook] No apex_call_id in metadata, skipping");
+        return { success: false };
+      }
+
+      const call = await getAICallById(apexCallId);
+      if (!call) {
+        console.warn(`[VAPI Webhook] Call ${apexCallId} not found in DB`);
+        return { success: false };
+      }
+
+      const updateData: Record<string, any> = {};
+
+      switch (message.type) {
+        case "status-update": {
+          const vapiStatus = message.call?.status;
+          if (vapiStatus) {
+            updateData.status = mapVapiStatus(vapiStatus);
+          }
+          break;
+        }
+        case "end-of-call-report": {
+          const endedReason = message.call?.endedReason;
+          updateData.status = mapVapiEndedReason(endedReason);
+          updateData.endedAt = new Date();
+
+          if (message.artifact?.transcript) {
+            updateData.transcript = message.artifact.transcript;
+          } else if (message.transcript) {
+            updateData.transcript = message.transcript;
+          }
+
+          if (message.artifact?.recordingUrl) {
+            updateData.recordingUrl = message.artifact.recordingUrl;
+          }
+
+          if (message.analysis?.summary) {
+            updateData.summary = message.analysis.summary;
+          }
+
+          // Store full webhook payload as metadata
+          updateData.metadata = JSON.stringify(message);
+          break;
+        }
+        case "transcript": {
+          if (message.transcript) {
+            updateData.transcript = message.transcript;
+          }
+          break;
+        }
+        default:
+          console.log(`[VAPI Webhook] Unhandled type: ${message.type}`);
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        await updateAICall(apexCallId, updateData);
+      }
+
       return { success: true };
     }),
 

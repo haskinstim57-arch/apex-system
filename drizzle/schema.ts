@@ -391,6 +391,8 @@ export const aiCalls = mysqlTable("ai_calls", {
   sentiment: mysqlEnum("sentiment", ["positive", "neutral", "negative"]),
   /** Error message if call failed */
   errorMessage: text("errorMessage"),
+  /** Which VAPI assistant was used (based on lead source) */
+  assistantId: varchar("assistantId", { length: 255 }),
   /** JSON metadata from VAPI */
   metadata: text("metadata"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
