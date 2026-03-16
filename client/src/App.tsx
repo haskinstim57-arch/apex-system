@@ -3,35 +3,70 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import DashboardLayout from "./components/DashboardLayout";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Accounts from "./pages/Accounts";
+import AccountDetail from "./pages/AccountDetail";
+import TeamMembers from "./pages/TeamMembers";
+import SettingsPage from "./pages/Settings";
+import InviteAccept from "./pages/InviteAccept";
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      {/* Public route: accept invite */}
+      <Route path="/invite/:token" component={InviteAccept} />
+
+      {/* Dashboard routes wrapped in layout */}
+      <Route path="/">
+        <DashboardLayout>
+          <Home />
+        </DashboardLayout>
+      </Route>
+      <Route path="/accounts">
+        <DashboardLayout>
+          <Accounts />
+        </DashboardLayout>
+      </Route>
+      <Route path="/accounts/:id">
+        {(params) => (
+          <DashboardLayout>
+            <AccountDetail id={parseInt(params.id)} />
+          </DashboardLayout>
+        )}
+      </Route>
+      <Route path="/team">
+        <DashboardLayout>
+          <TeamMembers />
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings">
+        <DashboardLayout>
+          <SettingsPage />
+        </DashboardLayout>
+      </Route>
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
-          <Toaster />
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              style: {
+                background: "var(--popover)",
+                color: "var(--popover-foreground)",
+                border: "1px solid var(--border)",
+              },
+            }}
+          />
           <Router />
         </TooltipProvider>
       </ThemeProvider>
