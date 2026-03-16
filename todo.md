@@ -132,3 +132,13 @@
 - [x] Frontend: Wire AI Calls sidebar nav item (remove placeholder)
 - [x] Vitest tests for ai_calls CRUD, validation, and auth
 - [x] Checkpoint saved
+
+## AI Calls Module Verification
+- [x] Fix: contacts.list query limit exceeded (200 > max 100) in AI Calls page — changed to limit: 100
+- [x] Verified: Start AI Call dialog shows contacts with phone numbers
+- [x] Verified: Start Call creates call record with correct contact linking
+- [x] Verified: AI Call button on contact profile page works
+- [x] Verified: Call history logs correctly (contact name, phone, status, timestamp)
+- [x] Verified: Stats cards update in real-time (Total Calls, In Progress)
+- [x] Verified: Database records have correct accountId, contactId, phoneNumber
+- [x] Verified: All 152 tests pass after fix

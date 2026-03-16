@@ -135,7 +135,7 @@ export default function AICalls() {
 
   // Contacts for the "Start Call" dialog
   const { data: contactsData } = trpc.contacts.list.useQuery(
-    { accountId: accountId!, limit: 200 },
+    { accountId: accountId!, limit: 100 },
     { enabled: !!accountId }
   );
 

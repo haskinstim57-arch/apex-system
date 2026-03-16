@@ -1,0 +1,30 @@
+{
+  "query": "SELECT ac.id, ac.accountId, ac.contactId, ac.phoneNumber, ac.status, ac.startedAt, c.firstName, c.lastName FROM ai_calls ac LEFT JOIN contacts c ON ac.contactId = c.id ORDER BY ac.id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT ac.id, ac.accountId, ac.contactId, ac.phoneNumber, ac.status, ac.startedAt, c.firstName, c.lastName FROM ai_calls ac LEFT JOIN contacts c ON ac.contactId = c.id ORDER BY ac.id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "2",
+      "accountId": "28",
+      "contactId": "30002",
+      "phoneNumber": "(555) 987-6543",
+      "status": "calling",
+      "startedAt": "2026-03-16 06:06:04",
+      "firstName": "Marcus",
+      "lastName": "Johnson"
+    },
+    {
+      "id": "1",
+      "accountId": "28",
+      "contactId": "30002",
+      "phoneNumber": "(555) 987-6543",
+      "status": "calling",
+      "startedAt": "2026-03-16 06:05:15",
+      "firstName": "Marcus",
+      "lastName": "Johnson"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\tcontactId\tphoneNumber\tstatus\tstartedAt\tfirstName\tlastName\n2\t28\t30002\t(555) 987-6543\tcalling\t2026-03-16 06:06:04\tMarcus\tJohnson\n1\t28\t30002\t(555) 987-6543\tcalling\t2026-03-16 06:05:15\tMarcus\tJohnson\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}
