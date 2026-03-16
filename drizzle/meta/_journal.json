@@ -29,6 +29,13 @@
       "when": 1773627723058,
       "tag": "0003_aberrant_wraith",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1773628873130,
+      "tag": "0004_premium_red_ghost",
+      "breakpoints": true
     }
   ]
 }

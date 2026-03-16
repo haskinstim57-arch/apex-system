@@ -250,3 +250,104 @@ export const messages = mysqlTable("messages", {
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = typeof messages.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CAMPAIGN TEMPLATES — reusable message templates
+// ─────────────────────────────────────────────
+export const campaignTemplates = mysqlTable("campaign_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this template belongs to */
+  accountId: int("accountId").notNull(),
+  /** Template name for internal reference */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** email or sms */
+  type: mysqlEnum("type", ["email", "sms"]).notNull(),
+  /** Email subject line (null for SMS) */
+  subject: varchar("subject", { length: 500 }),
+  /** Template body — supports {{firstName}}, {{lastName}}, etc. */
+  body: text("body").notNull(),
+  /** User who created the template */
+  createdById: int("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CampaignTemplate = typeof campaignTemplates.$inferSelect;
+export type InsertCampaignTemplate = typeof campaignTemplates.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CAMPAIGNS — email & SMS campaign management
+// ─────────────────────────────────────────────
+export const campaigns = mysqlTable("campaigns", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this campaign belongs to */
+  accountId: int("accountId").notNull(),
+  /** Campaign display name */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** email or sms */
+  type: mysqlEnum("type", ["email", "sms"]).notNull(),
+  /** Campaign lifecycle status */
+  status: mysqlEnum("status", ["draft", "scheduled", "sending", "sent", "paused", "cancelled"])
+    .default("draft")
+    .notNull(),
+  /** Optional template reference */
+  templateId: int("templateId"),
+  /** Email subject (can override template) */
+  subject: varchar("subject", { length: 500 }),
+  /** Message body (can override template) */
+  body: text("body").notNull(),
+  /** Sender address / from name */
+  fromAddress: varchar("fromAddress", { length: 320 }),
+  /** When to send (null = send immediately) */
+  scheduledAt: timestamp("scheduledAt"),
+  /** When campaign actually started sending */
+  sentAt: timestamp("sentAt"),
+  /** When campaign finished sending to all recipients */
+  completedAt: timestamp("completedAt"),
+  /** Total recipients count (denormalized for performance) */
+  totalRecipients: int("totalRecipients").default(0).notNull(),
+  /** Successfully sent count */
+  sentCount: int("sentCount").default(0).notNull(),
+  /** Delivered count */
+  deliveredCount: int("deliveredCount").default(0).notNull(),
+  /** Failed count */
+  failedCount: int("failedCount").default(0).notNull(),
+  /** Opened count (email only) */
+  openedCount: int("openedCount").default(0).notNull(),
+  /** Clicked count (email only) */
+  clickedCount: int("clickedCount").default(0).notNull(),
+  /** User who created the campaign */
+  createdById: int("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Campaign = typeof campaigns.$inferSelect;
+export type InsertCampaign = typeof campaigns.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CAMPAIGN RECIPIENTS — per-contact delivery tracking
+// ─────────────────────────────────────────────
+export const campaignRecipients = mysqlTable("campaign_recipients", {
+  id: int("id").autoincrement().primaryKey(),
+  campaignId: int("campaignId").notNull(),
+  contactId: int("contactId").notNull(),
+  /** Delivery status for this recipient */
+  status: mysqlEnum("status", ["pending", "sent", "delivered", "failed", "bounced", "opened", "clicked"])
+    .default("pending")
+    .notNull(),
+  /** Address used for delivery */
+  toAddress: varchar("toAddress", { length: 320 }).notNull(),
+  /** External provider message ID */
+  externalId: varchar("externalId", { length: 255 }),
+  /** Error message if delivery failed */
+  errorMessage: text("errorMessage"),
+  sentAt: timestamp("sentAt"),
+  deliveredAt: timestamp("deliveredAt"),
+  openedAt: timestamp("openedAt"),
+  clickedAt: timestamp("clickedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CampaignRecipient = typeof campaignRecipients.$inferSelect;
+export type InsertCampaignRecipient = typeof campaignRecipients.$inferInsert;

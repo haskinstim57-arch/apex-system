@@ -14,6 +14,8 @@ import InviteAccept from "./pages/InviteAccept";
 import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
 import Messages from "./pages/Messages";
+import Campaigns from "./pages/Campaigns";
+import CampaignDetail from "./pages/CampaignDetail";
 
 function Router() {
   return (
@@ -53,6 +55,18 @@ function Router() {
         <DashboardLayout>
           <Messages />
         </DashboardLayout>
+      </Route>
+      <Route path="/campaigns">
+        <DashboardLayout>
+          <Campaigns />
+        </DashboardLayout>
+      </Route>
+      <Route path="/campaigns/:id">
+        {(params) => (
+          <DashboardLayout>
+            <CampaignDetail params={params} />
+          </DashboardLayout>
+        )}
       </Route>
       <Route path="/contacts/:id">
         {(params) => {

@@ -76,3 +76,26 @@
 - [x] Frontend: Message status badges (sent, delivered, failed, pending)
 - [x] Vitest tests for messages CRUD, validation, and auth
 - [x] Checkpoint saved
+
+## Module 4: Campaign Management System
+- [x] Schema: campaign_templates table (name, type, subject, body, accountId)
+- [x] Schema: campaigns table (name, type, status, scheduledAt, sentAt, accountId, templateId)
+- [x] Schema: campaign_recipients table (campaignId, contactId, status, sentAt, deliveredAt, error)
+- [x] DB migration pushed
+- [x] Backend: placeholder sendCampaignEmail() and sendCampaignSMS() functions
+- [x] Backend: campaign template CRUD helpers in server/db.ts
+- [x] Backend: campaign CRUD + scheduling helpers in server/db.ts
+- [x] Backend: campaign recipients management helpers in server/db.ts
+- [x] Backend: tRPC router — templates (create, list, get, update, delete)
+- [x] Backend: tRPC router — campaigns (create, list, get, update, delete, send, schedule)
+- [x] Backend: tRPC router — campaign recipients (add contacts, list, stats)
+- [x] Backend: admin bypass on campaign tenant isolation
+- [x] Frontend: Campaign list page with status filters
+- [x] Frontend: Create campaign dialog/page with type selection
+- [x] Frontend: Template editor (create/edit message templates)
+- [x] Frontend: Contact targeting (select contacts or filter by segment)
+- [x] Frontend: Schedule or send immediately option
+- [x] Frontend: Campaign detail page with performance stats
+- [x] Frontend: Recipient list with delivery status
+- [x] Vitest tests for campaigns CRUD, validation, and auth
+- [x] Checkpoint saved

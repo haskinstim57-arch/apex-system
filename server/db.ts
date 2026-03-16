@@ -19,6 +19,12 @@ import {
   type InsertContactNote,
   messages,
   type InsertMessage,
+  campaigns,
+  campaignTemplates,
+  campaignRecipients,
+  type InsertCampaign,
+  type InsertCampaignTemplate,
+  type InsertCampaignRecipient,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -949,4 +955,286 @@ export async function getMessageStats(accountId: number) {
     emails: allMsgs.filter((m) => m.type === "email").length,
     sms: allMsgs.filter((m) => m.type === "sms").length,
   };
+}
+
+// ─────────────────────────────────────────────
+// CAMPAIGN TEMPLATES
+// ─────────────────────────────────────────────
+
+export async function createCampaignTemplate(data: InsertCampaignTemplate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(campaignTemplates).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function listCampaignTemplates(
+  accountId: number,
+  opts: { type?: "email" | "sms" } = {}
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(campaignTemplates.accountId, accountId)];
+  if (opts.type) conditions.push(eq(campaignTemplates.type, opts.type));
+  return db
+    .select()
+    .from(campaignTemplates)
+    .where(and(...conditions))
+    .orderBy(desc(campaignTemplates.updatedAt));
+}
+
+export async function getCampaignTemplate(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(campaignTemplates)
+    .where(
+      and(eq(campaignTemplates.id, id), eq(campaignTemplates.accountId, accountId))
+    )
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateCampaignTemplate(
+  id: number,
+  accountId: number,
+  data: Partial<Pick<InsertCampaignTemplate, "name" | "subject" | "body" | "type">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(campaignTemplates)
+    .set(data)
+    .where(
+      and(eq(campaignTemplates.id, id), eq(campaignTemplates.accountId, accountId))
+    );
+}
+
+export async function deleteCampaignTemplate(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(campaignTemplates)
+    .where(
+      and(eq(campaignTemplates.id, id), eq(campaignTemplates.accountId, accountId))
+    );
+}
+
+// ─────────────────────────────────────────────
+// CAMPAIGNS
+// ─────────────────────────────────────────────
+
+export async function createCampaign(data: InsertCampaign) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(campaigns).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function listCampaigns(
+  accountId: number,
+  opts: {
+    status?: string;
+    type?: "email" | "sms";
+    search?: string;
+    limit?: number;
+    offset?: number;
+  } = {}
+) {
+  const db = await getDb();
+  if (!db) return { data: [], total: 0 };
+  const conditions = [eq(campaigns.accountId, accountId)];
+  if (opts.status) conditions.push(eq(campaigns.status, opts.status as any));
+  if (opts.type) conditions.push(eq(campaigns.type, opts.type));
+  if (opts.search) {
+    conditions.push(like(campaigns.name, `%${opts.search}%`));
+  }
+  const whereClause = and(...conditions);
+  const [data, countResult] = await Promise.all([
+    db
+      .select()
+      .from(campaigns)
+      .where(whereClause)
+      .orderBy(desc(campaigns.updatedAt))
+      .limit(opts.limit || 50)
+      .offset(opts.offset || 0),
+    db
+      .select({ count: count() })
+      .from(campaigns)
+      .where(whereClause),
+  ]);
+  return { data, total: countResult[0]?.count || 0 };
+}
+
+export async function getCampaign(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(campaigns)
+    .where(and(eq(campaigns.id, id), eq(campaigns.accountId, accountId)))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateCampaign(
+  id: number,
+  accountId: number,
+  data: Partial<
+    Pick<
+      InsertCampaign,
+      | "name"
+      | "type"
+      | "status"
+      | "subject"
+      | "body"
+      | "fromAddress"
+      | "scheduledAt"
+      | "sentAt"
+      | "completedAt"
+      | "totalRecipients"
+      | "sentCount"
+      | "deliveredCount"
+      | "failedCount"
+      | "openedCount"
+      | "clickedCount"
+    >
+  >
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(campaigns)
+    .set(data)
+    .where(and(eq(campaigns.id, id), eq(campaigns.accountId, accountId)));
+}
+
+export async function deleteCampaign(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete recipients first, then the campaign
+  await db.delete(campaignRecipients).where(eq(campaignRecipients.campaignId, id));
+  await db
+    .delete(campaigns)
+    .where(and(eq(campaigns.id, id), eq(campaigns.accountId, accountId)));
+}
+
+// ─────────────────────────────────────────────
+// CAMPAIGN RECIPIENTS
+// ─────────────────────────────────────────────
+
+export async function addCampaignRecipients(
+  campaignId: number,
+  recipients: Array<{ contactId: number; toAddress: string }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (recipients.length === 0) return;
+  const values = recipients.map((r) => ({
+    campaignId,
+    contactId: r.contactId,
+    toAddress: r.toAddress,
+    status: "pending" as const,
+  }));
+  await db.insert(campaignRecipients).values(values);
+}
+
+export async function listCampaignRecipients(
+  campaignId: number,
+  opts: { status?: string; limit?: number; offset?: number } = {}
+) {
+  const db = await getDb();
+  if (!db) return { data: [], total: 0 };
+  const conditions = [eq(campaignRecipients.campaignId, campaignId)];
+  if (opts.status) conditions.push(eq(campaignRecipients.status, opts.status as any));
+  const whereClause = and(...conditions);
+  const [data, countResult] = await Promise.all([
+    db
+      .select({
+        id: campaignRecipients.id,
+        campaignId: campaignRecipients.campaignId,
+        contactId: campaignRecipients.contactId,
+        status: campaignRecipients.status,
+        toAddress: campaignRecipients.toAddress,
+        errorMessage: campaignRecipients.errorMessage,
+        sentAt: campaignRecipients.sentAt,
+        deliveredAt: campaignRecipients.deliveredAt,
+        openedAt: campaignRecipients.openedAt,
+        clickedAt: campaignRecipients.clickedAt,
+        createdAt: campaignRecipients.createdAt,
+        contactFirstName: contacts.firstName,
+        contactLastName: contacts.lastName,
+        contactEmail: contacts.email,
+        contactPhone: contacts.phone,
+      })
+      .from(campaignRecipients)
+      .leftJoin(contacts, eq(campaignRecipients.contactId, contacts.id))
+      .where(whereClause)
+      .orderBy(desc(campaignRecipients.createdAt))
+      .limit(opts.limit || 50)
+      .offset(opts.offset || 0),
+    db
+      .select({ count: count() })
+      .from(campaignRecipients)
+      .where(whereClause),
+  ]);
+  return { data, total: countResult[0]?.count || 0 };
+}
+
+export async function updateCampaignRecipientStatus(
+  id: number,
+  status: string,
+  extra: { sentAt?: Date; deliveredAt?: Date; openedAt?: Date; clickedAt?: Date; errorMessage?: string } = {}
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(campaignRecipients)
+    .set({ status: status as any, ...extra })
+    .where(eq(campaignRecipients.id, id));
+}
+
+export async function getCampaignRecipientStats(campaignId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, pending: 0, sent: 0, delivered: 0, failed: 0, bounced: 0, opened: 0, clicked: 0 };
+  const rows = await db
+    .select({
+      status: campaignRecipients.status,
+      count: count(),
+    })
+    .from(campaignRecipients)
+    .where(eq(campaignRecipients.campaignId, campaignId))
+    .groupBy(campaignRecipients.status);
+  const stats: Record<string, number> = { total: 0, pending: 0, sent: 0, delivered: 0, failed: 0, bounced: 0, opened: 0, clicked: 0 };
+  for (const row of rows) {
+    stats[row.status] = row.count;
+    stats.total += row.count;
+  }
+  return stats;
+}
+
+export async function removeCampaignRecipient(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(campaignRecipients).where(eq(campaignRecipients.id, id));
+}
+
+export async function getCampaignStats(accountId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, draft: 0, scheduled: 0, sending: 0, sent: 0, paused: 0, cancelled: 0 };
+  const rows = await db
+    .select({
+      status: campaigns.status,
+      count: count(),
+    })
+    .from(campaigns)
+    .where(eq(campaigns.accountId, accountId))
+    .groupBy(campaigns.status);
+  const stats: Record<string, number> = { total: 0, draft: 0, scheduled: 0, sending: 0, sent: 0, paused: 0, cancelled: 0 };
+  for (const row of rows) {
+    stats[row.status] = row.count;
+    stats.total += row.count;
+  }
+  return stats;
 }
