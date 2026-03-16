@@ -6,6 +6,7 @@ import { accountsRouter } from "./routers/accounts";
 import { membersRouter } from "./routers/members";
 import { invitationsRouter } from "./routers/invitations";
 import { contactsRouter } from "./routers/contacts";
+import { messagesRouter } from "./routers/messages";
 
 export const appRouter = router({
   system: systemRouter,
@@ -23,6 +24,7 @@ export const appRouter = router({
   members: membersRouter,
   invitations: invitationsRouter,
   contacts: contactsRouter,
+  messages: messagesRouter,
 });
 
 export type AppRouter = typeof appRouter;

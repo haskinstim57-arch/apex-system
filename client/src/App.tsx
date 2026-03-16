@@ -13,6 +13,7 @@ import SettingsPage from "./pages/Settings";
 import InviteAccept from "./pages/InviteAccept";
 import Contacts from "./pages/Contacts";
 import ContactDetail from "./pages/ContactDetail";
+import Messages from "./pages/Messages";
 
 function Router() {
   return (
@@ -46,6 +47,11 @@ function Router() {
       <Route path="/contacts">
         <DashboardLayout>
           <Contacts />
+        </DashboardLayout>
+      </Route>
+      <Route path="/messages">
+        <DashboardLayout>
+          <Messages />
         </DashboardLayout>
       </Route>
       <Route path="/contacts/:id">

@@ -24,17 +24,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
   ArrowLeft,
+  ArrowDownLeft,
+  ArrowUpRight,
   Building2,
   Calendar,
   Loader2,
   Mail,
   MapPin,
+  MessageSquare,
   MoreHorizontal,
   Pencil,
   Phone,
   Pin,
   PinOff,
   Plus,
+  Send,
   Tag,
   Trash2,
   User,
@@ -526,20 +530,8 @@ export default function ContactDetail({
             )}
           </div>
 
-          {/* Communication History Placeholder */}
-          <Card className="border-border/50 bg-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">
-                Communication History
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Email, SMS, and call history will appear here once
-                communication modules are enabled.
-              </p>
-            </CardContent>
-          </Card>
+          {/* Communication History */}
+          <CommunicationHistory contactId={id} accountId={accountId} />
         </div>
       </div>
 
@@ -793,5 +785,117 @@ function EditContactDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const MSG_STATUS_COLORS: Record<string, string> = {
+  pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  sent: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  delivered: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+  failed: "bg-red-500/15 text-red-400 border-red-500/30",
+  bounced: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+};
+
+function CommunicationHistory({
+  contactId,
+  accountId,
+}: {
+  contactId: number;
+  accountId: number;
+}) {
+  const { data: messages, isLoading } = trpc.messages.byContact.useQuery(
+    { contactId, accountId },
+    { enabled: !!accountId && !!contactId }
+  );
+
+  return (
+    <Card className="border-border/50 bg-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <MessageSquare className="h-3.5 w-3.5" />
+          Communication History
+          {messages && messages.length > 0 && (
+            <Badge variant="secondary" className="text-[10px] ml-1">
+              {messages.length}
+            </Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !messages || messages.length === 0 ? (
+          <div className="text-center py-6">
+            <Send className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              No messages yet. Send an email or SMS from the Messages page.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((msg: any) => (
+              <div
+                key={msg.id}
+                className="flex items-start gap-3 p-3 rounded-lg border border-border/30 bg-muted/20 hover:bg-muted/30 transition-colors"
+              >
+                <div className="shrink-0 mt-0.5">
+                  {msg.direction === "outbound" ? (
+                    <div className="p-1.5 rounded-md bg-blue-500/10">
+                      <ArrowUpRight className="h-3.5 w-3.5 text-blue-400" />
+                    </div>
+                  ) : (
+                    <div className="p-1.5 rounded-md bg-emerald-500/10">
+                      <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] ${
+                        msg.type === "email"
+                          ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                          : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                      }`}
+                    >
+                      {msg.type === "email" ? (
+                        <Mail className="h-2.5 w-2.5 mr-0.5" />
+                      ) : (
+                        <Phone className="h-2.5 w-2.5 mr-0.5" />
+                      )}
+                      {msg.type.toUpperCase()}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] ${MSG_STATUS_COLORS[msg.status] || ""}`}
+                    >
+                      {msg.status}
+                    </Badge>
+                    <span className="text-[10px] text-muted-foreground ml-auto">
+                      {new Date(msg.createdAt).toLocaleString()}
+                    </span>
+                  </div>
+                  {msg.subject && (
+                    <p className="text-xs font-medium mb-0.5">{msg.subject}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    {msg.body}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {msg.direction === "outbound" ? "To: " : "From: "}
+                    {msg.direction === "outbound"
+                      ? msg.toAddress
+                      : msg.fromAddress}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

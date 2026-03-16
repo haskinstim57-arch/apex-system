@@ -63,3 +63,16 @@
 ## Bug Fixes
 - [x] Fix: Admins should bypass account membership check for contacts access
 - [x] Fix: Ensure admin users can create/view/edit contacts in any sub-account
+
+## Module 3: Manual Communication (Email & SMS)
+- [x] Schema: messages table (type, direction, status, contactId, accountId, subject, body, etc.)
+- [x] DB migration pushed
+- [x] Backend: message CRUD helpers in server/db.ts
+- [x] Backend: tRPC router — messages (send email, send SMS, list history, get by contact)
+- [x] Backend: admin bypass on message tenant isolation
+- [x] Frontend: Messages page with inbox/sent view and compose dialog
+- [x] Frontend: Contact detail — communication history tab
+- [x] Frontend: Compose email/SMS dialog with contact selector
+- [x] Frontend: Message status badges (sent, delivered, failed, pending)
+- [x] Vitest tests for messages CRUD, validation, and auth
+- [x] Checkpoint saved

@@ -1,0 +1,21 @@
+CREATE TABLE `messages` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`accountId` int NOT NULL,
+	`contactId` int NOT NULL,
+	`userId` int NOT NULL,
+	`type` enum('email','sms') NOT NULL,
+	`direction` enum('outbound','inbound') NOT NULL DEFAULT 'outbound',
+	`status` enum('pending','sent','delivered','failed','bounced') NOT NULL DEFAULT 'pending',
+	`subject` varchar(500),
+	`body` text NOT NULL,
+	`toAddress` varchar(320) NOT NULL,
+	`fromAddress` varchar(320),
+	`externalId` varchar(255),
+	`errorMessage` text,
+	`sentAt` timestamp,
+	`deliveredAt` timestamp,
+	`readAt` timestamp,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `messages_id` PRIMARY KEY(`id`)
+);

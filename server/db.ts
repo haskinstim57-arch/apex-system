@@ -17,6 +17,8 @@ import {
   type InsertAuditLog,
   type InsertContact,
   type InsertContactNote,
+  messages,
+  type InsertMessage,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -817,4 +819,134 @@ export async function getContactNoteById(id: number) {
     .where(eq(contactNotes.id, id))
     .limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// ────────────────────────────────────────────────────────────
+// MESSAGES — email & SMS communication history
+// ────────────────────────────────────────────────────────────
+
+export async function createMessage(data: InsertMessage) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(messages).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getMessageById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(messages)
+    .where(and(eq(messages.id, id), eq(messages.accountId, accountId)))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function listMessages(params: {
+  accountId: number;
+  contactId?: number;
+  type?: "email" | "sms";
+  direction?: "outbound" | "inbound";
+  status?: "pending" | "sent" | "delivered" | "failed" | "bounced";
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { messages: [], total: 0 };
+
+  const conditions = [eq(messages.accountId, params.accountId)];
+
+  if (params.contactId) {
+    conditions.push(eq(messages.contactId, params.contactId));
+  }
+  if (params.type) {
+    conditions.push(eq(messages.type, params.type));
+  }
+  if (params.direction) {
+    conditions.push(eq(messages.direction, params.direction));
+  }
+  if (params.status) {
+    conditions.push(eq(messages.status, params.status));
+  }
+  if (params.search) {
+    conditions.push(
+      or(
+        like(messages.subject, `%${params.search}%`),
+        like(messages.body, `%${params.search}%`),
+        like(messages.toAddress, `%${params.search}%`)
+      )!
+    );
+  }
+
+  const whereClause = and(...conditions);
+  const limit = params.limit ?? 50;
+  const offset = params.offset ?? 0;
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select()
+      .from(messages)
+      .where(whereClause)
+      .orderBy(desc(messages.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: count() })
+      .from(messages)
+      .where(whereClause),
+  ]);
+
+  return { messages: rows, total: countResult[0]?.count ?? 0 };
+}
+
+export async function listMessagesByContact(contactId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(messages)
+    .where(and(eq(messages.contactId, contactId), eq(messages.accountId, accountId)))
+    .orderBy(desc(messages.createdAt));
+}
+
+export async function updateMessageStatus(
+  id: number,
+  status: "pending" | "sent" | "delivered" | "failed" | "bounced",
+  extra?: { externalId?: string; errorMessage?: string; sentAt?: Date; deliveredAt?: Date }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(messages)
+    .set({ status, ...extra })
+    .where(eq(messages.id, id));
+}
+
+export async function deleteMessage(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(messages)
+    .where(and(eq(messages.id, id), eq(messages.accountId, accountId)));
+}
+
+export async function getMessageStats(accountId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, sent: 0, delivered: 0, failed: 0, emails: 0, sms: 0 };
+
+  const allMsgs = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.accountId, accountId));
+
+  return {
+    total: allMsgs.length,
+    sent: allMsgs.filter((m) => m.status === "sent" || m.status === "delivered").length,
+    delivered: allMsgs.filter((m) => m.status === "delivered").length,
+    failed: allMsgs.filter((m) => m.status === "failed" || m.status === "bounced").length,
+    emails: allMsgs.filter((m) => m.type === "email").length,
+    sms: allMsgs.filter((m) => m.type === "sms").length,
+  };
 }

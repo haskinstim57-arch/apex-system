@@ -204,3 +204,49 @@ export const contactNotes = mysqlTable("contact_notes", {
 
 export type ContactNote = typeof contactNotes.$inferSelect;
 export type InsertContactNote = typeof contactNotes.$inferInsert;
+
+// ─────────────────────────────────────────────
+// MESSAGES — email & SMS communication history
+// ─────────────────────────────────────────────
+export const messages = mysqlTable("messages", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this message belongs to */
+  accountId: int("accountId").notNull(),
+  /** Contact this message is associated with */
+  contactId: int("contactId").notNull(),
+  /** User who sent/received the message */
+  userId: int("userId").notNull(),
+  /** email or sms */
+  type: mysqlEnum("type", ["email", "sms"]).notNull(),
+  /** outbound = sent by user, inbound = received from contact */
+  direction: mysqlEnum("direction", ["outbound", "inbound"])
+    .default("outbound")
+    .notNull(),
+  /** Delivery status */
+  status: mysqlEnum("status", ["pending", "sent", "delivered", "failed", "bounced"])
+    .default("pending")
+    .notNull(),
+  /** Email subject (null for SMS) */
+  subject: varchar("subject", { length: 500 }),
+  /** Message body — plain text or HTML for email */
+  body: text("body").notNull(),
+  /** Recipient address (email or phone) */
+  toAddress: varchar("toAddress", { length: 320 }).notNull(),
+  /** Sender address (email or phone) */
+  fromAddress: varchar("fromAddress", { length: 320 }),
+  /** External provider message ID (for tracking) */
+  externalId: varchar("externalId", { length: 255 }),
+  /** Error message if delivery failed */
+  errorMessage: text("errorMessage"),
+  /** When the message was actually sent */
+  sentAt: timestamp("sentAt"),
+  /** When the message was delivered */
+  deliveredAt: timestamp("deliveredAt"),
+  /** When the message was read/opened */
+  readAt: timestamp("readAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = typeof messages.$inferInsert;
