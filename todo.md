@@ -222,4 +222,19 @@
 - [x] Pipeline nav item added to sidebar
 - [x] Write vitest tests (28 tests)
 - [x] All 28 pipeline tests pass, 287/291 total pass (4 pre-existing flaky tests in other modules)
+- [x] Checkpoint saved
+
+## Facebook Lead Ads Webhook
+- [x] Create POST /api/webhooks/facebook-leads endpoint
+- [x] Handle Facebook webhook verification (GET challenge with verify_token)
+- [x] Parse Facebook Lead Ads payload — both native format and simplified/flat format from n8n
+- [x] Create contact with leadSource = "facebook"
+- [x] Normalize phone to E.164 format
+- [x] Auto-assign contact to "New Lead" pipeline stage (auto-creates default pipeline)
+- [x] Fire facebook_lead_received automation trigger (async, non-blocking)
+- [x] Fire onContactCreated automation trigger (async, non-blocking)
+- [x] Sub-account routing via accountId in payload
+- [x] Store Facebook metadata (lead_id, campaign_id, ad_id, form_id) in customFields
+- [x] Write vitest tests (23 tests)
+- [x] 313/314 tests pass (1 pre-existing flaky timeout in trigger-wiring)
 - [ ] Checkpoint saved

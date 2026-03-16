@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { vapiWebhookRouter } from "../webhooks/vapi";
+import { facebookLeadsWebhookRouter } from "../webhooks/facebookLeads";
 import { startWorkflowWorker } from "../services/workflowEngine";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -39,6 +40,8 @@ async function startServer() {
   registerOAuthRoutes(app);
   // Public REST webhook for VAPI via n8n
   app.use(vapiWebhookRouter);
+  // Public REST webhook for Facebook Lead Ads
+  app.use(facebookLeadsWebhookRouter);
   // tRPC API
   app.use(
     "/api/trpc",
