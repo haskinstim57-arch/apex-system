@@ -16,6 +16,7 @@ import ContactDetail from "./pages/ContactDetail";
 import Messages from "./pages/Messages";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
+import AICalls from "./pages/AICalls";
 
 function Router() {
   return (
@@ -67,6 +68,11 @@ function Router() {
             <CampaignDetail params={params} />
           </DashboardLayout>
         )}
+      </Route>
+      <Route path="/ai-calls">
+        <DashboardLayout>
+          <AICalls />
+        </DashboardLayout>
       </Route>
       <Route path="/contacts/:id">
         {(params) => {

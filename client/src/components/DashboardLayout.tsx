@@ -48,7 +48,7 @@ const menuItems = [
   { icon: Users, label: "Contacts", path: "/contacts" },
   { icon: MessageSquare, label: "Messages", path: "/messages" },
   { icon: Send, label: "Campaigns", path: "/campaigns" },
-  { icon: Phone, label: "AI Calls", path: "/ai-calls", placeholder: true },
+  { icon: Phone, label: "AI Calls", path: "/ai-calls" },
   { icon: Globe, label: "Websites", path: "/websites", placeholder: true },
   { icon: BarChart3, label: "Analytics", path: "/analytics", placeholder: true },
   { icon: Zap, label: "Automations", path: "/automations", placeholder: true },

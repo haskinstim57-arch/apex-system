@@ -47,6 +47,7 @@ import {
   UserPlus,
   Eye,
   Pencil,
+  PhoneForwarded,
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -177,6 +178,13 @@ export default function Contacts() {
     onSuccess: () => {
       toast.success("Contact assigned");
       utils.contacts.list.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const startAICallMutation = trpc.aiCalls.start.useMutation({
+    onSuccess: () => {
+      toast.success("AI call initiated successfully");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -493,6 +501,17 @@ export default function Contacts() {
                               <Pencil className="h-3.5 w-3.5 mr-2" />
                               Edit
                             </DropdownMenuItem>
+                            {contact.phone && (
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  startAICallMutation.mutate({ accountId: accountId!, contactId: contact.id });
+                                }}
+                              >
+                                <PhoneForwarded className="h-3.5 w-3.5 mr-2" />
+                                Start AI Call
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                               onClick={(e) => {

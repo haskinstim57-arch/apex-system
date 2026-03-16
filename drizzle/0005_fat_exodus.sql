@@ -1,0 +1,22 @@
+CREATE TABLE `ai_calls` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`accountId` int NOT NULL,
+	`contactId` int NOT NULL,
+	`initiatedById` int NOT NULL,
+	`phoneNumber` varchar(30) NOT NULL,
+	`status` enum('queued','calling','completed','failed','no_answer','busy','cancelled') NOT NULL DEFAULT 'queued',
+	`direction` enum('outbound','inbound') NOT NULL DEFAULT 'outbound',
+	`durationSeconds` int NOT NULL DEFAULT 0,
+	`startedAt` timestamp,
+	`endedAt` timestamp,
+	`transcript` text,
+	`summary` text,
+	`recordingUrl` text,
+	`externalCallId` varchar(255),
+	`sentiment` enum('positive','neutral','negative'),
+	`errorMessage` text,
+	`metadata` text,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `ai_calls_id` PRIMARY KEY(`id`)
+);

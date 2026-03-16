@@ -116,3 +116,19 @@
 - [x] Wire up to existing backend (create campaign, add recipients, send/schedule)
 - [x] Integrate builder into existing Campaigns page via "+ New Campaign" button
 - [x] Checkpoint saved
+
+## Module: AI Calls
+- [x] Schema: ai_calls table (contactId, accountId, status, startTime, endTime, transcript, recordingUrl, etc.)
+- [x] DB migration pushed
+- [x] Backend: ai_calls CRUD helpers in server/db.ts
+- [x] Backend: placeholder startAICall(contactId) function for future VAPI integration
+- [x] Backend: tRPC router — ai_calls (start, bulkStart, list, get, updateStatus)
+- [x] Backend: admin bypass on ai_calls tenant isolation
+- [x] Frontend: AI Calls dashboard with call history list
+- [x] Frontend: Call status badges (queued, calling, completed, failed)
+- [x] Frontend: Start AI Call from contact profile
+- [x] Frontend: Start AI Call from contact list
+- [x] Frontend: Bulk AI Calls — select multiple contacts and launch
+- [x] Frontend: Wire AI Calls sidebar nav item (remove placeholder)
+- [x] Vitest tests for ai_calls CRUD, validation, and auth
+- [x] Checkpoint saved

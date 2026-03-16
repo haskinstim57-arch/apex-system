@@ -35,6 +35,7 @@ import {
   MoreHorizontal,
   Pencil,
   Phone,
+  PhoneForwarded,
   Pin,
   PinOff,
   Plus,
@@ -180,6 +181,13 @@ export default function ContactDetail({
     onError: (err) => toast.error(err.message),
   });
 
+  const startAICallMutation = trpc.aiCalls.start.useMutation({
+    onSuccess: () => {
+      toast.success("AI call initiated successfully");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -240,15 +248,37 @@ export default function ContactDetail({
             </p>
           </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 gap-1.5 border-border/50"
-          onClick={() => setEditOpen(true)}
-        >
-          <Pencil className="h-3 w-3" />
-          Edit
-        </Button>
+        <div className="flex items-center gap-2">
+          {contact.phone && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+              disabled={startAICallMutation.isPending}
+              onClick={() => {
+                if (accountId) {
+                  startAICallMutation.mutate({ accountId, contactId: contact.id });
+                }
+              }}
+            >
+              {startAICallMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <PhoneForwarded className="h-3 w-3" />
+              )}
+              AI Call
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1.5 border-border/50"
+            onClick={() => setEditOpen(true)}
+          >
+            <Pencil className="h-3 w-3" />
+            Edit
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

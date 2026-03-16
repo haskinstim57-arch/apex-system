@@ -8,6 +8,7 @@ import { invitationsRouter } from "./routers/invitations";
 import { contactsRouter } from "./routers/contacts";
 import { messagesRouter } from "./routers/messages";
 import { campaignsRouter } from "./routers/campaigns";
+import { aiCallsRouter } from "./routers/aiCalls";
 
 export const appRouter = router({
   system: systemRouter,
@@ -27,6 +28,7 @@ export const appRouter = router({
   contacts: contactsRouter,
   messages: messagesRouter,
   campaigns: campaignsRouter,
+  aiCalls: aiCallsRouter,
 });
 
 export type AppRouter = typeof appRouter;

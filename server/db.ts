@@ -25,6 +25,8 @@ import {
   type InsertCampaign,
   type InsertCampaignTemplate,
   type InsertCampaignRecipient,
+  aiCalls,
+  type InsertAICall,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1244,4 +1246,140 @@ export async function getCampaignStats(accountId: number) {
     stats.total += row.count;
   }
   return stats;
+}
+
+// ─────────────────────────────────────────────
+// AI CALLS — CRUD helpers
+// ─────────────────────────────────────────────
+
+/** Create a new AI call record */
+export async function createAICall(data: InsertAICall) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(aiCalls).values(data);
+  return { id: result[0].insertId };
+}
+
+/** Get a single AI call by ID */
+export async function getAICallById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(aiCalls).where(eq(aiCalls.id, id)).limit(1);
+  return result[0];
+}
+
+/** List AI calls for an account with pagination and filters */
+export async function listAICalls(params: {
+  accountId: number;
+  page?: number;
+  limit?: number;
+  status?: string;
+  contactId?: number;
+  search?: string;
+}) {
+  const db = await getDb();
+  if (!db) return { data: [], total: 0 };
+
+  const page = params.page ?? 1;
+  const limit = params.limit ?? 20;
+  const offset = (page - 1) * limit;
+
+  const conditions = [eq(aiCalls.accountId, params.accountId)];
+
+  if (params.status) {
+    conditions.push(eq(aiCalls.status, params.status as any));
+  }
+  if (params.contactId) {
+    conditions.push(eq(aiCalls.contactId, params.contactId));
+  }
+
+  const whereClause = and(...conditions);
+
+  const [data, totalResult] = await Promise.all([
+    db
+      .select()
+      .from(aiCalls)
+      .where(whereClause)
+      .orderBy(desc(aiCalls.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: count() })
+      .from(aiCalls)
+      .where(whereClause),
+  ]);
+
+  return { data, total: totalResult[0]?.count ?? 0 };
+}
+
+/** Update AI call status and related fields */
+export async function updateAICall(
+  id: number,
+  data: Partial<{
+    status: string;
+    startedAt: Date;
+    endedAt: Date;
+    durationSeconds: number;
+    transcript: string;
+    summary: string;
+    recordingUrl: string;
+    externalCallId: string;
+    sentiment: string;
+    errorMessage: string;
+    metadata: string;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(aiCalls).set(data as any).where(eq(aiCalls.id, id));
+}
+
+/** Delete an AI call record */
+export async function deleteAICall(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(aiCalls).where(eq(aiCalls.id, id));
+}
+
+/** Get AI call stats for an account */
+export async function getAICallStats(accountId: number) {
+  const db = await getDb();
+  if (!db) return { total: 0, queued: 0, calling: 0, completed: 0, failed: 0 };
+
+  const result = await db
+    .select({
+      total: count(),
+      queued: sql<number>`SUM(CASE WHEN ${aiCalls.status} = 'queued' THEN 1 ELSE 0 END)`,
+      calling: sql<number>`SUM(CASE WHEN ${aiCalls.status} = 'calling' THEN 1 ELSE 0 END)`,
+      completed: sql<number>`SUM(CASE WHEN ${aiCalls.status} = 'completed' THEN 1 ELSE 0 END)`,
+      failed: sql<number>`SUM(CASE WHEN ${aiCalls.status} = 'failed' THEN 1 ELSE 0 END)`,
+      noAnswer: sql<number>`SUM(CASE WHEN ${aiCalls.status} = 'no_answer' THEN 1 ELSE 0 END)`,
+      busy: sql<number>`SUM(CASE WHEN ${aiCalls.status} = 'busy' THEN 1 ELSE 0 END)`,
+      avgDuration: sql<number>`AVG(CASE WHEN ${aiCalls.durationSeconds} > 0 THEN ${aiCalls.durationSeconds} ELSE NULL END)`,
+    })
+    .from(aiCalls)
+    .where(eq(aiCalls.accountId, accountId));
+
+  const row = result[0];
+  return {
+    total: row?.total ?? 0,
+    queued: Number(row?.queued ?? 0),
+    calling: Number(row?.calling ?? 0),
+    completed: Number(row?.completed ?? 0),
+    failed: Number(row?.failed ?? 0),
+    noAnswer: Number(row?.noAnswer ?? 0),
+    busy: Number(row?.busy ?? 0),
+    avgDuration: Math.round(Number(row?.avgDuration ?? 0)),
+  };
+}
+
+/** Get AI calls for a specific contact */
+export async function getAICallsByContact(contactId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(aiCalls)
+    .where(and(eq(aiCalls.contactId, contactId), eq(aiCalls.accountId, accountId)))
+    .orderBy(desc(aiCalls.createdAt));
 }
