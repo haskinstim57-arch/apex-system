@@ -250,4 +250,16 @@
 - [x] tRPC endpoints: listTemplates, provisionTemplate
 - [x] Write tests (8 tests)
 - [x] All 322 tests pass
+- [x] Checkpoint saved
+
+## Database Stabilization
+- [x] Audit package.json scripts — no reset/drop commands found
+- [x] Audit drizzle config — clean, no destructive settings
+- [x] Audit deployment/build hooks — no prestart/prebuild/postinstall hooks
+- [x] Audit migration SQL files — no DROP TABLE or TRUNCATE in any migration
+- [x] Audit server startup — no auto-migration or schema sync on boot
+- [x] Confirmed pnpm db:push uses safe `generate && migrate` (not destructive `push`)
+- [x] Created server/db-safety.ts — SQL safety validator blocking DROP/TRUNCATE on protected tables
+- [x] Created DATABASE_SAFETY.md — persistence policy documentation
+- [x] Write vitest tests (22 tests) — all pass
 - [ ] Checkpoint saved
