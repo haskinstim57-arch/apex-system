@@ -13,6 +13,7 @@ import { automationsRouter } from "./routers/automations";
 import { pipelineRouter } from "./routers/pipeline";
 import { subAccountAuthRouter } from "./routers/subAccountAuth";
 import { facebookPagesRouter } from "./routers/facebookPages";
+import { impersonationRouter } from "./routers/impersonation";
 
 export const appRouter = router({
   system: systemRouter,
@@ -37,6 +38,7 @@ export const appRouter = router({
   pipeline: pipelineRouter,
   subAccountAuth: subAccountAuthRouter,
   facebookPages: facebookPagesRouter,
+  impersonation: impersonationRouter,
 });
 
 export type AppRouter = typeof appRouter;

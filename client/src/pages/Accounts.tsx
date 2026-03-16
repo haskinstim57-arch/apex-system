@@ -41,6 +41,7 @@ import {
   Users,
   Mail,
   Calendar,
+  LogIn,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -82,6 +83,17 @@ export default function Accounts() {
     },
     onError: (err) => {
       toast.error("Failed to create account", { description: err.message });
+    },
+  });
+
+  const impersonateMutation = trpc.impersonation.start.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Now viewing as ${data.accountName}`);
+      // Redirect to contacts page with the impersonated account selected
+      setLocation("/contacts");
+    },
+    onError: (err) => {
+      toast.error("Failed to impersonate", { description: err.message });
     },
   });
 
@@ -404,6 +416,15 @@ export default function Accounts() {
                   >
                     <Users className="mr-2 h-3.5 w-3.5" />
                     {account.status === "active" ? "Suspend" : "Activate"}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      impersonateMutation.mutate({ accountId: account.id });
+                    }}
+                    disabled={impersonateMutation.isPending}
+                  >
+                    <LogIn className="mr-2 h-3.5 w-3.5" />
+                    Login as Client
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"

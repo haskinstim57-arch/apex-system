@@ -332,3 +332,14 @@
 - [x] Add Integrations section to Settings page with Facebook Pages link (admin-only)
 - [x] Write vitest tests for new tRPC procedures (11 tests)
 - [x] Checkpoint saved
+
+## Admin Account Impersonation
+- [x] Audit existing auth, session, context, and account middleware
+- [x] Add impersonation_audit_logs table and db helpers
+- [x] Create impersonation tRPC procedures (start/stop/status)
+- [x] Update account context middleware to respect impersonation session
+- [x] Add "Login as Client" button to Admin → Accounts page
+- [x] Add impersonation warning banner when active
+- [x] Add "Stop Impersonation" button to restore admin session
+- [x] Write vitest tests for impersonation (16 tests pass)
+- [ ] Checkpoint saved

@@ -21,6 +21,7 @@ import Automations from "./pages/Automations";
 import Pipeline from "./pages/Pipeline";
 import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
+import { ImpersonationBanner } from "./components/ImpersonationBanner";
 
 function Router() {
   return (
@@ -131,6 +132,7 @@ function App() {
               },
             }}
           />
+          <ImpersonationBanner />
           <Router />
         </TooltipProvider>
       </ThemeProvider>

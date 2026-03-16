@@ -652,3 +652,25 @@ export const facebookPageMappings = mysqlTable("facebook_page_mappings", {
 
 export type FacebookPageMapping = typeof facebookPageMappings.$inferSelect;
 export type InsertFacebookPageMapping = typeof facebookPageMappings.$inferInsert;
+
+// ─────────────────────────────────────────────
+// IMPERSONATION AUDIT LOGS — track admin impersonation sessions
+// ─────────────────────────────────────────────
+export const impersonationAuditLogs = mysqlTable("impersonation_audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The admin user who initiated impersonation */
+  adminId: int("admin_id").notNull(),
+  /** The admin user's name (for quick reference) */
+  adminName: varchar("admin_name", { length: 255 }),
+  /** The target sub-account being impersonated */
+  targetAccountId: int("target_account_id").notNull(),
+  /** The target account name (for quick reference) */
+  targetAccountName: varchar("target_account_name", { length: 255 }),
+  /** 'start' or 'stop' */
+  action: varchar("action", { length: 20 }).notNull(),
+  /** When the action occurred */
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ImpersonationAuditLog = typeof impersonationAuditLogs.$inferSelect;
+export type InsertImpersonationAuditLog = typeof impersonationAuditLogs.$inferInsert;

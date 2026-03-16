@@ -43,6 +43,7 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -170,6 +171,13 @@ function DashboardLayoutContent({
   );
   const isMobile = useIsMobile();
   const isAdmin = user?.role === "admin";
+
+  // Check impersonation status to add top padding when banner is visible
+  const { data: impersonationStatus } = trpc.impersonation.status.useQuery(undefined, {
+    enabled: isAdmin,
+    refetchOnWindowFocus: false,
+  });
+  const isImpersonating = impersonationStatus?.isImpersonating ?? false;
 
   useEffect(() => {
     if (isCollapsed) {
@@ -397,7 +405,7 @@ function DashboardLayoutContent({
         />
       </div>
 
-      <SidebarInset>
+      <SidebarInset className={isImpersonating ? "pt-10" : ""}>
         {isMobile && (
           <div className="flex border-b h-14 items-center justify-between bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">

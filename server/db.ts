@@ -45,6 +45,8 @@ import {
   type InsertDeal,
   facebookPageMappings,
   type InsertFacebookPageMapping,
+  impersonationAuditLogs,
+  type InsertImpersonationAuditLog,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2087,4 +2089,25 @@ export async function updateFacebookPageMapping(
     .update(facebookPageMappings)
     .set(data)
     .where(eq(facebookPageMappings.id, id));
+}
+
+// ─────────────────────────────────────────────
+// IMPERSONATION AUDIT LOG HELPERS
+// ─────────────────────────────────────────────
+
+export async function logImpersonationAction(data: InsertImpersonationAuditLog) {
+  const db = await getDb();
+  if (!db) return null;
+  const [result] = await db.insert(impersonationAuditLogs).values(data).$returningId();
+  return result;
+}
+
+export async function listImpersonationLogs(limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(impersonationAuditLogs)
+    .orderBy(desc(impersonationAuditLogs.createdAt))
+    .limit(limit);
 }
