@@ -106,3 +106,13 @@
 - [x] Templates support variables: {{first_name}}, {{last_name}}, {{agent_name}}, {{company_name}}
 - [x] Run seed script and verify templates in database
 - [x] Checkpoint saved
+
+## Campaign Builder UI
+- [x] Step 1: Campaign type selection (Email / SMS)
+- [x] Step 2: Template picker with preview
+- [x] Step 3: Recipient selection with status/tag filters and multi-select
+- [x] Step 4: Review campaign (message preview + recipient count)
+- [x] Step 5: Send options (send immediately / schedule for later)
+- [x] Wire up to existing backend (create campaign, add recipients, send/schedule)
+- [x] Integrate builder into existing Campaigns page via "+ New Campaign" button
+- [x] Checkpoint saved
