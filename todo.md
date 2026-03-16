@@ -286,4 +286,39 @@
 - [x] Login screen with "Admin Sign In" (OAuth) and "Sub-Account Login" (email/password) options
 - [x] Write vitest tests (25 tests)
 - [x] All 369 tests pass
+- [x] Checkpoint saved
+
+## Production Infrastructure Audit & Implementation
+### 1. SMS & Email Providers
+- [x] Replace placeholder sendCampaignSMS() with real Twilio integration
+- [x] Replace placeholder sendCampaignEmail() with real SendGrid integration
+- [x] Update messages.ts router for real send
+- [x] Update campaigns.ts router for real send
+- [x] Update workflowEngine.ts for real send
+### 2. Campaign Scheduler
+- [x] Build background worker that runs every minute
+- [x] Find campaigns where scheduledAt <= now and status = scheduled
+- [x] Send campaign messages via provider APIs
+- [x] Update campaign status after send
+- [x] Retry failed messages
+### 3. Environment Configuration
+- [x] Register new env vars (TWILIO_*, SENDGRID_*, VAPI_PHONE_NUMBER_ID) via webdev_request_secrets
+- [x] FB_WEBHOOK_VERIFY_TOKEN moved to per-client facebook_page_mappings.verify_token column
+### 4. Facebook Page Routing
+- [x] Add facebook_page_mappings table (facebook_page_id → account_id + verify_token)
+- [x] Update Facebook webhook to route by page ID
+- [x] Per-client verify tokens stored in facebook_page_mappings table
+- [ ] Admin UI for managing page mappings (deferred — backend ready)
+### 5. Security Hardening
+- [x] Add helmet middleware
+- [x] Add rate limiting middleware
+- [x] Add strict CORS configuration
+- [x] Set trust proxy for rate limiter behind reverse proxy
+### 6. Event Verification
+- [x] Verify contact_created trigger fires (existing — confirmed)
+- [x] Verify facebook_lead_received trigger fires (existing — confirmed)
+- [x] Verify pipeline_stage_changed trigger fires (existing — confirmed)
+- [x] Add call_completed trigger to VAPI webhook (end-of-call-report + simplified)
+- [x] Add onCallCompleted to workflowTriggers.ts
+- [x] Write vitest tests for all new infrastructure (21 tests pass)
 - [ ] Checkpoint saved

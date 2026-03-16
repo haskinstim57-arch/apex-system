@@ -632,3 +632,23 @@ export const deals = mysqlTable("deals", {
 
 export type Deal = typeof deals.$inferSelect;
 export type InsertDeal = typeof deals.$inferInsert;
+
+// ─────────────────────────────────────────────
+// FACEBOOK PAGE MAPPINGS — route FB page_id → sub-account
+// ─────────────────────────────────────────────
+export const facebookPageMappings = mysqlTable("facebook_page_mappings", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The Facebook Page ID (from webhook payload entry.id or value.page_id) */
+  facebookPageId: varchar("facebook_page_id", { length: 100 }).notNull().unique(),
+  /** The sub-account this page maps to */
+  accountId: int("account_id").notNull(),
+  /** Human-readable page name for admin reference */
+  pageName: varchar("page_name", { length: 255 }),
+  /** Per-client Facebook webhook verify token (each client has their own FB Ads Manager) */
+  verifyToken: varchar("verify_token", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FacebookPageMapping = typeof facebookPageMappings.$inferSelect;
+export type InsertFacebookPageMapping = typeof facebookPageMappings.$inferInsert;

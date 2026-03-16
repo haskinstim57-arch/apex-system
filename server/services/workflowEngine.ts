@@ -15,6 +15,7 @@ import {
 } from "../db";
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
+import { dispatchSMS, dispatchEmail } from "./messaging";
 
 // ─────────────────────────────────────────────
 // Workflow Execution Engine
@@ -249,6 +250,7 @@ async function executeAction(
   switch (step.actionType) {
     case "send_sms": {
       if (!contact.phone) throw new Error("Contact has no phone number");
+      const smsBody = interpolateTemplate(config.message || "", contact);
       const { id } = await createMessage({
         accountId,
         contactId,
@@ -256,14 +258,24 @@ async function executeAction(
         type: "sms",
         direction: "outbound",
         status: "pending",
-        body: interpolateTemplate(config.message || "", contact),
+        body: smsBody,
         toAddress: contact.phone,
       });
-      return { messageId: id, type: "sms", to: contact.phone };
+      // Dispatch through real provider
+      const smsResult = await dispatchSMS({ to: contact.phone, body: smsBody });
+      const { updateMessageStatus } = await import("../db");
+      if (smsResult.success) {
+        await updateMessageStatus(id, "sent", { externalId: smsResult.externalId, sentAt: new Date() });
+      } else {
+        await updateMessageStatus(id, "failed", { errorMessage: smsResult.error });
+      }
+      return { messageId: id, type: "sms", to: contact.phone, provider: smsResult.provider, sent: smsResult.success };
     }
 
     case "send_email": {
       if (!contact.email) throw new Error("Contact has no email address");
+      const emailSubject = interpolateTemplate(config.subject || "", contact);
+      const emailBody = interpolateTemplate(config.body || "", contact);
       const { id } = await createMessage({
         accountId,
         contactId,
@@ -271,11 +283,19 @@ async function executeAction(
         type: "email",
         direction: "outbound",
         status: "pending",
-        subject: interpolateTemplate(config.subject || "", contact),
-        body: interpolateTemplate(config.body || "", contact),
+        subject: emailSubject,
+        body: emailBody,
         toAddress: contact.email,
       });
-      return { messageId: id, type: "email", to: contact.email };
+      // Dispatch through real provider
+      const emailResult = await dispatchEmail({ to: contact.email, subject: emailSubject, body: emailBody });
+      const { updateMessageStatus: updateMsgStatus } = await import("../db");
+      if (emailResult.success) {
+        await updateMsgStatus(id, "sent", { externalId: emailResult.externalId, sentAt: new Date() });
+      } else {
+        await updateMsgStatus(id, "failed", { errorMessage: emailResult.error });
+      }
+      return { messageId: id, type: "email", to: contact.email, provider: emailResult.provider, sent: emailResult.success };
     }
 
     case "start_ai_call": {

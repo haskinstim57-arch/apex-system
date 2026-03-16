@@ -26,14 +26,28 @@ async function getVerification(params: Record<string, string>) {
 
 // ─── Verification Challenge ───
 describe("Facebook Webhook Verification", () => {
-  it("returns challenge when verify token matches", async () => {
-    const { status, text } = await getVerification({
-      "hub.mode": "subscribe",
-      "hub.challenge": "challenge_abc_123",
-      "hub.verify_token": "apex_verify",
+  it("returns challenge when verify token matches a page mapping", async () => {
+    // First, create a facebook page mapping with a known verify token
+    const { createFacebookPageMapping, deleteFacebookPageMapping } = await import("./db");
+    const mapping = await createFacebookPageMapping({
+      facebookPageId: `test_page_verify_${Date.now()}`,
+      accountId: 1,
+      pageName: "Test Page",
+      verifyToken: "apex_verify",
     });
-    expect(status).toBe(200);
-    expect(text).toBe("challenge_abc_123");
+
+    try {
+      const { status, text } = await getVerification({
+        "hub.mode": "subscribe",
+        "hub.challenge": "challenge_abc_123",
+        "hub.verify_token": "apex_verify",
+      });
+      expect(status).toBe(200);
+      expect(text).toBe("challenge_abc_123");
+    } finally {
+      // Clean up
+      await deleteFacebookPageMapping(mapping.id);
+    }
   });
 
   it("returns 403 when verify token is wrong", async () => {

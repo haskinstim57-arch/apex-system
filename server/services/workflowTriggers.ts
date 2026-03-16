@@ -95,3 +95,23 @@ export async function onFacebookLeadReceived(accountId: number, contactId: numbe
     console.error("[Triggers] onFacebookLeadReceived error:", err);
   }
 }
+
+/**
+ * Fire when an AI call is completed (ended via VAPI webhook or sync).
+ * Matches workflows with triggerType = "call_completed"
+ */
+export async function onCallCompleted(accountId: number, contactId: number) {
+  try {
+    const workflows = await getActiveWorkflowsByTrigger(accountId, "call_completed");
+    for (const wf of workflows) {
+      await triggerWorkflow(wf, contactId, accountId, "call_completed");
+    }
+    if (workflows.length > 0) {
+      console.log(
+        `[Triggers] call_completed: fired ${workflows.length} workflow(s) for contact ${contactId}`
+      );
+    }
+  } catch (err) {
+    console.error("[Triggers] onCallCompleted error:", err);
+  }
+}

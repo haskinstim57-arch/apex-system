@@ -71,6 +71,20 @@
       "when": 1773678367578,
       "tag": "0009_rare_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1773686548040,
+      "tag": "0010_lying_pandemic",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1773687813187,
+      "tag": "0011_adorable_master_mold",
+      "breakpoints": true
     }
   ]
 }

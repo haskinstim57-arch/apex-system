@@ -10,6 +10,8 @@ import { serveStatic, setupVite } from "./vite";
 import { vapiWebhookRouter } from "../webhooks/vapi";
 import { facebookLeadsWebhookRouter } from "../webhooks/facebookLeads";
 import { startWorkflowWorker } from "../services/workflowEngine";
+import { startCampaignScheduler } from "../services/campaignScheduler";
+import { applySecurityMiddleware } from "../middleware/security";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -36,6 +38,8 @@ async function startServer() {
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Apply security middleware (helmet, CORS, rate limiting)
+  applySecurityMiddleware(app);
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   // Public REST webhook for VAPI via n8n
@@ -68,6 +72,8 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
     // Start the workflow execution engine background worker
     startWorkflowWorker();
+    // Start the campaign scheduler background worker (runs every 60s)
+    startCampaignScheduler();
   });
 }
 

@@ -25,20 +25,33 @@ export const facebookLeadsWebhookRouter = Router();
  */
 facebookLeadsWebhookRouter.get(
   "/api/webhooks/facebook-leads",
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     const mode = req.query["hub.mode"];
     const challenge = req.query["hub.challenge"];
-    const verifyToken = req.query["hub.verify_token"];
+    const verifyToken = String(req.query["hub.verify_token"] || "");
 
-    // Accept any verify token for now (can be configured via env later)
-    const expectedToken = process.env.FB_WEBHOOK_VERIFY_TOKEN || "apex_verify";
-
-    if (mode === "subscribe" && verifyToken === expectedToken) {
-      console.log("[FB Leads Webhook] Verification challenge accepted");
-      return res.status(200).send(challenge);
+    if (mode !== "subscribe" || !verifyToken) {
+      console.warn("[FB Leads Webhook] Verification failed — missing mode or token");
+      return res.status(403).send("Forbidden");
     }
 
-    console.warn("[FB Leads Webhook] Verification failed", { mode, verifyToken });
+    // Check per-client verify tokens from the facebook_page_mappings table.
+    // Each client has their own FB Ads Manager, so each mapping row stores
+    // the verify_token that the client configured in their Facebook App.
+    try {
+      const { listFacebookPageMappings } = await import("../db");
+      const mappings = await listFacebookPageMappings();
+      const matched = mappings.some((m) => m.verifyToken === verifyToken);
+
+      if (matched) {
+        console.log(`[FB Leads Webhook] Verification challenge accepted (per-client token)`);
+        return res.status(200).send(challenge);
+      }
+    } catch (err) {
+      console.error("[FB Leads Webhook] Error checking per-client verify tokens:", err);
+    }
+
+    console.warn("[FB Leads Webhook] Verification failed — no matching verify token", { verifyToken });
     return res.status(403).send("Forbidden");
   }
 );
@@ -167,10 +180,21 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
       const email = fieldData.email || fieldData.email_address || "";
       const phone = fieldData.phone_number || fieldData.phone || "";
 
-      // Determine target account — use page_id mapping or default to first account
-      // For now, we use the accountId from the request header or default to 1
-      // In production, you'd map page_id to an account
-      const accountId = parseInt(String(value.accountId || entry.accountId || "1"), 10);
+      // Determine target account via facebook_page_mappings table
+      const pageId = String(value.page_id || entry.id || "");
+      let accountId = parseInt(String(value.accountId || entry.accountId || "0"), 10);
+      if ((!accountId || accountId <= 0) && pageId) {
+        const { getFacebookPageMappingByPageId } = await import("../db");
+        const mapping = await getFacebookPageMappingByPageId(pageId);
+        if (mapping) {
+          accountId = mapping.accountId;
+          console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId}`);
+        } else {
+          console.warn(`[FB Leads Webhook] No mapping found for page_id=${pageId}, defaulting to 1`);
+          accountId = 1;
+        }
+      }
+      if (!accountId || accountId <= 0) accountId = 1;
 
       try {
         const result = await processLead({

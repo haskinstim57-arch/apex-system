@@ -13,6 +13,7 @@ import {
   getMember,
   createAuditLog,
 } from "../db";
+import { dispatchSMS, dispatchEmail } from "../services/messaging";
 
 // ─── Tenant guard: verify user is a member of the account ───
 // Platform admins (role='admin' on users table) bypass this check
@@ -81,20 +82,55 @@ export const messagesRouter = router({
         });
       }
 
-      // Create the message record
+      // Create the message record with pending status
       const { id } = await createMessage({
         accountId: input.accountId,
         contactId: input.contactId,
         userId: ctx.user.id,
         type: input.type,
         direction: "outbound",
-        status: "sent", // In production, this would be "pending" until provider confirms
+        status: "pending",
         subject: input.subject || null,
         body: input.body,
         toAddress: input.toAddress,
         fromAddress: input.fromAddress || null,
-        sentAt: new Date(),
       });
+
+      // Dispatch through real provider (async, non-blocking)
+      (async () => {
+        try {
+          let result;
+          if (input.type === "sms") {
+            result = await dispatchSMS({
+              to: input.toAddress,
+              body: input.body,
+            });
+          } else {
+            result = await dispatchEmail({
+              to: input.toAddress,
+              subject: input.subject || "(no subject)",
+              body: input.body,
+              from: input.fromAddress || undefined,
+            });
+          }
+
+          if (result.success) {
+            await updateMessageStatus(id, "sent", {
+              externalId: result.externalId,
+              sentAt: new Date(),
+            });
+          } else {
+            await updateMessageStatus(id, "failed", {
+              errorMessage: result.error,
+            });
+          }
+        } catch (err: any) {
+          console.error(`[Messages] Provider dispatch failed for message ${id}:`, err);
+          await updateMessageStatus(id, "failed", {
+            errorMessage: err?.message || String(err),
+          });
+        }
+      })();
 
       // Log the action
       await createAuditLog({
@@ -110,7 +146,7 @@ export const messagesRouter = router({
         }),
       });
 
-      return { id, status: "sent" as const };
+      return { id, status: "pending" as const };
     }),
 
   // ─── Log an inbound message ───

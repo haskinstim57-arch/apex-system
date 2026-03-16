@@ -43,6 +43,8 @@ import {
   type InsertPipeline,
   type InsertPipelineStage,
   type InsertDeal,
+  facebookPageMappings,
+  type InsertFacebookPageMapping,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2004,4 +2006,73 @@ export async function getPipelineStageById(id: number, accountId: number) {
     .from(pipelineStages)
     .where(and(eq(pipelineStages.id, id), eq(pipelineStages.accountId, accountId)));
   return rows[0] || null;
+}
+
+// ─────────────────────────────────────────────
+// Campaign Scheduler Helpers
+// ─────────────────────────────────────────────
+
+/**
+ * Find all campaigns where status = "scheduled" and scheduledAt <= now.
+ * Used by the campaign scheduler background worker.
+ */
+export async function listScheduledCampaignsReady() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select()
+    .from(campaigns)
+    .where(
+      and(
+        eq(campaigns.status, "scheduled" as any),
+        sql`${campaigns.scheduledAt} <= NOW()`
+      )
+    )
+    .orderBy(asc(campaigns.scheduledAt))
+    .limit(50);
+  return rows;
+}
+
+// ─────────────────────────────────────────────
+// Facebook Page Mapping Helpers
+// ─────────────────────────────────────────────
+
+export async function createFacebookPageMapping(data: InsertFacebookPageMapping) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [row] = await db.insert(facebookPageMappings).values(data).$returningId();
+  return row;
+}
+
+export async function getFacebookPageMappingByPageId(facebookPageId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(facebookPageMappings)
+    .where(eq(facebookPageMappings.facebookPageId, facebookPageId))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function listFacebookPageMappings(accountId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  if (accountId) {
+    return db
+      .select()
+      .from(facebookPageMappings)
+      .where(eq(facebookPageMappings.accountId, accountId))
+      .orderBy(desc(facebookPageMappings.createdAt));
+  }
+  return db
+    .select()
+    .from(facebookPageMappings)
+    .orderBy(desc(facebookPageMappings.createdAt));
+}
+
+export async function deleteFacebookPageMapping(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(facebookPageMappings).where(eq(facebookPageMappings.id, id));
 }

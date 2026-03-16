@@ -143,6 +143,11 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
     console.log(`[VAPI Webhook REST] Updated call ${call.id}: type=${message.type}`);
   }
 
+  // Fire call_completed automation trigger when call ends
+  if (message.type === "end-of-call-report" && call.contactId && call.accountId) {
+    fireCallCompletedTrigger(call.accountId, call.contactId);
+  }
+
   return { success: true };
 }
 
@@ -200,7 +205,24 @@ async function handleSimplifiedPayload(body: any): Promise<{ success: boolean; e
     console.log(`[VAPI Webhook REST] Updated call ${call.id} (simplified format)`);
   }
 
+  // Fire call_completed trigger when status is ended/completed
+  const isEnded = body.status === "ended" || body.status === "completed";
+  if (isEnded && call.contactId && call.accountId) {
+    fireCallCompletedTrigger(call.accountId, call.contactId);
+  }
+
   return { success: true };
+}
+
+// ─────────────────────────────────────────────
+// Fire call_completed automation trigger (non-blocking)
+// ─────────────────────────────────────────────
+function fireCallCompletedTrigger(accountId: number, contactId: number) {
+  import("../services/workflowTriggers")
+    .then(({ onCallCompleted }) => onCallCompleted(accountId, contactId))
+    .catch((err) =>
+      console.error(`[VAPI Webhook REST] Error firing call_completed trigger:`, err)
+    );
 }
 
 // ─────────────────────────────────────────────

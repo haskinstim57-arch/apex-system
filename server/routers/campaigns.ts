@@ -22,9 +22,11 @@ import {
 } from "../db";
 
 // ─────────────────────────────────────────────
-// PLACEHOLDER SEND FUNCTIONS
-// These will be replaced with real SendGrid / Twilio integrations
+// REAL PROVIDER SEND FUNCTIONS
+// Routes through Twilio (SMS) and SendGrid (Email)
+// Falls back to placeholder when providers are not configured
 // ─────────────────────────────────────────────
+import { dispatchSMS, dispatchEmail } from "../services/messaging";
 
 interface SendResult {
   success: boolean;
@@ -33,8 +35,7 @@ interface SendResult {
 }
 
 /**
- * Placeholder for sending campaign emails via SendGrid.
- * Returns a simulated success with a fake external ID.
+ * Send a campaign email via SendGrid (or placeholder fallback).
  */
 export async function sendCampaignEmail(params: {
   to: string;
@@ -44,21 +45,21 @@ export async function sendCampaignEmail(params: {
   contactFirstName?: string;
   contactLastName?: string;
 }): Promise<SendResult> {
-  console.log(`[PLACEHOLDER] sendCampaignEmail to=${params.to} subject="${params.subject}"`);
-  // Simulate a small delay
-  await new Promise((r) => setTimeout(r, 50));
-  // Simulate 95% success rate
-  const success = Math.random() > 0.05;
+  const result = await dispatchEmail({
+    to: params.to,
+    subject: params.subject,
+    body: params.body,
+    from: params.from,
+  });
   return {
-    success,
-    externalId: success ? `sg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` : undefined,
-    error: success ? undefined : "Simulated delivery failure",
+    success: result.success,
+    externalId: result.externalId,
+    error: result.error,
   };
 }
 
 /**
- * Placeholder for sending campaign SMS via Twilio.
- * Returns a simulated success with a fake external ID.
+ * Send a campaign SMS via Twilio (or placeholder fallback).
  */
 export async function sendCampaignSMS(params: {
   to: string;
@@ -67,13 +68,15 @@ export async function sendCampaignSMS(params: {
   contactFirstName?: string;
   contactLastName?: string;
 }): Promise<SendResult> {
-  console.log(`[PLACEHOLDER] sendCampaignSMS to=${params.to}`);
-  await new Promise((r) => setTimeout(r, 50));
-  const success = Math.random() > 0.05;
+  const result = await dispatchSMS({
+    to: params.to,
+    body: params.body,
+    from: params.from,
+  });
   return {
-    success,
-    externalId: success ? `tw_${Date.now()}_${Math.random().toString(36).slice(2, 8)}` : undefined,
-    error: success ? undefined : "Simulated SMS delivery failure",
+    success: result.success,
+    externalId: result.externalId,
+    error: result.error,
   };
 }
 

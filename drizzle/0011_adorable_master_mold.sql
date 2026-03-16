@@ -1,0 +1,1 @@
+ALTER TABLE `facebook_page_mappings` ADD `verify_token` varchar(255);
