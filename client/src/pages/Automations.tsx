@@ -55,7 +55,14 @@ import {
   Pause,
   RotateCcw,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { FileText } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── Constants ───
@@ -185,9 +192,16 @@ export default function Automations() {
           </div>
 
           {view === "list" && (
-            <Button onClick={() => setCreateOpen(true)} size="sm">
-              <Plus className="h-4 w-4 mr-1" /> New Workflow
-            </Button>
+            <>
+              <TemplatesDropdown accountId={accountId} onCreated={(id) => {
+                setSelectedWorkflowId(id);
+                setView("builder");
+                utils.automations.list.invalidate();
+              }} />
+              <Button onClick={() => setCreateOpen(true)} size="sm">
+                <Plus className="h-4 w-4 mr-1" /> New Workflow
+              </Button>
+            </>
           )}
         </div>
       </div>
@@ -279,7 +293,7 @@ function WorkflowsList({
           <Zap className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
           <h3 className="text-lg font-medium mb-2">No workflows yet</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Create your first automation workflow to start automating your pipeline.
+            Create your first automation workflow or use a pre-built template.
           </p>
         </CardContent>
       </Card>
@@ -1559,5 +1573,67 @@ function ExecutionDetail({
         ))}
       </div>
     </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// TEMPLATES DROPDOWN
+// ═══════════════════════════════════════════
+function TemplatesDropdown({
+  accountId,
+  onCreated,
+}: {
+  accountId: number | null;
+  onCreated: (id: number) => void;
+}) {
+  const { data: templates } = trpc.automations.listTemplates.useQuery();
+  const provisionMutation = trpc.automations.provisionTemplate.useMutation({
+    onSuccess: (data) => {
+      toast.success("Template workflow created! Review the steps and activate it when ready.");
+      onCreated(data.workflowId);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  if (!templates || templates.length === 0) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm">
+          <FileText className="h-4 w-4 mr-1" /> Templates
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-72">
+        {templates.map((t) => {
+          const triggerInfo = TRIGGER_TYPES.find((tr) => tr.value === t.triggerType);
+          const TriggerIcon = triggerInfo?.icon ?? Zap;
+          return (
+            <DropdownMenuItem
+              key={t.id}
+              onClick={() => {
+                if (!accountId) {
+                  toast.error("Select an account first");
+                  return;
+                }
+                provisionMutation.mutate({
+                  accountId,
+                  templateId: t.id,
+                });
+              }}
+              className="flex flex-col items-start gap-1 py-3 cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <TriggerIcon className="h-4 w-4 text-primary" />
+                <span className="font-medium text-sm">{t.name}</span>
+              </div>
+              <span className="text-xs text-muted-foreground pl-6">
+                {t.description}
+              </span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

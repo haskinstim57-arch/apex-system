@@ -470,4 +470,49 @@ export const automationsRouter = router({
 
       return { executionId };
     }),
+
+  // ═══════════════════════════════════════════
+  // TEMPLATES
+  // ═══════════════════════════════════════════
+
+  // ─── List available templates ───
+  listTemplates: protectedProcedure.query(async () => {
+    const { WORKFLOW_TEMPLATES } = await import("../services/workflowTemplates");
+    return WORKFLOW_TEMPLATES;
+  }),
+
+  // ─── Provision a template workflow ───
+  provisionTemplate: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        templateId: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      if (input.templateId === "facebook_lead_followup") {
+        const { provisionFacebookLeadFollowUp } = await import(
+          "../services/workflowTemplates"
+        );
+        const result = await provisionFacebookLeadFollowUp(
+          input.accountId,
+          ctx.user.id
+        );
+        if (result.alreadyExists) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "A Facebook Lead Follow-Up workflow already exists for this account",
+          });
+        }
+        return { workflowId: result.workflowId };
+      }
+
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Unknown template: ${input.templateId}`,
+      });
+    }),
 });

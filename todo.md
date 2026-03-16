@@ -237,4 +237,17 @@
 - [x] Store Facebook metadata (lead_id, campaign_id, ad_id, form_id) in customFields
 - [x] Write vitest tests (23 tests)
 - [x] 313/314 tests pass (1 pre-existing flaky timeout in trigger-wiring)
+- [x] Checkpoint saved
+
+## Facebook Lead Follow-Up Workflow Template
+- [x] Create template provisioning function (server/services/workflowTemplates.ts)
+- [x] Workflow: Trigger = facebook_lead_received
+- [x] Step 1: Send SMS ("Hi {{firstName}}, thanks for your interest...")
+- [x] Step 2: Wait 5 minutes
+- [x] Step 3: Start AI Call (VAPI)
+- [x] Duplicate prevention: checks if FB workflow already exists for account
+- [x] Templates dropdown button in Automations UI header
+- [x] tRPC endpoints: listTemplates, provisionTemplate
+- [x] Write tests (8 tests)
+- [x] All 322 tests pass
 - [ ] Checkpoint saved
