@@ -59,3 +59,7 @@
 - [x] Frontend: Sidebar nav shows Sub-Accounts for admin only
 - [x] Vitest tests for sub-account creation and owner assignment
 - [x] Checkpoint saved
+
+## Bug Fixes
+- [x] Fix: Admins should bypass account membership check for contacts access
+- [x] Fix: Ensure admin users can create/view/edit contacts in any sub-account

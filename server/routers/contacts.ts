@@ -23,7 +23,16 @@ import {
 } from "../db";
 
 // ─── Tenant guard: verify user is a member of the account ───
-async function requireAccountMember(userId: number, accountId: number) {
+// Platform admins (role='admin' on users table) bypass this check
+async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
+  // Platform admins can access any account
+  if (userRole === "admin") {
+    // Try to get membership; if they're a member return it, otherwise return a synthetic admin membership
+    const member = await getMember(accountId, userId);
+    if (member) return member;
+    return { userId, accountId, role: "owner" as const, isActive: true };
+  }
+
   const member = await getMember(accountId, userId);
   if (!member || !member.isActive) {
     throw new TRPCError({
@@ -69,7 +78,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
 
       const { tags, ...contactData } = input;
       // Normalize empty strings to null
@@ -114,7 +123,7 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       return listContacts(input);
     }),
 
@@ -127,7 +136,7 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const contact = await getContactById(input.id, input.accountId);
       if (!contact) {
         throw new TRPCError({
@@ -160,7 +169,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
 
       const existing = await getContactById(input.id, input.accountId);
       if (!existing) {
@@ -203,7 +212,8 @@ export const contactsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const member = await requireAccountMember(
         ctx.user.id,
-        input.accountId
+        input.accountId,
+        ctx.user.role
       );
 
       // Only owner/manager can delete
@@ -245,7 +255,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
 
       // If assigning to someone, verify they're a member
       if (input.assignedUserId) {
@@ -281,7 +291,7 @@ export const contactsRouter = router({
   stats: protectedProcedure
     .input(z.object({ accountId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       return getContactStats(input.accountId);
     }),
 
@@ -294,7 +304,7 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       // Verify contact belongs to account
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
@@ -315,7 +325,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
         throw new TRPCError({
@@ -335,7 +345,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
         throw new TRPCError({
@@ -350,7 +360,7 @@ export const contactsRouter = router({
   allTags: protectedProcedure
     .input(z.object({ accountId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       return listAllTagsForAccount(input.accountId);
     }),
 
@@ -363,7 +373,7 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
         throw new TRPCError({
@@ -383,7 +393,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
         throw new TRPCError({
@@ -408,7 +418,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const note = await getContactNoteById(input.noteId);
       if (!note) {
         throw new TRPCError({
@@ -439,7 +449,7 @@ export const contactsRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const note = await getContactNoteById(input.noteId);
       if (!note) {
         throw new TRPCError({

@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, name, email, role FROM users ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, email, role FROM users ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tim Haskins",
+      "email": "haskinstim57@gmail.com",
+      "role": "admin"
+    },
+    {
+      "id": "3",
+      "name": "john Moreno",
+      "email": "johnmoreno189@gmail.com",
+      "role": "user"
+    },
+    {
+      "id": "6",
+      "name": "Thailer Somerville",
+      "email": "thailer@raindropmarketingcom.com",
+      "role": "user"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n1\tTim Haskins\thaskinstim57@gmail.com\tadmin\n3\tjohn Moreno\tjohnmoreno189@gmail.com\tuser\n6\tThailer Somerville\tthailer@raindropmarketingcom.com\tuser\n",
+  "stderr": "",
+  "execution_time_ms": 217
+}

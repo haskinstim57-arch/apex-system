@@ -1,0 +1,31 @@
+{
+  "query": "SELECT id, name, email, role, openId FROM users ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, email, role, openId FROM users ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tim Haskins",
+      "email": "haskinstim57@gmail.com",
+      "role": "admin",
+      "openId": "dxZ9cokydSrCYPG2CXB4Uc"
+    },
+    {
+      "id": "3",
+      "name": "john Moreno",
+      "email": "johnmoreno189@gmail.com",
+      "role": "user",
+      "openId": "CTHAbsXmNmfHhVSmrPrENj"
+    },
+    {
+      "id": "6",
+      "name": "Thailer Somerville",
+      "email": "thailer@raindropmarketingcom.com",
+      "role": "admin",
+      "openId": "CreY5HVHeNuqrFTMoHqEFN"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\topenId\n1\tTim Haskins\thaskinstim57@gmail.com\tadmin\tdxZ9cokydSrCYPG2CXB4Uc\n3\tjohn Moreno\tjohnmoreno189@gmail.com\tuser\tCTHAbsXmNmfHhVSmrPrENj\n6\tThailer Somerville\tthailer@raindropmarketingcom.com\tadmin\tCreY5HVHeNuqrFTMoHqEFN\n",
+  "stderr": "",
+  "execution_time_ms": 51
+}
