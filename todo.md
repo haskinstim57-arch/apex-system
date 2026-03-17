@@ -497,3 +497,9 @@
 - [x] Added [SENDGRID] log before mailService.send(): confirms call is reached
 - [x] Enhanced error catch: logs full err.response.body via JSON.stringify
 - [x] All 512 tests pass across 25 test files
+
+## Bug Fix: accounts.create not sending invitation email
+- [x] Root cause: accounts.create creates invitation record but never calls dispatchEmail
+- [x] Added dispatchEmail call with HTML email template after db.createInvitation in accounts.create
+- [x] Added [INVITE] diagnostic logging before/after dispatchEmail
+- [x] All 512 tests pass across 25 test files

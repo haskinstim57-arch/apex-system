@@ -8,6 +8,7 @@ import {
 } from "../_core/trpc";
 import * as db from "../db";
 import { eq } from "drizzle-orm";
+import { dispatchEmail } from "../services/messaging";
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -101,6 +102,53 @@ export const accountsRouter = router({
         message: `You've been assigned as the owner of ${input.name}.`,
         expiresAt,
       });
+
+      // Send invitation email to the owner
+      const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
+      const inviteUrl = `${baseUrl}/invite/${token}`;
+      const inviterName = ctx.user.name || "An administrator";
+
+      try {
+        console.log(
+          `[INVITE] Attempting to send email to: ${input.ownerEmail} from: ${process.env.SENDGRID_FROM_EMAIL || '(not set)'}`
+        );
+        const emailResult = await dispatchEmail({
+          to: input.ownerEmail,
+          subject: `You've been invited to join ${input.name} on Apex System`,
+          body: [
+            `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
+            `<h2 style="color: #d4a843;">You're Invited!</h2>`,
+            `<p>${inviterName} has invited you to join <strong>${input.name}</strong> on Apex System as an owner.</p>`,
+            `<p>Click the button below to accept the invitation and set up your account:</p>`,
+            `<p style="text-align: center; margin: 30px 0;">`,
+            `<a href="${inviteUrl}" style="background-color: #d4a843; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
+            `</p>`,
+            `<p style="color: #888; font-size: 13px;">Or copy this link: ${inviteUrl}</p>`,
+            `<p style="color: #888; font-size: 13px;">This invitation expires in 30 days.</p>`,
+            `<hr style="border: 1px solid #333;">`,
+            `<p style="color: #888; font-size: 12px;">&mdash; Apex System</p>`,
+            `</div>`,
+          ].join("\n"),
+        });
+
+        console.log(
+          `[INVITE] dispatchEmail result: ${JSON.stringify(emailResult)}`
+        );
+        if (!emailResult.success) {
+          console.error(
+            `[Accounts] Invitation email failed for ${input.ownerEmail}: ${emailResult.error}`
+          );
+        } else {
+          console.log(
+            `[Accounts] Invitation email sent to ${input.ownerEmail} for account ${input.name}`
+          );
+        }
+      } catch (err: any) {
+        console.error(
+          `[Accounts] Unexpected error sending invitation email to ${input.ownerEmail}:`,
+          err?.response?.body || err?.message || err
+        );
+      }
 
       await db.createAuditLog({
         accountId: result.id,
