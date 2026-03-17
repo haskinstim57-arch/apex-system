@@ -503,3 +503,8 @@
 - [x] Added dispatchEmail call with HTML email template after db.createInvitation in accounts.create
 - [x] Added [INVITE] diagnostic logging before/after dispatchEmail
 - [x] All 512 tests pass across 25 test files
+
+## Resend Invitation Button
+- [x] Add invitations.resend tRPC mutation (revokes old invite, creates fresh token, sends email)
+- [x] Add Resend button with Send icon next to Pending badge in Accounts.tsx
+- [x] All 512 tests pass across 25 test files

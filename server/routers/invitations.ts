@@ -256,6 +256,120 @@ export const invitationsRouter = router({
       return db.listInvitations(input.accountId);
     }),
 
+  /** Resend an invitation email for a pending account (admin only) */
+  resend: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      // Only admins can resend from the Sub-Accounts page
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only administrators can resend invitations.",
+        });
+      }
+
+      const account = await db.getAccountById(input.accountId);
+      if (!account) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found." });
+      }
+
+      // Find the most recent pending invitation for this account
+      const allInvitations = await db.listInvitations(input.accountId);
+      const pendingInvite = allInvitations.find((inv) => inv.status === "pending");
+
+      if (!pendingInvite) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No pending invitation found for this account.",
+        });
+      }
+
+      // Generate a new token and extend expiry
+      const newToken = nanoid(32);
+      const newExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+      // Revoke old invitation and create a fresh one
+      await db.updateInvitationStatus(pendingInvite.id, "revoked");
+      const newInvite = await db.createInvitation({
+        accountId: input.accountId,
+        invitedById: ctx.user.id,
+        email: pendingInvite.email,
+        role: pendingInvite.role,
+        token: newToken,
+        status: "pending",
+        message: `Reminder: You've been invited to join ${account.name}.`,
+        expiresAt: newExpiresAt,
+      });
+
+      // Send the email
+      const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
+      const inviteUrl = `${baseUrl}/invite/${newToken}`;
+      const inviterName = ctx.user.name || "An administrator";
+
+      let emailSent = false;
+      try {
+        console.log(
+          `[INVITE-RESEND] Attempting to send email to: ${pendingInvite.email} from: ${process.env.SENDGRID_FROM_EMAIL || '(not set)'}`
+        );
+        const emailResult = await dispatchEmail({
+          to: pendingInvite.email,
+          subject: `Reminder: You've been invited to join ${account.name} on Apex System`,
+          body: [
+            `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
+            `<h2 style="color: #d4a843;">Invitation Reminder</h2>`,
+            `<p>${inviterName} has re-sent your invitation to join <strong>${account.name}</strong> on Apex System as a${pendingInvite.role === "owner" ? "n" : ""} ${pendingInvite.role}.</p>`,
+            `<p>Click the button below to accept the invitation and set up your account:</p>`,
+            `<p style="text-align: center; margin: 30px 0;">`,
+            `<a href="${inviteUrl}" style="background-color: #d4a843; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
+            `</p>`,
+            `<p style="color: #888; font-size: 13px;">Or copy this link: ${inviteUrl}</p>`,
+            `<p style="color: #888; font-size: 13px;">This invitation expires in 30 days.</p>`,
+            `<hr style="border: 1px solid #333;">`,
+            `<p style="color: #888; font-size: 12px;">&mdash; Apex System</p>`,
+            `</div>`,
+          ].join("\n"),
+        });
+
+        console.log(
+          `[INVITE-RESEND] dispatchEmail result: ${JSON.stringify(emailResult)}`
+        );
+        emailSent = emailResult.success;
+        if (!emailResult.success) {
+          console.error(
+            `[Invitations] Resend email failed for ${pendingInvite.email}: ${emailResult.error}`
+          );
+        } else {
+          console.log(
+            `[Invitations] Invitation re-sent to ${pendingInvite.email} for account ${account.name}`
+          );
+        }
+      } catch (err: any) {
+        console.error(
+          `[Invitations] Unexpected error resending invitation email to ${pendingInvite.email}:`,
+          err?.response?.body || err?.message || err
+        );
+      }
+
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "invitation.resent",
+        resourceType: "invitation",
+        resourceId: newInvite.id,
+        metadata: JSON.stringify({
+          email: pendingInvite.email,
+          role: pendingInvite.role,
+          emailSent,
+        }),
+      });
+
+      return { success: true, emailSent };
+    }),
+
   /** Revoke a pending invitation */
   revoke: protectedProcedure
     .input(

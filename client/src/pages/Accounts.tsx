@@ -42,6 +42,7 @@ import {
   Mail,
   Calendar,
   LogIn,
+  Send,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -94,6 +95,15 @@ export default function Accounts() {
     },
     onError: (err) => {
       toast.error("Failed to impersonate", { description: err.message });
+    },
+  });
+
+  const resendMutation = trpc.invitations.resend.useMutation({
+    onSuccess: () => {
+      toast.success("Invitation email resent successfully");
+    },
+    onError: (err) => {
+      toast.error("Failed to resend invitation", { description: err.message });
     },
   });
 
@@ -361,12 +371,27 @@ export default function Accounts() {
                   </>
                 ) : (
                   <>
-                    <Badge
-                      variant="secondary"
-                      className="text-[10px] h-5 bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
-                    >
-                      Pending
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="text-[10px] h-5 bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                      >
+                        Pending
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-primary hover:text-primary/80"
+                        disabled={resendMutation.isPending}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          resendMutation.mutate({ accountId: account.id });
+                        }}
+                      >
+                        <Send className="h-3 w-3" />
+                        {resendMutation.isPending ? "Sending..." : "Resend"}
+                      </Button>
+                    </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">
                       {account.email || "—"}
                     </p>
