@@ -28,13 +28,13 @@ export async function dispatchSMS(params: {
     return { ...result, provider: "twilio" };
   }
 
-  // Placeholder fallback — log and simulate success
-  console.log(
-    `[Messaging] SMS placeholder: to=${params.to} body="${params.body.substring(0, 50)}..."`
+  // Placeholder fallback — provider not configured, report failure
+  console.warn(
+    `[Messaging] SMS not sent (provider not configured): to=${params.to} body="${params.body.substring(0, 50)}..."`
   );
   return {
-    success: true,
-    externalId: `placeholder_sms_${Date.now()}`,
+    success: false,
+    error: "Provider not configured — set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in environment variables",
     provider: "placeholder",
   };
 }
@@ -55,13 +55,13 @@ export async function dispatchEmail(params: {
     return { ...result, provider: "sendgrid" };
   }
 
-  // Placeholder fallback — log and simulate success
-  console.log(
-    `[Messaging] Email placeholder: to=${params.to} subject="${params.subject}"`
+  // Placeholder fallback — provider not configured, report failure
+  console.warn(
+    `[Messaging] Email not sent (provider not configured): to=${params.to} subject="${params.subject}"`
   );
   return {
-    success: true,
-    externalId: `placeholder_email_${Date.now()}`,
+    success: false,
+    error: "Provider not configured — set SENDGRID_API_KEY in environment variables",
     provider: "placeholder",
   };
 }

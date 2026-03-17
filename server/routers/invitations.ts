@@ -7,6 +7,7 @@ import {
   router,
 } from "../_core/trpc";
 import * as db from "../db";
+import { dispatchEmail } from "../services/messaging";
 
 /** Ensure the current user is an owner/manager of the given account */
 async function requireInviteAccess(userId: number, accountId: number) {
@@ -93,7 +94,39 @@ export const invitationsRouter = router({
         }),
       });
 
-      return { id: result.id, token };
+      // Send invitation email
+      const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
+      const inviteUrl = `${baseUrl}/invite/${token}`;
+      const inviterName = ctx.user.name || "An administrator";
+
+      const emailResult = await dispatchEmail({
+        to: input.email,
+        subject: `You've been invited to join ${account.name}`,
+        body: [
+          `Hi,`,
+          ``,
+          `${inviterName} has invited you to join ${account.name} on Apex System as a${input.role === "owner" ? "n" : ""} ${input.role}.`,
+          ``,
+          input.message ? `Message from ${inviterName}: "${input.message}"` : "",
+          input.message ? "" : "",
+          `Click the link below to accept the invitation:`,
+          inviteUrl,
+          ``,
+          `This invitation expires in 7 days.`,
+          ``,
+          `— Apex System`,
+        ]
+          .filter((line) => line !== "" || true)
+          .join("\n"),
+      });
+
+      if (!emailResult.success) {
+        console.warn(
+          `[Invitations] Email dispatch failed for ${input.email}: ${emailResult.error}`
+        );
+      }
+
+      return { id: result.id, emailSent: emailResult.success };
     }),
 
   /** Accept an invitation (authenticated user) */

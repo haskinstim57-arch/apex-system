@@ -91,7 +91,7 @@ export default function AccountDetail({ id }: { id: number }) {
       setInviteRole("employee");
       setInviteMessage("");
       toast.success("Invitation sent", {
-        description: `Invite token: ${data.token}`,
+        description: "An invitation email has been sent to the user.",
       });
     },
     onError: (err) => {

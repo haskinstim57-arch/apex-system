@@ -80,9 +80,9 @@ describe("Unified Messaging Dispatcher", () => {
   it("dispatchSMS falls back to placeholder when Twilio not configured", async () => {
     const { dispatchSMS } = await import("./services/messaging");
     const result = await dispatchSMS({ to: "+15559876543", body: "Test" });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
     expect(result.provider).toBe("placeholder");
-    expect(result.externalId).toMatch(/^placeholder_sms_/);
+    expect(result.error).toContain("Provider not configured");
   });
 
   it("dispatchEmail falls back to placeholder when SendGrid not configured", async () => {
@@ -92,9 +92,9 @@ describe("Unified Messaging Dispatcher", () => {
       subject: "Test",
       body: "Test body",
     });
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
     expect(result.provider).toBe("placeholder");
-    expect(result.externalId).toMatch(/^placeholder_email_/);
+    expect(result.error).toContain("Provider not configured");
   });
 
   it("getProviderStatus reports placeholder when not configured", async () => {
@@ -178,7 +178,7 @@ describe("Campaign Send Functions — Provider Integration", () => {
     delete process.env.SENDGRID_FROM_EMAIL;
   });
 
-  it("sendCampaignEmail uses dispatcher (placeholder fallback)", async () => {
+  it("sendCampaignEmail uses dispatcher (placeholder fallback returns failure)", async () => {
     const { sendCampaignEmail } = await import("./routers/campaigns");
     const result = await sendCampaignEmail({
       to: "test@example.com",
@@ -186,19 +186,19 @@ describe("Campaign Send Functions — Provider Integration", () => {
       subject: "Test Campaign",
       body: "Hello {{firstName}}",
     });
-    expect(result.success).toBe(true);
-    expect(result.externalId).toBeDefined();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Provider not configured");
   });
 
-  it("sendCampaignSMS uses dispatcher (placeholder fallback)", async () => {
+  it("sendCampaignSMS uses dispatcher (placeholder fallback returns failure)", async () => {
     const { sendCampaignSMS } = await import("./routers/campaigns");
     const result = await sendCampaignSMS({
       to: "+15559876543",
       from: "+15551234567",
       body: "Test SMS campaign",
     });
-    expect(result.success).toBe(true);
-    expect(result.externalId).toBeDefined();
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Provider not configured");
   });
 });
 

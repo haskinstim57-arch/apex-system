@@ -413,3 +413,8 @@
 - [x] Fix cookie sameSite/secure mismatch in impersonation.ts (secure: true always when sameSite: 'none')
 - [x] Verify trust proxy in security.ts middleware (already set: app.set('trust proxy', 1))
 - [x] Fix ImpersonationBanner to clear localStorage on stop impersonation
+
+## Invitation System Bug Fixes
+- [x] Fix invitations.ts to send email after token creation (dispatchEmail with invite URL)
+- [x] Fix AccountDetail.tsx to remove raw token from toast (simple success message)
+- [x] Fix messaging.ts placeholder to return success: false with provider config error message
