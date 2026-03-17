@@ -479,3 +479,10 @@
 - [x] Updated invitations.accept to set ownerId on account when owner invitation is accepted
 - [x] Updated Accounts.tsx to show yellow "Pending" badge when ownerName is null
 - [x] All 512 tests pass across 25 test files
+
+## Email Delivery Debugging Improvements
+- [x] Add startup warning in sendgrid.ts when SENDGRID_API_KEY is missing
+- [x] Add try/catch with full error logging in invitations.ts dispatchEmail call
+- [x] Add SENDGRID_FROM_EMAIL fallback to noreply@apexsystem.io
+- [x] Updated isSendGridConfigured to only require API key (from-email has fallback)
+- [x] All 512 tests pass across 25 test files

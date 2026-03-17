@@ -99,34 +99,47 @@ export const invitationsRouter = router({
       const inviteUrl = `${baseUrl}/invite/${token}`;
       const inviterName = ctx.user.name || "An administrator";
 
-      const emailResult = await dispatchEmail({
-        to: input.email,
-        subject: `You've been invited to join ${account.name}`,
-        body: [
-          `Hi,`,
-          ``,
-          `${inviterName} has invited you to join ${account.name} on Apex System as a${input.role === "owner" ? "n" : ""} ${input.role}.`,
-          ``,
-          input.message ? `Message from ${inviterName}: "${input.message}"` : "",
-          input.message ? "" : "",
-          `Click the link below to accept the invitation:`,
-          inviteUrl,
-          ``,
-          `This invitation expires in 7 days.`,
-          ``,
-          `— Apex System`,
-        ]
-          .filter((line) => line !== "" || true)
-          .join("\n"),
-      });
+      let emailSent = false;
+      try {
+        const emailResult = await dispatchEmail({
+          to: input.email,
+          subject: `You've been invited to join ${account.name}`,
+          body: [
+            `Hi,`,
+            ``,
+            `${inviterName} has invited you to join ${account.name} on Apex System as a${input.role === "owner" ? "n" : ""} ${input.role}.`,
+            ``,
+            input.message ? `Message from ${inviterName}: "${input.message}"` : "",
+            input.message ? "" : "",
+            `Click the link below to accept the invitation:`,
+            inviteUrl,
+            ``,
+            `This invitation expires in 7 days.`,
+            ``,
+            `\u2014 Apex System`,
+          ]
+            .filter((line) => line !== "" || true)
+            .join("\n"),
+        });
 
-      if (!emailResult.success) {
-        console.warn(
-          `[Invitations] Email dispatch failed for ${input.email}: ${emailResult.error}`
+        emailSent = emailResult.success;
+        if (!emailResult.success) {
+          console.error(
+            `[Invitations] Email dispatch failed for ${input.email}: ${emailResult.error}`
+          );
+        } else {
+          console.log(
+            `[Invitations] Invitation email sent to ${input.email} for account ${account.name}`
+          );
+        }
+      } catch (err: any) {
+        console.error(
+          `[Invitations] Unexpected error sending invitation email to ${input.email}:`,
+          err?.response?.body || err?.message || err
         );
       }
 
-      return { id: result.id, emailSent: emailResult.success };
+      return { id: result.id, emailSent };
     }),
 
   /** Accept an invitation (authenticated user) */

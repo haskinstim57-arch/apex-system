@@ -9,6 +9,11 @@ import { getAccountMessagingSettings } from "../db";
 
 let _globalInitialized = false;
 
+// Startup check: warn immediately if SENDGRID_API_KEY is not set
+if (!process.env.SENDGRID_API_KEY) {
+  console.warn("[WARN] SENDGRID_API_KEY is not set \u2014 emails will not be delivered.");
+}
+
 function ensureGlobalInitialized() {
   if (!_globalInitialized) {
     const apiKey = process.env.SENDGRID_API_KEY;
@@ -20,10 +25,13 @@ function ensureGlobalInitialized() {
   }
 }
 
+const FALLBACK_FROM_EMAIL = "noreply@apexsystem.io";
+
 function getGlobalFromEmail(): string {
   const from = process.env.SENDGRID_FROM_EMAIL;
   if (!from) {
-    throw new Error("[SendGrid] Missing SENDGRID_FROM_EMAIL environment variable");
+    console.warn(`[SendGrid] SENDGRID_FROM_EMAIL is not set \u2014 using fallback: ${FALLBACK_FROM_EMAIL}`);
+    return FALLBACK_FROM_EMAIL;
   }
   return from;
 }
@@ -60,8 +68,8 @@ async function resolveCredentials(accountId?: number): Promise<{
     }
   }
 
-  // Fall back to global env vars
-  if (process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL) {
+  // Fall back to global env vars (SENDGRID_FROM_EMAIL has a fallback default)
+  if (process.env.SENDGRID_API_KEY) {
     ensureGlobalInitialized();
     return {
       mailService: sgMail,
@@ -157,5 +165,5 @@ export async function sendEmail(params: {
  * Note: per-account credentials are checked at send time.
  */
 export function isSendGridConfigured(): boolean {
-  return !!(process.env.SENDGRID_API_KEY && process.env.SENDGRID_FROM_EMAIL);
+  return !!process.env.SENDGRID_API_KEY;
 }
