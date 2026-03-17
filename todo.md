@@ -486,3 +486,14 @@
 - [x] Add SENDGRID_FROM_EMAIL fallback to noreply@apexsystem.io
 - [x] Updated isSendGridConfigured to only require API key (from-email has fallback)
 - [x] All 512 tests pass across 25 test files
+
+## Email Diagnostic Trace
+- [x] Traced full call chain: invitations.ts → dispatchEmail (messaging.ts) → sendEmail (sendgrid.ts) → sgMail.send()
+- [x] Confirmed sgMail.send() is the real @sendgrid/mail send function (not a stub)
+- [x] Confirmed @sendgrid/mail ^8.1.6 is in package.json and installed in node_modules
+- [x] Added [INVITE] log before dispatchEmail: shows target email + SENDGRID_FROM_EMAIL env
+- [x] Added [INVITE] log after dispatchEmail: shows full result JSON
+- [x] Added [SENDGRID] log at top of sendEmail: shows API key present, to, accountId
+- [x] Added [SENDGRID] log before mailService.send(): confirms call is reached
+- [x] Enhanced error catch: logs full err.response.body via JSON.stringify
+- [x] All 512 tests pass across 25 test files

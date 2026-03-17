@@ -101,6 +101,9 @@ export const invitationsRouter = router({
 
       let emailSent = false;
       try {
+        console.log(
+          `[INVITE] Attempting to send email to: ${input.email} from: ${process.env.SENDGRID_FROM_EMAIL || '(not set)'}`
+        );
         const emailResult = await dispatchEmail({
           to: input.email,
           subject: `You've been invited to join ${account.name}`,
@@ -122,6 +125,9 @@ export const invitationsRouter = router({
             .join("\n"),
         });
 
+        console.log(
+          `[INVITE] dispatchEmail result: ${JSON.stringify(emailResult)}`
+        );
         emailSent = emailResult.success;
         if (!emailResult.success) {
           console.error(

@@ -104,6 +104,9 @@ export async function sendEmail(params: {
   fromName?: string;
   accountId?: number;
 }): Promise<SendGridResult> {
+  console.log(
+    `[SENDGRID] sendEmail called. API key present: ${!!process.env.SENDGRID_API_KEY}. To: ${params.to}. AccountId: ${params.accountId ?? 'none'}`
+  );
   const creds = await resolveCredentials(params.accountId);
 
   if (!creds) {
@@ -135,6 +138,7 @@ export async function sendEmail(params: {
           }),
     };
 
+    console.log(`[SENDGRID] About to call mailService.send() to=${params.to}`);
     const [response] = await creds.mailService.send(msg);
 
     // SendGrid returns the message ID in the x-message-id header
@@ -142,7 +146,7 @@ export async function sendEmail(params: {
       response?.headers?.["x-message-id"] || `sg_${Date.now()}`;
 
     console.log(
-      `[SendGrid] Email sent: messageId=${messageId} to=${params.to} subject="${params.subject}"${params.accountId ? ` account=${params.accountId}` : ""}`
+      `[SENDGRID] Email sent successfully: messageId=${messageId} to=${params.to} subject="${params.subject}" statusCode=${response?.statusCode}${params.accountId ? ` account=${params.accountId}` : ""}`
     );
 
     return {
@@ -152,7 +156,8 @@ export async function sendEmail(params: {
   } catch (err: any) {
     const errorMsg =
       err?.response?.body?.errors?.[0]?.message || err?.message || String(err);
-    console.error(`[SendGrid] Email send failed to=${params.to}: ${errorMsg}`);
+    console.error(`[SENDGRID] Send failed to=${params.to}: ${errorMsg}`);
+    console.error(`[SENDGRID] Full error: ${JSON.stringify(err?.response?.body || err)}`);
     return {
       success: false,
       error: errorMsg,
