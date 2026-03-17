@@ -5,31 +5,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Zap, Loader2, AlertCircle, ArrowLeft } from "lucide-react";
-import { useLocation } from "wouter";
+import { Zap, Loader2, AlertCircle, ArrowLeft, Building2, ChevronRight } from "lucide-react";
 import { getLoginUrl } from "@/const";
 
+/** Must match the key in AccountContext.tsx */
+const SELECTED_ACCOUNT_KEY = "apex-selected-account";
+
+type Membership = {
+  accountId: number;
+  accountName: string;
+  accountSlug: string | null;
+  memberRole: "owner" | "manager" | "employee";
+};
+
 export default function SubAccountLogin() {
-  const [, setLocation] = useLocation();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [memberships, setMemberships] = useState<Membership[] | null>(null);
 
   const loginMutation = trpc.subAccountAuth.login.useMutation({
     onSuccess: (data) => {
-      // If user has exactly one account, go straight to dashboard
       if (data.memberships.length === 1) {
-        // Store the selected account for the session
-        localStorage.setItem("apex_selected_account", JSON.stringify(data.memberships[0]));
-        setLocation("/");
-        // Force a page reload to refresh auth state
+        // Single account — store accountId and redirect immediately
+        localStorage.setItem(SELECTED_ACCOUNT_KEY, data.memberships[0].accountId.toString());
         window.location.href = "/";
       } else {
-        // Multiple accounts — store memberships and redirect to account selector
-        localStorage.setItem("apex_account_memberships", JSON.stringify(data.memberships));
-        localStorage.setItem("apex_user_info", JSON.stringify(data.user));
-        setLocation("/");
-        window.location.href = "/";
+        // Multiple accounts — show account selection screen
+        setMemberships(data.memberships);
       }
     },
     onError: (err) => {
@@ -49,6 +52,72 @@ export default function SubAccountLogin() {
     loginMutation.mutate({ email, password });
   };
 
+  const handleAccountSelect = (membership: Membership) => {
+    localStorage.setItem(SELECTED_ACCOUNT_KEY, membership.accountId.toString());
+    window.location.href = "/";
+  };
+
+  // ─── Account Selection Screen ───
+  if (memberships && memberships.length > 1) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-6 p-4 max-w-md w-full">
+          {/* Logo */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
+              <Zap className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <span className="text-2xl font-bold tracking-tight">Apex System</span>
+          </div>
+
+          <Card className="w-full border-border/50 shadow-xl">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-xl">Select Account</CardTitle>
+              <CardDescription>
+                You have access to multiple accounts. Choose one to continue.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {memberships.map((m) => (
+                <button
+                  key={m.accountId}
+                  onClick={() => handleAccountSelect(m)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:bg-accent hover:border-accent transition-colors text-left group"
+                >
+                  <div className="h-10 w-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{m.accountName}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{m.memberRole}</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+                </button>
+              ))}
+
+              <div className="pt-3 mt-2 border-t border-border/50">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setMemberships(null);
+                    setEmail("");
+                    setPassword("");
+                  }}
+                >
+                  <ArrowLeft className="h-3.5 w-3.5 mr-2" />
+                  Sign in with a different account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Login Form ───
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="flex flex-col items-center gap-6 p-4 max-w-md w-full">

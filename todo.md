@@ -401,3 +401,10 @@
 - [x] Contacts page loads contacts scoped to currentAccountId (uses useAccount() hook)
 - [x] Write vitest stabilization tests (20 tests — all pass)
 - [x] Checkpoint saved
+
+## Multi-Tenant Account Selection Flow Fixes
+- [x] Fix SubAccountLogin to handle multiple memberships with account selection UI
+- [x] Fix SubAccountLogin localStorage key mismatch (was apex_selected_account, now apex-selected-account)
+- [x] Confirm DashboardLayout admin gating uses server-verified role only (verified: uses useAccount().isAdmin from ctx.user.role)
+- [x] Fix ImpersonationBanner enabled condition (was user?.role === 'admin', now !!user)
+- [x] Run tests and checkpoint (452/455 pass, 3 pre-existing flaky failures)

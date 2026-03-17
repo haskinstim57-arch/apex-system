@@ -10,9 +10,9 @@ export function ImpersonationBanner() {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
 
-  // Only check impersonation status for admin users
+  // Check impersonation status for all authenticated users
   const { data: status } = trpc.impersonation.status.useQuery(undefined, {
-    enabled: user?.role === "admin",
+    enabled: !!user,
     refetchOnWindowFocus: false,
   });
 
