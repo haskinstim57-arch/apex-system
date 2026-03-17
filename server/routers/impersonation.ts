@@ -38,11 +38,12 @@ export const impersonationRouter = router({
       };
 
       // Set impersonation cookie (JSON-encoded, httpOnly)
+      // secure: true is required whenever sameSite: 'none' or browsers silently reject the cookie
       ctx.res.cookie(IMPERSONATION_COOKIE, JSON.stringify(payload), {
         httpOnly: true,
         path: "/",
         sameSite: "none" as const,
-        secure: ctx.req.protocol === "https" || ctx.req.headers["x-forwarded-proto"] === "https",
+        secure: true,
         maxAge: 1000 * 60 * 60 * 4, // 4 hours max
       });
 
@@ -75,12 +76,12 @@ export const impersonationRouter = router({
     const cookieHeader = ctx.req.headers.cookie || "";
     const impersonationData = parseImpersonationCookie(cookieHeader);
 
-    // Clear the impersonation cookie
+    // Clear the impersonation cookie — options must match the set call exactly
     ctx.res.clearCookie(IMPERSONATION_COOKIE, {
       httpOnly: true,
       path: "/",
       sameSite: "none" as const,
-      secure: ctx.req.protocol === "https" || ctx.req.headers["x-forwarded-proto"] === "https",
+      secure: true,
     });
 
     // Log the stop action if we have impersonation data

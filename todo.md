@@ -408,3 +408,8 @@
 - [x] Confirm DashboardLayout admin gating uses server-verified role only (verified: uses useAccount().isAdmin from ctx.user.role)
 - [x] Fix ImpersonationBanner enabled condition (was user?.role === 'admin', now !!user)
 - [x] Run tests and checkpoint (452/455 pass, 3 pre-existing flaky failures)
+
+## Impersonation Bug Fixes
+- [x] Fix cookie sameSite/secure mismatch in impersonation.ts (secure: true always when sameSite: 'none')
+- [x] Verify trust proxy in security.ts middleware (already set: app.set('trust proxy', 1))
+- [x] Fix ImpersonationBanner to clear localStorage on stop impersonation

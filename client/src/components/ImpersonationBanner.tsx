@@ -18,6 +18,8 @@ export function ImpersonationBanner() {
 
   const stopMutation = trpc.impersonation.stop.useMutation({
     onSuccess: () => {
+      // Clear the selected account so admin returns to agency scope
+      localStorage.removeItem("apex-selected-account");
       utils.impersonation.status.invalidate();
       toast.success("Impersonation ended. Returning to admin view.");
       setLocation("/accounts");
