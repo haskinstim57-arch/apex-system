@@ -508,3 +508,8 @@
 - [x] Add invitations.resend tRPC mutation (revokes old invite, creates fresh token, sends email)
 - [x] Add Resend button with Send icon next to Pending badge in Accounts.tsx
 - [x] All 512 tests pass across 25 test files
+
+## Bug Fix: Invitation links point to localhost:5000
+- [x] Set VITE_APP_URL to https://apexcrm-knxkwfan.manus.space
+- [x] Verified all 3 invitation URL constructions (accounts.ts, invitations.ts create + resend) use VITE_APP_URL with localhost fallback
+- [x] All 516 tests pass across 26 test files
