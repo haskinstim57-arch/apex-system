@@ -2118,6 +2118,48 @@ export async function listImpersonationLogs(limit = 50) {
 // ACCOUNT MESSAGING SETTINGS HELPERS
 // ─────────────────────────────────────────────
 
+import { encrypt, decrypt } from "./utils/encryption";
+
+/** Fields that are encrypted at rest */
+const ENCRYPTED_FIELDS = ["twilioAuthToken", "sendgridApiKey"] as const;
+
+/**
+ * Safely encrypt a value. Returns the original value if ENCRYPTION_KEY
+ * is not set (dev/test environments) so the app degrades gracefully.
+ */
+function safeEncrypt(value: string | null | undefined): string | null {
+  if (!value) return value as null;
+  try {
+    return encrypt(value);
+  } catch (err: any) {
+    if (err.message?.includes("ENCRYPTION_KEY")) {
+      console.warn("[Encryption] ENCRYPTION_KEY not set — storing value as plain text");
+      return value;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Safely decrypt a value. Returns the original value if ENCRYPTION_KEY
+ * is not set or the value doesn't look encrypted (plain-text fallback).
+ */
+function safeDecrypt(value: string | null | undefined): string | null {
+  if (!value) return value as null;
+  try {
+    return decrypt(value);
+  } catch (err: any) {
+    if (err.message?.includes("ENCRYPTION_KEY")) {
+      console.warn("[Encryption] ENCRYPTION_KEY not set — returning raw value");
+      return value;
+    }
+    // If decryption fails (e.g. value is plain text from before encryption was enabled),
+    // return the raw value so existing unencrypted rows still work.
+    console.warn("[Encryption] Decryption failed — returning raw value (may be unencrypted)");
+    return value;
+  }
+}
+
 export async function getAccountMessagingSettings(accountId: number) {
   const db = await getDb();
   if (!db) return null;
@@ -2126,7 +2168,15 @@ export async function getAccountMessagingSettings(accountId: number) {
     .from(accountMessagingSettings)
     .where(eq(accountMessagingSettings.accountId, accountId))
     .limit(1);
-  return rows[0] || null;
+  const row = rows[0] || null;
+  if (!row) return null;
+
+  // Decrypt sensitive fields before returning
+  return {
+    ...row,
+    twilioAuthToken: safeDecrypt(row.twilioAuthToken),
+    sendgridApiKey: safeDecrypt(row.sendgridApiKey),
+  };
 }
 
 export async function upsertAccountMessagingSettings(
@@ -2136,17 +2186,33 @@ export async function upsertAccountMessagingSettings(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const existing = await getAccountMessagingSettings(accountId);
+  // Encrypt sensitive fields before writing to DB
+  const encryptedData = { ...data };
+  if (encryptedData.twilioAuthToken !== undefined) {
+    encryptedData.twilioAuthToken = safeEncrypt(encryptedData.twilioAuthToken);
+  }
+  if (encryptedData.sendgridApiKey !== undefined) {
+    encryptedData.sendgridApiKey = safeEncrypt(encryptedData.sendgridApiKey);
+  }
+
+  // Use raw getDb query to avoid double-decrypt in the existing check
+  const existingRows = await db
+    .select({ id: accountMessagingSettings.id })
+    .from(accountMessagingSettings)
+    .where(eq(accountMessagingSettings.accountId, accountId))
+    .limit(1);
+  const existing = existingRows[0] || null;
+
   if (existing) {
     await db
       .update(accountMessagingSettings)
-      .set(data)
+      .set(encryptedData)
       .where(eq(accountMessagingSettings.accountId, accountId));
     return { id: existing.id };
   } else {
     const [result] = await db
       .insert(accountMessagingSettings)
-      .values({ accountId, ...data })
+      .values({ accountId, ...encryptedData })
       .$returningId();
     return result;
   }

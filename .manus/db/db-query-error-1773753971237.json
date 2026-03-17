@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, email, name, role, open_id FROM users WHERE email IN ('johnmoreno189@gmail.com', 'haskinstim57@gmail.com');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, email, name, role, open_id FROM users WHERE email IN ('johnmoreno189@gmail.com', 'haskinstim57@gmail.com');",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'open_id' in 'field list'"
+  ]
+}

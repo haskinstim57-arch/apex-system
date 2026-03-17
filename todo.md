@@ -440,3 +440,17 @@
 - [x] Write vitest tests (17 tests — all pass)
 - [x] All 472 tests pass across 22 test files
 - [x] Checkpoint saved
+
+## AES-256-GCM Encryption at Rest for Messaging Credentials
+- [x] Create server/utils/encryption.ts with encrypt/decrypt (AES-256-GCM, iv:authTag:ciphertext format)
+- [x] Export generateEncryptionKey() helper and isEncrypted() detector in encryption.ts
+- [x] Add pnpm generate:key script to package.json
+- [x] Update upsertAccountMessagingSettings to encrypt twilioAuthToken and sendgridApiKey on write
+- [x] Update getAccountMessagingSettings to decrypt twilioAuthToken and sendgridApiKey on read
+- [x] Add safeEncrypt/safeDecrypt wrappers for graceful degradation (no key = plain text fallback)
+- [x] Create scripts/encrypt-existing-credentials.mjs migration script (one-time, idempotent)
+- [x] Add pnpm migrate:encrypt-credentials script to package.json
+- [x] Register ENCRYPTION_KEY as environment secret (auto-generated 32-byte hex key)
+- [x] Write vitest tests for encryption utility (22 tests — all pass)
+- [x] All 494 tests pass across 23 test files
+- [x] Checkpoint saved
