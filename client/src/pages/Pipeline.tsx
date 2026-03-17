@@ -101,9 +101,10 @@ export default function Pipeline() {
       { enabled: !!accountId && !!pipelineData?.pipeline?.id }
     );
 
-  // Contacts for adding deals
+  // Contacts for adding deals — higher limit to cover large accounts
+  const [contactSearch, setContactSearch] = useState("");
   const { data: contactsData } = trpc.contacts.list.useQuery(
-    { accountId: accountId!, limit: 100 },
+    { accountId: accountId!, limit: 500, search: contactSearch || undefined },
     { enabled: !!accountId }
   );
 
@@ -313,6 +314,12 @@ export default function Pipeline() {
           <div className="space-y-4 py-2">
             <div className="space-y-2">
               <Label>Contact</Label>
+              <Input
+                placeholder="Search contacts..."
+                value={contactSearch}
+                onChange={(e) => setContactSearch(e.target.value)}
+                className="mb-2"
+              />
               <Select
                 value={newDealContactId?.toString() || ""}
                 onValueChange={(v) => setNewDealContactId(parseInt(v))}

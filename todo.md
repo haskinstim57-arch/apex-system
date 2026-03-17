@@ -418,3 +418,8 @@
 - [x] Fix invitations.ts to send email after token creation (dispatchEmail with invite URL)
 - [x] Fix AccountDetail.tsx to remove raw token from toast (simple success message)
 - [x] Fix messaging.ts placeholder to return success: false with provider config error message
+
+## Pipeline Tenant Isolation Bug Fixes
+- [x] Verify getContactById in db.ts filters by accountId (already correct: AND accountId = ?)
+- [x] Fix Pipeline page contact limit (100 → 500 + search input for large accounts)
+- [x] Audit pipeline schema for naming inconsistencies (correct: snake_case DB columns, camelCase TS props)
