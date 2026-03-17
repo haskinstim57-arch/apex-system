@@ -471,3 +471,11 @@
 - [x] Write vitest tests (14 tests — all pass)
 - [x] All 508 tests pass across 24 test files
 - [x] Checkpoint saved
+
+## Bug Fix: Sub-Account Ownership Flow
+- [x] Made ownerId nullable in schema + pushed migration
+- [x] Removed admin-as-placeholder-owner logic from accounts.create (ownerId = null for new users)
+- [x] Updated createAccount DB helper to skip member creation when ownerId is null
+- [x] Updated invitations.accept to set ownerId on account when owner invitation is accepted
+- [x] Updated Accounts.tsx to show yellow "Pending" badge when ownerName is null
+- [x] All 512 tests pass across 25 test files

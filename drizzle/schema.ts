@@ -40,8 +40,8 @@ export const accounts = mysqlTable("accounts", {
   slug: varchar("slug", { length: 100 }).unique(),
   /** null = agency root; non-null = client sub-account */
   parentId: int("parentId"),
-  /** User ID of the account owner */
-  ownerId: int("ownerId").notNull(),
+  /** User ID of the account owner (null until invitation is accepted) */
+  ownerId: int("ownerId"),
   industry: varchar("industry", { length: 100 }).default("mortgage"),
   website: varchar("website", { length: 500 }),
   phone: varchar("phone", { length: 30 }),

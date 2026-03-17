@@ -352,12 +352,26 @@ export default function Accounts() {
 
               {/* Owner */}
               <div className="min-w-0">
-                <p className="text-sm truncate">
-                  {account.ownerName || "Pending"}
-                </p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {account.ownerEmail || account.email || "—"}
-                </p>
+                {account.ownerName ? (
+                  <>
+                    <p className="text-sm truncate">{account.ownerName}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {account.ownerEmail || account.email || "—"}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px] h-5 bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                    >
+                      Pending
+                    </Badge>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {account.email || "—"}
+                    </p>
+                  </>
+                )}
               </div>
 
               {/* Status */}

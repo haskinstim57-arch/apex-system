@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` MODIFY COLUMN `ownerId` int;

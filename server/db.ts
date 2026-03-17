@@ -206,13 +206,15 @@ export async function createAccount(data: InsertAccount) {
   const result = await db.insert(accounts).values(data);
   const insertId = result[0].insertId;
 
-  // Auto-add the owner as a member with "owner" role
-  await db.insert(accountMembers).values({
-    accountId: insertId,
-    userId: data.ownerId,
-    role: "owner",
-    isActive: true,
-  });
+  // Auto-add the owner as a member with "owner" role (only if ownerId is set)
+  if (data.ownerId) {
+    await db.insert(accountMembers).values({
+      accountId: insertId,
+      userId: data.ownerId,
+      role: "owner",
+      isActive: true,
+    });
+  }
 
   return { id: insertId };
 }

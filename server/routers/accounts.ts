@@ -72,22 +72,15 @@ export const accountsRouter = router({
       const slug = generateSlug(input.name);
 
       // Look up the owner user by email
-      let ownerUser = await db.getUserByEmail(input.ownerEmail);
-      let ownerId: number;
-
-      if (ownerUser) {
-        ownerId = ownerUser.id;
-      } else {
-        // Owner hasn't signed up yet — use the admin as placeholder owner
-        // The real owner will be assigned when they accept an invitation
-        ownerId = ctx.user.id;
-      }
+      const ownerUser = await db.getUserByEmail(input.ownerEmail);
 
       const result = await db.createAccount({
         name: input.name,
         slug,
         parentId: input.parentId ?? null,
-        ownerId,
+        // Only set ownerId if the user already exists; otherwise leave null
+        // The real owner will be assigned when they accept the invitation
+        ownerId: ownerUser ? ownerUser.id : null,
         industry: input.industry ?? "mortgage",
         website: input.website ?? null,
         phone: input.phone ?? null,
@@ -95,23 +88,19 @@ export const accountsRouter = router({
         status: input.status,
       });
 
-      // If the owner user exists and is different from admin, they're already
-      // added as owner member by createAccount. If owner doesn't exist yet,
-      // auto-create a pending invitation for them.
-      if (!ownerUser) {
-        const token = nanoid(32);
-        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-        await db.createInvitation({
-          accountId: result.id,
-          invitedById: ctx.user.id,
-          email: input.ownerEmail,
-          role: "owner",
-          token,
-          status: "pending",
-          message: `You've been assigned as the owner of ${input.name}.`,
-          expiresAt,
-        });
-      }
+      // Always create an invitation for the owner email
+      const token = nanoid(32);
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+      await db.createInvitation({
+        accountId: result.id,
+        invitedById: ctx.user.id,
+        email: input.ownerEmail,
+        role: "owner",
+        token,
+        status: "pending",
+        message: `You've been assigned as the owner of ${input.name}.`,
+        expiresAt,
+      });
 
       await db.createAuditLog({
         accountId: result.id,

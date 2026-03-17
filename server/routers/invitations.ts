@@ -177,6 +177,13 @@ export const invitationsRouter = router({
         isActive: true,
       });
 
+      // If this is an owner invitation, set the user as the account owner
+      if (invitation.role === "owner") {
+        await db.updateAccount(invitation.accountId, {
+          ownerId: ctx.user.id,
+        });
+      }
+
       // Mark invitation as accepted
       await db.updateInvitationStatus(
         invitation.id,
