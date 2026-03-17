@@ -104,6 +104,7 @@ export const messagesRouter = router({
             result = await dispatchSMS({
               to: input.toAddress,
               body: input.body,
+              accountId: input.accountId,
             });
           } else {
             result = await dispatchEmail({
@@ -111,6 +112,7 @@ export const messagesRouter = router({
               subject: input.subject || "(no subject)",
               body: input.body,
               from: input.fromAddress || undefined,
+              accountId: input.accountId,
             });
           }
 

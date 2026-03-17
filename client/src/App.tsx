@@ -21,6 +21,7 @@ import Automations from "./pages/Automations";
 import Pipeline from "./pages/Pipeline";
 import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
+import MessagingSettings from "./pages/MessagingSettings";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -110,6 +111,11 @@ function Router() {
       <Route path="/settings">
         <DashboardLayout>
           <SettingsPage />
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings/messaging">
+        <DashboardLayout>
+          <MessagingSettings />
         </DashboardLayout>
       </Route>
       <Route path="/settings/facebook-pages">

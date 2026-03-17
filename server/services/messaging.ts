@@ -16,32 +16,36 @@ export interface MessageSendResult {
 
 /**
  * Send an SMS message through the configured provider.
- * Falls back to placeholder logging if Twilio is not configured.
+ * Uses per-account Twilio credentials if available, falls back to global.
+ * Falls back to placeholder logging if neither is configured.
  */
 export async function dispatchSMS(params: {
   to: string;
   body: string;
   from?: string;
+  accountId?: number;
 }): Promise<MessageSendResult> {
-  if (isTwilioConfigured()) {
-    const result = await sendSMS(params.to, params.body, params.from);
+  // Always attempt sendSMS — it handles per-account → global fallback internally
+  const result = await sendSMS(params.to, params.body, params.from, params.accountId);
+  if (result.success || result.error !== "Twilio not configured") {
     return { ...result, provider: "twilio" };
   }
 
-  // Placeholder fallback — provider not configured, report failure
+  // Placeholder fallback — neither per-account nor global configured
   console.warn(
     `[Messaging] SMS not sent (provider not configured): to=${params.to} body="${params.body.substring(0, 50)}..."`
   );
   return {
     success: false,
-    error: "Provider not configured — set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in environment variables",
+    error: "Provider not configured — set Twilio credentials in account settings or global environment variables",
     provider: "placeholder",
   };
 }
 
 /**
  * Send an email through the configured provider.
- * Falls back to placeholder logging if SendGrid is not configured.
+ * Uses per-account SendGrid credentials if available, falls back to global.
+ * Falls back to placeholder logging if neither is configured.
  */
 export async function dispatchEmail(params: {
   to: string;
@@ -49,19 +53,21 @@ export async function dispatchEmail(params: {
   body: string;
   from?: string;
   fromName?: string;
+  accountId?: number;
 }): Promise<MessageSendResult> {
-  if (isSendGridConfigured()) {
-    const result = await sendEmail(params);
+  // Always attempt sendEmail — it handles per-account → global fallback internally
+  const result = await sendEmail({ ...params });
+  if (result.success || result.error !== "SendGrid not configured") {
     return { ...result, provider: "sendgrid" };
   }
 
-  // Placeholder fallback — provider not configured, report failure
+  // Placeholder fallback — neither per-account nor global configured
   console.warn(
     `[Messaging] Email not sent (provider not configured): to=${params.to} subject="${params.subject}"`
   );
   return {
     success: false,
-    error: "Provider not configured — set SENDGRID_API_KEY in environment variables",
+    error: "Provider not configured — set SendGrid credentials in account settings or global environment variables",
     provider: "placeholder",
   };
 }

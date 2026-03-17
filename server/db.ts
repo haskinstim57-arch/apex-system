@@ -47,6 +47,8 @@ import {
   type InsertFacebookPageMapping,
   impersonationAuditLogs,
   type InsertImpersonationAuditLog,
+  accountMessagingSettings,
+  type InsertAccountMessagingSettings,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2110,4 +2112,42 @@ export async function listImpersonationLogs(limit = 50) {
     .from(impersonationAuditLogs)
     .orderBy(desc(impersonationAuditLogs.createdAt))
     .limit(limit);
+}
+
+// ─────────────────────────────────────────────
+// ACCOUNT MESSAGING SETTINGS HELPERS
+// ─────────────────────────────────────────────
+
+export async function getAccountMessagingSettings(accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(accountMessagingSettings)
+    .where(eq(accountMessagingSettings.accountId, accountId))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertAccountMessagingSettings(
+  accountId: number,
+  data: Partial<Omit<InsertAccountMessagingSettings, "id" | "accountId" | "createdAt" | "updatedAt">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await getAccountMessagingSettings(accountId);
+  if (existing) {
+    await db
+      .update(accountMessagingSettings)
+      .set(data)
+      .where(eq(accountMessagingSettings.accountId, accountId));
+    return { id: existing.id };
+  } else {
+    const [result] = await db
+      .insert(accountMessagingSettings)
+      .values({ accountId, ...data })
+      .$returningId();
+    return result;
+  }
 }

@@ -423,3 +423,20 @@
 - [x] Verify getContactById in db.ts filters by accountId (already correct: AND accountId = ?)
 - [x] Fix Pipeline page contact limit (100 → 500 + search input for large accounts)
 - [x] Audit pipeline schema for naming inconsistencies (correct: snake_case DB columns, camelCase TS props)
+
+## Per-Account Messaging Credentials
+- [x] Add accountMessagingSettings table to schema and push migration
+- [x] Add DB helpers (getAccountMessagingSettings, upsertAccountMessagingSettings)
+- [x] Create messagingSettings tRPC router (get/save)
+- [x] Update twilio.ts to accept accountId and use per-account credentials
+- [x] Update sendgrid.ts to accept accountId and use per-account credentials
+- [x] Update messaging.ts dispatcher to pass accountId
+- [x] Update messages.ts router to pass accountId
+- [x] Update campaignScheduler.ts to pass accountId
+- [x] Update workflowEngine.ts to pass accountId
+- [x] Build Messaging settings UI in Settings page (MessagingSettings.tsx)
+- [x] Add /settings/messaging route to App.tsx
+- [x] Add Messaging section to Settings page with link (visible when account selected)
+- [x] Write vitest tests (17 tests — all pass)
+- [x] All 472 tests pass across 22 test files
+- [x] Checkpoint saved

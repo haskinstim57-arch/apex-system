@@ -261,8 +261,8 @@ async function executeAction(
         body: smsBody,
         toAddress: contact.phone,
       });
-      // Dispatch through real provider
-      const smsResult = await dispatchSMS({ to: contact.phone, body: smsBody });
+      // Dispatch through real provider (per-account credentials)
+      const smsResult = await dispatchSMS({ to: contact.phone, body: smsBody, accountId });
       const { updateMessageStatus } = await import("../db");
       if (smsResult.success) {
         await updateMessageStatus(id, "sent", { externalId: smsResult.externalId, sentAt: new Date() });
@@ -287,8 +287,8 @@ async function executeAction(
         body: emailBody,
         toAddress: contact.email,
       });
-      // Dispatch through real provider
-      const emailResult = await dispatchEmail({ to: contact.email, subject: emailSubject, body: emailBody });
+      // Dispatch through real provider (per-account credentials)
+      const emailResult = await dispatchEmail({ to: contact.email, subject: emailSubject, body: emailBody, accountId });
       const { updateMessageStatus: updateMsgStatus } = await import("../db");
       if (emailResult.success) {
         await updateMsgStatus(id, "sent", { externalId: emailResult.externalId, sentAt: new Date() });

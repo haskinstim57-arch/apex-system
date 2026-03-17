@@ -14,6 +14,7 @@ import { pipelineRouter } from "./routers/pipeline";
 import { subAccountAuthRouter } from "./routers/subAccountAuth";
 import { facebookPagesRouter } from "./routers/facebookPages";
 import { impersonationRouter } from "./routers/impersonation";
+import { messagingSettingsRouter } from "./routers/messagingSettings";
 
 export const appRouter = router({
   system: systemRouter,
@@ -39,6 +40,7 @@ export const appRouter = router({
   subAccountAuth: subAccountAuthRouter,
   facebookPages: facebookPagesRouter,
   impersonation: impersonationRouter,
+  messagingSettings: messagingSettingsRouter,
 });
 
 export type AppRouter = typeof appRouter;

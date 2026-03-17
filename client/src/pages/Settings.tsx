@@ -10,9 +10,11 @@ import {
   Key,
   Palette,
   Facebook,
+  MessageSquare,
   ChevronRight,
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useAccount } from "@/contexts/AccountContext";
 
 function IntegrationLink({
   icon: Icon,
@@ -48,6 +50,9 @@ function IntegrationLink({
 export default function SettingsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const { currentAccountId } = useAccount();
+  // Show messaging settings link to account owners or admins with an account selected
+  const showMessagingSettings = !!currentAccountId;
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -156,6 +161,30 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Messaging Settings — visible to anyone with an account selected */}
+      {showMessagingSettings && (
+        <Card className="border-border/50 bg-card">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              Messaging
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Configure SMS and email credentials for your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 -mt-2">
+            <IntegrationLink
+              icon={MessageSquare}
+              label="Messaging Credentials"
+              description="Configure Twilio and SendGrid for this account"
+              href="/settings/messaging"
+              iconColor="text-emerald-500"
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Admin Integrations */}
       {isAdmin && (

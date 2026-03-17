@@ -139,12 +139,14 @@ async function sendCampaign(campaignId: number, accountId: number) {
           subject: campaign.subject || campaign.name,
           body: mergedBody,
           from: campaign.fromAddress || undefined,
+          accountId,
         });
       } else {
         result = await dispatchSMS({
           to: recipient.toAddress,
           body: mergedBody,
           from: campaign.fromAddress || undefined,
+          accountId,
         });
       }
 

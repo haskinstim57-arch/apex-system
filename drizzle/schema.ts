@@ -674,3 +674,25 @@ export const impersonationAuditLogs = mysqlTable("impersonation_audit_logs", {
 
 export type ImpersonationAuditLog = typeof impersonationAuditLogs.$inferSelect;
 export type InsertImpersonationAuditLog = typeof impersonationAuditLogs.$inferInsert;
+
+// ─────────────────────────────────────────────
+// ACCOUNT MESSAGING SETTINGS — per-account Twilio/SendGrid credentials
+// ─────────────────────────────────────────────
+export const accountMessagingSettings = mysqlTable("account_messaging_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The sub-account these settings belong to (unique per account) */
+  accountId: int("account_id").notNull().unique(),
+  /** Twilio credentials */
+  twilioAccountSid: varchar("twilio_account_sid", { length: 255 }),
+  twilioAuthToken: varchar("twilio_auth_token", { length: 255 }),
+  twilioFromNumber: varchar("twilio_from_number", { length: 50 }),
+  /** SendGrid credentials */
+  sendgridApiKey: varchar("sendgrid_api_key", { length: 255 }),
+  sendgridFromEmail: varchar("sendgrid_from_email", { length: 255 }),
+  sendgridFromName: varchar("sendgrid_from_name", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AccountMessagingSettings = typeof accountMessagingSettings.$inferSelect;
+export type InsertAccountMessagingSettings = typeof accountMessagingSettings.$inferInsert;
