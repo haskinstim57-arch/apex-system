@@ -454,3 +454,20 @@
 - [x] Write vitest tests for encryption utility (22 tests — all pass)
 - [x] All 494 tests pass across 23 test files
 - [x] Checkpoint saved
+
+## Mandatory Onboarding Wizard for New Sub-Accounts
+- [x] onboardingComplete column already existed in accounts table (default false)
+- [x] Add completeOnboarding mutation in accounts router (owner/admin access)
+- [x] Add updatePipelineStage DB helper for stage renaming
+- [x] Add renameStages mutation to pipeline router
+- [x] Export DEFAULT_STAGES from db.ts for onboarding reference
+- [x] Build Onboarding.tsx multi-step wizard with 4 steps
+- [x] Step 1: Business Profile form (Business Name, Phone, Website, Industry)
+- [x] Step 2: Messaging Setup (Twilio + SendGrid credentials, skip option)
+- [x] Step 3: Pipeline Setup (rename stages or use defaults)
+- [x] Step 4: Finish screen with summary + Go to Dashboard button
+- [x] Enforce onboarding flow in DashboardLayout (redirect if not completed, admins exempt)
+- [x] Add /onboarding route to App.tsx (full-screen, no sidebar)
+- [x] Write vitest tests (14 tests — all pass)
+- [x] All 508 tests pass across 24 test files
+- [x] Checkpoint saved

@@ -82,10 +82,26 @@ export default function DashboardLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const { currentAccount, isAdmin, isImpersonating, isLoading: accountLoading } = useAccount();
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
   }, [sidebarWidth]);
+
+  // Onboarding enforcement: redirect non-admin users to /onboarding
+  // if their current account hasn't completed onboarding.
+  // Agency admins (not impersonating) are exempt.
+  useEffect(() => {
+    if (loading || accountLoading) return;
+    if (!user || !currentAccount) return;
+    // Agency admins browsing freely are exempt
+    if (isAdmin && !isImpersonating) return;
+    // Check onboarding flag
+    if ((currentAccount as any).onboardingComplete === false || (currentAccount as any).onboardingComplete === 0) {
+      navigate("/onboarding");
+    }
+  }, [loading, accountLoading, user, currentAccount, isAdmin, isImpersonating, navigate]);
 
   if (loading) {
     return <DashboardLayoutSkeleton />;

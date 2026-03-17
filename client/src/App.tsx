@@ -22,6 +22,7 @@ import Pipeline from "./pages/Pipeline";
 import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
 import MessagingSettings from "./pages/MessagingSettings";
+import Onboarding from "./pages/Onboarding";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -32,6 +33,9 @@ function Router() {
       {/* Public routes */}
       <Route path="/invite/:token" component={InviteAccept} />
       <Route path="/login" component={SubAccountLogin} />
+
+      {/* Onboarding wizard (full-screen, no sidebar) */}
+      <Route path="/onboarding" component={Onboarding} />
 
       {/* Dashboard routes wrapped in layout */}
       <Route path="/">

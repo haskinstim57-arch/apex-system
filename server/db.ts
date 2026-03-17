@@ -1824,7 +1824,7 @@ export async function updateTask(
 // PIPELINE HELPERS
 // ─────────────────────────────────────────────
 
-const DEFAULT_STAGES = [
+export const DEFAULT_STAGES = [
   { name: "New Lead", color: "#3b82f6", sortOrder: 0, isWon: false, isLost: false },
   { name: "Contacted", color: "#8b5cf6", sortOrder: 1, isWon: false, isLost: false },
   { name: "Qualified", color: "#f59e0b", sortOrder: 2, isWon: false, isLost: false },
@@ -2010,6 +2010,19 @@ export async function getPipelineStageById(id: number, accountId: number) {
     .from(pipelineStages)
     .where(and(eq(pipelineStages.id, id), eq(pipelineStages.accountId, accountId)));
   return rows[0] || null;
+}
+
+export async function updatePipelineStage(
+  id: number,
+  accountId: number,
+  data: Partial<{ name: string; color: string; sortOrder: number }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(pipelineStages)
+    .set(data)
+    .where(and(eq(pipelineStages.id, id), eq(pipelineStages.accountId, accountId)));
 }
 
 // ─────────────────────────────────────────────

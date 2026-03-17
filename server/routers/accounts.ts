@@ -206,4 +206,26 @@ export const accountsRouter = router({
   adminStats: adminProcedure.query(async () => {
     return db.getAdminStats();
   }),
+
+  /** Mark onboarding as complete for a sub-account */
+  completeOnboarding: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      // Only owners/admins can complete onboarding
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+
+      await db.updateAccount(input.accountId, { onboardingComplete: true });
+
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "account.onboarding_completed",
+        resourceType: "account",
+        resourceId: input.accountId,
+      });
+
+      return { success: true };
+    }),
 });

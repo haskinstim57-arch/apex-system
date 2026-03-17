@@ -13,6 +13,7 @@ import {
   updateDeal,
   deleteDeal,
   getPipelineStageById,
+  updatePipelineStage,
   getContactById,
   getMember,
 } from "../db";
@@ -213,6 +214,27 @@ export const pipelineRouter = router({
       if (input.value !== undefined) updateData.value = input.value;
 
       await updateDeal(input.dealId, input.accountId, updateData);
+      return { success: true };
+    }),
+
+  // ─── Rename pipeline stages (used by onboarding wizard) ───
+  renameStages: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        stages: z.array(
+          z.object({
+            id: z.number().int().positive(),
+            name: z.string().min(1).max(255),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      for (const stage of input.stages) {
+        await updatePipelineStage(stage.id, input.accountId, { name: stage.name });
+      }
       return { success: true };
     }),
 
