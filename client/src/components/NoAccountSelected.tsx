@@ -1,14 +1,31 @@
-import { Building2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /**
  * NoAccountSelected — shown when no account is active.
  *
- * For admins in agency scope: prompts them to select an account from the sidebar.
+ * For admins in agency scope: shows an inline account picker so they can select immediately.
  * For clients with no accounts: tells them to ask an admin for access.
+ * While loading: shows a spinner.
  */
 export function NoAccountSelected() {
-  const { isAdmin } = useAccount();
+  const { isAdmin, isLoading, accounts, switchAccount } = useAccount();
+
+  // While accounts are still loading, show a spinner — not the "no access" message
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (isAdmin) {
     return (
@@ -17,10 +34,32 @@ export function NoAccountSelected() {
           <Building2 className="h-6 w-6 text-muted-foreground" />
         </div>
         <p className="text-sm font-medium mb-1">No account selected</p>
-        <p className="text-xs text-muted-foreground max-w-sm">
-          Select a sub-account from the sidebar to view its data, or switch to a
-          specific account using the account selector above.
+        <p className="text-xs text-muted-foreground max-w-sm mb-4">
+          Select a sub-account to view its data.
         </p>
+        {accounts.length > 0 && (
+          <Select
+            onValueChange={(val) => switchAccount(parseInt(val, 10))}
+          >
+            <SelectTrigger className="w-64 h-9 text-xs">
+              <SelectValue placeholder="Choose a sub-account..." />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts
+                .filter((a) => a.status !== "suspended")
+                .slice(0, 50)
+                .map((account) => (
+                  <SelectItem
+                    key={account.id}
+                    value={account.id.toString()}
+                    className="text-xs"
+                  >
+                    {account.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
     );
   }

@@ -513,3 +513,12 @@
 - [x] Set VITE_APP_URL to https://apexcrm-knxkwfan.manus.space
 - [x] Verified all 3 invitation URL constructions (accounts.ts, invitations.ts create + resend) use VITE_APP_URL with localhost fallback
 - [x] All 516 tests pass across 26 test files
+
+## Critical Bug Fix: "No account access" for all users
+- [x] Added diagnostic logging to accounts.list query (userId, email, role, result count)
+- [x] Verified accounts.list WHERE clause is correct (admin=all 174 accounts, client=memberships)
+- [x] Verified AccountContext auto-selection works for clients (first account)
+- [x] Root cause: admins start in agency scope (no account selected) — pages showed confusing message
+- [x] Rewrote NoAccountSelected with inline account picker for admins + loading spinner
+- [x] Simplified all 7 page guards (Contacts, Messages, Campaigns, AICalls, Pipeline, Automations, TeamMembers)
+- [x] All 516 tests pass across 26 test files

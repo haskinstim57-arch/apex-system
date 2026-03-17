@@ -192,15 +192,7 @@ export default function Contacts() {
   const total = contactsData?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
-  if (accountsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!accountId && !accountsLoading) {
+  if (!accountId) {
     return <NoAccountSelected />;
   }
 

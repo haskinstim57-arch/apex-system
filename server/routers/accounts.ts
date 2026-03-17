@@ -164,10 +164,15 @@ export const accountsRouter = router({
 
   /** List all accounts (admin) or user's accounts */
   list: protectedProcedure.query(async ({ ctx }) => {
+    console.log(`[accounts.list] userId=${ctx.user.id} email=${ctx.user.email} role=${ctx.user.role}`);
     if (ctx.user.role === "admin") {
-      return db.listAccountsWithOwner();
+      const results = await db.listAccountsWithOwner();
+      console.log(`[accounts.list] Admin path returned ${results.length} accounts`);
+      return results;
     }
-    return db.listAccountsForUserWithOwner(ctx.user.id);
+    const results = await db.listAccountsForUserWithOwner(ctx.user.id);
+    console.log(`[accounts.list] User path returned ${results.length} accounts for userId=${ctx.user.id}`);
+    return results;
   }),
 
   /** Get a single account by ID (with access check) */

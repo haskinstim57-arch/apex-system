@@ -1,0 +1,46 @@
+{
+  "query": "SELECT COUNT(*) as total FROM account_members; SELECT am.userId, am.accountId, am.role, am.isActive FROM account_members am WHERE am.userId IN (1, 3) LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT COUNT(*) as total FROM account_members; SELECT am.userId, am.accountId, am.role, am.isActive FROM account_members am WHERE am.userId IN (1, 3) LIMIT 10;",
+  "rows": [
+    {
+      "total": "155"
+    },
+    {
+      "total": "userId\taccountId\trole\tisActive"
+    },
+    {
+      "total": "1\t1\towner\t1"
+    },
+    {
+      "total": "1\t2\towner\t1"
+    },
+    {
+      "total": "1\t3\towner\t1"
+    },
+    {
+      "total": "1\t4\towner\t1"
+    },
+    {
+      "total": "1\t5\towner\t1"
+    },
+    {
+      "total": "1\t6\towner\t1"
+    },
+    {
+      "total": "1\t7\towner\t1"
+    },
+    {
+      "total": "1\t8\towner\t1"
+    },
+    {
+      "total": "1\t9\towner\t1"
+    },
+    {
+      "total": "1\t10\towner\t1"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\n155\nuserId\taccountId\trole\tisActive\n1\t1\towner\t1\n1\t2\towner\t1\n1\t3\towner\t1\n1\t4\towner\t1\n1\t5\towner\t1\n1\t6\towner\t1\n1\t7\towner\t1\n1\t8\towner\t1\n1\t9\towner\t1\n1\t10\towner\t1\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

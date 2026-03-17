@@ -125,12 +125,8 @@ export default function Automations() {
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
 
-  if (accountsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  if (!accountId) {
+    return <NoAccountSelected />;
   }
 
   return (
@@ -182,9 +178,7 @@ export default function Automations() {
       </div>
 
       {/* Content */}
-      {!accountId ? (
-        <NoAccountSelected />
-      ) : view === "list" && !selectedWorkflowId ? (
+      {view === "list" && !selectedWorkflowId ? (
         <WorkflowsList
           accountId={accountId}
           workflows={workflows ?? []}

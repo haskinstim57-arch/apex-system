@@ -218,15 +218,7 @@ export default function Messages() {
   const totalPages = Math.ceil(totalMessages / pageSize);
   const messagesList = messagesData?.messages ?? [];
 
-  if (accountsLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
-
-  if (!accountId && !accountsLoading) {
+  if (!accountId) {
     return <NoAccountSelected />;
   }
 

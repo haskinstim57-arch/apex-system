@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Users, Building2 } from "lucide-react";
+import { NoAccountSelected } from "@/components/NoAccountSelected";
 import { useLocation } from "wouter";
 
 const roleColors: Record<string, string> = {
@@ -32,15 +33,7 @@ export default function TeamMembers() {
   }
 
   if (!accounts || accounts.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] text-center">
-        <Building2 className="h-12 w-12 text-muted-foreground/30 mb-4" />
-        <h2 className="text-lg font-medium">No Accounts</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          You are not a member of any account yet.
-        </p>
-      </div>
-    );
+    return <NoAccountSelected />;
   }
 
   return (

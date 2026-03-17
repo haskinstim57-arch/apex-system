@@ -1,0 +1,22 @@
+{
+  "query": "SELECT u.id, u.name, u.email, u.role FROM users u WHERE u.email IN ('johnmoreno189@gmail.com', 'haskinstim57@gmail.com', 'tariqhaskins@indigolabsai.com') ORDER BY u.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT u.id, u.name, u.email, u.role FROM users u WHERE u.email IN ('johnmoreno189@gmail.com', 'haskinstim57@gmail.com', 'tariqhaskins@indigolabsai.com') ORDER BY u.id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tim Haskins",
+      "email": "haskinstim57@gmail.com",
+      "role": "admin"
+    },
+    {
+      "id": "3",
+      "name": "john Moreno",
+      "email": "johnmoreno189@gmail.com",
+      "role": "admin"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n1\tTim Haskins\thaskinstim57@gmail.com\tadmin\n3\tjohn Moreno\tjohnmoreno189@gmail.com\tadmin\n",
+  "stderr": "",
+  "execution_time_ms": 229
+}
