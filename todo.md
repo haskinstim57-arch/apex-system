@@ -638,3 +638,30 @@
 - [x] Register route in server entry point (already registered via facebookLeadsWebhookRouter)
 - [x] Write tests and confirm all pass (632 tests across 30 files)
 - [x] Checkpoint saved
+
+## Facebook Lead Webhook Subscription & Contact Creation
+
+### Step 1: Subscribe pages to leadgen webhooks
+- [x] After storing Facebook Pages in OAuth callback, call POST /{page-id}/subscribed_apps with subscribed_fields: ["leadgen"]
+- [x] Use page access token for each stored page
+- [x] Mark page as subscribed in accountFacebookPages via markFacebookPageSubscribed
+
+### Step 2: Handle incoming lead webhooks
+- [x] Update POST /api/webhooks/facebook handler to fetch lead data via GET /{leadgen-id} using page access token
+- [x] Look up account via Facebook Page ID in accountFacebookPages (with fallback to legacy facebook_page_mappings)
+- [x] Create contact in contacts table with lead field data (name, email, phone)
+- [x] Added getAccountFacebookPageByFbPageId DB helper for page-to-account resolution
+
+### Step 3: Trigger automation on new contact
+- [x] After creating contact, fires both onContactCreated and onFacebookLeadReceived triggers (already existed)
+- [x] Triggers match workflows with triggerType = "contact_created" and "facebook_lead_received"
+
+### Step 4: Token refresh job
+- [x] Created server/services/facebookTokenRefresh.ts (runs daily)
+- [x] Checks accountIntegrations where tokenExpiresAt is within 7 days via listExpiringIntegrations
+- [x] Sends email alert to account owner with renewal instructions
+- [x] Registered in server/_core/index.ts to start on server boot
+
+### Final
+- [x] Run all tests and confirm pass (660 tests across 31 files)
+- [x] Checkpoint saved

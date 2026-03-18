@@ -1,4 +1,4 @@
-import { and, eq, desc, asc, sql, inArray, count } from "drizzle-orm";
+import { and, eq, desc, asc, sql, inArray, count, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { like, or } from "drizzle-orm";
 import {
@@ -2442,4 +2442,58 @@ export async function deleteAccountFacebookPages(accountId: number) {
   await db
     .delete(accountFacebookPages)
     .where(eq(accountFacebookPages.accountId, accountId));
+}
+
+// ─────────────────────────────────────────────
+// Facebook Page lookup by Facebook Page ID (for webhook resolution)
+// ─────────────────────────────────────────────
+
+/**
+ * Look up an accountFacebookPage row by its Facebook Page ID.
+ * Used by the webhook handler to resolve which account a lead belongs to.
+ */
+export async function getAccountFacebookPageByFbPageId(facebookPageId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(accountFacebookPages)
+    .where(eq(accountFacebookPages.facebookPageId, facebookPageId))
+    .limit(1);
+  return rows[0] || null;
+}
+
+/**
+ * Mark a Facebook page as subscribed to leadgen webhooks.
+ */
+export async function markFacebookPageSubscribed(pageId: number, subscribed: boolean) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(accountFacebookPages)
+    .set({ isSubscribed: subscribed })
+    .where(eq(accountFacebookPages.id, pageId));
+}
+
+// ─────────────────────────────────────────────
+// Integration token expiry helpers
+// ─────────────────────────────────────────────
+
+/**
+ * List all active integrations where the token expires within the given number of days.
+ * Used by the token refresh job to send renewal alerts.
+ */
+export async function listExpiringIntegrations(withinDays: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const cutoff = new Date(Date.now() + withinDays * 24 * 60 * 60 * 1000);
+  return db
+    .select()
+    .from(accountIntegrations)
+    .where(
+      and(
+        eq(accountIntegrations.isActive, true),
+        lte(accountIntegrations.tokenExpiresAt, cutoff)
+      )
+    );
 }

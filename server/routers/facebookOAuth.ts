@@ -182,11 +182,45 @@ export const facebookOAuthRouter = router({
 
       if (pagesData.data && Array.isArray(pagesData.data)) {
         for (const page of pagesData.data) {
-          await db.upsertAccountFacebookPage(accountId, integration.id, {
+          const pageRow = await db.upsertAccountFacebookPage(accountId, integration.id, {
             facebookPageId: page.id,
             pageName: page.name || null,
             pageAccessToken: page.access_token || null,
           });
+
+          // Subscribe the page to leadgen webhooks
+          if (page.access_token) {
+            try {
+              const subRes = await fetch(
+                `${FACEBOOK_GRAPH_API}/${page.id}/subscribed_apps`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    subscribed_fields: ["leadgen"],
+                    access_token: page.access_token,
+                  }),
+                }
+              );
+              const subData = await subRes.json();
+              if (subData.success) {
+                await db.markFacebookPageSubscribed(pageRow.id, true);
+                console.log(
+                  `[Facebook OAuth] Subscribed page ${page.id} (${page.name}) to leadgen webhooks`
+                );
+              } else {
+                console.warn(
+                  `[Facebook OAuth] Failed to subscribe page ${page.id}:`,
+                  subData.error || subData
+                );
+              }
+            } catch (subErr) {
+              console.error(
+                `[Facebook OAuth] Error subscribing page ${page.id} to leadgen:`,
+                subErr
+              );
+            }
+          }
         }
       }
 

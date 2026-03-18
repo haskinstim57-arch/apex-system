@@ -5,8 +5,11 @@ import {
   getOrCreateDefaultPipeline,
   listPipelineStages,
   createDeal,
+  getAccountFacebookPageByFbPageId,
 } from "../db";
 import { ENV } from "../_core/env";
+
+const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 
 // ─────────────────────────────────────────────
 // Facebook Lead Ads Webhook
@@ -144,6 +147,41 @@ interface LeadResult {
   error?: string;
 }
 
+/**
+ * Fetch full lead data from Facebook Graph API using the leadgen_id.
+ * Returns parsed field data (name, email, phone) or null on failure.
+ */
+async function fetchLeadDataFromGraph(
+  leadgenId: string,
+  pageAccessToken: string
+): Promise<Record<string, string> | null> {
+  try {
+    const url = `${FACEBOOK_GRAPH_API}/${leadgenId}?access_token=${pageAccessToken}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.error) {
+      console.error(`[FB Leads Webhook] Graph API error fetching lead ${leadgenId}:`, data.error);
+      return null;
+    }
+
+    const fields: Record<string, string> = {};
+    if (Array.isArray(data.field_data)) {
+      for (const field of data.field_data) {
+        const name = (field.name || "").toLowerCase();
+        const val = Array.isArray(field.values) ? field.values[0] : field.value;
+        if (val) fields[name] = String(val);
+      }
+    }
+
+    console.log(`[FB Leads Webhook] Fetched lead ${leadgenId} from Graph API:`, Object.keys(fields));
+    return fields;
+  } catch (err) {
+    console.error(`[FB Leads Webhook] Error fetching lead ${leadgenId} from Graph API:`, err);
+    return null;
+  }
+}
+
 async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
   const results: LeadResult[] = [];
 
@@ -160,9 +198,49 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
       const adId = String(value.ad_id || "");
       const formId = String(value.form_id || "");
 
-      // Extract fields from field_data array
-      const fieldData: Record<string, string> = {};
-      if (Array.isArray(value.field_data)) {
+      // Determine target account via accountFacebookPages table first, then fall back to facebook_page_mappings
+      const pageId = String(value.page_id || entry.id || "");
+      let accountId = parseInt(String(value.accountId || entry.accountId || "0"), 10);
+      let pageAccessToken: string | null = null;
+
+      if ((!accountId || accountId <= 0) && pageId) {
+        // Try accountFacebookPages first (from OAuth flow)
+        const fbPage = await getAccountFacebookPageByFbPageId(pageId);
+        if (fbPage) {
+          accountId = fbPage.accountId;
+          pageAccessToken = fbPage.pageAccessToken;
+          console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via accountFacebookPages)`);
+        } else {
+          // Fall back to legacy facebook_page_mappings table
+          const { getFacebookPageMappingByPageId } = await import("../db");
+          const mapping = await getFacebookPageMappingByPageId(pageId);
+          if (mapping) {
+            accountId = mapping.accountId;
+            console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via legacy mappings)`);
+          } else {
+            console.warn(`[FB Leads Webhook] No mapping found for page_id=${pageId}, skipping lead`);
+            results.push({ leadId, contactId: 0, dealId: null, success: false, error: `No account mapping for page ${pageId}` });
+            continue;
+          }
+        }
+      }
+      if (!accountId || accountId <= 0) {
+        console.warn(`[FB Leads Webhook] Could not determine accountId for lead ${leadId}, skipping`);
+        results.push({ leadId, contactId: 0, dealId: null, success: false, error: "Could not determine account" });
+        continue;
+      }
+
+      // Try to fetch full lead data from Graph API using the leadgen_id
+      let fieldData: Record<string, string> = {};
+      if (leadId && pageAccessToken) {
+        const graphData = await fetchLeadDataFromGraph(leadId, pageAccessToken);
+        if (graphData) {
+          fieldData = graphData;
+        }
+      }
+
+      // If Graph API fetch failed or no page token, fall back to field_data in the webhook payload
+      if (Object.keys(fieldData).length === 0 && Array.isArray(value.field_data)) {
         for (const field of value.field_data) {
           const name = (field.name || "").toLowerCase();
           const val = Array.isArray(field.values) ? field.values[0] : field.value;
@@ -186,22 +264,6 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
 
       const email = fieldData.email || fieldData.email_address || "";
       const phone = fieldData.phone_number || fieldData.phone || "";
-
-      // Determine target account via facebook_page_mappings table
-      const pageId = String(value.page_id || entry.id || "");
-      let accountId = parseInt(String(value.accountId || entry.accountId || "0"), 10);
-      if ((!accountId || accountId <= 0) && pageId) {
-        const { getFacebookPageMappingByPageId } = await import("../db");
-        const mapping = await getFacebookPageMappingByPageId(pageId);
-        if (mapping) {
-          accountId = mapping.accountId;
-          console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId}`);
-        } else {
-          console.warn(`[FB Leads Webhook] No mapping found for page_id=${pageId}, defaulting to 1`);
-          accountId = 1;
-        }
-      }
-      if (!accountId || accountId <= 0) accountId = 1;
 
       try {
         const result = await processLead({

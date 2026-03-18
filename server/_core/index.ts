@@ -11,6 +11,7 @@ import { vapiWebhookRouter } from "../webhooks/vapi";
 import { facebookLeadsWebhookRouter } from "../webhooks/facebookLeads";
 import { startWorkflowWorker } from "../services/workflowEngine";
 import { startCampaignScheduler } from "../services/campaignScheduler";
+import { startFacebookTokenRefreshJob } from "../services/facebookTokenRefresh";
 import { applySecurityMiddleware } from "../middleware/security";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -74,6 +75,8 @@ async function startServer() {
     startWorkflowWorker();
     // Start the campaign scheduler background worker (runs every 60s)
     startCampaignScheduler();
+    // Start the Facebook token refresh job (runs daily, alerts on expiring tokens)
+    startFacebookTokenRefreshJob();
   });
 }
 
