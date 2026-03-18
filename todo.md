@@ -587,3 +587,16 @@
 ### Final
 - [x] Run all tests and confirm pass (560 tests across 27 files)
 - [x] Checkpoint saved
+
+## Onboarding Wizard Bug Fix — "Go to Dashboard" redirects back to Step 1
+
+- [x] Investigate: check if onboardingCompleted column exists in schema (confirmed: exists in accounts table)
+- [x] Investigate: check backend mutation that sets onboardingCompleted (confirmed: completeOnboarding mutation works correctly)
+- [x] Investigate: check frontend "Go to Dashboard" handler in Onboarding.tsx (ROOT CAUSE: missing cache invalidation)
+- [x] Investigate: check redirect guard logic in App.tsx / DashboardLayout (guard logic is correct, reads from stale cache)
+- [x] Fix: schema already has onboardingComplete column with default false — no migration needed
+- [x] Fix: backend mutation correctly writes onboardingComplete: true — no change needed
+- [x] Fix: added `await utils.accounts.list.invalidate()` after mutation in handleComplete before navigation
+- [x] Fix: redirect guard now sees fresh data because cache is invalidated before redirect
+- [x] Run all tests and confirm pass (576 tests across 28 files, all passing)
+- [x] Checkpoint saved

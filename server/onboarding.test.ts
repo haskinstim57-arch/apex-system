@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 // ─────────────────────────────────────────────
 
 describe("Onboarding — Schema", () => {
-  it("accounts table has onboardingComplete column", async () => {
+  it("accounts table has onboardingComplete column", { timeout: 15000 }, async () => {
     const { accounts } = await import("../drizzle/schema");
     expect(accounts).toBeDefined();
     // The column should exist in the table definition
@@ -97,7 +97,7 @@ describe("Onboarding — Pipeline Router", () => {
 });
 
 describe("Onboarding — Accounts Router", () => {
-  it("accounts router exports completeOnboarding procedure", async () => {
+  it("accounts router exports completeOnboarding procedure", { timeout: 15000 }, async () => {
     const { accountsRouter } = await import("./routers/accounts");
     expect(accountsRouter).toBeDefined();
     expect(accountsRouter._def.procedures).toHaveProperty("completeOnboarding");

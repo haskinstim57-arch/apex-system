@@ -138,6 +138,7 @@ export default function Onboarding() {
   }, [pipelineData]);
 
   // Mutations
+  const utils = trpc.useUtils();
   const updateAccount = trpc.accounts.update.useMutation();
   const saveMessaging = trpc.messagingSettings.save.useMutation();
   const renameStages = trpc.pipeline.renameStages.useMutation();
@@ -223,6 +224,9 @@ export default function Onboarding() {
     if (!currentAccountId) return;
     try {
       await completeOnboarding.mutateAsync({ accountId: currentAccountId });
+      // Invalidate the accounts list cache so DashboardLayout sees the updated
+      // onboardingComplete flag and does NOT redirect back to /onboarding.
+      await utils.accounts.list.invalidate();
       toast.success("Onboarding complete! Welcome to Apex System.");
       setLocation("/");
     } catch (err: any) {
