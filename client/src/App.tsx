@@ -23,6 +23,9 @@ import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
 import MessagingSettings from "./pages/MessagingSettings";
 import Onboarding from "./pages/Onboarding";
+import AcceptInvite from "./pages/AcceptInvite";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -32,7 +35,11 @@ function Router() {
     <Switch>
       {/* Public routes */}
       <Route path="/invite/:token" component={InviteAccept} />
+      <Route path="/accept-invite" component={AcceptInvite} />
       <Route path="/login" component={SubAccountLogin} />
+      <Route path="/sub-login" component={SubAccountLogin} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/reset-password" component={ResetPassword} />
 
       {/* Onboarding wizard (full-screen, no sidebar) */}
       <Route path="/onboarding" component={Onboarding} />

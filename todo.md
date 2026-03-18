@@ -556,3 +556,34 @@
 - [x] Rewrote AccountSwitcher with Popover, search input, Recent section, All Accounts section
 - [x] Added recentAccounts to AccountContext + pushRecentAccountId on switchAccount
 - [x] All 516 tests pass across 26 test files
+
+## Password Setup & Authentication Flow for Sub-Account Users
+
+### Step 1: Invitation email with Set Password link
+- [x] Update invitation email template to include accept-invite URL with token
+- [x] Link text: "Accept Invitation & Set Your Password"
+
+### Step 2: Accept Invitation page
+- [x] Create AcceptInvite.tsx with token validation, name/password form
+- [x] Create subAccountAuth.acceptInviteWithPassword tRPC mutation
+- [x] On submit: create user, set password hash, mark invitation accepted, set ownerId
+- [x] Show error for expired/invalid tokens
+
+### Step 3: Route in App.tsx
+- [x] Add public /accept-invite route
+
+### Step 4: Change Password in Settings
+- [x] Add "Change Password" section in Settings.tsx (Security tab)
+- [x] Create subAccountAuth.changePassword tRPC mutation (verify current, update with bcrypt)
+
+### Step 5: Forgot/Reset Password
+- [x] Add passwordResetTokens table to schema
+- [x] Create ForgotPassword.tsx page (email input, sends reset email)
+- [x] Create ResetPassword.tsx page (token validation, new password form)
+- [x] Add forgot/reset password tRPC procedures (forgotPassword, validateResetToken, resetPasswordWithToken)
+- [x] Add "Forgot your password?" link to SubAccountLogin.tsx
+- [x] Add public routes /forgot-password and /reset-password
+
+### Final
+- [x] Run all tests and confirm pass (560 tests across 27 files)
+- [x] Checkpoint saved

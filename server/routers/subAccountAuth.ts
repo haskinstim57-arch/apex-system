@@ -7,6 +7,8 @@ import { sdk } from "../_core/sdk";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "../_core/cookies";
 import { randomUUID } from "crypto";
+import { nanoid } from "nanoid";
+import { dispatchEmail } from "../services/messaging";
 
 const SALT_ROUNDS = 12;
 
@@ -241,6 +243,234 @@ export const subAccountAuthRouter = router({
         accountId: input.accountId,
         memberRole: input.memberRole,
       };
+    }),
+
+  /**
+   * Public: Accept an invitation and set a password (for new sub-account users).
+   * Creates the user if they don't exist, sets password, adds as member, marks invitation accepted.
+   */
+  acceptInviteWithPassword: publicProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        name: z.string().min(1, "Name is required"),
+        password: z.string().min(8, "Password must be at least 8 characters"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const invitation = await db.getInvitationByToken(input.token);
+
+      if (!invitation) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "This invitation link has expired or is invalid. Please contact your administrator.",
+        });
+      }
+
+      if (invitation.status !== "pending") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `This invitation has already been ${invitation.status}. Please contact your administrator.`,
+        });
+      }
+
+      if (new Date() > invitation.expiresAt) {
+        await db.updateInvitationStatus(invitation.id, "expired");
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This invitation link has expired. Please contact your administrator to resend it.",
+        });
+      }
+
+      const hash = await bcrypt.hash(input.password, SALT_ROUNDS);
+
+      // Check if user already exists by email
+      let user = await db.getUserByEmail(invitation.email);
+
+      if (user) {
+        // Update existing user with name and password
+        await db.updateUser(user.id, { name: input.name });
+        await db.setUserPassword(user.id, hash);
+      } else {
+        // Create new user with email/password credentials
+        const openId = `email_${randomUUID()}`;
+        await db.upsertUser({
+          openId,
+          name: input.name,
+          email: invitation.email,
+          passwordHash: hash,
+          loginMethod: "email",
+          role: "user",
+        });
+        user = await db.getUserByEmail(invitation.email);
+        if (!user) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to create user account.",
+          });
+        }
+      }
+
+      // Check if already a member
+      const existingMember = await db.getMember(invitation.accountId, user.id);
+      if (!existingMember) {
+        await db.addMember({
+          accountId: invitation.accountId,
+          userId: user.id,
+          role: invitation.role,
+          isActive: true,
+        });
+      }
+
+      // If owner invitation, set ownerId on account
+      if (invitation.role === "owner") {
+        await db.updateAccount(invitation.accountId, { ownerId: user.id });
+      }
+
+      // Mark invitation as accepted
+      await db.updateInvitationStatus(invitation.id, "accepted", new Date());
+
+      await db.createAuditLog({
+        accountId: invitation.accountId,
+        userId: user.id,
+        action: "invitation.accepted",
+        resourceType: "invitation",
+        resourceId: invitation.id,
+      });
+
+      // Create session and set cookie so user is logged in immediately
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || "",
+        expiresInMs: ONE_YEAR_MS,
+      });
+
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
+
+      return {
+        success: true,
+        accountId: invitation.accountId,
+        accountName: (await db.getAccountById(invitation.accountId))?.name || "Unknown",
+      };
+    }),
+
+  /**
+   * Public: Request a password reset email.
+   */
+  forgotPassword: publicProcedure
+    .input(
+      z.object({
+        email: z.string().email(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // Always return success to prevent email enumeration
+      const user = await db.getUserByEmail(input.email);
+      if (!user || !user.passwordHash) {
+        // Don't reveal whether the email exists
+        return { success: true };
+      }
+
+      // Generate reset token (1 hour expiry)
+      const token = nanoid(48);
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+      await db.createPasswordResetToken({
+        userId: user.id,
+        token,
+        expiresAt,
+      });
+
+      // Send reset email
+      const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
+      const resetUrl = `${baseUrl}/reset-password?token=${token}`;
+
+      try {
+        await dispatchEmail({
+          to: input.email,
+          subject: "Reset Your Password — Apex System",
+          body: [
+            `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
+            `<h2 style="color: #d4a843;">Password Reset Request</h2>`,
+            `<p>We received a request to reset the password for your Apex System account.</p>`,
+            `<p>Click the button below to set a new password:</p>`,
+            `<p style="text-align: center; margin: 30px 0;">`,
+            `<a href="${resetUrl}" style="background-color: #d4a843; color: #000; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>`,
+            `</p>`,
+            `<p style="color: #888; font-size: 13px;">Or copy this link: ${resetUrl}</p>`,
+            `<p style="color: #888; font-size: 13px;">This link expires in 1 hour.</p>`,
+            `<p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email.</p>`,
+            `<hr style="border: 1px solid #333;">`,
+            `<p style="color: #888; font-size: 12px;">&mdash; Apex System</p>`,
+            `</div>`,
+          ].join("\n"),
+        });
+      } catch (err: any) {
+        console.error("[ForgotPassword] Failed to send reset email:", err?.message || err);
+      }
+
+      return { success: true };
+    }),
+
+  /**
+   * Public: Validate a password reset token.
+   */
+  validateResetToken: publicProcedure
+    .input(z.object({ token: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const resetToken = await db.getPasswordResetToken(input.token);
+      if (!resetToken) {
+        return { valid: false, email: null };
+      }
+      if (resetToken.usedAt || new Date() > resetToken.expiresAt) {
+        return { valid: false, email: null };
+      }
+      const user = await db.getUserById(resetToken.userId);
+      return { valid: true, email: user?.email || null };
+    }),
+
+  /**
+   * Public: Reset password using a valid token.
+   */
+  resetPasswordWithToken: publicProcedure
+    .input(
+      z.object({
+        token: z.string().min(1),
+        newPassword: z.string().min(8, "Password must be at least 8 characters"),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const resetToken = await db.getPasswordResetToken(input.token);
+
+      if (!resetToken) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "This reset link is invalid. Please request a new one.",
+        });
+      }
+
+      if (resetToken.usedAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This reset link has already been used. Please request a new one.",
+        });
+      }
+
+      if (new Date() > resetToken.expiresAt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "This reset link has expired. Please request a new one.",
+        });
+      }
+
+      const hash = await bcrypt.hash(input.newPassword, SALT_ROUNDS);
+      await db.setUserPassword(resetToken.userId, hash);
+      await db.markPasswordResetTokenUsed(resetToken.id);
+
+      return { success: true };
     }),
 
   /**

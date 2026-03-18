@@ -96,7 +96,7 @@ export const invitationsRouter = router({
 
       // Send invitation email
       const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
-      const inviteUrl = `${baseUrl}/invite/${token}`;
+      const inviteUrl = `${baseUrl}/accept-invite?token=${token}`;
       const inviterName = ctx.user.name || "An administrator";
 
       let emailSent = false;
@@ -307,7 +307,7 @@ export const invitationsRouter = router({
 
       // Send the email
       const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
-      const inviteUrl = `${baseUrl}/invite/${newToken}`;
+      const inviteUrl = `${baseUrl}/accept-invite?token=${newToken}`;
       const inviterName = ctx.user.name || "An administrator";
 
       let emailSent = false;

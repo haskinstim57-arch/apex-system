@@ -102,7 +102,7 @@ export const accountsRouter = router({
 
       // Send invitation email to the owner
       const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
-      const inviteUrl = `${baseUrl}/invite/${token}`;
+      const inviteUrl = `${baseUrl}/accept-invite?token=${token}`;
       const inviterName = ctx.user.name || "An administrator";
 
       try {

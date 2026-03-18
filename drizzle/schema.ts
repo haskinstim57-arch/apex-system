@@ -696,3 +696,18 @@ export const accountMessagingSettings = mysqlTable("account_messaging_settings",
 
 export type AccountMessagingSettings = typeof accountMessagingSettings.$inferSelect;
 export type InsertAccountMessagingSettings = typeof accountMessagingSettings.$inferInsert;
+
+// ─────────────────────────────────────────────
+// PASSWORD RESET TOKENS — For forgot password flow
+// ─────────────────────────────────────────────
+export const passwordResetTokens = mysqlTable("password_reset_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  usedAt: timestamp("usedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
+export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;

@@ -49,6 +49,8 @@ import {
   type InsertImpersonationAuditLog,
   accountMessagingSettings,
   type InsertAccountMessagingSettings,
+  passwordResetTokens,
+  type InsertPasswordResetToken,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -167,6 +169,48 @@ export async function setUserPassword(userId: number, passwordHash: string) {
     .update(users)
     .set({ passwordHash })
     .where(eq(users.id, userId));
+}
+
+export async function updateUser(
+  userId: number,
+  data: { name?: string; email?: string }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(users)
+    .set(data)
+    .where(eq(users.id, userId));
+}
+
+// ─────────────────────────────────────────────
+// PASSWORD RESET TOKEN HELPERS
+// ─────────────────────────────────────────────
+export async function createPasswordResetToken(data: { userId: number; token: string; expiresAt: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(passwordResetTokens).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+export async function getPasswordResetToken(token: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(passwordResetTokens)
+    .where(eq(passwordResetTokens.token, token))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function markPasswordResetTokenUsed(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(passwordResetTokens)
+    .set({ usedAt: new Date() })
+    .where(eq(passwordResetTokens.id, id));
 }
 
 export async function getUserAccountMemberships(userId: number) {

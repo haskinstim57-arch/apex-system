@@ -1,8 +1,14 @@
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Shield,
   User,
@@ -12,6 +18,10 @@ import {
   Facebook,
   MessageSquare,
   ChevronRight,
+  Lock,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
@@ -175,6 +185,9 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      {/* Change Password Section — only for email-authenticated users */}
+      {user?.loginMethod === "email" && <ChangePasswordCard />}
+
       {/* Messaging Settings — visible to anyone with an account selected */}
       {showMessagingSettings && (
         <Card className="border-border/50 bg-card">
@@ -253,5 +266,151 @@ export default function SettingsPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  const changeMutation = trpc.subAccountAuth.changePassword.useMutation({
+    onSuccess: () => {
+      setSuccess(true);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setError("");
+      // Hide success after 3 seconds
+      setTimeout(() => setSuccess(false), 3000);
+    },
+    onError: (err) => {
+      setError(err.message || "Failed to change password");
+      setSuccess(false);
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess(false);
+
+    if (!currentPassword) {
+      setError("Please enter your current password");
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError("New password must be at least 8 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("New passwords do not match");
+      return;
+    }
+
+    if (currentPassword === newPassword) {
+      setError("New password must be different from current password");
+      return;
+    }
+
+    changeMutation.mutate({ currentPassword, newPassword });
+  };
+
+  return (
+    <Card className="border-border/50 bg-card">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Lock className="h-4 w-4 text-muted-foreground" />
+          Change Password
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Update your account password. You'll need to enter your current
+          password first.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
+          {error && (
+            <Alert variant="destructive" className="py-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {success && (
+            <Alert className="py-2 border-green-500/30 bg-green-500/10">
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <AlertDescription className="text-sm text-green-400">
+                Password changed successfully!
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword" className="text-xs">
+              Current Password
+            </Label>
+            <Input
+              id="currentPassword"
+              type="password"
+              placeholder="Enter current password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              disabled={changeMutation.isPending}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="newPassword" className="text-xs">
+              New Password
+            </Label>
+            <Input
+              id="newPassword"
+              type="password"
+              placeholder="Min. 8 characters"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={changeMutation.isPending}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmNewPassword" className="text-xs">
+              Confirm New Password
+            </Label>
+            <Input
+              id="confirmNewPassword"
+              type="password"
+              placeholder="Re-enter new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              disabled={changeMutation.isPending}
+            />
+          </div>
+
+          <Button
+            type="submit"
+            size="sm"
+            disabled={changeMutation.isPending}
+          >
+            {changeMutation.isPending ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              "Update Password"
+            )}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
