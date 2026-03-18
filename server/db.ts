@@ -292,6 +292,7 @@ export async function listAccountsForUserWithOwner(userId: number) {
   const db = await getDb();
   if (!db) return [];
 
+  // Get accounts where user is a member
   const memberships = await db
     .select({ accountId: accountMembers.accountId })
     .from(accountMembers)
@@ -299,9 +300,20 @@ export async function listAccountsForUserWithOwner(userId: number) {
       and(eq(accountMembers.userId, userId), eq(accountMembers.isActive, true))
     );
 
-  if (memberships.length === 0) return [];
+  const memberAccountIds = memberships.map((m) => m.accountId);
 
-  const accountIds = memberships.map((m) => m.accountId);
+  // Also get accounts where user is the owner (even if not in accountMembers)
+  const ownedAccounts = await db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.ownerId, userId));
+
+  const ownedAccountIds = ownedAccounts.map((a) => a.id);
+
+  // Merge and deduplicate
+  const allAccountIds = Array.from(new Set([...memberAccountIds, ...ownedAccountIds]));
+  if (allAccountIds.length === 0) return [];
+
   return db
     .select({
       id: accounts.id,
@@ -324,7 +336,7 @@ export async function listAccountsForUserWithOwner(userId: number) {
     })
     .from(accounts)
     .leftJoin(users, eq(accounts.ownerId, users.id))
-    .where(inArray(accounts.id, accountIds))
+    .where(inArray(accounts.id, allAccountIds))
     .orderBy(desc(accounts.createdAt));
 }
 
@@ -594,6 +606,38 @@ export async function getAdminStats() {
     totalAccounts: accountResult?.count ?? 0,
     totalUsers: userResult?.count ?? 0,
     activeAccounts: activeResult?.count ?? 0,
+  };
+}
+
+export async function getAccountDashboardStats(accountId: number) {
+  const db = await getDb();
+  if (!db) return { totalContacts: 0, totalMessages: 0, activeCampaigns: 0, totalCalls: 0 };
+
+  const [contactResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contacts)
+    .where(eq(contacts.accountId, accountId));
+
+  const [messageResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(messages)
+    .where(eq(messages.accountId, accountId));
+
+  const [campaignResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(campaigns)
+    .where(sql`${campaigns.accountId} = ${accountId} AND ${campaigns.status} = 'active'`);
+
+  const [callResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(aiCalls)
+    .where(eq(aiCalls.accountId, accountId));
+
+  return {
+    totalContacts: contactResult?.count ?? 0,
+    totalMessages: messageResult?.count ?? 0,
+    activeCampaigns: campaignResult?.count ?? 0,
+    totalCalls: callResult?.count ?? 0,
   };
 }
 

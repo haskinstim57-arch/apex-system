@@ -31,6 +31,8 @@ type AccountContextValue = {
   currentAccount: Account | null;
   /** All accounts available to the current user */
   accounts: Account[];
+  /** Recently viewed accounts (up to 5, excluding current) */
+  recentAccounts: Account[];  // Note: actual runtime type is richer than Account, but this is the minimum interface
   /** Whether accounts are still loading */
   isLoading: boolean;
   /** Whether the current user is an admin */
@@ -51,6 +53,7 @@ const AccountContext = createContext<AccountContextValue>({
   currentAccountId: null,
   currentAccount: null,
   accounts: [],
+  recentAccounts: [],
   isLoading: true,
   isAdmin: false,
   isImpersonating: false,
@@ -61,6 +64,28 @@ const AccountContext = createContext<AccountContextValue>({
 });
 
 const SELECTED_ACCOUNT_KEY = "apex-selected-account";
+const RECENT_ACCOUNTS_KEY = "apex-recent-accounts";
+const MAX_RECENT_ACCOUNTS = 5;
+
+/** Get recently viewed account IDs from localStorage */
+function getRecentAccountIds(): number[] {
+  try {
+    const saved = localStorage.getItem(RECENT_ACCOUNTS_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Save a recently viewed account ID to localStorage */
+function pushRecentAccountId(accountId: number) {
+  const recent = getRecentAccountIds().filter((id) => id !== accountId);
+  recent.unshift(accountId);
+  localStorage.setItem(
+    RECENT_ACCOUNTS_KEY,
+    JSON.stringify(recent.slice(0, MAX_RECENT_ACCOUNTS))
+  );
+}
 
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -98,17 +123,16 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   // Resolve the current account ID with priority:
   // 1. Impersonated account (admin impersonating)
   // 2. User-selected account (persisted in localStorage)
-  // 3. For CLIENTS: first available account (auto-select)
-  // 4. For ADMINS: null (agency scope — no auto-select)
+  // 3. Auto-select first account (both admins and clients)
   const currentAccountId = useMemo(() => {
     if (impersonatedAccountId) return impersonatedAccountId;
     if (selectedAccountId && accounts.some((a) => a.id === selectedAccountId)) {
       return selectedAccountId;
     }
-    // Clients auto-select their first account; admins stay in agency scope
-    if (!isAdmin && accounts.length > 0) return accounts[0].id;
+    // Auto-select first account for all users (admins + clients)
+    if (accounts.length > 0) return accounts[0].id;
     return null;
-  }, [impersonatedAccountId, selectedAccountId, accounts, isAdmin]);
+  }, [impersonatedAccountId, selectedAccountId, accounts]);
 
   const currentAccount = useMemo(() => {
     if (!currentAccountId) return null;
@@ -129,12 +153,23 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
 
   const switchAccount = useCallback((accountId: number) => {
     setSelectedAccountId(accountId);
+    pushRecentAccountId(accountId);
   }, []);
 
   const clearAccount = useCallback(() => {
     setSelectedAccountId(null);
     localStorage.removeItem(SELECTED_ACCOUNT_KEY);
   }, []);
+
+  // Track recently viewed accounts
+  const recentAccountIds = useMemo(() => getRecentAccountIds(), [currentAccountId]);
+  const recentAccounts = useMemo(
+    () =>
+      recentAccountIds
+        .map((id) => accounts.find((a) => a.id === id))
+        .filter((a): a is (typeof accounts)[number] => !!a && a.id !== currentAccountId),
+    [recentAccountIds, accounts, currentAccountId]
+  );
 
   const isLoading = accountsLoading || (isAdmin ? impersonationLoading : false);
 
@@ -143,6 +178,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       currentAccountId,
       currentAccount,
       accounts,
+      recentAccounts,
       isLoading,
       isAdmin: !!isAdmin,
       isImpersonating,
@@ -155,6 +191,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       currentAccountId,
       currentAccount,
       accounts,
+      recentAccounts,
       isLoading,
       isAdmin,
       isImpersonating,

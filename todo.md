@@ -522,3 +522,37 @@
 - [x] Rewrote NoAccountSelected with inline account picker for admins + loading spinner
 - [x] Simplified all 7 page guards (Contacts, Messages, Campaigns, AICalls, Pipeline, Automations, TeamMembers)
 - [x] All 516 tests pass across 26 test files
+
+## Critical Sub-Account Fixes (4 Issues) + Dashboard + Admin UX
+
+### Issue 1: Admin shown as sub-account owner instead of "Pending"
+- [x] Removed ownerId assignment from accounts.create (always null, set on invitation acceptance)
+- [x] Accounts.tsx already shows "Pending" badge when ownerName is null
+
+### Issue 2: Sub-account users see "No account access"
+- [x] Fixed listAccountsForUserWithOwner to include accounts where user is ownerId OR in accountMembers
+- [x] AccountContext: auto-select first account for ALL users (admins + clients)
+- [x] Home.tsx: shows real dashboard stats (contacts, messages, campaigns, AI calls) via accountDashboardStats procedure
+
+### Issue 3: Role display mismatch in Settings
+- [x] Settings.tsx: shows "Account Owner" when user is ownerId of active account
+- [x] Verified invitation acceptance sets ownerId correctly
+
+### Issue 4: "Select an account first" in Automations
+- [x] Verified: Automations.tsx already passes accountId from AccountContext to workflow create mutation
+- [x] Root cause was Issue 2 (no accounts returned) — now fixed
+
+### Dashboard content for sub-account users
+- [x] Added getAccountDashboardStats DB helper (contacts, messages, campaigns, AI calls)
+- [x] Added accountDashboardStats tRPC procedure with access control
+- [x] Home.tsx: real-time stats cards with loading skeletons
+- [x] Display stat cards with skeleton loading states
+- [x] Show "0" for zero counts, never blank
+
+### Admin UX Improvements
+- [x] Auto-select first account for admins in AccountContext (removed agency scope default)
+- [x] Search/filter in AccountSwitcher dropdown (real-time filtering by name)
+- [x] Recently viewed accounts (last 5 in localStorage) at top of switcher with Clock icon
+- [x] Rewrote AccountSwitcher with Popover, search input, Recent section, All Accounts section
+- [x] Added recentAccounts to AccountContext + pushRecentAccountId on switchAccount
+- [x] All 516 tests pass across 26 test files

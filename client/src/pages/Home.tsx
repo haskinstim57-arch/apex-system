@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2,
   Users,
@@ -13,15 +14,24 @@ import {
   BarChart3,
 } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
+import { useMemo } from "react";
 
 export default function Home() {
   const { user } = useAuth();
-  const { isAdmin, accounts, isAgencyScope, currentAccountId } = useAccount();
+  const { isAdmin, accounts, isAgencyScope, currentAccountId, currentAccount } = useAccount();
 
   // Admin stats
   const { data: adminStats } = trpc.accounts.adminStats.useQuery(undefined, {
     enabled: isAdmin,
   });
+
+  // Account-level stats (when an account is selected)
+  const stableAccountId = useMemo(() => currentAccountId, [currentAccountId]);
+  const { data: accountStats, isLoading: accountStatsLoading } =
+    trpc.accounts.accountDashboardStats.useQuery(
+      { accountId: stableAccountId! },
+      { enabled: !!stableAccountId }
+    );
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -38,9 +48,11 @@ export default function Home() {
           {greeting()}, {user?.name?.split(" ")[0] || "there"}
         </h1>
         <p className="text-sm text-muted-foreground">
-          {isAdmin
+          {isAdmin && isAgencyScope
             ? "Here\u2019s an overview of your platform."
-            : "Here\u2019s what\u2019s happening with your accounts."}
+            : currentAccount
+              ? `Managing ${currentAccount.name}`
+              : "Here\u2019s what\u2019s happening with your accounts."}
         </p>
       </div>
 
@@ -83,12 +95,11 @@ export default function Home() {
             Sub-Accounts
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {accounts.map((account) => (
+            {accounts.slice(0, 12).map((account) => (
               <Card
                 key={account.id}
                 className="card-hover cursor-pointer border-border/50 bg-card"
                 onClick={() => {
-                  // Switch to this account in the sidebar
                   window.location.href = `/contacts`;
                 }}
               >
@@ -118,8 +129,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* User's Accounts (clients only) */}
-      {!isAdmin && accounts && accounts.length > 0 && (
+      {/* User's Accounts (clients only, no account selected) */}
+      {!isAdmin && !currentAccountId && accounts && accounts.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.map((account) => (
             <Card
@@ -154,38 +165,51 @@ export default function Home() {
         </div>
       )}
 
-      {/* Quick Actions / Module Placeholders — only show when account is selected */}
-      {currentAccountId && <div>
-        <h2 className="text-lg font-medium tracking-tight mb-4">
-          Quick Overview
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <QuickStatCard
-            title="Contacts"
-            value="--"
-            icon={Users}
-            subtitle="Total contacts"
-          />
-          <QuickStatCard
-            title="Messages"
-            value="--"
-            icon={MessageSquare}
-            subtitle="Sent this month"
-          />
-          <QuickStatCard
-            title="AI Calls"
-            value="--"
-            icon={Phone}
-            subtitle="Calls made"
-          />
-          <QuickStatCard
-            title="Campaigns"
-            value="--"
-            icon={BarChart3}
-            subtitle="Active campaigns"
-          />
+      {/* Quick Overview — shows real stats when account is selected */}
+      {currentAccountId && (
+        <div>
+          <h2 className="text-lg font-medium tracking-tight mb-4">
+            Quick Overview
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {accountStatsLoading ? (
+              <>
+                <StatsCardSkeleton />
+                <StatsCardSkeleton />
+                <StatsCardSkeleton />
+                <StatsCardSkeleton />
+              </>
+            ) : (
+              <>
+                <QuickStatCard
+                  title="Contacts"
+                  value={accountStats?.totalContacts?.toLocaleString() ?? "0"}
+                  icon={Users}
+                  subtitle="Total contacts"
+                />
+                <QuickStatCard
+                  title="Messages"
+                  value={accountStats?.totalMessages?.toLocaleString() ?? "0"}
+                  icon={MessageSquare}
+                  subtitle="Total sent"
+                />
+                <QuickStatCard
+                  title="AI Calls"
+                  value={accountStats?.totalCalls?.toLocaleString() ?? "0"}
+                  icon={Phone}
+                  subtitle="Calls made"
+                />
+                <QuickStatCard
+                  title="Campaigns"
+                  value={accountStats?.activeCampaigns?.toLocaleString() ?? "0"}
+                  icon={BarChart3}
+                  subtitle="Active campaigns"
+                />
+              </>
+            )}
+          </div>
         </div>
-      </div>}
+      )}
     </div>
   );
 }
@@ -257,6 +281,22 @@ function QuickStatCard({
           <div>
             <p className="text-lg font-semibold tracking-tight">{value}</p>
             <p className="text-xs text-muted-foreground">{subtitle}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatsCardSkeleton() {
+  return (
+    <Card className="border-border/50 bg-card">
+      <CardContent className="pt-5 pb-4 px-5">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-10 rounded-lg" />
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-16" />
+            <Skeleton className="h-3 w-24" />
           </div>
         </div>
       </CardContent>

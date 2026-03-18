@@ -50,7 +50,20 @@ function IntegrationLink({
 export default function SettingsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { currentAccountId } = useAccount();
+  const { currentAccountId, currentAccount } = useAccount();
+
+  // Determine the user's role within the active account context
+  const isAccountOwner = currentAccount && currentAccount.ownerId === user?.id;
+  const displayRole = isAdmin
+    ? "Admin"
+    : isAccountOwner
+      ? "Account Owner"
+      : user?.role || "user";
+  const displayRoleDescription = isAdmin
+    ? "Full platform access as administrator"
+    : isAccountOwner
+      ? "Owner of the active sub-account"
+      : "Standard user access";
   // Show messaging settings link to account owners or admins with an account selected
   const showMessagingSettings = !!currentAccountId;
 
@@ -136,16 +149,16 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm font-medium">Platform Role</p>
               <p className="text-xs text-muted-foreground">
-                {isAdmin
-                  ? "Full platform access as administrator"
-                  : "Standard user access"}
+                {displayRoleDescription}
               </p>
             </div>
             <Badge
-              variant={isAdmin ? "default" : "secondary"}
-              className="text-xs capitalize"
+              variant={isAdmin ? "default" : isAccountOwner ? "default" : "secondary"}
+              className={`text-xs capitalize ${
+                isAccountOwner && !isAdmin ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : ""
+              }`}
             >
-              {user?.role || "user"}
+              {displayRole}
             </Badge>
           </div>
           <Separator className="bg-border/50" />

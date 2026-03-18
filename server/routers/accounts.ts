@@ -72,16 +72,13 @@ export const accountsRouter = router({
     .mutation(async ({ input, ctx }) => {
       const slug = generateSlug(input.name);
 
-      // Look up the owner user by email
-      const ownerUser = await db.getUserByEmail(input.ownerEmail);
-
       const result = await db.createAccount({
         name: input.name,
         slug,
         parentId: input.parentId ?? null,
-        // Only set ownerId if the user already exists; otherwise leave null
-        // The real owner will be assigned when they accept the invitation
-        ownerId: ownerUser ? ownerUser.id : null,
+        // ownerId is always null at creation — the real owner is assigned
+        // only when they accept the invitation via invitations.accept
+        ownerId: null,
         industry: input.industry ?? "mortgage",
         website: input.website ?? null,
         phone: input.phone ?? null,
@@ -248,6 +245,17 @@ export const accountsRouter = router({
   adminStats: adminProcedure.query(async () => {
     return db.getAdminStats();
   }),
+
+  /** Get dashboard stats for a specific account */
+  accountDashboardStats: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      // Admins can view any account; clients need membership
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager", "employee"]);
+      }
+      return db.getAccountDashboardStats(input.accountId);
+    }),
 
   /** Mark onboarding as complete for a sub-account */
   completeOnboarding: protectedProcedure
