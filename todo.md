@@ -600,3 +600,32 @@
 - [x] Fix: redirect guard now sees fresh data because cache is invalidated before redirect
 - [x] Run all tests and confirm pass (576 tests across 28 files, all passing)
 - [x] Checkpoint saved
+
+## Facebook Integration in Onboarding Wizard
+
+### Step 1: New "Integrations" step in onboarding
+- [x] Add new step between Messaging Setup and Finish (step 3 of 5)
+- [x] Facebook card with logo, title, description, Connect button
+- [x] Google card placeholder with "Coming Soon" badge
+- [x] Skip for now link
+- [x] Update step counter from 4 to 5
+
+### Step 2: Facebook OAuth flow
+- [x] Add facebookOAuth.getOAuthUrl query
+- [x] Add facebookOAuth.handleCallback mutation (exchange code for long-lived token)
+- [x] Save token, expiry, Facebook user ID to accountIntegrations table
+
+### Step 3: Fetch and store Facebook Pages
+- [x] After OAuth callback, call GET /me/accounts
+- [x] Store page id, name, access_token in accountFacebookPages table
+
+### Step 4: Integrations tab in Settings
+- [x] Add Integrations card to Settings.tsx
+- [x] Show Facebook connection status (connected name + Disconnect, or Connect button)
+
+### Step 5: Environment variables
+- [x] Add FACEBOOK_APP_ID, FACEBOOK_APP_SECRET, FACEBOOK_WEBHOOK_VERIFY_TOKEN
+
+### Final
+- [x] Run all tests and confirm pass (613 tests across 29 files)
+- [x] Checkpoint saved

@@ -11,4 +11,7 @@ export const ENV = {
   vapiAgentId: process.env.VAPI_AGENT_ID ?? "",
   vapiAgentIdRealtor: process.env.VAPI_AGENT_ID_REALTOR ?? "",
   vapiAgentIdInstagram: process.env.VAPI_AGENT_ID_INSTAGRAM ?? "",
+  facebookAppId: process.env.FACEBOOK_APP_ID ?? "",
+  facebookAppSecret: process.env.FACEBOOK_APP_SECRET ?? "",
+  facebookWebhookVerifyToken: process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ?? "",
 };

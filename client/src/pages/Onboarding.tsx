@@ -38,14 +38,28 @@ import {
   Pencil,
   RotateCcw,
   Rocket,
+  Link2,
+  Loader2,
+  ExternalLink,
+  MapPin,
 } from "lucide-react";
 
 const STEPS = [
   { id: 1, title: "Business Profile", icon: Building2 },
   { id: 2, title: "Messaging Setup", icon: Mail },
-  { id: 3, title: "Pipeline Setup", icon: Kanban },
-  { id: 4, title: "Finish", icon: Rocket },
+  { id: 3, title: "Integrations", icon: Link2 },
+  { id: 4, title: "Pipeline Setup", icon: Kanban },
+  { id: 5, title: "Finish", icon: Rocket },
 ];
+
+/** Inline Facebook logo SVG */
+function FacebookIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  );
+}
 
 const INDUSTRIES = [
   "mortgage",
@@ -192,7 +206,12 @@ export default function Onboarding() {
     setStep(3);
   };
 
-  // ─── Step 3: Save Pipeline ───
+  // ─── Step 3: Skip Integrations ───
+  const handleSkipIntegrations = () => {
+    setStep(4);
+  };
+
+  // ─── Step 4: Save Pipeline ───
   const handleSavePipeline = async () => {
     if (!currentAccountId) return;
     if (isEditingStages && stageNames.length > 0) {
@@ -206,7 +225,7 @@ export default function Onboarding() {
         toast.error(err.message || "Failed to update pipeline stages");
       }
     }
-    setStep(4);
+    setStep(5);
   };
 
   const handleUseDefaults = () => {
@@ -216,10 +235,10 @@ export default function Onboarding() {
         pipelineData.stages.map((s: any) => ({ id: s.id, name: s.name }))
       );
     }
-    setStep(4);
+    setStep(5);
   };
 
-  // ─── Step 4: Complete ───
+  // ─── Step 5: Complete ───
   const handleComplete = async () => {
     if (!currentAccountId) return;
     try {
@@ -578,8 +597,80 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ─── STEP 3: Pipeline Setup ─── */}
+        {/* ─── STEP 3: Integrations ─── */}
         {step === 3 && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Connect Your Integrations
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                Connect your social media accounts to enable lead automation.
+              </p>
+            </div>
+
+            {/* Facebook Card */}
+            <Card className="border-border/50 bg-card">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
+                    <FacebookIcon className="h-6 w-6 text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-semibold">Facebook & Instagram Leads</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Automatically capture leads from your Facebook Lead Ads and create contacts.
+                    </p>
+                    <FacebookConnectButton accountId={currentAccountId!} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Google Card (Placeholder) */}
+            <Card className="border-border/50 bg-card opacity-70">
+              <CardContent className="pt-6">
+                <div className="flex items-start gap-4">
+                  <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
+                    <MapPin className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold">Google My Business</h3>
+                      <Badge variant="secondary" className="text-[10px] px-1.5">
+                        Coming Soon
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Sync reviews and manage your Google presence.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex justify-between">
+              <Button variant="ghost" onClick={() => setStep(2)}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={handleSkipIntegrations}>
+                  Skip for now
+                </Button>
+                <Button onClick={() => setStep(4)} className="min-w-[140px]">
+                  <span className="flex items-center gap-2">
+                    Continue
+                    <ArrowRight className="h-4 w-4" />
+                  </span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── STEP 4: Pipeline Setup ─── */}
+        {step === 4 && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
@@ -685,7 +776,7 @@ export default function Onboarding() {
             </Card>
 
             <div className="flex justify-between">
-              <Button variant="ghost" onClick={() => setStep(2)}>
+              <Button variant="ghost" onClick={() => setStep(3)}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
@@ -717,8 +808,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ─── STEP 4: Finish ─── */}
-        {step === 4 && (
+        {/* ─── STEP 5: Finish ─── */}
+        {step === 5 && (
           <div className="space-y-8 animate-in fade-in duration-300">
             <div className="text-center pt-8">
               <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
@@ -756,6 +847,12 @@ export default function Onboarding() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
+                      Integrations
+                    </span>
+                    <CheckCircle2 className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
                       Pipeline Setup
                     </span>
                     <CheckCircle2 className="h-4 w-4 text-primary" />
@@ -786,7 +883,7 @@ export default function Onboarding() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setStep(3)}
+                onClick={() => setStep(4)}
                 className="text-xs text-muted-foreground"
               >
                 <ArrowLeft className="h-3 w-3 mr-1" />
@@ -797,5 +894,145 @@ export default function Onboarding() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Facebook Connect Button — handles OAuth popup flow.
+ * Used in onboarding step 3 and Settings integrations tab.
+ */
+function FacebookConnectButton({ accountId }: { accountId: number }) {
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const [connectedName, setConnectedName] = useState<string | null>(null);
+
+  const utils = trpc.useUtils();
+
+  // Check current status
+  const { data: fbStatus } = trpc.facebookOAuth.getStatus.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+
+  useEffect(() => {
+    if (fbStatus?.connected) {
+      setIsConnected(true);
+      setConnectedName(fbStatus.userName || null);
+    }
+  }, [fbStatus]);
+
+  const callbackMutation = trpc.facebookOAuth.handleCallback.useMutation({
+    onSuccess: (result) => {
+      setIsConnected(true);
+      setConnectedName(result.facebookUserName || null);
+      setIsConnecting(false);
+      toast.success(
+        `Facebook connected! ${result.pagesCount} page${result.pagesCount !== 1 ? "s" : ""} imported.`
+      );
+      utils.facebookOAuth.getStatus.invalidate({ accountId });
+    },
+    onError: (err) => {
+      setIsConnecting(false);
+      toast.error(err.message || "Failed to connect Facebook");
+    },
+  });
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    const redirectUri = `${window.location.origin}/onboarding`;
+
+    try {
+      // Get the OAuth URL from the server
+      const result = await utils.client.facebookOAuth.getOAuthUrl.query({
+        accountId,
+        redirectUri,
+      });
+
+      // Open popup
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const popup = window.open(
+        result.url,
+        "facebook-oauth",
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+      );
+
+      if (!popup) {
+        toast.error("Popup blocked. Please allow popups for this site.");
+        setIsConnecting(false);
+        return;
+      }
+
+      // Poll for the popup to redirect back with the code
+      const pollInterval = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(pollInterval);
+            setIsConnecting(false);
+            return;
+          }
+          const popupUrl = popup.location.href;
+          if (popupUrl.includes(window.location.origin)) {
+            const url = new URL(popupUrl);
+            const code = url.searchParams.get("code");
+            const state = url.searchParams.get("state");
+            popup.close();
+            clearInterval(pollInterval);
+
+            if (code && state) {
+              callbackMutation.mutate({ code, redirectUri, state });
+            } else {
+              setIsConnecting(false);
+              const errorReason = url.searchParams.get("error_reason");
+              if (errorReason === "user_denied") {
+                toast.info("Facebook connection cancelled");
+              } else {
+                toast.error("Facebook authorization failed");
+              }
+            }
+          }
+        } catch {
+          // Cross-origin error — popup is still on Facebook's domain, keep polling
+        }
+      }, 500);
+    } catch (err: any) {
+      setIsConnecting(false);
+      toast.error(err.message || "Failed to start Facebook connection");
+    }
+  };
+
+  if (isConnected) {
+    return (
+      <div className="mt-3 flex items-center gap-2">
+        <Badge className="bg-green-500/10 text-green-500 border-green-500/30 text-xs">
+          <CheckCircle2 className="h-3 w-3 mr-1" />
+          Connected{connectedName ? ` as ${connectedName}` : ""}
+        </Badge>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="mt-3 text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+      onClick={handleConnect}
+      disabled={isConnecting || callbackMutation.isPending}
+    >
+      {isConnecting || callbackMutation.isPending ? (
+        <>
+          <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+          Connecting...
+        </>
+      ) : (
+        <>
+          <ExternalLink className="h-3.5 w-3.5 mr-2" />
+          Connect Facebook
+        </>
+      )}
+    </Button>
   );
 }

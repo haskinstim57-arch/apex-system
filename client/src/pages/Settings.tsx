@@ -22,6 +22,10 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Link2,
+  ExternalLink,
+  MapPin,
+  Unlink,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
@@ -212,16 +216,21 @@ export default function SettingsPage() {
         </Card>
       )}
 
+      {/* Account Integrations — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <FacebookIntegrationCard accountId={currentAccountId} />
+      )}
+
       {/* Admin Integrations */}
       {isAdmin && (
         <Card className="border-border/50 bg-card">
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Palette className="h-4 w-4 text-muted-foreground" />
-              Integrations
+              Admin Integrations
             </CardTitle>
             <CardDescription className="text-xs">
-              Manage external service connections and integrations.
+              Manage platform-level service connections.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-1 -mt-2">
@@ -410,6 +419,219 @@ function ChangePasswordCard() {
             )}
           </Button>
         </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Inline Facebook logo SVG */
+function FacebookLogo({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+    </svg>
+  );
+}
+
+function FacebookIntegrationCard({ accountId }: { accountId: number }) {
+  const [isConnecting, setIsConnecting] = useState(false);
+  const utils = trpc.useUtils();
+
+  const { data: fbStatus, isLoading } = trpc.facebookOAuth.getStatus.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+
+  const disconnectMutation = trpc.facebookOAuth.disconnect.useMutation({
+    onSuccess: () => {
+      utils.facebookOAuth.getStatus.invalidate({ accountId });
+    },
+  });
+
+  const callbackMutation = trpc.facebookOAuth.handleCallback.useMutation({
+    onSuccess: (result) => {
+      setIsConnecting(false);
+      utils.facebookOAuth.getStatus.invalidate({ accountId });
+      // toast imported at top
+      import("sonner").then(({ toast }) => {
+        toast.success(
+          `Facebook connected! ${result.pagesCount} page${result.pagesCount !== 1 ? "s" : ""} imported.`
+        );
+      });
+    },
+    onError: (err) => {
+      setIsConnecting(false);
+      import("sonner").then(({ toast }) => {
+        toast.error(err.message || "Failed to connect Facebook");
+      });
+    },
+  });
+
+  const handleConnect = async () => {
+    setIsConnecting(true);
+    const redirectUri = `${window.location.origin}/settings`;
+
+    try {
+      const result = await utils.client.facebookOAuth.getOAuthUrl.query({
+        accountId,
+        redirectUri,
+      });
+
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const popup = window.open(
+        result.url,
+        "facebook-oauth",
+        `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no`
+      );
+
+      if (!popup) {
+        import("sonner").then(({ toast }) => {
+          toast.error("Popup blocked. Please allow popups for this site.");
+        });
+        setIsConnecting(false);
+        return;
+      }
+
+      const pollInterval = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(pollInterval);
+            setIsConnecting(false);
+            return;
+          }
+          const popupUrl = popup.location.href;
+          if (popupUrl.includes(window.location.origin)) {
+            const url = new URL(popupUrl);
+            const code = url.searchParams.get("code");
+            const state = url.searchParams.get("state");
+            popup.close();
+            clearInterval(pollInterval);
+
+            if (code && state) {
+              callbackMutation.mutate({ code, redirectUri, state });
+            } else {
+              setIsConnecting(false);
+            }
+          }
+        } catch {
+          // Cross-origin — still on Facebook's domain
+        }
+      }, 500);
+    } catch (err: any) {
+      setIsConnecting(false);
+      import("sonner").then(({ toast }) => {
+        toast.error(err.message || "Failed to start Facebook connection");
+      });
+    }
+  };
+
+  const handleDisconnect = () => {
+    if (window.confirm("Are you sure you want to disconnect Facebook? This will remove all linked pages.")) {
+      disconnectMutation.mutate({ accountId });
+    }
+  };
+
+  return (
+    <Card className="border-border/50 bg-card">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Link2 className="h-4 w-4 text-muted-foreground" />
+          Integrations
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Connect external services to enable lead automation and sync.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Facebook */}
+        <div className="flex items-start gap-4 p-3 rounded-lg border border-border/50">
+          <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+            <FacebookLogo className="h-5 w-5 text-blue-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium">Facebook & Instagram Leads</h4>
+            {isLoading ? (
+              <p className="text-xs text-muted-foreground mt-1">Checking status...</p>
+            ) : fbStatus?.connected ? (
+              <div className="mt-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Connected
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    as {fbStatus.userName}
+                  </span>
+                </div>
+                {fbStatus.pages && fbStatus.pages.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {fbStatus.pages.length} page{fbStatus.pages.length !== 1 ? "s" : ""} linked
+                  </p>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={handleDisconnect}
+                  disabled={disconnectMutation.isPending}
+                >
+                  {disconnectMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Unlink className="h-3 w-3 mr-1" />
+                  )}
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-1">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Capture leads from Facebook Lead Ads automatically.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                  onClick={handleConnect}
+                  disabled={isConnecting || callbackMutation.isPending}
+                >
+                  {isConnecting || callbackMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Connecting...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-3 w-3 mr-1" />
+                      Connect Facebook
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Google Placeholder */}
+        <div className="flex items-start gap-4 p-3 rounded-lg border border-border/50 opacity-60">
+          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
+            <MapPin className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="text-sm font-medium">Google My Business</h4>
+              <Badge variant="secondary" className="text-[10px]">
+                Coming Soon
+              </Badge>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sync reviews and manage your Google presence.
+            </p>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

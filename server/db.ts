@@ -51,6 +51,10 @@ import {
   type InsertAccountMessagingSettings,
   passwordResetTokens,
   type InsertPasswordResetToken,
+  accountIntegrations,
+  type InsertAccountIntegration,
+  accountFacebookPages,
+  type InsertAccountFacebookPage,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2319,4 +2323,123 @@ export async function upsertAccountMessagingSettings(
       .$returningId();
     return result;
   }
+}
+
+// ─────────────────────────────────────────────
+// ACCOUNT INTEGRATIONS HELPERS
+// ─────────────────────────────────────────────
+
+export async function getAccountIntegration(accountId: number, provider: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(accountIntegrations)
+    .where(
+      and(
+        eq(accountIntegrations.accountId, accountId),
+        eq(accountIntegrations.provider, provider)
+      )
+    )
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function upsertAccountIntegration(
+  accountId: number,
+  provider: string,
+  data: Partial<Omit<InsertAccountIntegration, "id" | "accountId" | "provider" | "createdAt" | "updatedAt">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await getAccountIntegration(accountId, provider);
+  if (existing) {
+    await db
+      .update(accountIntegrations)
+      .set(data)
+      .where(eq(accountIntegrations.id, existing.id));
+    return { id: existing.id };
+  } else {
+    const [result] = await db
+      .insert(accountIntegrations)
+      .values({ accountId, provider, ...data })
+      .$returningId();
+    return result;
+  }
+}
+
+export async function deleteAccountIntegration(accountId: number, provider: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(accountIntegrations)
+    .where(
+      and(
+        eq(accountIntegrations.accountId, accountId),
+        eq(accountIntegrations.provider, provider)
+      )
+    );
+}
+
+// ─────────────────────────────────────────────
+// ACCOUNT FACEBOOK PAGES HELPERS
+// ─────────────────────────────────────────────
+
+export async function listAccountFacebookPages(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(accountFacebookPages)
+    .where(eq(accountFacebookPages.accountId, accountId))
+    .orderBy(accountFacebookPages.pageName);
+}
+
+export async function upsertAccountFacebookPage(
+  accountId: number,
+  integrationId: number,
+  data: { facebookPageId: string; pageName: string | null; pageAccessToken: string | null }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await db
+    .select()
+    .from(accountFacebookPages)
+    .where(
+      and(
+        eq(accountFacebookPages.accountId, accountId),
+        eq(accountFacebookPages.facebookPageId, data.facebookPageId)
+      )
+    )
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(accountFacebookPages)
+      .set({ pageName: data.pageName, pageAccessToken: data.pageAccessToken })
+      .where(eq(accountFacebookPages.id, existing[0].id));
+    return { id: existing[0].id };
+  } else {
+    const [result] = await db
+      .insert(accountFacebookPages)
+      .values({
+        accountId,
+        integrationId,
+        facebookPageId: data.facebookPageId,
+        pageName: data.pageName,
+        pageAccessToken: data.pageAccessToken,
+      })
+      .$returningId();
+    return result;
+  }
+}
+
+export async function deleteAccountFacebookPages(accountId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(accountFacebookPages)
+    .where(eq(accountFacebookPages.accountId, accountId));
 }

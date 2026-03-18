@@ -711,3 +711,57 @@ export const passwordResetTokens = mysqlTable("password_reset_tokens", {
 
 export type PasswordResetToken = typeof passwordResetTokens.$inferSelect;
 export type InsertPasswordResetToken = typeof passwordResetTokens.$inferInsert;
+
+// ─────────────────────────────────────────────
+// ACCOUNT INTEGRATIONS — OAuth tokens for external services (Facebook, Google, etc.)
+// ─────────────────────────────────────────────
+export const accountIntegrations = mysqlTable("account_integrations", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The sub-account this integration belongs to */
+  accountId: int("account_id").notNull(),
+  /** The provider name (e.g., "facebook", "google") */
+  provider: varchar("provider", { length: 50 }).notNull(),
+  /** The provider-specific user ID (e.g., Facebook user ID) */
+  providerUserId: varchar("provider_user_id", { length: 255 }),
+  /** The provider-specific user name / display name */
+  providerUserName: varchar("provider_user_name", { length: 255 }),
+  /** The OAuth access token */
+  accessToken: text("access_token"),
+  /** The OAuth refresh token (if applicable) */
+  refreshToken: text("refresh_token"),
+  /** When the access token expires */
+  tokenExpiresAt: timestamp("token_expires_at"),
+  /** Whether this integration is currently active */
+  isActive: boolean("is_active").default(true).notNull(),
+  /** The user who connected this integration */
+  connectedById: int("connected_by_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AccountIntegration = typeof accountIntegrations.$inferSelect;
+export type InsertAccountIntegration = typeof accountIntegrations.$inferInsert;
+
+// ─────────────────────────────────────────────
+// ACCOUNT FACEBOOK PAGES — Pages fetched after Facebook OAuth
+// ─────────────────────────────────────────────
+export const accountFacebookPages = mysqlTable("account_facebook_pages", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The sub-account this page belongs to */
+  accountId: int("account_id").notNull(),
+  /** The integration ID that fetched this page */
+  integrationId: int("integration_id").notNull(),
+  /** The Facebook Page ID */
+  facebookPageId: varchar("facebook_page_id", { length: 100 }).notNull(),
+  /** The Facebook Page name */
+  pageName: varchar("page_name", { length: 255 }),
+  /** The page-specific access token (for subscribing to webhooks) */
+  pageAccessToken: text("page_access_token"),
+  /** Whether lead webhook subscription is active for this page */
+  isSubscribed: boolean("is_subscribed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AccountFacebookPage = typeof accountFacebookPages.$inferSelect;
+export type InsertAccountFacebookPage = typeof accountFacebookPages.$inferInsert;
