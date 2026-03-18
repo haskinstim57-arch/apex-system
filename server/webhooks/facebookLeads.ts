@@ -6,6 +6,7 @@ import {
   listPipelineStages,
   createDeal,
 } from "../db";
+import { ENV } from "../_core/env";
 
 // ─────────────────────────────────────────────
 // Facebook Lead Ads Webhook
@@ -35,7 +36,13 @@ facebookLeadsWebhookRouter.get(
       return res.status(403).send("Forbidden");
     }
 
-    // Check per-client verify tokens from the facebook_page_mappings table.
+    // 1. Check global FACEBOOK_WEBHOOK_VERIFY_TOKEN first
+    if (ENV.facebookWebhookVerifyToken && verifyToken === ENV.facebookWebhookVerifyToken) {
+      console.log(`[FB Leads Webhook] Verification challenge accepted (global token)`);
+      return res.status(200).send(challenge);
+    }
+
+    // 2. Check per-client verify tokens from the facebook_page_mappings table.
     // Each client has their own FB Ads Manager, so each mapping row stores
     // the verify_token that the client configured in their Facebook App.
     try {
@@ -357,3 +364,54 @@ async function fireTriggers(accountId: number, contactId: number) {
   await onContactCreated(accountId, contactId);
   await onFacebookLeadReceived(accountId, contactId);
 }
+
+// ─────────────────────────────────────────────
+// Alias routes at /api/webhooks/facebook
+// Facebook Developer Console uses this shorter path.
+// ─────────────────────────────────────────────
+facebookLeadsWebhookRouter.get(
+  "/api/webhooks/facebook",
+  (req: Request, res: Response) => {
+    // Reuse the same verification handler
+    const mode = req.query["hub.mode"];
+    const challenge = req.query["hub.challenge"];
+    const verifyToken = String(req.query["hub.verify_token"] || "");
+
+    if (mode !== "subscribe" || !verifyToken) {
+      return res.status(403).send("Forbidden");
+    }
+
+    // Check global token
+    if (ENV.facebookWebhookVerifyToken && verifyToken === ENV.facebookWebhookVerifyToken) {
+      console.log(`[FB Webhook] Verification challenge accepted (global token)`);
+      return res.status(200).send(challenge);
+    }
+
+    return res.status(403).send("Forbidden");
+  }
+);
+
+facebookLeadsWebhookRouter.post(
+  "/api/webhooks/facebook",
+  async (req: Request, res: Response) => {
+    // Delegate to the same handler as /api/webhooks/facebook-leads
+    try {
+      const body = req.body;
+
+      if (!body || typeof body !== "object") {
+        return res.status(400).json({ success: false, error: "Invalid payload" });
+      }
+
+      if (body.object === "page" && Array.isArray(body.entry)) {
+        const results = await handleFacebookNativePayload(body);
+        return res.json({ success: true, processed: results.length, results });
+      } else {
+        const result = await handleSimplifiedPayload(body);
+        return res.json(result);
+      }
+    } catch (err) {
+      console.error("[FB Webhook] Error processing webhook:", err);
+      return res.status(500).json({ success: false, error: "Internal server error" });
+    }
+  }
+);

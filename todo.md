@@ -629,3 +629,12 @@
 ### Final
 - [x] Run all tests and confirm pass (613 tests across 29 files)
 - [x] Checkpoint saved
+
+## Facebook Webhook Endpoint
+
+- [x] Create /api/webhooks/facebook Express route (GET for verification, POST for lead events)
+- [x] GET handler: verify hub.mode, hub.verify_token against global ENV + per-client tokens, return hub.challenge
+- [x] POST handler: receive leadgen events, look up page → account mapping, create contacts (already existed at /api/webhooks/facebook-leads)
+- [x] Register route in server entry point (already registered via facebookLeadsWebhookRouter)
+- [x] Write tests and confirm all pass (632 tests across 30 files)
+- [x] Checkpoint saved
