@@ -17,7 +17,9 @@ import {
   getAppointmentsByContact,
   getMember,
   createAuditLog,
+  getAccountById,
 } from "../db";
+import { dispatchEmail, dispatchSMS } from "../services/messaging";
 
 // ─── Tenant guard ───
 async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
@@ -238,6 +240,8 @@ export const calendarRouter = router({
         status: z.enum(["pending", "confirmed", "cancelled"]).optional(),
         limit: z.number().int().min(1).max(200).optional(),
         offset: z.number().int().min(0).optional(),
+        startDate: z.date().optional(),
+        endDate: z.date().optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -247,6 +251,8 @@ export const calendarRouter = router({
         status: input.status,
         limit: input.limit,
         offset: input.offset,
+        startDate: input.startDate,
+        endDate: input.endDate,
       });
     }),
 
@@ -440,6 +446,65 @@ export const calendarRouter = router({
         status: "pending",
         notes: input.notes || null,
       });
+
+      // Send confirmation emails (fire-and-forget)
+      const dateStr = startTimeDate.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      const timeStr = startTimeDate.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const endTimeStr = endTimeDate.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      // Email to guest
+      dispatchEmail({
+        to: input.guestEmail,
+        subject: `Booking Confirmed: ${calendar.name} on ${dateStr}`,
+        body: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+          <h2 style="color:#333;">Your Appointment is Confirmed!</h2>
+          <p>Hi ${input.guestName},</p>
+          <p>Your appointment has been scheduled:</p>
+          <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0;">
+            <p style="margin:4px 0;"><strong>Calendar:</strong> ${calendar.name}</p>
+            <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
+            <p style="margin:4px 0;"><strong>Time:</strong> ${timeStr} – ${endTimeStr}</p>
+          </div>
+          <p>If you need to make changes, please contact us directly.</p>
+          <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Apex System</p>
+        </div>`,
+        accountId: calendar.accountId,
+      }).catch((err) => console.error("[Calendar] Guest confirmation email failed:", err));
+
+      // Email to account owner
+      const account = await getAccountById(calendar.accountId);
+      if (account?.email) {
+        dispatchEmail({
+          to: account.email,
+          subject: `New Booking: ${input.guestName} — ${calendar.name}`,
+          body: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
+            <h2 style="color:#333;">New Appointment Booked</h2>
+            <p>A new appointment has been booked on your calendar:</p>
+            <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:16px 0;">
+              <p style="margin:4px 0;"><strong>Guest:</strong> ${input.guestName}</p>
+              <p style="margin:4px 0;"><strong>Email:</strong> ${input.guestEmail}</p>
+              ${input.guestPhone ? `<p style="margin:4px 0;"><strong>Phone:</strong> ${input.guestPhone}</p>` : ""}
+              <p style="margin:4px 0;"><strong>Calendar:</strong> ${calendar.name}</p>
+              <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
+              <p style="margin:4px 0;"><strong>Time:</strong> ${timeStr} – ${endTimeStr}</p>
+              ${input.notes ? `<p style="margin:4px 0;"><strong>Notes:</strong> ${input.notes}</p>` : ""}
+            </div>
+            <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Apex System</p>
+          </div>`,
+          accountId: calendar.accountId,
+        }).catch((err) => console.error("[Calendar] Owner notification email failed:", err));
+      }
 
       return {
         id: result.id,

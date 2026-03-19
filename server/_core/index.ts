@@ -12,6 +12,7 @@ import { facebookLeadsWebhookRouter } from "../webhooks/facebookLeads";
 import { startWorkflowWorker } from "../services/workflowEngine";
 import { startCampaignScheduler } from "../services/campaignScheduler";
 import { startFacebookTokenRefreshJob } from "../services/facebookTokenRefresh";
+import { startAppointmentReminders } from "../services/appointmentReminders";
 import { applySecurityMiddleware } from "../middleware/security";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -77,6 +78,9 @@ async function startServer() {
     startCampaignScheduler();
     // Start the Facebook token refresh job (runs daily, alerts on expiring tokens)
     startFacebookTokenRefreshJob();
+
+    // Start appointment reminders job (checks every 5 min for 24h and 1h reminders)
+    startAppointmentReminders();
   });
 }
 

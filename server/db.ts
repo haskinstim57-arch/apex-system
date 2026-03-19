@@ -1,4 +1,4 @@
-import { and, eq, desc, asc, sql, inArray, count, lte } from "drizzle-orm";
+import { and, eq, desc, asc, sql, inArray, count, lte, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { like, or } from "drizzle-orm";
 import {
@@ -2579,20 +2579,26 @@ export async function deleteCalendar(id: number, accountId: number) {
 /** List appointments for an account with optional filters */
 export async function getAppointments(
   accountId: number,
-  opts?: { calendarId?: number; status?: string; limit?: number; offset?: number }
+  opts?: { calendarId?: number; status?: string; limit?: number; offset?: number; startDate?: Date; endDate?: Date }
 ) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(appointments.accountId, accountId)];
   if (opts?.calendarId) conditions.push(eq(appointments.calendarId, opts.calendarId));
   if (opts?.status) conditions.push(eq(appointments.status, opts.status as any));
+  if (opts?.startDate) {
+    conditions.push(gte(appointments.startTime, opts.startDate));
+  }
+  if (opts?.endDate) {
+    conditions.push(lte(appointments.startTime, opts.endDate));
+  }
 
   return db
     .select()
     .from(appointments)
     .where(and(...conditions))
     .orderBy(desc(appointments.startTime))
-    .limit(opts?.limit ?? 50)
+    .limit(opts?.limit ?? 200)
     .offset(opts?.offset ?? 0);
 }
 

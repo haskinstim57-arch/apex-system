@@ -1,0 +1,16 @@
+Calendar.tsx rebuild notes:
+- Current tabs: "Calendars" and "Appointments"
+- Need to change to: "Calendar View" (default), "Appointments" (list), "Calendars" (management)
+- Calendar View = visual weekly grid with:
+  - 7 days across top (Sun-Sat), current week default
+  - Time slots 6AM-9PM in 1-hour increments on left
+  - Red horizontal line for current time
+  - Appointment blocks at correct day/time
+  - Click empty slot -> new appointment modal with pre-filled date/time
+  - Click appointment -> detail/edit modal
+  - Today button, prev/next week arrows, date range display
+  - Week/Month/Day view toggle (Week default)
+- tRPC: calendar.listAppointments now supports startDate/endDate params
+- Dark theme: bg-zinc-900/950 cards, amber/yellow accents, zinc borders
+- Existing components to preserve: CalendarDialog, AppointmentDialog, AvailabilityEditor
+- Account context: useAccount() -> currentAccount.id

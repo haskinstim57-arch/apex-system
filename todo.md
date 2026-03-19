@@ -692,3 +692,36 @@
 ### Final
 - [x] Run all tests and confirm pass (690 tests across 32 files)
 - [x] Checkpoint saved
+
+## Calendar Visual Grid View + Email/Reminders
+
+### Visual Calendar Grid
+- [ ] Replace default tab with visu### Calendar Grid View
+- [x] Weekly grid: 7 days across top (Sun-Sat), current week default
+- [x] Time slots on left: 6AM to 9PM in 1-hour increments
+- [x] Red horizontal line showing current time
+- [x] Appointments as colored blocks at correct day/time (color-coded by calendar + status)
+- [x] Click empty slot → New Appointment modal pre-filled with date/time
+- [x] Click appointment block → detail/edit modal with confirm/cancel actions
+- [x] Today button, prev/next week arrows, date range header
+- [x] View toggle: Week / Month / Day (Week default)
+- [x] Month view shows appointment count badges, clicking day switches to Day view
+- [x] Keep Appointments list as second tab
+- [x] Keep Calendars management as third tab
+
+### Email Confirmations
+- [x] Send booking confirmation email to guest after appointment booked
+- [x] Send notification email to loan officer when new appointment booked
+- [ ] Include .ics calendar file attachment (future enhancement)
+
+### Appointment Reminders
+- [x] Background job: send email reminders 24h and 1h before appointment
+- [x] Store reminder24hSent and reminder1hSent columns to avoid duplicate sends
+- [x] Job runs every 15 minutes checking upcoming appointments
+
+### Google Calendar Sync (Placeholder)
+- [x] Google Calendar placeholder already exists in onboarding Integrations step with "Coming Soon" badge
+
+### Final
+- [x] Run all tests and confirm pass (690 tests across 32 files)
+- [x] Checkpoint saved

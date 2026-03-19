@@ -827,6 +827,10 @@ export const appointments = mysqlTable("appointments", {
     .notNull(),
   /** Optional notes from guest or admin */
   notes: text("notes"),
+  /** Whether 24h reminder has been sent */
+  reminder24hSent: boolean("reminder24hSent").default(false).notNull(),
+  /** Whether 1h reminder has been sent */
+  reminder1hSent: boolean("reminder1hSent").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
