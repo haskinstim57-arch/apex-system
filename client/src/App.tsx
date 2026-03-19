@@ -26,6 +26,8 @@ import Onboarding from "./pages/Onboarding";
 import AcceptInvite from "./pages/AcceptInvite";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+import CalendarPage from "./pages/Calendar";
+import BookingPage from "./pages/BookingPage";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -40,6 +42,9 @@ function Router() {
       <Route path="/sub-login" component={SubAccountLogin} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/book/:slug">
+        {(params) => <BookingPage slug={params.slug} />}
+      </Route>
 
       {/* Onboarding wizard (full-screen, no sidebar) */}
       <Route path="/onboarding" component={Onboarding} />
@@ -106,6 +111,11 @@ function Router() {
       <Route path="/pipeline">
         <DashboardLayout>
           <Pipeline />
+        </DashboardLayout>
+      </Route>
+      <Route path="/calendar">
+        <DashboardLayout>
+          <CalendarPage />
         </DashboardLayout>
       </Route>
       <Route path="/contacts/:id">

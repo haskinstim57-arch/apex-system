@@ -665,3 +665,30 @@
 ### Final
 - [x] Run all tests and confirm pass (660 tests across 31 files)
 - [x] Checkpoint saved
+
+## Calendar + Booking Links Feature
+
+### Database
+- [x] Add calendars table (id, accountId, name, slug, description, timezone, bufferMinutes, minNoticeHours, maxDaysAhead, slotDurationMinutes, availabilityJson, isActive, createdAt)
+- [x] Add appointments table (id, calendarId, accountId, contactId, guestName, guestEmail, guestPhone, startTime, endTime, status enum, notes, createdAt)
+- [x] Run migration via pnpm db:push
+
+### Server DB Helpers
+- [x] getCalendars, getCalendar, getCalendarBySlug, createCalendar, updateCalendar, deleteCalendar
+- [x] getAppointments, getAppointment, createAppointment, updateAppointment, cancelAppointment
+- [x] getAvailableSlots, getAppointmentsByContact
+
+### Server Router
+- [x] Created server/routers/calendar.ts with protected procedures (list, get, create, update, delete, listAppointments, updateAppointment, cancelAppointment, appointmentsByContact)
+- [x] Added public procedures (getPublicCalendar, getPublicSlots, bookAppointment)
+- [x] Registered calendar router in server/routers.ts
+
+### Frontend
+- [x] Created client/src/pages/Calendar.tsx (calendar management, create/edit dialogs, appointments list, copy booking link, weekly availability editor)
+- [x] Created client/src/pages/BookingPage.tsx (public booking page at /book/:slug, date picker, available time slots, guest form with name/email/phone)
+- [x] Added /calendar and /book/:slug routes to App.tsx
+- [x] Added CalendarDays icon + Calendar to sidebar nav in DashboardLayout.tsx
+
+### Final
+- [x] Run all tests and confirm pass (690 tests across 32 files)
+- [x] Checkpoint saved

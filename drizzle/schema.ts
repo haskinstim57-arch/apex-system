@@ -765,3 +765,71 @@ export const accountFacebookPages = mysqlTable("account_facebook_pages", {
 
 export type AccountFacebookPage = typeof accountFacebookPages.$inferSelect;
 export type InsertAccountFacebookPage = typeof accountFacebookPages.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CALENDARS — Booking calendars per sub-account
+// ─────────────────────────────────────────────
+export const calendars = mysqlTable("calendars", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this calendar belongs to */
+  accountId: int("accountId").notNull(),
+  /** Display name for the calendar */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Unique slug for public booking URL (/book/:slug) */
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  /** Optional description shown on the booking page */
+  description: text("description"),
+  /** IANA timezone (e.g., "America/New_York") */
+  timezone: varchar("timezone", { length: 100 }).default("America/New_York").notNull(),
+  /** Buffer time in minutes between appointments */
+  bufferMinutes: int("bufferMinutes").default(15).notNull(),
+  /** Minimum notice in hours before an appointment can be booked */
+  minNoticeHours: int("minNoticeHours").default(24).notNull(),
+  /** Maximum days ahead that can be booked */
+  maxDaysAhead: int("maxDaysAhead").default(30).notNull(),
+  /** Duration of each appointment slot in minutes */
+  slotDurationMinutes: int("slotDurationMinutes").default(30).notNull(),
+  /** Weekly availability as JSON: { "monday": [{ start: "09:00", end: "17:00" }], ... } */
+  availabilityJson: text("availabilityJson"),
+  /** Whether this calendar is active and accepting bookings */
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Calendar = typeof calendars.$inferSelect;
+export type InsertCalendar = typeof calendars.$inferInsert;
+
+// ─────────────────────────────────────────────
+// APPOINTMENTS — Bookings on a calendar
+// ─────────────────────────────────────────────
+export const appointments = mysqlTable("appointments", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Calendar this appointment belongs to */
+  calendarId: int("calendarId").notNull(),
+  /** Sub-account this appointment belongs to (denormalized for fast queries) */
+  accountId: int("accountId").notNull(),
+  /** Optional FK to contacts table (linked after matching) */
+  contactId: int("contactId"),
+  /** Guest name from booking form */
+  guestName: varchar("guestName", { length: 255 }).notNull(),
+  /** Guest email from booking form */
+  guestEmail: varchar("guestEmail", { length: 320 }).notNull(),
+  /** Guest phone from booking form */
+  guestPhone: varchar("guestPhone", { length: 30 }),
+  /** Appointment start time (UTC) */
+  startTime: timestamp("startTime").notNull(),
+  /** Appointment end time (UTC) */
+  endTime: timestamp("endTime").notNull(),
+  /** Appointment status */
+  status: mysqlEnum("status", ["pending", "confirmed", "cancelled"])
+    .default("pending")
+    .notNull(),
+  /** Optional notes from guest or admin */
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Appointment = typeof appointments.$inferSelect;
+export type InsertAppointment = typeof appointments.$inferInsert;

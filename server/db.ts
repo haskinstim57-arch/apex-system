@@ -55,6 +55,10 @@ import {
   type InsertAccountIntegration,
   accountFacebookPages,
   type InsertAccountFacebookPage,
+  calendars,
+  type InsertCalendar,
+  appointments,
+  type InsertAppointment,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2496,4 +2500,243 @@ export async function listExpiringIntegrations(withinDays: number) {
         lte(accountIntegrations.tokenExpiresAt, cutoff)
       )
     );
+}
+
+// ═══════════════════════════════════════════════
+// CALENDAR HELPERS
+// ═══════════════════════════════════════════════
+
+/** List all calendars for an account */
+export async function getCalendars(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(calendars)
+    .where(eq(calendars.accountId, accountId))
+    .orderBy(desc(calendars.createdAt));
+}
+
+/** Get a single calendar by ID (scoped to account) */
+export async function getCalendar(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(calendars)
+    .where(and(eq(calendars.id, id), eq(calendars.accountId, accountId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+/** Get a calendar by its public slug (for booking page) */
+export async function getCalendarBySlug(slug: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(calendars)
+    .where(and(eq(calendars.slug, slug), eq(calendars.isActive, true)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+/** Create a new calendar */
+export async function createCalendar(data: InsertCalendar) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(calendars).values(data).$returningId();
+  return result;
+}
+
+/** Update a calendar */
+export async function updateCalendar(
+  id: number,
+  accountId: number,
+  data: Partial<Omit<InsertCalendar, "id" | "accountId" | "createdAt" | "updatedAt">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(calendars)
+    .set(data)
+    .where(and(eq(calendars.id, id), eq(calendars.accountId, accountId)));
+}
+
+/** Delete a calendar */
+export async function deleteCalendar(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(calendars)
+    .where(and(eq(calendars.id, id), eq(calendars.accountId, accountId)));
+}
+
+// ═══════════════════════════════════════════════
+// APPOINTMENT HELPERS
+// ═══════════════════════════════════════════════
+
+/** List appointments for an account with optional filters */
+export async function getAppointments(
+  accountId: number,
+  opts?: { calendarId?: number; status?: string; limit?: number; offset?: number }
+) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(appointments.accountId, accountId)];
+  if (opts?.calendarId) conditions.push(eq(appointments.calendarId, opts.calendarId));
+  if (opts?.status) conditions.push(eq(appointments.status, opts.status as any));
+
+  return db
+    .select()
+    .from(appointments)
+    .where(and(...conditions))
+    .orderBy(desc(appointments.startTime))
+    .limit(opts?.limit ?? 50)
+    .offset(opts?.offset ?? 0);
+}
+
+/** Get a single appointment by ID (scoped to account) */
+export async function getAppointment(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(appointments)
+    .where(and(eq(appointments.id, id), eq(appointments.accountId, accountId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+/** Create a new appointment */
+export async function createAppointment(data: InsertAppointment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(appointments).values(data).$returningId();
+  return result;
+}
+
+/** Update an appointment */
+export async function updateAppointment(
+  id: number,
+  accountId: number,
+  data: Partial<Omit<InsertAppointment, "id" | "accountId" | "calendarId" | "createdAt" | "updatedAt">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(appointments)
+    .set(data)
+    .where(and(eq(appointments.id, id), eq(appointments.accountId, accountId)));
+}
+
+/** Cancel an appointment */
+export async function cancelAppointment(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(appointments)
+    .set({ status: "cancelled" })
+    .where(and(eq(appointments.id, id), eq(appointments.accountId, accountId)));
+}
+
+/** Get appointments by contact ID */
+export async function getAppointmentsByContact(contactId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(appointments)
+    .where(and(eq(appointments.contactId, contactId), eq(appointments.accountId, accountId)))
+    .orderBy(desc(appointments.startTime));
+}
+
+/**
+ * Get available time slots for a calendar on a given date.
+ * Checks the calendar's weekly availability JSON and existing appointments.
+ */
+export async function getAvailableSlots(
+  calendarId: number,
+  date: string // ISO date string YYYY-MM-DD
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  // Get the calendar
+  const calRows = await db
+    .select()
+    .from(calendars)
+    .where(eq(calendars.id, calendarId))
+    .limit(1);
+  const calendar = calRows[0];
+  if (!calendar || !calendar.isActive) return [];
+
+  // Parse availability JSON
+  const availability = calendar.availabilityJson
+    ? JSON.parse(calendar.availabilityJson)
+    : null;
+  if (!availability) return [];
+
+  // Determine day of week
+  const dateObj = new Date(date + "T12:00:00Z"); // noon UTC to avoid timezone edge cases
+  const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  const dayName = dayNames[dateObj.getUTCDay()];
+  const daySlots = availability[dayName];
+  if (!daySlots || !Array.isArray(daySlots) || daySlots.length === 0) return [];
+
+  // Get existing appointments for this calendar on this date
+  const dayStart = new Date(date + "T00:00:00Z");
+  const dayEnd = new Date(date + "T23:59:59Z");
+  const existingAppts = await db
+    .select()
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.calendarId, calendarId),
+        sql`${appointments.startTime} >= ${dayStart}`,
+        sql`${appointments.startTime} <= ${dayEnd}`,
+        sql`${appointments.status} != 'cancelled'`
+      )
+    );
+
+  // Generate time slots
+  const slotDuration = calendar.slotDurationMinutes;
+  const bufferMinutes = calendar.bufferMinutes;
+  const slots: { start: string; end: string }[] = [];
+
+  for (const block of daySlots) {
+    const [startH, startM] = block.start.split(":").map(Number);
+    const [endH, endM] = block.end.split(":").map(Number);
+    let currentMinutes = startH * 60 + startM;
+    const blockEnd = endH * 60 + endM;
+
+    while (currentMinutes + slotDuration <= blockEnd) {
+      const slotStartH = Math.floor(currentMinutes / 60);
+      const slotStartM = currentMinutes % 60;
+      const slotEndMinutes = currentMinutes + slotDuration;
+      const slotEndH = Math.floor(slotEndMinutes / 60);
+      const slotEndM = slotEndMinutes % 60;
+
+      const slotStart = `${String(slotStartH).padStart(2, "0")}:${String(slotStartM).padStart(2, "0")}`;
+      const slotEnd = `${String(slotEndH).padStart(2, "0")}:${String(slotEndM).padStart(2, "0")}`;
+
+      // Check for conflicts with existing appointments (including buffer)
+      const slotStartDate = new Date(`${date}T${slotStart}:00Z`);
+      const slotEndDate = new Date(`${date}T${slotEnd}:00Z`);
+
+      const hasConflict = existingAppts.some((appt) => {
+        const apptStart = new Date(appt.startTime).getTime() - bufferMinutes * 60 * 1000;
+        const apptEnd = new Date(appt.endTime).getTime() + bufferMinutes * 60 * 1000;
+        return slotStartDate.getTime() < apptEnd && slotEndDate.getTime() > apptStart;
+      });
+
+      if (!hasConflict) {
+        slots.push({ start: slotStart, end: slotEnd });
+      }
+
+      currentMinutes += slotDuration + bufferMinutes;
+    }
+  }
+
+  return slots;
 }
