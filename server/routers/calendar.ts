@@ -20,6 +20,7 @@ import {
   getAccountById,
 } from "../db";
 import { dispatchEmail, dispatchSMS } from "../services/messaging";
+import { generateICSBase64 } from "../utils/icsGenerator";
 
 // ─── Tenant guard ───
 async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
@@ -447,6 +448,25 @@ export const calendarRouter = router({
         notes: input.notes || null,
       });
 
+      // Generate ICS calendar file for email attachments
+      const icsBase64 = generateICSBase64({
+        uid: `appointment-${result.id}@apexsystem`,
+        summary: `Appointment: ${calendar.name}`,
+        description: `Appointment with ${input.guestName}${input.notes ? `. Notes: ${input.notes}` : ""}`,
+        startTime: startTimeDate,
+        endTime: endTimeDate,
+        organizerEmail: undefined, // will be set per-email below
+        attendeeName: input.guestName,
+        attendeeEmail: input.guestEmail,
+      });
+
+      const icsAttachment = {
+        content: icsBase64,
+        filename: "appointment.ics",
+        type: "text/calendar",
+        disposition: "attachment",
+      };
+
       // Send confirmation emails (fire-and-forget)
       const dateStr = startTimeDate.toLocaleDateString("en-US", {
         weekday: "long",
@@ -463,7 +483,7 @@ export const calendarRouter = router({
         minute: "2-digit",
       });
 
-      // Email to guest
+      // Email to guest (with .ics attachment)
       dispatchEmail({
         to: input.guestEmail,
         subject: `Booking Confirmed: ${calendar.name} on ${dateStr}`,
@@ -476,13 +496,15 @@ export const calendarRouter = router({
             <p style="margin:4px 0;"><strong>Date:</strong> ${dateStr}</p>
             <p style="margin:4px 0;"><strong>Time:</strong> ${timeStr} – ${endTimeStr}</p>
           </div>
+          <p>A calendar invite (.ics file) is attached — open it to add this appointment to your calendar.</p>
           <p>If you need to make changes, please contact us directly.</p>
           <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Apex System</p>
         </div>`,
         accountId: calendar.accountId,
+        attachments: [icsAttachment],
       }).catch((err) => console.error("[Calendar] Guest confirmation email failed:", err));
 
-      // Email to account owner
+      // Email to account owner (with .ics attachment)
       const account = await getAccountById(calendar.accountId);
       if (account?.email) {
         dispatchEmail({
@@ -500,9 +522,11 @@ export const calendarRouter = router({
               <p style="margin:4px 0;"><strong>Time:</strong> ${timeStr} – ${endTimeStr}</p>
               ${input.notes ? `<p style="margin:4px 0;"><strong>Notes:</strong> ${input.notes}</p>` : ""}
             </div>
+            <p>A calendar invite (.ics file) is attached — open it to add this appointment to your calendar.</p>
             <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Apex System</p>
           </div>`,
           accountId: calendar.accountId,
+          attachments: [icsAttachment],
         }).catch((err) => console.error("[Calendar] Owner notification email failed:", err));
       }
 

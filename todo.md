@@ -725,3 +725,13 @@
 ### Final
 - [x] Run all tests and confirm pass (690 tests across 32 files)
 - [x] Checkpoint saved
+## ICS Calendar File Attachments for Booking Emails
+
+- [x] Create ICS file generator utility (server/utils/icsGenerator.ts) with generateICSEvent and generateICSBase64
+- [x] Generate proper iCalendar format with VEVENT, DTSTART, DTEND, SUMMARY, DESCRIPTION, LOCATION, ORGANIZER, ATTENDEE, VALARM
+- [x] Updated sendEmail (sendgrid.ts) and dispatchEmail (messaging.ts) to support attachments parameter
+- [x] Integrate ICS attachment into guest booking confirmation email
+- [x] Integrate ICS attachment into loan officer notification email
+- [x] Write tests for ICS generation (21 tests in ics-generator.test.ts)
+- [x] Run all tests and confirm pass (711 tests across 33 files)
+- [x] Checkpoint saved

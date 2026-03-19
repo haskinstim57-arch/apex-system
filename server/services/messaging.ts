@@ -54,6 +54,12 @@ export async function dispatchEmail(params: {
   from?: string;
   fromName?: string;
   accountId?: number;
+  attachments?: Array<{
+    content: string; // base64-encoded content
+    filename: string;
+    type: string; // MIME type
+    disposition?: string;
+  }>;
 }): Promise<MessageSendResult> {
   // Always attempt sendEmail — it handles per-account → global fallback internally
   const result = await sendEmail({ ...params });

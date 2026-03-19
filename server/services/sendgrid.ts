@@ -103,6 +103,12 @@ export async function sendEmail(params: {
   from?: string;
   fromName?: string;
   accountId?: number;
+  attachments?: Array<{
+    content: string; // base64-encoded content
+    filename: string;
+    type: string; // MIME type
+    disposition?: string;
+  }>;
 }): Promise<SendGridResult> {
   console.log(
     `[SENDGRID] sendEmail called. API key present: ${!!process.env.SENDGRID_API_KEY}. To: ${params.to}. AccountId: ${params.accountId ?? 'none'}`
@@ -120,7 +126,7 @@ export async function sendEmail(params: {
   }
 
   try {
-    const msg = {
+    const msg: any = {
       to: params.to,
       from: {
         email: params.from || creds.fromEmail,
@@ -137,6 +143,16 @@ export async function sendEmail(params: {
             text: params.body,
           }),
     };
+
+    // Add attachments if provided
+    if (params.attachments && params.attachments.length > 0) {
+      msg.attachments = params.attachments.map((att) => ({
+        content: att.content,
+        filename: att.filename,
+        type: att.type,
+        disposition: att.disposition || "attachment",
+      }));
+    }
 
     console.log(`[SENDGRID] About to call mailService.send() to=${params.to}`);
     const [response] = await creds.mailService.send(msg);
