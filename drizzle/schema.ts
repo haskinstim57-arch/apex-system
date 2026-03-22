@@ -52,6 +52,10 @@ export const accounts = mysqlTable("accounts", {
     .default("active")
     .notNull(),
   onboardingComplete: boolean("onboardingComplete").default(false).notNull(),
+  /** Missed Call Text-Back settings */
+  missedCallTextBackEnabled: boolean("missedCallTextBackEnabled").default(false).notNull(),
+  missedCallTextBackMessage: text("missedCallTextBackMessage"),
+  missedCallTextBackDelayMinutes: int("missedCallTextBackDelayMinutes").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

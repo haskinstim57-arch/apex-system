@@ -19,6 +19,7 @@ import { facebookOAuthRouter } from "./routers/facebookOAuth";
 import { calendarRouter } from "./routers/calendar";
 import { calendarSyncRouter } from "./routers/calendarSync";
 import { inboxRouter } from "./routers/inbox";
+import { missedCallTextBackRouter } from "./routers/missedCallTextBack";
 
 export const appRouter = router({
   system: systemRouter,
@@ -49,6 +50,7 @@ export const appRouter = router({
   calendar: calendarRouter,
   calendarSync: calendarSyncRouter,
   inbox: inboxRouter,
+  missedCallTextBack: missedCallTextBackRouter,
 });
 
 export type AppRouter = typeof appRouter;

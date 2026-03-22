@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE accounts ADD COLUMN missedCallTextBackMessage text; ALTER TABLE accounts ADD COLUMN missedCallTextBackDelayMinutes int DEFAULT 1 NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute ALTER TABLE accounts ADD COLUMN missedCallTextBackMessage text; ALTER TABLE accounts ADD COLUMN missedCallTextBackDelayMinutes int DEFAULT 1 NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 410
+}

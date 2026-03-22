@@ -15,6 +15,7 @@ import { startFacebookTokenRefreshJob } from "../services/facebookTokenRefresh";
 import { startAppointmentReminders } from "../services/appointmentReminders";
 import { calendarOAuthCallbackRouter } from "../webhooks/calendarOAuthCallbacks";
 import { inboundMessageRouter } from "../webhooks/inboundMessages";
+import { twilioVoiceStatusRouter } from "../webhooks/twilioVoiceStatus";
 import { applySecurityMiddleware } from "../middleware/security";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -54,6 +55,8 @@ async function startServer() {
   app.use(calendarOAuthCallbackRouter);
   // Inbound message webhooks (Twilio SMS + SendGrid Email)
   app.use(inboundMessageRouter);
+  // Twilio voice status callback (missed call text-back)
+  app.use(twilioVoiceStatusRouter);
   // tRPC API
   app.use(
     "/api/trpc",

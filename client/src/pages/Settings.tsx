@@ -1,4 +1,5 @@
 import { useState } from "react";
+import React from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,6 +29,11 @@ import {
   Unlink,
   CalendarDays,
   RefreshCw,
+  PhoneMissed,
+  ToggleLeft,
+  ToggleRight,
+  Clock,
+  Save,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
@@ -226,6 +232,11 @@ export default function SettingsPage() {
       {/* Calendar Sync — visible to anyone with an account selected */}
       {currentAccountId && (
         <CalendarSyncCard accountId={currentAccountId} />
+      )}
+
+      {/* Missed Call Text-Back — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <MissedCallTextBackCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}
@@ -871,6 +882,198 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
             <span>
               When connected, new appointments booked through your booking page will automatically appear in your external calendar.
               Busy times from your external calendar will also block those slots on your booking page.
+            </span>
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+function MissedCallTextBackCard({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+  const { data: settings, isLoading } = trpc.missedCallTextBack.getSettings.useQuery(
+    { accountId },
+    { refetchOnWindowFocus: false }
+  );
+
+  const [enabled, setEnabled] = React.useState(false);
+  const [message, setMessage] = React.useState(
+    "Hey, sorry I missed your call! How can I help you?"
+  );
+  const [delayMinutes, setDelayMinutes] = React.useState(1);
+  const [hasChanges, setHasChanges] = React.useState(false);
+
+  // Sync state from server
+  React.useEffect(() => {
+    if (settings) {
+      setEnabled(settings.enabled);
+      setMessage(settings.message);
+      setDelayMinutes(settings.delayMinutes);
+      setHasChanges(false);
+    }
+  }, [settings]);
+
+  const saveMutation = trpc.missedCallTextBack.saveSettings.useMutation({
+    onSuccess: () => {
+      utils.missedCallTextBack.getSettings.invalidate({ accountId });
+      setHasChanges(false);
+    },
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate({
+      accountId,
+      enabled,
+      message: message.trim(),
+      delayMinutes,
+    });
+  };
+
+  const handleToggle = () => {
+    setEnabled(!enabled);
+    setHasChanges(true);
+  };
+
+  if (isLoading) {
+    return (
+      <Card className="border-border/50 bg-card">
+        <CardContent className="py-8 flex items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-border/50 bg-card">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <PhoneMissed className="h-4 w-4 text-muted-foreground" />
+          Missed Call Text-Back
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Automatically send a text message when an inbound call is missed.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Enable/Disable Toggle */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-medium">Enable Text-Back</Label>
+            <p className="text-xs text-muted-foreground">
+              Send an automatic SMS to callers when you miss their call
+            </p>
+          </div>
+          <button
+            onClick={handleToggle}
+            className="relative focus:outline-none"
+            aria-label="Toggle missed call text-back"
+          >
+            {enabled ? (
+              <ToggleRight className="h-8 w-8 text-amber-500 transition-colors" />
+            ) : (
+              <ToggleLeft className="h-8 w-8 text-muted-foreground transition-colors" />
+            )}
+          </button>
+        </div>
+
+        <Separator />
+
+        {/* Message Text */}
+        <div className="space-y-2">
+          <Label htmlFor="textback-message" className="text-sm font-medium flex items-center gap-1.5">
+            <MessageSquare className="h-3.5 w-3.5" />
+            Message
+          </Label>
+          <textarea
+            id="textback-message"
+            value={message}
+            onChange={(e) => {
+              setMessage(e.target.value);
+              setHasChanges(true);
+            }}
+            placeholder="Hey, sorry I missed your call! How can I help you?"
+            rows={3}
+            maxLength={500}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+          />
+          <p className="text-xs text-muted-foreground text-right">
+            {message.length}/500 characters
+          </p>
+        </div>
+
+        {/* Delay Selector */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            Delay Before Sending
+          </Label>
+          <div className="flex gap-2">
+            {[
+              { value: 0, label: "Immediately" },
+              { value: 1, label: "1 minute" },
+              { value: 5, label: "5 minutes" },
+            ].map((option) => (
+              <button
+                key={option.value}
+                onClick={() => {
+                  setDelayMinutes(option.value);
+                  setHasChanges(true);
+                }}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${
+                  delayMinutes === option.value
+                    ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
+                    : "bg-muted/50 border-border text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Save Button */}
+        <div className="flex items-center justify-between pt-2">
+          {saveMutation.isSuccess && !hasChanges && (
+            <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Settings saved
+            </div>
+          )}
+          {saveMutation.isError && (
+            <div className="flex items-center gap-1.5 text-xs text-red-400">
+              <AlertCircle className="h-3.5 w-3.5" />
+              Failed to save
+            </div>
+          )}
+          {!saveMutation.isSuccess && !saveMutation.isError && <div />}
+          <Button
+            onClick={handleSave}
+            disabled={!hasChanges || saveMutation.isPending || !message.trim()}
+            size="sm"
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+            ) : (
+              <Save className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Save Settings
+          </Button>
+        </div>
+
+        {/* Info note */}
+        <div className="rounded-lg bg-muted/30 p-3 mt-2">
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            <span className="font-medium text-foreground">Setup required: </span>
+            <span>
+              Configure your Twilio number's voice status callback URL to{" "}
+              <code className="text-xs bg-muted px-1 py-0.5 rounded">
+                {window.location.origin}/api/webhooks/twilio/voice-status
+              </code>{" "}
+              in your Twilio console for this feature to work.
             </span>
           </p>
         </div>

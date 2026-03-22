@@ -861,3 +861,41 @@
 
 ### Final
 - [x] Checkpoint saved
+
+## Missed Call Text-Back
+
+### Schema
+- [x] Add missedCallTextBackEnabled (boolean, default false) to accounts table
+- [x] Add missedCallTextBackMessage (text) to accounts table
+- [x] Add missedCallTextBackDelayMinutes (int, default 1) to accounts table
+- [x] Run migration
+
+### Backend — tRPC Procedures
+- [x] getMissedCallTextBackSettings: return current settings for an account
+- [x] saveMissedCallTextBackSettings: update settings for an account
+
+### Backend — Twilio Voice Status Webhook
+- [x] Add POST /api/webhooks/twilio/voice-status endpoint
+- [x] Detect call status "no-answer" or "busy" or "failed" (missed call scenarios)
+- [x] Resolve account by called Twilio number (reuse resolveAccountByTwilioNumber)
+- [x] Check if missedCallTextBackEnabled is true for that account
+- [x] Find or create contact by caller phone number
+- [x] After configured delay, send SMS via existing dispatchSMS
+- [x] Log outbound message to contact's message thread (createMessage)
+- [x] Log contact activity
+
+### Frontend — Settings UI
+- [x] Add "Missed Call Text-Back" card to Settings page
+- [x] Toggle to enable/disable
+- [x] Text area to customize the message (default: "Hey, sorry I missed your call! How can I help you?")
+- [x] Delay selector buttons (Immediately, 1 minute, 5 minutes)
+- [x] Save button with loading state and success/error feedback
+- [x] Setup instructions with webhook URL displayed
+
+### Tests
+- [x] Vitest tests for getMissedCallTextBackSettings and saveMissedCallTextBackSettings procedures (9 tests)
+- [x] Vitest tests for voice status webhook missed call detection and sendMissedCallTextBack (6 tests)
+- [x] All 789 tests pass across 38 test files
+
+### Final
+- [x] Checkpoint saved
