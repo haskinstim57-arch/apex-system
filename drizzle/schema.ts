@@ -244,6 +244,8 @@ export const messages = mysqlTable("messages", {
   sentAt: timestamp("sentAt"),
   /** When the message was delivered */
   deliveredAt: timestamp("deliveredAt"),
+  /** Whether the message has been read in the inbox (outbound defaults true, inbound defaults false) */
+  isRead: boolean("isRead").default(true).notNull(),
   /** When the message was read/opened */
   readAt: timestamp("readAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

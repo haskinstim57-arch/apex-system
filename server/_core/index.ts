@@ -14,6 +14,7 @@ import { startCampaignScheduler } from "../services/campaignScheduler";
 import { startFacebookTokenRefreshJob } from "../services/facebookTokenRefresh";
 import { startAppointmentReminders } from "../services/appointmentReminders";
 import { calendarOAuthCallbackRouter } from "../webhooks/calendarOAuthCallbacks";
+import { inboundMessageRouter } from "../webhooks/inboundMessages";
 import { applySecurityMiddleware } from "../middleware/security";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -51,6 +52,8 @@ async function startServer() {
   app.use(facebookLeadsWebhookRouter);
   // Calendar OAuth callbacks (Google & Outlook)
   app.use(calendarOAuthCallbackRouter);
+  // Inbound message webhooks (Twilio SMS + SendGrid Email)
+  app.use(inboundMessageRouter);
   // tRPC API
   app.use(
     "/api/trpc",

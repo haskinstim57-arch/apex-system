@@ -781,3 +781,42 @@
 ### Final
 - [x] Run all tests and confirm pass (21 new calendarSync tests)
 - [x] Checkpoint saved
+
+## Unified Two-Way Inbox
+
+### Schema
+- [x] Add isRead boolean field to messages table (default true for outbound, false for inbound)
+- [x] Run migration
+
+### Backend — Conversation tRPC Procedures
+- [x] getConversations: list contacts with latest message preview, unread count, timestamp, channel icon
+- [x] getThread: all messages for a specific contact, ordered chronologically
+- [x] markAsRead: mark all messages for a contact as read
+- [x] sendReply: send SMS or email reply from inbox (reuse existing dispatch logic)
+- [x] getUnreadCount: total unread message count for sidebar badge
+
+### Backend — Inbound Webhooks
+- [x] POST /api/webhooks/twilio/inbound — receive inbound SMS from Twilio, create message record with isRead=false
+- [x] POST /api/webhooks/sendgrid/inbound — receive inbound email from SendGrid Inbound Parse, create message record with isRead=false
+
+### Frontend — Unified Inbox Page
+- [x] Left panel: contact conversation list with recent message preview, timestamp, unread indicator, channel icon (SMS/email)
+- [x] Right panel: full conversation thread as chat bubbles (inbound left, outbound right)
+- [x] Reply box at bottom with channel selector (SMS/Email), text input, Send button
+- [x] Filter tabs: All, SMS, Email, Unread
+- [x] Search contacts in conversation list
+- [x] Real-time polling every 10 seconds for new messages
+- [x] Auto-mark messages as read when thread is opened
+
+### Frontend — Sidebar Badge
+- [x] Added Inbox nav item to DashboardLayout sidebar with unread count badge
+- [x] Poll unread count every 15 seconds
+
+### Tests
+- [x] Vitest tests for getConversations, getThread, markAsRead, sendReply, getUnreadCount (23 tests)
+- [x] Vitest tests for inbound webhook helpers (normalizePhone, extractEmail)
+- [x] All 758 tests pass across 36 test files
+
+### Final
+- [x] All 758 tests pass (36 test files)
+- [x] Checkpoint saved

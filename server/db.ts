@@ -1111,6 +1111,212 @@ export async function getMessageStats(accountId: number) {
 }
 
 // ─────────────────────────────────────────────
+// CONVERSATIONS — inbox-oriented queries
+// ─────────────────────────────────────────────
+
+/**
+ * Get conversations: one row per contact who has messages,
+ * with latest message preview, unread count, and contact info.
+ */
+export async function getConversations(params: {
+  accountId: number;
+  type?: "email" | "sms";
+  unreadOnly?: boolean;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { conversations: [], total: 0 };
+
+  const limit = params.limit ?? 50;
+  const offset = params.offset ?? 0;
+
+  // Build WHERE conditions for the messages
+  const conditions = [eq(messages.accountId, params.accountId)];
+  if (params.type) {
+    conditions.push(eq(messages.type, params.type));
+  }
+
+  const whereClause = and(...conditions);
+
+  // Get all contacts that have messages matching the filter
+  // Use a subquery approach: get contactIds with their latest message + unread count
+  const rawConversations = await db
+    .select({
+      contactId: messages.contactId,
+      lastMessageAt: sql<Date>`MAX(${messages.createdAt})`.as("lastMessageAt"),
+      unreadCount: sql<number>`SUM(CASE WHEN ${messages.isRead} = false THEN 1 ELSE 0 END)`.as("unreadCount"),
+      totalMessages: count().as("totalMessages"),
+    })
+    .from(messages)
+    .where(whereClause)
+    .groupBy(messages.contactId)
+    .orderBy(sql`MAX(${messages.createdAt}) DESC`);
+
+  // Filter for unread only if requested
+  let filtered = rawConversations;
+  if (params.unreadOnly) {
+    filtered = filtered.filter((c) => Number(c.unreadCount) > 0);
+  }
+
+  // Now fetch contact info + latest message for each conversation
+  const contactIds = filtered.map((c) => c.contactId);
+  if (contactIds.length === 0) return { conversations: [], total: 0 };
+
+  // Get contact details
+  const contactRows = await db
+    .select()
+    .from(contacts)
+    .where(
+      and(
+        inArray(contacts.id, contactIds),
+        eq(contacts.accountId, params.accountId)
+      )
+    );
+
+  // Apply search filter on contact name/email/phone
+  let contactMap = new Map(contactRows.map((c) => [c.id, c]));
+  if (params.search) {
+    const s = params.search.toLowerCase();
+    const filtered2 = Array.from(contactMap.entries()).filter(([, c]) => {
+      const fullName = `${c.firstName} ${c.lastName}`.toLowerCase();
+      return (
+        fullName.includes(s) ||
+        c.email?.toLowerCase().includes(s) ||
+        c.phone?.includes(s)
+      );
+    });
+    contactMap = new Map(filtered2);
+  }
+
+  // Re-filter conversations to only those with matching contacts
+  const matchedConversations = filtered.filter((c) => contactMap.has(c.contactId));
+  const total = matchedConversations.length;
+  const paged = matchedConversations.slice(offset, offset + limit);
+
+  // Get the latest message for each contact in the page
+  const result = await Promise.all(
+    paged.map(async (conv) => {
+      const contact = contactMap.get(conv.contactId)!;
+      // Get the latest message
+      const latestMsgs = await db
+        .select()
+        .from(messages)
+        .where(
+          and(
+            eq(messages.contactId, conv.contactId),
+            eq(messages.accountId, params.accountId),
+            ...(params.type ? [eq(messages.type, params.type)] : [])
+          )
+        )
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+      const latestMessage = latestMsgs[0] ?? null;
+      return {
+        contactId: conv.contactId,
+        contactName: `${contact.firstName} ${contact.lastName}`,
+        contactEmail: contact.email,
+        contactPhone: contact.phone,
+        contactAvatar: null as string | null,
+        unreadCount: Number(conv.unreadCount),
+        lastMessageAt: conv.lastMessageAt,
+        latestMessage: latestMessage
+          ? {
+              id: latestMessage.id,
+              type: latestMessage.type,
+              direction: latestMessage.direction,
+              subject: latestMessage.subject,
+              body: latestMessage.body.substring(0, 150),
+              isRead: latestMessage.isRead,
+              createdAt: latestMessage.createdAt,
+            }
+          : null,
+      };
+    })
+  );
+
+  return { conversations: result, total };
+}
+
+/**
+ * Get full message thread for a contact, ordered chronologically (oldest first).
+ */
+export async function getThread(contactId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(messages)
+    .where(and(eq(messages.contactId, contactId), eq(messages.accountId, accountId)))
+    .orderBy(asc(messages.createdAt));
+}
+
+/**
+ * Mark all messages for a contact as read.
+ */
+export async function markMessagesAsRead(contactId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(messages)
+    .set({ isRead: true, readAt: new Date() })
+    .where(
+      and(
+        eq(messages.contactId, contactId),
+        eq(messages.accountId, accountId),
+        eq(messages.isRead, false)
+      )
+    );
+}
+
+/**
+ * Get total unread message count for an account.
+ */
+export async function getUnreadMessageCount(accountId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db
+    .select({ count: count() })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.accountId, accountId),
+        eq(messages.isRead, false)
+      )
+    );
+  return result[0]?.count ?? 0;
+}
+
+/**
+ * Find a contact by phone number within an account.
+ */
+export async function findContactByPhone(phone: string, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(contacts)
+    .where(and(eq(contacts.phone, phone), eq(contacts.accountId, accountId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+/**
+ * Find a contact by email within an account.
+ */
+export async function findContactByEmail(email: string, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(contacts)
+    .where(and(eq(contacts.email, email), eq(contacts.accountId, accountId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+// ─────────────────────────────────────────────
 // CAMPAIGN TEMPLATES
 // ─────────────────────────────────────────────
 

@@ -27,6 +27,7 @@ import AcceptInvite from "./pages/AcceptInvite";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import CalendarPage from "./pages/Calendar";
+import Inbox from "./pages/Inbox";
 import BookingPage from "./pages/BookingPage";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
@@ -84,6 +85,11 @@ function Router() {
       <Route path="/messages">
         <DashboardLayout>
           <Messages />
+        </DashboardLayout>
+      </Route>
+      <Route path="/inbox">
+        <DashboardLayout>
+          <Inbox />
         </DashboardLayout>
       </Route>
       <Route path="/campaigns">

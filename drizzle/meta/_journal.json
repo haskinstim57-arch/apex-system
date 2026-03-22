@@ -141,6 +141,13 @@
       "when": 1774206644999,
       "tag": "0019_bright_dracula",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1774211643687,
+      "tag": "0020_motionless_shockwave",
+      "breakpoints": true
     }
   ]
 }

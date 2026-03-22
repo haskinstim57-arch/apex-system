@@ -28,6 +28,7 @@ import {
   Building2,
   CalendarDays,
   Globe,
+  Inbox,
   Kanban,
   LayoutDashboard,
   LogOut,
@@ -51,6 +52,7 @@ import { useAccount } from "@/contexts/AccountContext";
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Users, label: "Contacts", path: "/contacts" },
+  { icon: Inbox, label: "Inbox", path: "/inbox" },
   { icon: MessageSquare, label: "Messages", path: "/messages" },
   { icon: Send, label: "Campaigns", path: "/campaigns" },
   { icon: Phone, label: "AI Calls", path: "/ai-calls" },
@@ -183,6 +185,14 @@ function DashboardLayoutContent({
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
+  const { currentAccountId } = useAccount();
+
+  // Unread message count for inbox badge
+  const { data: unreadData } = trpc.inbox.getUnreadCount.useQuery(
+    { accountId: currentAccountId! },
+    { enabled: !!currentAccountId, refetchInterval: 15000 }
+  );
+  const unreadCount = unreadData?.count ?? 0;
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -283,6 +293,7 @@ function DashboardLayoutContent({
               )}
               {menuItems.map((item) => {
                 const isActive = location === item.path;
+                const showBadge = item.path === "/inbox" && unreadCount > 0;
                 return (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
@@ -291,10 +302,20 @@ function DashboardLayoutContent({
                       tooltip={item.label}
                       className="h-9 transition-all font-normal text-[13px]"
                     >
-                      <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
-                      />
-                      <span>{item.label}</span>
+                      <div className="relative">
+                        <item.icon
+                          className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
+                        />
+                        {showBadge && isCollapsed && (
+                          <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-primary" />
+                        )}
+                      </div>
+                      <span className="flex-1">{item.label}</span>
+                      {showBadge && !isCollapsed && (
+                        <Badge variant="default" className="h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full ml-auto">
+                          {unreadCount > 99 ? "99+" : unreadCount}
+                        </Badge>
+                      )}
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
