@@ -13,6 +13,7 @@ import { startWorkflowWorker } from "../services/workflowEngine";
 import { startCampaignScheduler } from "../services/campaignScheduler";
 import { startFacebookTokenRefreshJob } from "../services/facebookTokenRefresh";
 import { startAppointmentReminders } from "../services/appointmentReminders";
+import { calendarOAuthCallbackRouter } from "../webhooks/calendarOAuthCallbacks";
 import { applySecurityMiddleware } from "../middleware/security";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -48,6 +49,8 @@ async function startServer() {
   app.use(vapiWebhookRouter);
   // Public REST webhook for Facebook Lead Ads
   app.use(facebookLeadsWebhookRouter);
+  // Calendar OAuth callbacks (Google & Outlook)
+  app.use(calendarOAuthCallbackRouter);
   // tRPC API
   app.use(
     "/api/trpc",

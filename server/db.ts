@@ -59,6 +59,8 @@ import {
   type InsertCalendar,
   appointments,
   type InsertAppointment,
+  calendarIntegrations,
+  type InsertCalendarIntegration,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2745,4 +2747,143 @@ export async function getAvailableSlots(
   }
 
   return slots;
+}
+
+// ═══════════════════════════════════════════════
+// CALENDAR INTEGRATIONS HELPERS (Google/Outlook sync)
+// ═══════════════════════════════════════════════
+
+/** Get all calendar integrations for a user within an account */
+export async function getCalendarIntegrations(userId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(calendarIntegrations)
+    .where(
+      and(
+        eq(calendarIntegrations.userId, userId),
+        eq(calendarIntegrations.accountId, accountId)
+      )
+    );
+}
+
+/** Get all active calendar integrations for an account (all users) */
+export async function getActiveCalendarIntegrations(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(calendarIntegrations)
+    .where(
+      and(
+        eq(calendarIntegrations.accountId, accountId),
+        eq(calendarIntegrations.isActive, true)
+      )
+    );
+}
+
+/** Get a specific calendar integration by ID */
+export async function getCalendarIntegration(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(calendarIntegrations)
+    .where(
+      and(
+        eq(calendarIntegrations.id, id),
+        eq(calendarIntegrations.userId, userId)
+      )
+    )
+    .limit(1);
+  return rows[0] || null;
+}
+
+/** Get a calendar integration by provider for a user in an account */
+export async function getCalendarIntegrationByProvider(
+  userId: number,
+  accountId: number,
+  provider: "google" | "outlook"
+) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(calendarIntegrations)
+    .where(
+      and(
+        eq(calendarIntegrations.userId, userId),
+        eq(calendarIntegrations.accountId, accountId),
+        eq(calendarIntegrations.provider, provider)
+      )
+    )
+    .limit(1);
+  return rows[0] || null;
+}
+
+/** Create a new calendar integration (tokens encrypted before storage) */
+export async function createCalendarIntegration(data: InsertCalendarIntegration) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const encryptedData = {
+    ...data,
+    accessToken: safeEncrypt(data.accessToken) ?? data.accessToken,
+    refreshToken: data.refreshToken ? (safeEncrypt(data.refreshToken) ?? data.refreshToken) : null,
+  };
+  const [result] = await db.insert(calendarIntegrations).values(encryptedData).$returningId();
+  return result;
+}
+
+/** Update a calendar integration (re-encrypts tokens) */
+export async function updateCalendarIntegration(
+  id: number,
+  userId: number,
+  data: Partial<Pick<InsertCalendarIntegration, "accessToken" | "refreshToken" | "tokenExpiresAt" | "isActive" | "externalCalendarId" | "externalEmail">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const updateData: Record<string, unknown> = {};
+  if (data.accessToken !== undefined) updateData.accessToken = safeEncrypt(data.accessToken) ?? data.accessToken;
+  if (data.refreshToken !== undefined) updateData.refreshToken = data.refreshToken ? (safeEncrypt(data.refreshToken) ?? data.refreshToken) : null;
+  if (data.tokenExpiresAt !== undefined) updateData.tokenExpiresAt = data.tokenExpiresAt;
+  if (data.isActive !== undefined) updateData.isActive = data.isActive;
+  if (data.externalCalendarId !== undefined) updateData.externalCalendarId = data.externalCalendarId;
+  if (data.externalEmail !== undefined) updateData.externalEmail = data.externalEmail;
+  await db
+    .update(calendarIntegrations)
+    .set(updateData)
+    .where(
+      and(
+        eq(calendarIntegrations.id, id),
+        eq(calendarIntegrations.userId, userId)
+      )
+    );
+}
+
+/** Delete a calendar integration */
+export async function deleteCalendarIntegration(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(calendarIntegrations)
+    .where(
+      and(
+        eq(calendarIntegrations.id, id),
+        eq(calendarIntegrations.userId, userId)
+      )
+    );
+}
+
+/** Decrypt tokens from a calendar integration row */
+export function decryptCalendarTokens(integration: {
+  accessToken: string;
+  refreshToken: string | null;
+}) {
+  return {
+    accessToken: safeDecrypt(integration.accessToken) ?? integration.accessToken,
+    refreshToken: integration.refreshToken
+      ? (safeDecrypt(integration.refreshToken) ?? integration.refreshToken)
+      : null,
+  };
 }

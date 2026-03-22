@@ -260,6 +260,32 @@ function CalendarGridView({ accountId }: { accountId: number }) {
     { refetchInterval: 30000 }
   );
 
+  // Fetch external calendar events for overlay
+  const timeMinStr = useMemo(() => weekStart.toISOString(), [weekStart]);
+  const timeMaxStr = useMemo(() => weekEnd.toISOString(), [weekEnd]);
+  const { data: externalEvents = [] } = trpc.calendarSync.listExternalEvents.useQuery(
+    {
+      accountId,
+      timeMin: timeMinStr,
+      timeMax: timeMaxStr,
+    },
+    { refetchInterval: 60000 }
+  );
+
+  // Map external events to grid positions
+  const externalByDayHour = useMemo(() => {
+    const map: Record<string, typeof externalEvents> = {};
+    externalEvents.forEach((evt) => {
+      const start = new Date(evt.start);
+      const dayIdx = start.getDay();
+      const hour = start.getHours();
+      const key = `${dayIdx}-${hour}`;
+      if (!map[key]) map[key] = [];
+      map[key].push(evt);
+    });
+    return map;
+  }, [externalEvents]);
+
   const { data: calendars = [] } = trpc.calendar.list.useQuery({ accountId });
   const calendarMap = useMemo(() => {
     const map: Record<number, { name: string; color: string }> = {};
@@ -431,6 +457,7 @@ function CalendarGridView({ accountId }: { accountId: number }) {
                   hour={hour}
                   visibleDays={visibleDays}
                   apptsByDayHour={apptsByDayHour}
+                  externalByDayHour={externalByDayHour}
                   calendarMap={calendarMap}
                   onSlotClick={handleSlotClick}
                   onApptClick={setSelectedAppt}
@@ -511,10 +538,13 @@ function CurrentTimeLine({ visibleDays }: { visibleDays: Date[] }) {
 }
 
 // ─── Hour Row ───
+type ExternalEvent = { provider: string; id: string; title: string; start: string; end: string; allDay: boolean };
+
 function HourRow({
   hour,
   visibleDays,
   apptsByDayHour,
+  externalByDayHour,
   calendarMap,
   onSlotClick,
   onApptClick,
@@ -522,6 +552,7 @@ function HourRow({
   hour: number;
   visibleDays: Date[];
   apptsByDayHour: Record<string, any[]>;
+  externalByDayHour?: Record<string, ExternalEvent[]>;
   calendarMap: Record<number, { name: string; color: string }>;
   onSlotClick: (date: Date, hour: number) => void;
   onApptClick: (appt: any) => void;
@@ -598,6 +629,41 @@ function HourRow({
                   </div>
                 );
               })}
+
+            {/* External calendar events overlay */}
+            {(externalByDayHour?.[key] || []).map((evt) => {
+              const evtStart = new Date(evt.start);
+              const evtEnd = new Date(evt.end);
+              const startMin = evtStart.getMinutes();
+              const durationMin = (evtEnd.getTime() - evtStart.getTime()) / 60000;
+              const topOffset = (startMin / 60) * 100;
+              const heightPct = Math.min((durationMin / 60) * 100, 200);
+              const providerColor = evt.provider === "google"
+                ? "border-l-blue-400 bg-blue-500/10"
+                : "border-l-sky-400 bg-sky-500/10";
+
+              return (
+                <div
+                  key={`ext-${evt.id}`}
+                  className={`absolute left-0.5 right-0.5 rounded-sm border-l-[3px] px-1.5 py-0.5 text-[11px] leading-tight overflow-hidden z-[5] pointer-events-none opacity-70 ${providerColor}`}
+                  style={{
+                    top: `${topOffset}%`,
+                    height: `${heightPct}%`,
+                    minHeight: "18px",
+                  }}
+                  title={`${evt.provider === "google" ? "Google" : "Outlook"}: ${evt.title}`}
+                >
+                  <div className="font-medium truncate text-muted-foreground">
+                    {evt.title || "Busy"}
+                  </div>
+                  {durationMin >= 30 && (
+                    <div className="text-muted-foreground/70 truncate text-[10px]">
+                      {evt.provider === "google" ? "Google" : "Outlook"}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}

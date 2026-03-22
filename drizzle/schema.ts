@@ -837,3 +837,33 @@ export const appointments = mysqlTable("appointments", {
 
 export type Appointment = typeof appointments.$inferSelect;
 export type InsertAppointment = typeof appointments.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CALENDAR INTEGRATIONS — Google/Outlook calendar sync per user
+// ─────────────────────────────────────────────
+export const calendarIntegrations = mysqlTable("calendar_integrations", {
+  id: int("id").autoincrement().primaryKey(),
+  /** User who connected this calendar */
+  userId: int("user_id").notNull(),
+  /** Sub-account this integration belongs to */
+  accountId: int("account_id").notNull(),
+  /** Provider: google or outlook */
+  provider: mysqlEnum("provider", ["google", "outlook"]).notNull(),
+  /** OAuth access token (encrypted at rest) */
+  accessToken: text("access_token").notNull(),
+  /** OAuth refresh token (encrypted at rest) */
+  refreshToken: text("refresh_token"),
+  /** When the access token expires */
+  tokenExpiresAt: timestamp("token_expires_at"),
+  /** External calendar ID (e.g., "primary" for Google, or specific calendar ID) */
+  externalCalendarId: varchar("external_calendar_id", { length: 500 }).default("primary").notNull(),
+  /** External user email / display name */
+  externalEmail: varchar("external_email", { length: 320 }),
+  /** Whether this integration is active */
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type CalendarIntegration = typeof calendarIntegrations.$inferSelect;
+export type InsertCalendarIntegration = typeof calendarIntegrations.$inferInsert;

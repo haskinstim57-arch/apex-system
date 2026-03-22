@@ -735,3 +735,49 @@
 - [x] Write tests for ICS generation (21 tests in ics-generator.test.ts)
 - [x] Run all tests and confirm pass (711 tests across 33 files)
 - [x] Checkpoint saved
+
+## Google Calendar & Outlook Calendar Sync
+
+### Database
+- [x] Add calendarIntegrations table (id, userId, accountId, provider enum, accessToken, refreshToken, tokenExpiresAt, externalCalendarId, isActive, createdAt)
+- [x] Tokens encrypted at rest before storing
+- [x] Run migration
+
+### Encryption
+- [x] Create token encryption/decryption helpers using ENCRYPTION_KEY env var
+
+### Google Calendar OAuth
+- [x] REST endpoint for Google OAuth callback
+- [x] Exchange code for tokens, store encrypted in calendarIntegrations
+- [x] Refresh token logic for expired access tokens
+- [x] Google Calendar API: create/update/delete events
+- [x] Google Calendar API: fetch busy times
+
+### Outlook Calendar OAuth
+- [x] REST endpoint for Outlook OAuth callback
+- [x] Exchange code for tokens via Microsoft Identity Platform
+- [x] Refresh token logic for expired access tokens
+- [x] Microsoft Graph API: create/update/delete events
+- [x] Microsoft Graph API: fetch busy times
+
+### tRPC Procedures
+- [x] getIntegrations, disconnectIntegration, syncNow, getExternalEvents
+
+### Booking Page Busy Time Check
+- [x] Fetch busy times from connected external calendars when calculating available slots
+- [x] Block out busy times on /book/:slug
+
+### Calendar Grid View
+- [x] Show external calendar events as overlay blocks alongside CRM appointments
+
+### Settings UI
+- [x] Add Calendar Integrations section with Connect Google / Connect Outlook buttons
+- [x] Show connection status and Disconnect button
+
+### Environment Variables
+- [x] GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+- [x] MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET
+
+### Final
+- [x] Run all tests and confirm pass (21 new calendarSync tests)
+- [x] Checkpoint saved

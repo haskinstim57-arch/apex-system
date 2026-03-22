@@ -18,9 +18,165 @@ import {
   getMember,
   createAuditLog,
   getAccountById,
+  getActiveCalendarIntegrations,
+  getCalendarIntegrations,
+  decryptCalendarTokens,
+  updateCalendarIntegration,
 } from "../db";
 import { dispatchEmail, dispatchSMS } from "../services/messaging";
 import { generateICSBase64 } from "../utils/icsGenerator";
+import { getGoogleBusyTimes, refreshGoogleToken, createGoogleEvent } from "../services/googleCalendar";
+import { getOutlookBusyTimes, refreshOutlookToken, createOutlookEvent } from "../services/outlookCalendar";
+
+// ─── External calendar busy time helper ───
+async function getExternalBusyTimes(
+  accountId: number,
+  timeMin: string,
+  timeMax: string
+): Promise<{ start: string; end: string }[]> {
+  const integrations = await getActiveCalendarIntegrations(accountId);
+  const busyBlocks: { start: string; end: string }[] = [];
+
+  for (const integration of integrations) {
+    try {
+      const tokens = decryptCalendarTokens(integration);
+
+      // Get a valid access token, refreshing if needed
+      let accessToken = tokens.accessToken;
+      if (integration.tokenExpiresAt) {
+        const expiresAt = new Date(integration.tokenExpiresAt).getTime();
+        if (expiresAt <= Date.now() + 5 * 60 * 1000 && tokens.refreshToken) {
+          try {
+            if (integration.provider === "google") {
+              const result = await refreshGoogleToken(tokens.refreshToken);
+              accessToken = result.accessToken;
+              await updateCalendarIntegration(integration.id, integration.userId, {
+                accessToken: result.accessToken,
+                tokenExpiresAt: new Date(Date.now() + result.expiresIn * 1000),
+              });
+            } else {
+              const result = await refreshOutlookToken(tokens.refreshToken);
+              accessToken = result.accessToken;
+              const updateData: Record<string, unknown> = {
+                accessToken: result.accessToken,
+                tokenExpiresAt: new Date(Date.now() + result.expiresIn * 1000),
+              };
+              if (result.refreshToken) {
+                (updateData as any).refreshToken = result.refreshToken;
+              }
+              await updateCalendarIntegration(integration.id, integration.userId, updateData as any);
+            }
+          } catch (refreshErr: any) {
+            console.error(`[Calendar] Token refresh failed for ${integration.provider}:`, refreshErr.message);
+            continue;
+          }
+        }
+      }
+
+      if (integration.provider === "google") {
+        const busy = await getGoogleBusyTimes(
+          accessToken,
+          integration.externalCalendarId,
+          timeMin,
+          timeMax
+        );
+        busyBlocks.push(...busy);
+      } else if (integration.provider === "outlook") {
+        const busy = await getOutlookBusyTimes(
+          accessToken,
+          integration.externalEmail || "",
+          timeMin,
+          timeMax
+        );
+        busyBlocks.push(...busy);
+      }
+    } catch (err: any) {
+      console.error(`[Calendar] Failed to fetch busy times from ${integration.provider}:`, err.message);
+      // Don't fail the whole request if one integration fails
+    }
+  }
+
+  return busyBlocks;
+}
+
+// ─── Sync appointment to external calendars helper ───
+async function syncAppointmentToExternalCalendars(params: {
+  accountId: number;
+  summary: string;
+  description?: string;
+  startDateTime: string;
+  endDateTime: string;
+  guestEmail?: string;
+  guestName?: string;
+}): Promise<void> {
+  // Get all active integrations for this account (across all users)
+  const integrations = await getActiveCalendarIntegrations(params.accountId);
+
+  for (const integration of integrations) {
+    try {
+      const tokens = decryptCalendarTokens(integration);
+
+      // Get a valid access token, refreshing if needed
+      let accessToken = tokens.accessToken;
+      if (integration.tokenExpiresAt) {
+        const expiresAt = new Date(integration.tokenExpiresAt).getTime();
+        if (expiresAt <= Date.now() + 5 * 60 * 1000 && tokens.refreshToken) {
+          if (integration.provider === "google") {
+            const result = await refreshGoogleToken(tokens.refreshToken);
+            accessToken = result.accessToken;
+            await updateCalendarIntegration(integration.id, integration.userId, {
+              accessToken: result.accessToken,
+              tokenExpiresAt: new Date(Date.now() + result.expiresIn * 1000),
+            });
+          } else {
+            const result = await refreshOutlookToken(tokens.refreshToken);
+            accessToken = result.accessToken;
+            await updateCalendarIntegration(integration.id, integration.userId, {
+              accessToken: result.accessToken,
+              tokenExpiresAt: new Date(Date.now() + result.expiresIn * 1000),
+              ...(result.refreshToken ? { refreshToken: result.refreshToken } : {}),
+            } as any);
+          }
+        }
+      }
+
+      if (integration.provider === "google") {
+        await createGoogleEvent(accessToken, integration.externalCalendarId, {
+          summary: params.summary,
+          description: params.description,
+          start: { dateTime: params.startDateTime, timeZone: "UTC" },
+          end: { dateTime: params.endDateTime, timeZone: "UTC" },
+          attendees: params.guestEmail ? [{ email: params.guestEmail }] : undefined,
+        });
+        console.log(`[Calendar] Synced appointment to Google Calendar for account ${params.accountId}`);
+      } else if (integration.provider === "outlook") {
+        await createOutlookEvent(accessToken, {
+          subject: params.summary,
+          body: params.description
+            ? { contentType: "Text", content: params.description }
+            : undefined,
+          start: { dateTime: params.startDateTime, timeZone: "UTC" },
+          end: { dateTime: params.endDateTime, timeZone: "UTC" },
+          attendees: params.guestEmail
+            ? [
+                {
+                  emailAddress: {
+                    address: params.guestEmail,
+                    name: params.guestName,
+                  },
+                  type: "required",
+                },
+              ]
+            : undefined,
+        });
+        console.log(`[Calendar] Synced appointment to Outlook Calendar for account ${params.accountId}`);
+      }
+    } catch (err: any) {
+      console.error(`[Calendar] Failed to sync to ${integration.provider}:`, err.message);
+      // Don't fail the whole booking if external sync fails
+    }
+  }
+}
 
 // ─── Tenant guard ───
 async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
@@ -387,9 +543,29 @@ export const calendarRouter = router({
       const slots = await getAvailableSlots(calendar.id, input.date);
 
       // Filter out slots that don't meet minNoticeHours
-      return slots.filter((slot) => {
+      const filteredSlots = slots.filter((slot) => {
         const slotTime = new Date(`${input.date}T${slot.start}:00Z`);
         return slotTime.getTime() > now.getTime() + minNoticeMs;
+      });
+
+      // Also filter out slots that conflict with external calendar busy times
+      const busyBlocks = await getExternalBusyTimes(
+        calendar.accountId,
+        `${input.date}T00:00:00Z`,
+        `${input.date}T23:59:59Z`
+      );
+
+      if (busyBlocks.length === 0) return filteredSlots;
+
+      return filteredSlots.filter((slot) => {
+        const slotStart = new Date(`${input.date}T${slot.start}:00Z`).getTime();
+        const slotEnd = new Date(`${input.date}T${slot.end}:00Z`).getTime();
+        // Slot is available if it doesn't overlap with any busy block
+        return !busyBlocks.some((busy) => {
+          const busyStart = new Date(busy.start).getTime();
+          const busyEnd = new Date(busy.end).getTime();
+          return slotStart < busyEnd && slotEnd > busyStart;
+        });
       });
     }),
 
@@ -529,6 +705,17 @@ export const calendarRouter = router({
           attachments: [icsAttachment],
         }).catch((err) => console.error("[Calendar] Owner notification email failed:", err));
       }
+
+      // Sync to external calendars (fire-and-forget)
+      syncAppointmentToExternalCalendars({
+        accountId: calendar.accountId,
+        summary: `Appointment: ${calendar.name}`,
+        description: `Appointment with ${input.guestName}${input.notes ? `. Notes: ${input.notes}` : ""}`,
+        startDateTime: startTimeDate.toISOString(),
+        endDateTime: endTimeDate.toISOString(),
+        guestEmail: input.guestEmail,
+        guestName: input.guestName,
+      }).catch((err) => console.error("[Calendar] External calendar sync failed:", err));
 
       return {
         id: result.id,

@@ -26,6 +26,8 @@ import {
   ExternalLink,
   MapPin,
   Unlink,
+  CalendarDays,
+  RefreshCw,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
@@ -219,6 +221,11 @@ export default function SettingsPage() {
       {/* Account Integrations — visible to anyone with an account selected */}
       {currentAccountId && (
         <FacebookIntegrationCard accountId={currentAccountId} />
+      )}
+
+      {/* Calendar Sync — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <CalendarSyncCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}
@@ -615,7 +622,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
           </div>
         </div>
 
-        {/* Google Placeholder */}
+        {/* Google My Business Placeholder */}
         <div className="flex items-start gap-4 p-3 rounded-lg border border-border/50 opacity-60">
           <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
             <MapPin className="h-5 w-5 text-muted-foreground" />
@@ -631,6 +638,241 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
               Sync reviews and manage your Google presence.
             </p>
           </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Google Calendar SVG icon */
+function GoogleCalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="3" fill="#4285F4" />
+      <rect x="5" y="8" width="14" height="12" rx="1" fill="white" />
+      <rect x="3" y="3" width="18" height="5" rx="2" fill="#4285F4" />
+      <circle cx="8" cy="6" r="1" fill="white" />
+      <circle cx="16" cy="6" r="1" fill="white" />
+      <rect x="7" y="11" width="3" height="2" rx="0.5" fill="#4285F4" />
+      <rect x="7" y="15" width="3" height="2" rx="0.5" fill="#4285F4" />
+      <rect x="12" y="11" width="3" height="2" rx="0.5" fill="#4285F4" />
+      <rect x="12" y="15" width="3" height="2" rx="0.5" fill="#34A853" />
+    </svg>
+  );
+}
+
+/** Outlook Calendar SVG icon */
+function OutlookCalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none">
+      <rect x="3" y="3" width="18" height="18" rx="3" fill="#0078D4" />
+      <rect x="5" y="8" width="14" height="12" rx="1" fill="white" />
+      <rect x="3" y="3" width="18" height="5" rx="2" fill="#0078D4" />
+      <circle cx="8" cy="6" r="1" fill="white" />
+      <circle cx="16" cy="6" r="1" fill="white" />
+      <rect x="7" y="11" width="3" height="2" rx="0.5" fill="#0078D4" />
+      <rect x="7" y="15" width="3" height="2" rx="0.5" fill="#0078D4" />
+      <rect x="12" y="11" width="3" height="2" rx="0.5" fill="#0078D4" />
+      <rect x="12" y="15" width="3" height="2" rx="0.5" fill="#50E6FF" />
+    </svg>
+  );
+}
+
+function CalendarSyncCard({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+
+  // Fetch connected calendar integrations
+  const { data: integrations, isLoading } = trpc.calendarSync.listIntegrations.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+
+  const googleIntegration = integrations?.find((i) => i.provider === "google");
+  const outlookIntegration = integrations?.find((i) => i.provider === "outlook");
+
+  const disconnectMutation = trpc.calendarSync.disconnect.useMutation({
+    onSuccess: () => {
+      utils.calendarSync.listIntegrations.invalidate({ accountId });
+      import("sonner").then(({ toast }) => {
+        toast.success("Calendar disconnected successfully.");
+      });
+    },
+    onError: (err) => {
+      import("sonner").then(({ toast }) => {
+        toast.error(err.message || "Failed to disconnect calendar");
+      });
+    },
+  });
+
+  const handleConnectGoogle = async () => {
+    try {
+      const result = await utils.client.calendarSync.getGoogleOAuthUrl.query({
+        accountId,
+        origin: window.location.origin,
+      });
+      window.location.href = result.url;
+    } catch (err: any) {
+      import("sonner").then(({ toast }) => {
+        toast.error(err.message || "Failed to start Google Calendar connection");
+      });
+    }
+  };
+
+  const handleConnectOutlook = async () => {
+    try {
+      const result = await utils.client.calendarSync.getOutlookOAuthUrl.query({
+        accountId,
+        origin: window.location.origin,
+      });
+      window.location.href = result.url;
+    } catch (err: any) {
+      import("sonner").then(({ toast }) => {
+        toast.error(err.message || "Failed to start Outlook Calendar connection");
+      });
+    }
+  };
+
+  const handleDisconnect = (id: number, provider: string) => {
+    if (window.confirm(`Are you sure you want to disconnect your ${provider === "google" ? "Google" : "Outlook"} Calendar?`)) {
+      disconnectMutation.mutate({ id });
+    }
+  };
+
+  return (
+    <Card className="border-border/50 bg-card">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          Calendar Sync
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Connect your external calendars to automatically sync appointments and block busy times on your booking page.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Google Calendar */}
+        <div className="flex items-start gap-4 p-3 rounded-lg border border-border/50">
+          <div className="h-10 w-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+            <GoogleCalendarIcon className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium">Google Calendar</h4>
+            {isLoading ? (
+              <p className="text-xs text-muted-foreground mt-1">Checking status...</p>
+            ) : googleIntegration ? (
+              <div className="mt-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Connected
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {googleIntegration.externalEmail}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Appointments will sync to your Google Calendar and busy times will block booking slots.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => handleDisconnect(googleIntegration.id, "google")}
+                  disabled={disconnectMutation.isPending}
+                >
+                  {disconnectMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Unlink className="h-3 w-3 mr-1" />
+                  )}
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-1">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Sync appointments and block busy times from your Google Calendar.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                  onClick={handleConnectGoogle}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Connect Google Calendar
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Outlook Calendar */}
+        <div className="flex items-start gap-4 p-3 rounded-lg border border-border/50">
+          <div className="h-10 w-10 rounded-lg bg-sky-500/10 flex items-center justify-center shrink-0">
+            <OutlookCalendarIcon className="h-6 w-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-medium">Outlook Calendar</h4>
+            {isLoading ? (
+              <p className="text-xs text-muted-foreground mt-1">Checking status...</p>
+            ) : outlookIntegration ? (
+              <div className="mt-1 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Connected
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {outlookIntegration.externalEmail}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Appointments will sync to your Outlook Calendar and busy times will block booking slots.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={() => handleDisconnect(outlookIntegration.id, "outlook")}
+                  disabled={disconnectMutation.isPending}
+                >
+                  {disconnectMutation.isPending ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Unlink className="h-3 w-3 mr-1" />
+                  )}
+                  Disconnect
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-1">
+                <p className="text-xs text-muted-foreground mb-2">
+                  Sync appointments and block busy times from your Outlook Calendar.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs border-sky-500/30 text-sky-400 hover:bg-sky-500/10"
+                  onClick={handleConnectOutlook}
+                >
+                  <ExternalLink className="h-3 w-3 mr-1" />
+                  Connect Outlook Calendar
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Info note */}
+        <div className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
+          <p className="flex items-start gap-2">
+            <RefreshCw className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            <span>
+              When connected, new appointments booked through your booking page will automatically appear in your external calendar.
+              Busy times from your external calendar will also block those slots on your booking page.
+            </span>
+          </p>
         </div>
       </CardContent>
     </Card>

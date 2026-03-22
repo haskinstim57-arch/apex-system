@@ -17,6 +17,7 @@ import { impersonationRouter } from "./routers/impersonation";
 import { messagingSettingsRouter } from "./routers/messagingSettings";
 import { facebookOAuthRouter } from "./routers/facebookOAuth";
 import { calendarRouter } from "./routers/calendar";
+import { calendarSyncRouter } from "./routers/calendarSync";
 
 export const appRouter = router({
   system: systemRouter,
@@ -45,6 +46,7 @@ export const appRouter = router({
   messagingSettings: messagingSettingsRouter,
   facebookOAuth: facebookOAuthRouter,
   calendar: calendarRouter,
+  calendarSync: calendarSyncRouter,
 });
 
 export type AppRouter = typeof appRouter;
