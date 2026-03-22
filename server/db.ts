@@ -61,6 +61,8 @@ import {
   type InsertAppointment,
   calendarIntegrations,
   type InsertCalendarIntegration,
+  contactActivities,
+  type InsertContactActivity,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -3092,4 +3094,54 @@ export function decryptCalendarTokens(integration: {
       ? (safeDecrypt(integration.refreshToken) ?? integration.refreshToken)
       : null,
   };
+}
+
+
+// ═══════════════════════════════════════════
+// CONTACT ACTIVITIES
+// ═══════════════════════════════════════════
+
+/** Create a contact activity record (non-blocking, fire-and-forget safe) */
+export async function createContactActivity(data: InsertContactActivity) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(contactActivities).values(data).$returningId();
+  return result;
+}
+
+/** Get paginated contact activities in reverse chronological order */
+export async function getContactActivities(
+  contactId: number,
+  accountId: number,
+  opts: { limit?: number; offset?: number } = {}
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const limit = opts.limit ?? 20;
+  const offset = opts.offset ?? 0;
+
+  const rows = await db
+    .select()
+    .from(contactActivities)
+    .where(
+      and(
+        eq(contactActivities.contactId, contactId),
+        eq(contactActivities.accountId, accountId)
+      )
+    )
+    .orderBy(desc(contactActivities.createdAt))
+    .limit(limit + 1)
+    .offset(offset);
+
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+
+  return { items, hasMore };
+}
+
+/** Fire-and-forget activity logger — swallows errors to avoid breaking main flows */
+export function logContactActivity(data: InsertContactActivity) {
+  createContactActivity(data).catch((err) =>
+    console.error("[Activity] Failed to log activity:", err)
+  );
 }

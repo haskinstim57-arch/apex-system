@@ -10,6 +10,7 @@ import {
   getContactById,
   getMember,
   createAuditLog,
+  logContactActivity,
 } from "../db";
 import { dispatchSMS, dispatchEmail } from "../services/messaging";
 
@@ -200,6 +201,21 @@ export const inboxRouter = router({
           contactId: input.contactId,
           toAddress,
           type: input.type,
+        }),
+      });
+
+      // Log contact activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "message_sent",
+        description: `${input.type.toUpperCase()} reply sent to ${toAddress}`,
+        metadata: JSON.stringify({
+          messageId: id,
+          channel: input.type,
+          direction: "outbound",
+          preview: input.body.substring(0, 150),
+          source: "inbox",
         }),
       });
 

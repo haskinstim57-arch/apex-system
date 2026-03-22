@@ -12,6 +12,7 @@ import {
   getContactById,
   getMember,
   createAuditLog,
+  logContactActivity,
 } from "../db";
 import { dispatchSMS, dispatchEmail } from "../services/messaging";
 
@@ -148,6 +149,20 @@ export const messagesRouter = router({
         }),
       });
 
+      // Log contact activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "message_sent",
+        description: `${input.type.toUpperCase()} sent to ${input.toAddress}${input.subject ? `: ${input.subject}` : ""}`,
+        metadata: JSON.stringify({
+          messageId: id,
+          channel: input.type,
+          direction: "outbound",
+          preview: input.body.substring(0, 150),
+        }),
+      });
+
       return { id, status: "pending" as const };
     }),
 
@@ -187,6 +202,20 @@ export const messagesRouter = router({
         toAddress: input.toAddress || "",
         fromAddress: input.fromAddress,
         deliveredAt: new Date(),
+      });
+
+      // Log contact activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "message_received",
+        description: `Inbound ${input.type.toUpperCase()} from ${input.fromAddress}${input.subject ? `: ${input.subject}` : ""}`,
+        metadata: JSON.stringify({
+          messageId: id,
+          channel: input.type,
+          direction: "inbound",
+          preview: input.body.substring(0, 150),
+        }),
       });
 
       return { id };

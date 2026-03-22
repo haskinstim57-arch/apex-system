@@ -21,6 +21,8 @@ import {
   getContactNoteById,
   getMember,
   createAuditLog,
+  getContactActivities,
+  logContactActivity,
 } from "../db";
 
 // ─── Tenant guard: verify user is a member of the account ───
@@ -124,6 +126,14 @@ export const contactsRouter = router({
         action: "contact.created",
         resourceType: "contact",
         resourceId: id,
+      });
+
+      // Log activity
+      logContactActivity({
+        contactId: id,
+        accountId: input.accountId,
+        activityType: "contact_created",
+        description: `Contact ${input.firstName} ${input.lastName} was created`,
       });
 
       // Fire automation triggers (async, non-blocking)
@@ -397,6 +407,15 @@ export const contactsRouter = router({
       }
       const result = await addContactTag(input.contactId, input.tag.trim());
 
+      // Log activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "tag_added",
+        description: `Tag "${input.tag.trim()}" was added`,
+        metadata: JSON.stringify({ tag: input.tag.trim() }),
+      });
+
       // Fire automation trigger (async, non-blocking)
       import("../services/workflowTriggers").then(({ onTagAdded }) => {
         onTagAdded(input.accountId, input.contactId, input.tag.trim()).catch((err: unknown) =>
@@ -425,6 +444,16 @@ export const contactsRouter = router({
         });
       }
       await removeContactTag(input.contactId, input.tag);
+
+      // Log activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "tag_removed",
+        description: `Tag "${input.tag}" was removed`,
+        metadata: JSON.stringify({ tag: input.tag }),
+      });
+
       return { success: true };
     }),
 
@@ -472,11 +501,22 @@ export const contactsRouter = router({
           message: "Contact not found",
         });
       }
-      return createContactNote({
+      const note = await createContactNote({
         contactId: input.contactId,
         authorId: ctx.user.id,
         content: input.content,
       });
+
+      // Log activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "note_added",
+        description: `Note added: ${input.content.substring(0, 100)}${input.content.length > 100 ? "..." : ""}`,
+        metadata: JSON.stringify({ noteId: note.id }),
+      });
+
+      return note;
     }),
 
   updateNote: protectedProcedure
@@ -537,5 +577,30 @@ export const contactsRouter = router({
       }
       await deleteContactNote(input.noteId);
       return { success: true };
+    }),
+
+  // ─── Activity Timeline ───
+  getActivity: protectedProcedure
+    .input(
+      z.object({
+        contactId: z.number().int().positive(),
+        accountId: z.number().int().positive(),
+        limit: z.number().int().min(1).max(100).optional().default(20),
+        offset: z.number().int().min(0).optional().default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const contact = await getContactById(input.contactId, input.accountId);
+      if (!contact) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Contact not found",
+        });
+      }
+      return getContactActivities(input.contactId, input.accountId, {
+        limit: input.limit,
+        offset: input.offset,
+      });
     }),
 });

@@ -11,6 +11,7 @@ import {
   getAICallsByContact,
   getMember,
   getContactById,
+  logContactActivity,
 } from "../db";
 import {
   createVapiCall,
@@ -101,6 +102,15 @@ export const aiCallsRouter = router({
           externalCallId: vapiResponse.id,
           startedAt: new Date(),
           metadata: JSON.stringify(vapiResponse),
+        });
+
+        // Log activity
+        logContactActivity({
+          contactId: input.contactId,
+          accountId: input.accountId,
+          activityType: "ai_call_made",
+          description: `AI call initiated to ${contact.phone} (${contactName})`,
+          metadata: JSON.stringify({ callId: id, externalCallId: vapiResponse.id, status: mappedStatus }),
         });
 
         return {

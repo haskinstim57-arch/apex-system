@@ -22,6 +22,7 @@ import {
   getCalendarIntegrations,
   decryptCalendarTokens,
   updateCalendarIntegration,
+  logContactActivity,
 } from "../db";
 import { dispatchEmail, dispatchSMS } from "../services/messaging";
 import { generateICSBase64 } from "../utils/icsGenerator";
@@ -451,6 +452,20 @@ export const calendarRouter = router({
 
       await updateAppointment(input.id, input.accountId, updateData as any);
 
+      // Log activity if status changed and appointment has a contactId
+      if (input.status && input.status !== appt.status && appt.contactId) {
+        const actType = input.status === "confirmed" ? "appointment_confirmed" as const : input.status === "cancelled" ? "appointment_cancelled" as const : null;
+        if (actType) {
+          logContactActivity({
+            contactId: appt.contactId,
+            accountId: input.accountId,
+            activityType: actType,
+            description: `Appointment ${input.status} for ${appt.guestName} on ${new Date(appt.startTime).toLocaleDateString()}`,
+            metadata: JSON.stringify({ appointmentId: input.id, status: input.status }),
+          });
+        }
+      }
+
       await createAuditLog({
         accountId: input.accountId,
         userId: ctx.user.id,
@@ -474,6 +489,17 @@ export const calendarRouter = router({
       }
 
       await cancelAppointment(input.id, input.accountId);
+
+      // Log activity if appointment has a contactId
+      if (appt.contactId) {
+        logContactActivity({
+          contactId: appt.contactId,
+          accountId: input.accountId,
+          activityType: "appointment_cancelled",
+          description: `Appointment cancelled for ${appt.guestName} on ${new Date(appt.startTime).toLocaleDateString()}`,
+          metadata: JSON.stringify({ appointmentId: input.id }),
+        });
+      }
 
       await createAuditLog({
         accountId: input.accountId,
@@ -716,6 +742,16 @@ export const calendarRouter = router({
         guestEmail: input.guestEmail,
         guestName: input.guestName,
       }).catch((err) => console.error("[Calendar] External calendar sync failed:", err));
+
+      // Log activity (appointment booked is public, contactId may not exist yet)
+      // We log with contactId=0 as a placeholder; the appointment is linked via guestEmail
+      logContactActivity({
+        contactId: 0, // public booking — no contact linked yet
+        accountId: calendar.accountId,
+        activityType: "appointment_booked",
+        description: `Appointment booked by ${input.guestName} (${input.guestEmail}) on ${calendar.name} for ${dateStr} at ${timeStr}`,
+        metadata: JSON.stringify({ appointmentId: result.id, calendarName: calendar.name, guestName: input.guestName, guestEmail: input.guestEmail }),
+      });
 
       return {
         id: result.id,

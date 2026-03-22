@@ -820,3 +820,44 @@
 ### Final
 - [x] All 758 tests pass (36 test files)
 - [x] Checkpoint saved
+
+## Contact Activity Timeline
+
+### Schema
+- [x] Add contactActivities table (id, contactId, accountId, activityType enum, description, metadata JSON, createdAt)
+- [x] Run migration
+
+### Backend — DB Helpers & tRPC
+- [x] Add createContactActivity helper in db.ts
+- [x] Add getContactActivities helper with pagination (limit/offset, reverse chronological)
+- [x] Add getContactActivity tRPC procedure in contacts router (paginated)
+
+### Backend — Activity Logging Hooks
+- [x] Contact created → log activity (contacts router)
+- [x] Tag added → log activity (contacts router)
+- [x] Tag removed → log activity (contacts router)
+- [x] Pipeline stage changed (deal moved) → log activity with from/to stage names (pipeline router)
+- [x] Message sent (SMS/email outbound) → log activity with channel, direction, preview (messages router)
+- [x] Message received (inbound) → log activity (messages router + inbound webhooks)
+- [x] AI call made → log activity (aiCalls router)
+- [x] Appointment booked → log activity (calendar router)
+- [x] Appointment confirmed/cancelled → log activity (calendar router)
+- [x] Automation/workflow triggered → log activity with workflow name + trigger type (automations router + workflowEngine)
+- [x] Note added → log activity (contacts router)
+- [x] Inbox reply sent → log activity (inbox router)
+
+### Frontend — Timeline UI
+- [x] Vertical timeline component on ContactDetail page right column
+- [x] Icons for each activity type (14 types: tag, message sent/received, call, appointment booked/confirmed/cancelled, automation, note, pipeline, contact created, task)
+- [x] Each entry shows icon, description, timestamp (relative + absolute)
+- [x] Most recent at top (reverse chronological)
+- [x] Load more button for older entries
+- [x] Replaced CommunicationHistory with unified ActivityTimeline
+- [x] Metadata badges for channel, direction, stage changes, tags, workflow names, message previews
+
+### Tests
+- [x] Vitest tests for createContactActivity, getContactActivities, getContactActivity procedure (16 tests)
+- [x] All 774 tests pass across 37 test files
+
+### Final
+- [x] Checkpoint saved

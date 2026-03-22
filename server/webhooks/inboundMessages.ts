@@ -4,6 +4,7 @@ import {
   findContactByPhone,
   findContactByEmail,
   getAccountMessagingSettings,
+  logContactActivity,
 } from "../db";
 import { getDb } from "../db";
 import { accountMessagingSettings } from "../../drizzle/schema";
@@ -89,6 +90,15 @@ inboundMessageRouter.post(
         `[Twilio Inbound] Created inbound SMS message id=${id} contact=${contact.id} account=${accountId}`
       );
 
+      // Log contact activity
+      logContactActivity({
+        contactId: contact.id,
+        accountId,
+        activityType: "message_received",
+        description: `Inbound SMS from ${From}`,
+        metadata: JSON.stringify({ messageId: id, channel: "sms", direction: "inbound", preview: Body.substring(0, 150) }),
+      });
+
       // Return TwiML empty response (no auto-reply)
       res.type("text/xml").status(200).send("<Response></Response>");
     } catch (err: any) {
@@ -171,6 +181,15 @@ inboundMessageRouter.post(
       console.log(
         `[SendGrid Inbound] Created inbound email message id=${id} contact=${contact.id} account=${accountId}`
       );
+
+      // Log contact activity
+      logContactActivity({
+        contactId: contact.id,
+        accountId,
+        activityType: "message_received",
+        description: `Inbound email from ${senderEmail}${subject ? `: ${subject}` : ""}`,
+        metadata: JSON.stringify({ messageId: id, channel: "email", direction: "inbound", preview: messageBody.substring(0, 150) }),
+      });
 
       res.status(200).json({ received: true, matched: true, messageId: id });
     } catch (err: any) {

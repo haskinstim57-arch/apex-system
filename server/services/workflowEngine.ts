@@ -12,6 +12,7 @@ import {
   createAICall,
   updateContact,
   createTask,
+  logContactActivity,
 } from "../db";
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
@@ -95,6 +96,17 @@ export async function triggerWorkflow(
   console.log(
     `[WorkflowEngine] Triggered workflow ${workflow.id} for contact ${contactId}, execution ${executionId}`
   );
+
+  // Log activity for automated triggers (manual triggers are logged in the automations router)
+  if (triggeredBy !== "manual") {
+    logContactActivity({
+      contactId,
+      accountId,
+      activityType: "automation_triggered",
+      description: `Workflow "${workflow.name}" triggered by ${triggeredBy}`,
+      metadata: JSON.stringify({ workflowId: workflow.id, workflowName: workflow.name, triggerType: triggeredBy, executionId }),
+    });
+  }
 
   // Process the first step immediately (don't wait for polling)
   processExecution(executionId).catch((err) =>

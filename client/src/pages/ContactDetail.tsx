@@ -46,6 +46,14 @@ import {
   UserPlus,
   X,
   Briefcase,
+  Clock,
+  GitBranch,
+  Zap,
+  CheckCircle2,
+  XCircle,
+  PhoneCall,
+  ChevronDown,
+  History,
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -560,8 +568,8 @@ export default function ContactDetail({
             )}
           </div>
 
-          {/* Communication History */}
-          <CommunicationHistory contactId={id} accountId={accountId} />
+          {/* Activity Timeline */}
+          <ActivityTimeline contactId={id} accountId={accountId} />
         </div>
       </div>
 
@@ -826,27 +834,79 @@ const MSG_STATUS_COLORS: Record<string, string> = {
   bounced: "bg-orange-500/15 text-orange-400 border-orange-500/30",
 };
 
-function CommunicationHistory({
+// ─── Activity Timeline ───
+
+const ACTIVITY_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
+  contact_created: { icon: UserPlus, color: "text-emerald-400", bg: "bg-emerald-500/15" },
+  tag_added: { icon: Tag, color: "text-blue-400", bg: "bg-blue-500/15" },
+  tag_removed: { icon: Tag, color: "text-orange-400", bg: "bg-orange-500/15" },
+  pipeline_stage_changed: { icon: GitBranch, color: "text-purple-400", bg: "bg-purple-500/15" },
+  message_sent: { icon: ArrowUpRight, color: "text-blue-400", bg: "bg-blue-500/15" },
+  message_received: { icon: ArrowDownLeft, color: "text-emerald-400", bg: "bg-emerald-500/15" },
+  ai_call_made: { icon: PhoneCall, color: "text-amber-400", bg: "bg-amber-500/15" },
+  appointment_booked: { icon: Calendar, color: "text-cyan-400", bg: "bg-cyan-500/15" },
+  appointment_confirmed: { icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/15" },
+  appointment_cancelled: { icon: XCircle, color: "text-red-400", bg: "bg-red-500/15" },
+  automation_triggered: { icon: Zap, color: "text-yellow-400", bg: "bg-yellow-500/15" },
+  note_added: { icon: Pencil, color: "text-slate-400", bg: "bg-slate-500/15" },
+  task_created: { icon: CheckCircle2, color: "text-indigo-400", bg: "bg-indigo-500/15" },
+  task_completed: { icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/15" },
+};
+
+const DEFAULT_ICON = { icon: Clock, color: "text-muted-foreground", bg: "bg-muted" };
+
+function ActivityTimeline({
   contactId,
   accountId,
 }: {
   contactId: number;
   accountId: number;
 }) {
-  const { data: messages, isLoading } = trpc.messages.byContact.useQuery(
-    { contactId, accountId },
+  const [limit] = useState(25);
+  const [offset, setOffset] = useState(0);
+
+  const { data, isLoading } = trpc.contacts.getActivity.useQuery(
+    { contactId, accountId, limit, offset },
     { enabled: !!accountId && !!contactId }
   );
+
+  const activities = data?.items || [];
+  const hasMore = data?.hasMore || false;
+
+  function formatTimeAgo(dateStr: string | Date) {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "Just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 7) return `${diffDay}d ago`;
+    return d.toLocaleDateString();
+  }
+
+  function getMetadata(activity: any) {
+    if (!activity.metadata) return null;
+    try {
+      return typeof activity.metadata === "string"
+        ? JSON.parse(activity.metadata)
+        : activity.metadata;
+    } catch {
+      return null;
+    }
+  }
 
   return (
     <Card className="border-border/50 bg-card">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <MessageSquare className="h-3.5 w-3.5" />
-          Communication History
-          {messages && messages.length > 0 && (
+          <History className="h-3.5 w-3.5" />
+          Activity Timeline
+          {activities.length > 0 && (
             <Badge variant="secondary" className="text-[10px] ml-1">
-              {messages.length}
+              {activities.length}{hasMore ? "+" : ""}
             </Badge>
           )}
         </CardTitle>
@@ -856,73 +916,139 @@ function CommunicationHistory({
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : !messages || messages.length === 0 ? (
+        ) : activities.length === 0 ? (
           <div className="text-center py-6">
-            <Send className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
+            <History className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
-              No messages yet. Send an email or SMS from the Messages page.
+              No activity recorded yet.
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
-            {messages.map((msg: any) => (
-              <div
-                key={msg.id}
-                className="flex items-start gap-3 p-3 rounded-lg border border-border/30 bg-muted/20 hover:bg-muted/30 transition-colors"
-              >
-                <div className="shrink-0 mt-0.5">
-                  {msg.direction === "outbound" ? (
-                    <div className="p-1.5 rounded-md bg-blue-500/10">
-                      <ArrowUpRight className="h-3.5 w-3.5 text-blue-400" />
-                    </div>
-                  ) : (
-                    <div className="p-1.5 rounded-md bg-emerald-500/10">
-                      <ArrowDownLeft className="h-3.5 w-3.5 text-emerald-400" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge
-                      variant="outline"
-                      className={`text-[9px] ${
-                        msg.type === "email"
-                          ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                          : "bg-purple-500/10 text-purple-400 border-purple-500/30"
-                      }`}
+          <div className="relative">
+            {/* Vertical line */}
+            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border/50" />
+
+            <div className="space-y-0">
+              {activities.map((activity: any, idx: number) => {
+                const config = ACTIVITY_ICONS[activity.activityType] || DEFAULT_ICON;
+                const IconComponent = config.icon;
+                const meta = getMetadata(activity);
+                const isLast = idx === activities.length - 1;
+
+                return (
+                  <div
+                    key={activity.id}
+                    className={`relative flex items-start gap-3 py-3 ${!isLast ? "" : ""}`}
+                  >
+                    {/* Icon */}
+                    <div
+                      className={`relative z-10 shrink-0 p-1.5 rounded-full ${config.bg} border border-border/30`}
                     >
-                      {msg.type === "email" ? (
-                        <Mail className="h-2.5 w-2.5 mr-0.5" />
-                      ) : (
-                        <Phone className="h-2.5 w-2.5 mr-0.5" />
+                      <IconComponent className={`h-3.5 w-3.5 ${config.color}`} />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 pt-0.5">
+                      <p className="text-xs leading-relaxed">
+                        {activity.description}
+                      </p>
+
+                      {/* Extra metadata badges */}
+                      {meta && (
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                          {meta.channel && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] ${
+                                meta.channel === "email"
+                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                                  : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                              }`}
+                            >
+                              {meta.channel === "email" ? (
+                                <Mail className="h-2.5 w-2.5 mr-0.5" />
+                              ) : (
+                                <Phone className="h-2.5 w-2.5 mr-0.5" />
+                              )}
+                              {meta.channel.toUpperCase()}
+                            </Badge>
+                          )}
+                          {meta.direction && (
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] ${
+                                meta.direction === "inbound"
+                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                                  : "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                              }`}
+                            >
+                              {meta.direction === "inbound" ? (
+                                <ArrowDownLeft className="h-2.5 w-2.5 mr-0.5" />
+                              ) : (
+                                <ArrowUpRight className="h-2.5 w-2.5 mr-0.5" />
+                              )}
+                              {meta.direction}
+                            </Badge>
+                          )}
+                          {meta.fromStage && meta.toStage && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] bg-purple-500/10 text-purple-400 border-purple-500/30"
+                            >
+                              {meta.fromStage} → {meta.toStage}
+                            </Badge>
+                          )}
+                          {meta.tag && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] bg-blue-500/10 text-blue-400 border-blue-500/30"
+                            >
+                              <Tag className="h-2.5 w-2.5 mr-0.5" />
+                              {meta.tag}
+                            </Badge>
+                          )}
+                          {meta.workflowName && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                            >
+                              <Zap className="h-2.5 w-2.5 mr-0.5" />
+                              {meta.workflowName}
+                            </Badge>
+                          )}
+                          {meta.preview && (
+                            <p className="text-[10px] text-muted-foreground line-clamp-1 w-full mt-0.5">
+                              "{meta.preview}"
+                            </p>
+                          )}
+                        </div>
                       )}
-                      {msg.type.toUpperCase()}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={`text-[9px] ${MSG_STATUS_COLORS[msg.status] || ""}`}
-                    >
-                      {msg.status}
-                    </Badge>
-                    <span className="text-[10px] text-muted-foreground ml-auto">
-                      {new Date(msg.createdAt).toLocaleString()}
-                    </span>
+
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {formatTimeAgo(activity.createdAt)}
+                        <span className="mx-1">&middot;</span>
+                        {new Date(activity.createdAt).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  {msg.subject && (
-                    <p className="text-xs font-medium mb-0.5">{msg.subject}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground line-clamp-2">
-                    {msg.body}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {msg.direction === "outbound" ? "To: " : "From: "}
-                    {msg.direction === "outbound"
-                      ? msg.toAddress
-                      : msg.fromAddress}
-                  </p>
-                </div>
+                );
+              })}
+            </div>
+
+            {/* Load More */}
+            {hasMore && (
+              <div className="flex justify-center pt-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setOffset((prev) => prev + limit)}
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                  Load more activity
+                </Button>
               </div>
-            ))}
+            )}
           </div>
         )}
       </CardContent>

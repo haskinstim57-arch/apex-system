@@ -16,6 +16,7 @@ import {
   updatePipelineStage,
   getContactById,
   getMember,
+  logContactActivity,
 } from "../db";
 
 // ─── Tenant guard ───
@@ -126,6 +127,7 @@ export const pipelineRouter = router({
         });
       }
 
+      const stageName = stage.name;
       const { id } = await createDeal({
         accountId: input.accountId,
         pipelineId: input.pipelineId,
@@ -133,6 +135,15 @@ export const pipelineRouter = router({
         contactId: input.contactId,
         title: input.title || `${contact.firstName} ${contact.lastName}`,
         value: input.value || 0,
+      });
+
+      // Log activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "pipeline_stage_changed",
+        description: `Deal added to pipeline "${pipeline.name}" at stage "${stageName}"`,
+        metadata: JSON.stringify({ dealId: id, pipelineName: pipeline.name, toStage: stageName }),
       });
 
       return { id };
@@ -175,6 +186,15 @@ export const pipelineRouter = router({
         const oldStage = await getPipelineStageById(oldStageId, input.accountId);
         const fromStageName = oldStage?.name || "unknown";
         const toStageName = newStage.name;
+
+        // Log activity
+        logContactActivity({
+          contactId: deal.contactId,
+          accountId: input.accountId,
+          activityType: "pipeline_stage_changed",
+          description: `Deal moved from "${fromStageName}" to "${toStageName}"`,
+          metadata: JSON.stringify({ dealId: input.dealId, fromStage: fromStageName, toStage: toStageName }),
+        });
 
         import("../services/workflowTriggers").then(({ onPipelineStageChanged }) => {
           onPipelineStageChanged(

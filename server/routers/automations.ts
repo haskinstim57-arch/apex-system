@@ -19,6 +19,7 @@ import {
   updateWorkflowExecution,
   getMember,
   createAuditLog,
+  logContactActivity,
 } from "../db";
 
 // ─── Tenant guard ───
@@ -467,6 +468,15 @@ export const automationsRouter = router({
         input.accountId,
         "manual"
       );
+
+      // Log activity
+      logContactActivity({
+        contactId: input.contactId,
+        accountId: input.accountId,
+        activityType: "automation_triggered",
+        description: `Workflow "${workflow.name}" triggered manually`,
+        metadata: JSON.stringify({ workflowId: workflow.id, workflowName: workflow.name, triggerType: "manual", executionId }),
+      });
 
       return { executionId };
     }),
