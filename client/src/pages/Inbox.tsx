@@ -214,7 +214,7 @@ export default function Inbox() {
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
                   activeFilter === tab.key
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted/30 text-muted-foreground hover:bg-muted/50"
+                    : "bg-muted/30 text-muted-foreground hover:bg-accent"
                 }`}
               >
                 {tab.icon}
@@ -266,7 +266,7 @@ export default function Inbox() {
                   setIsMobileThreadOpen(false);
                   setSelectedContactId(null);
                 }}
-                className="md:hidden p-1 rounded-md hover:bg-muted/50"
+                className="md:hidden p-1 rounded-md hover:bg-accent"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -427,7 +427,7 @@ function ConversationRow({
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-4 py-3 border-b border-border/30 transition-colors hover:bg-muted/30 ${
+      className={`w-full text-left px-4 py-3 border-b border-border/30 transition-colors hover:bg-accent ${
         isSelected ? "bg-muted/40" : ""
       } ${hasUnread ? "bg-primary/5" : ""}`}
     >

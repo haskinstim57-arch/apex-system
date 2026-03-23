@@ -60,32 +60,32 @@ const STATUS_CONFIG: Record<
 > = {
   queued: {
     label: "Queued",
-    color: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+    color: "bg-blue-50 text-blue-600 border-blue-200",
     icon: Clock,
   },
   calling: {
     label: "Calling",
-    color: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    color: "bg-amber-50 text-amber-600 border-amber-200",
     icon: PhoneCall,
   },
   completed: {
     label: "Completed",
-    color: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+    color: "bg-emerald-50 text-emerald-600 border-emerald-200",
     icon: CheckCircle2,
   },
   failed: {
     label: "Failed",
-    color: "bg-red-500/15 text-red-400 border-red-500/30",
+    color: "bg-red-50 text-red-500 border-red-200",
     icon: XCircle,
   },
   no_answer: {
     label: "No Answer",
-    color: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+    color: "bg-orange-50 text-orange-600 border-orange-200",
     icon: PhoneMissed,
   },
   busy: {
     label: "Busy",
-    color: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+    color: "bg-purple-50 text-purple-600 border-purple-200",
     icon: PhoneOff,
   },
   cancelled: {
@@ -309,7 +309,7 @@ export default function AICalls() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-emerald-500/10">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.completed}</p>
@@ -322,7 +322,7 @@ export default function AICalls() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-amber-500/10">
-                  <PhoneCall className="h-4 w-4 text-amber-400" />
+                  <PhoneCall className="h-4 w-4 text-amber-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{stats.calling + stats.queued}</p>
@@ -335,7 +335,7 @@ export default function AICalls() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-red-500/10">
-                  <XCircle className="h-4 w-4 text-red-400" />
+                  <XCircle className="h-4 w-4 text-red-500" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">{(stats.failed ?? 0) + (stats.noAnswer ?? 0) + (stats.busy ?? 0)}</p>
@@ -348,7 +348,7 @@ export default function AICalls() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-blue-500/10">
-                  <Clock className="h-4 w-4 text-blue-400" />
+                  <Clock className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
@@ -441,7 +441,7 @@ export default function AICalls() {
                 return (
                   <TableRow
                     key={call.id}
-                    className="border-border/50 cursor-pointer hover:bg-muted/30"
+                    className="border-border/50 cursor-pointer hover:bg-accent"
                     onClick={() => setCallDetailOpen(call)}
                   >
                     <TableCell className="font-medium">{contactName}</TableCell>
@@ -467,7 +467,7 @@ export default function AICalls() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-red-400"
+                        className="h-8 w-8 text-muted-foreground hover:text-red-500"
                         onClick={(e) => {
                           e.stopPropagation();
                           setDeleteConfirm(call);
@@ -545,7 +545,7 @@ export default function AICalls() {
                     className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors ${
                       selectedContact === contact.id
                         ? "bg-primary/10 border border-primary/30"
-                        : "hover:bg-muted/30"
+                        : "hover:bg-accent"
                     }`}
                     onClick={() => setSelectedContact(contact.id)}
                   >
@@ -658,7 +658,7 @@ export default function AICalls() {
                 filteredBulkContacts.map((contact: any) => (
                   <label
                     key={contact.id}
-                    className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-muted/30 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-accent transition-colors"
                   >
                     <Checkbox
                       checked={selectedContactIds.includes(contact.id)}
@@ -795,9 +795,9 @@ export default function AICalls() {
                       variant="outline"
                       className={
                         callDetailOpen.sentiment === "positive"
-                          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                          ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                           : callDetailOpen.sentiment === "negative"
-                          ? "bg-red-500/15 text-red-400 border-red-500/30"
+                          ? "bg-red-50 text-red-500 border-red-200"
                           : "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"
                       }
                     >
@@ -862,7 +862,7 @@ export default function AICalls() {
               {callDetailOpen.errorMessage && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">Error</p>
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-sm text-red-400">
+                  <div className="bg-red-500/10 border border-red-200 rounded-lg p-3 text-sm text-red-500">
                     {callDetailOpen.errorMessage}
                   </div>
                 </div>

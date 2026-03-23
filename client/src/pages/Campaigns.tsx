@@ -69,11 +69,11 @@ import { NoAccountSelected } from "@/components/NoAccountSelected";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
-  scheduled: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  sending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  sent: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  paused: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  cancelled: "bg-red-500/15 text-red-400 border-red-500/30",
+  scheduled: "bg-blue-50 text-blue-600 border-blue-200",
+  sending: "bg-amber-50 text-amber-600 border-amber-200",
+  sent: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  paused: "bg-orange-50 text-orange-600 border-orange-200",
+  cancelled: "bg-red-50 text-red-500 border-red-200",
 };
 
 const MERGE_TAGS = [
@@ -204,7 +204,7 @@ export default function Campaigns() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Total
@@ -212,7 +212,7 @@ export default function Campaigns() {
               <p className="text-xl font-semibold mt-0.5">{stats.total}</p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Draft
@@ -220,42 +220,42 @@ export default function Campaigns() {
               <p className="text-xl font-semibold mt-0.5">{stats.draft}</p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Scheduled
               </p>
-              <p className="text-xl font-semibold mt-0.5 text-blue-400">
+              <p className="text-xl font-semibold mt-0.5 text-blue-600">
                 {stats.scheduled}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Sent
               </p>
-              <p className="text-xl font-semibold mt-0.5 text-emerald-400">
+              <p className="text-xl font-semibold mt-0.5 text-emerald-600">
                 {stats.sent}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Paused
               </p>
-              <p className="text-xl font-semibold mt-0.5 text-orange-400">
+              <p className="text-xl font-semibold mt-0.5 text-orange-600">
                 {stats.paused}
               </p>
             </CardContent>
           </Card>
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Cancelled
               </p>
-              <p className="text-xl font-semibold mt-0.5 text-red-400">
+              <p className="text-xl font-semibold mt-0.5 text-red-500">
                 {stats.cancelled}
               </p>
             </CardContent>
@@ -355,7 +355,7 @@ export default function Campaigns() {
           </div>
 
           {/* Campaigns Table */}
-          <Card className="border-border/50 bg-card overflow-x-auto">
+          <Card className="bg-white border-0 card-shadow overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">
@@ -402,8 +402,8 @@ export default function Campaigns() {
                           variant="outline"
                           className={`text-[10px] ${
                             c.type === "email"
-                              ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                              : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                              ? "bg-blue-500/10 text-blue-600 border-blue-200"
+                              : "bg-purple-500/10 text-purple-600 border-purple-200"
                           }`}
                         >
                           {c.type === "email" ? (
@@ -555,7 +555,7 @@ export default function Campaigns() {
 
         {/* Templates Tab */}
         <TabsContent value="templates" className="mt-4 space-y-4">
-          <Card className="border-border/50 bg-card overflow-x-auto">
+          <Card className="bg-white border-0 card-shadow overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">
@@ -592,8 +592,8 @@ export default function Campaigns() {
                           variant="outline"
                           className={`text-[10px] ${
                             t.type === "email"
-                              ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                              : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                              ? "bg-blue-500/10 text-blue-600 border-blue-200"
+                              : "bg-purple-500/10 text-purple-600 border-purple-200"
                           }`}
                         >
                           {t.type.toUpperCase()}

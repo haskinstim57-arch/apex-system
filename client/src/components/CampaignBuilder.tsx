@@ -386,7 +386,7 @@ export default function CampaignBuilder({
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : isComplete
-                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-200"
                         : "bg-muted/30 text-muted-foreground border border-border/30"
                   }`}
                 >
@@ -571,7 +571,7 @@ export default function CampaignBuilder({
                           )}
                         </div>
                         {t.accountId === 0 && (
-                          <Badge variant="outline" className="text-[9px] mt-2 bg-amber-500/10 text-amber-400 border-amber-500/30">
+                          <Badge variant="outline" className="text-[9px] mt-2 bg-amber-500/10 text-amber-600 border-amber-200">
                             Prebuilt
                           </Badge>
                         )}
@@ -610,7 +610,7 @@ export default function CampaignBuilder({
                       <Palette className="h-4 w-4 text-primary" />
                       <span className="text-sm font-medium">Rich HTML Template Selected</span>
                     </div>
-                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-200">
                       Template will render with contact data
                     </Badge>
                   </div>
@@ -894,8 +894,8 @@ export default function CampaignBuilder({
                         variant="outline"
                         className={`mt-1 text-[10px] ${
                           campaignType === "email"
-                            ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                            : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                            ? "bg-blue-500/10 text-blue-600 border-blue-200"
+                            : "bg-purple-500/10 text-purple-600 border-purple-200"
                         }`}
                       >
                         {campaignType === "email" ? (
@@ -1093,9 +1093,9 @@ export default function CampaignBuilder({
               <Card className="border-amber-500/20 bg-amber-500/5">
                 <CardContent className="pt-3 pb-3">
                   <div className="flex items-start gap-2">
-                    <Send className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                    <Send className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                     <div className="text-xs">
-                      <p className="font-medium text-amber-400">Ready to launch</p>
+                      <p className="font-medium text-amber-600">Ready to launch</p>
                       <p className="text-muted-foreground mt-0.5">
                         {campaignType === "email" ? "Email" : "SMS"} campaign "{campaignName}" will be{" "}
                         {sendOption === "now" ? "sent immediately" : "scheduled"} to{" "}

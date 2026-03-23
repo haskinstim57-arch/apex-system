@@ -47,7 +47,11 @@ function Router() {
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/book/:slug">
-        {(params) => <BookingPage slug={params.slug} />}
+        {(params) => (
+          <div className="dark">
+            <BookingPage slug={params.slug} />
+          </div>
+        )}
       </Route>
 
       {/* Onboarding wizard (full-screen, no sidebar) */}
@@ -181,7 +185,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster
             position="top-right"

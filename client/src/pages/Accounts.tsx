@@ -273,22 +273,22 @@ export default function Accounts() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Total Accounts</p>
             <p className="text-xl font-semibold">{accounts?.length ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Active</p>
-            <p className="text-xl font-semibold text-green-400">{activeCount}</p>
+            <p className="text-xl font-semibold text-green-600">{activeCount}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Suspended</p>
-            <p className="text-xl font-semibold text-orange-400">{suspendedCount}</p>
+            <p className="text-xl font-semibold text-orange-600">{suspendedCount}</p>
           </CardContent>
         </Card>
       </div>
@@ -374,7 +374,7 @@ export default function Accounts() {
                     <div className="flex items-center gap-2">
                       <Badge
                         variant="secondary"
-                        className="text-[10px] h-5 bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                        className="text-[10px] h-5 bg-yellow-500/10 text-yellow-600 border-yellow-200"
                       >
                         Pending
                       </Badge>
@@ -405,9 +405,9 @@ export default function Accounts() {
                   variant={account.status === "active" ? "default" : "secondary"}
                   className={`text-[10px] h-5 cursor-pointer ${
                     account.status === "active"
-                      ? "bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20"
+                      ? "bg-green-500/10 text-green-600 border-green-200 hover:bg-green-500/20"
                       : account.status === "suspended"
-                        ? "bg-orange-500/10 text-orange-400 border-orange-500/30 hover:bg-orange-500/20"
+                        ? "bg-orange-500/10 text-orange-600 border-orange-200 hover:bg-orange-500/20"
                         : ""
                   }`}
                   onClick={() => {

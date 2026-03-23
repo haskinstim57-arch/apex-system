@@ -9,7 +9,7 @@ import { useLocation } from "wouter";
 
 const roleColors: Record<string, string> = {
   owner: "border-primary/30 text-primary bg-primary/10",
-  manager: "border-blue-500/30 text-blue-400 bg-blue-500/10",
+  manager: "border-blue-200 text-blue-600 bg-blue-500/10",
   employee: "border-muted-foreground/30 text-muted-foreground bg-muted",
 };
 
@@ -88,7 +88,7 @@ function AccountTeamSection({
       {members && members.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {members.map((member) => (
-            <Card key={member.memberId} className="border-border/50 bg-card">
+            <Card key={member.memberId} className="bg-white border-0 card-shadow">
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-8 w-8 border border-border/50">

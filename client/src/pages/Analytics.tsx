@@ -104,7 +104,7 @@ function KpiCard({
 }) {
   if (loading) {
     return (
-      <Card className="border-border/50 bg-card">
+      <Card className="bg-white border-0 card-shadow">
         <CardContent className="pt-5 pb-4 px-5">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
@@ -123,7 +123,7 @@ function KpiCard({
   const isNeutral = change === 0 || change === undefined;
 
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardContent className="pt-5 pb-4 px-5">
         <div className="flex items-start justify-between">
           <div className="space-y-1.5">
@@ -139,17 +139,17 @@ function KpiCard({
                 {isNeutral ? (
                   <Minus className="h-3 w-3 text-muted-foreground" />
                 ) : isPositive ? (
-                  <TrendingUp className="h-3 w-3 text-green-400" />
+                  <TrendingUp className="h-3 w-3 text-emerald-600" />
                 ) : (
-                  <TrendingDown className="h-3 w-3 text-red-400" />
+                  <TrendingDown className="h-3 w-3 text-red-500" />
                 )}
                 <span
                   className={`text-xs font-medium ${
                     isNeutral
                       ? "text-muted-foreground"
                       : isPositive
-                        ? "text-green-400"
-                        : "text-red-400"
+                        ? "text-emerald-600"
+                        : "text-red-500"
                   }`}
                 >
                   {isNeutral ? "No change" : `${isPositive ? "+" : ""}${change}% vs prev period`}
@@ -157,8 +157,8 @@ function KpiCard({
               </div>
             )}
           </div>
-          <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-muted">
-            <Icon className="h-4 w-4 text-muted-foreground" />
+          <div className="h-9 w-9 rounded-lg flex items-center justify-center bg-primary/10">
+            <Icon className="h-4 w-4 text-primary" />
           </div>
         </div>
       </CardContent>
@@ -183,7 +183,7 @@ function ChartCard({
   className?: string;
 }) {
   return (
-    <Card className={`border-border/50 bg-card ${className ?? ""}`}>
+    <Card className={`bg-white border-0 card-shadow ${className ?? ""}`}>
       <CardHeader className="pb-2 pt-4 px-5">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
       </CardHeader>
@@ -318,7 +318,7 @@ export default function Analytics() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+          <h1 className="text-[28px] font-bold tracking-tight text-foreground">Analytics</h1>
           <p className="text-sm text-muted-foreground">
             Performance overview for the selected period
           </p>
@@ -576,7 +576,7 @@ export default function Analytics() {
               </thead>
               <tbody>
                 {(campaignPerformance ?? []).slice(0, 8).map((c) => (
-                  <tr key={c.id} className="border-b border-border/50 hover:bg-muted/30">
+                  <tr key={c.id} className="border-b border-border/50 hover:bg-accent">
                     <td className="py-2 px-2 font-medium truncate max-w-[140px]">{c.name}</td>
                     <td className="py-2 px-2">
                       <Badge variant="outline" className="text-[10px] uppercase">
@@ -585,7 +585,7 @@ export default function Analytics() {
                     </td>
                     <td className="py-2 px-2 text-right">{c.sentCount}</td>
                     <td className="py-2 px-2 text-right">
-                      <span className={c.deliveryRate >= 80 ? "text-green-400" : c.deliveryRate >= 50 ? "text-yellow-400" : "text-red-400"}>
+                      <span className={c.deliveryRate >= 80 ? "text-emerald-600" : c.deliveryRate >= 50 ? "text-yellow-600" : "text-red-500"}>
                         {c.deliveryRate}%
                       </span>
                     </td>
@@ -600,7 +600,7 @@ export default function Analytics() {
 
       {/* Call Completion Rate Card */}
       {kpis && (
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-5 pb-4 px-5">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex-1">
@@ -614,7 +614,7 @@ export default function Analytics() {
                   </span>
                 </div>
               </div>
-              <div className="w-full sm:w-64 h-3 bg-muted rounded-full overflow-hidden">
+              <div className="w-full sm:w-64 h-3 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{

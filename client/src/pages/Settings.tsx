@@ -147,7 +147,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Profile Section */}
-      <Card className="border-border/50 bg-card">
+      <Card className="bg-white border-0 card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -192,7 +192,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Security Section */}
-      <Card className="border-border/50 bg-card">
+      <Card className="bg-white border-0 card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Shield className="h-4 w-4 text-muted-foreground" />
@@ -225,7 +225,7 @@ export default function SettingsPage() {
             <Badge
               variant={isAdmin ? "default" : isAccountOwner ? "default" : "secondary"}
               className={`text-xs capitalize ${
-                isAccountOwner && !isAdmin ? "bg-amber-500/20 text-amber-400 border-amber-500/30" : ""
+                isAccountOwner && !isAdmin ? "bg-amber-500/20 text-amber-600 border-amber-200" : ""
               }`}
             >
               {displayRole}
@@ -255,7 +255,7 @@ export default function SettingsPage() {
 
       {/* Messaging Settings — visible to anyone with an account selected */}
       {showMessagingSettings && (
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -294,7 +294,7 @@ export default function SettingsPage() {
 
       {/* Admin Integrations */}
       {isAdmin && (
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Palette className="h-4 w-4 text-muted-foreground" />
@@ -318,7 +318,7 @@ export default function SettingsPage() {
 
       {/* Placeholder sections for future modules */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="border-border/50 bg-card opacity-60">
+        <Card className="bg-white border-0 card-shadow opacity-60">
           <CardContent className="pt-5 pb-4 px-5">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
@@ -331,7 +331,7 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card opacity-60">
+        <Card className="bg-white border-0 card-shadow opacity-60">
           <CardContent className="pt-5 pb-4 px-5">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
@@ -401,7 +401,7 @@ function ChangePasswordCard() {
   };
 
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Lock className="h-4 w-4 text-muted-foreground" />
@@ -422,9 +422,9 @@ function ChangePasswordCard() {
           )}
 
           {success && (
-            <Alert className="py-2 border-green-500/30 bg-green-500/10">
+            <Alert className="py-2 border-green-200 bg-green-500/10">
               <CheckCircle2 className="h-4 w-4 text-green-500" />
-              <AlertDescription className="text-sm text-green-400">
+              <AlertDescription className="text-sm text-green-600">
                 Password changed successfully!
               </AlertDescription>
             </Alert>
@@ -606,7 +606,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
   };
 
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Link2 className="h-4 w-4 text-muted-foreground" />
@@ -629,7 +629,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
             ) : fbStatus?.connected ? (
               <div className="mt-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30">
+                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-200">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Connected
                   </Badge>
@@ -665,7 +665,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                  className="text-xs border-blue-200 text-blue-600 hover:bg-blue-500/10"
                   onClick={handleConnect}
                   disabled={isConnecting || callbackMutation.isPending}
                 >
@@ -803,7 +803,7 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
   };
 
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -826,7 +826,7 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
             ) : googleIntegration ? (
               <div className="mt-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30">
+                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-200">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Connected
                   </Badge>
@@ -860,7 +860,7 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                  className="text-xs border-blue-200 text-blue-600 hover:bg-blue-500/10"
                   onClick={handleConnectGoogle}
                 >
                   <ExternalLink className="h-3 w-3 mr-1" />
@@ -883,7 +883,7 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
             ) : outlookIntegration ? (
               <div className="mt-1 space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-500/30">
+                  <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-500 border-green-200">
                     <CheckCircle2 className="h-3 w-3 mr-1" />
                     Connected
                   </Badge>
@@ -991,7 +991,7 @@ function MissedCallTextBackCard({ accountId }: { accountId: number }) {
 
   if (isLoading) {
     return (
-      <Card className="border-border/50 bg-card">
+      <Card className="bg-white border-0 card-shadow">
         <CardContent className="py-8 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </CardContent>
@@ -1000,7 +1000,7 @@ function MissedCallTextBackCard({ accountId }: { accountId: number }) {
   }
 
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <PhoneMissed className="h-4 w-4 text-muted-foreground" />
@@ -1077,7 +1077,7 @@ function MissedCallTextBackCard({ accountId }: { accountId: number }) {
                 }}
                 className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors border ${
                   delayMinutes === option.value
-                    ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
+                    ? "bg-amber-500/20 border-amber-500/50 text-amber-600"
                     : "bg-muted/50 border-border text-muted-foreground hover:bg-muted"
                 }`}
               >
@@ -1090,13 +1090,13 @@ function MissedCallTextBackCard({ accountId }: { accountId: number }) {
         {/* Save Button */}
         <div className="flex items-center justify-between pt-2">
           {saveMutation.isSuccess && !hasChanges && (
-            <div className="flex items-center gap-1.5 text-xs text-emerald-400">
+            <div className="flex items-center gap-1.5 text-xs text-emerald-600">
               <CheckCircle2 className="h-3.5 w-3.5" />
               Settings saved
             </div>
           )}
           {saveMutation.isError && (
-            <div className="flex items-center gap-1.5 text-xs text-red-400">
+            <div className="flex items-center gap-1.5 text-xs text-red-500">
               <AlertCircle className="h-3.5 w-3.5" />
               Failed to save
             </div>
@@ -1366,7 +1366,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
 
   return (
     <>
-      <Card className="border-border/50 bg-card">
+      <Card className="bg-white border-0 card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Phone className="h-4 w-4 text-muted-foreground" />

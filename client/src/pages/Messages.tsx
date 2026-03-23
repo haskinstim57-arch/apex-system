@@ -61,11 +61,11 @@ import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  sent: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  delivered: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  failed: "bg-red-500/15 text-red-400 border-red-500/30",
-  bounced: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  pending: "bg-amber-50 text-amber-600 border-amber-200",
+  sent: "bg-blue-50 text-blue-600 border-blue-200",
+  delivered: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  failed: "bg-red-50 text-red-500 border-red-200",
+  bounced: "bg-orange-50 text-orange-600 border-orange-200",
 };
 
 export default function Messages() {
@@ -253,7 +253,7 @@ export default function Messages() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-blue-500/10">
-                  <Send className="h-4 w-4 text-blue-400" />
+                  <Send className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-semibold">{stats.total}</p>
@@ -266,7 +266,7 @@ export default function Messages() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-emerald-500/10">
-                  <Mail className="h-4 w-4 text-emerald-400" />
+                  <Mail className="h-4 w-4 text-emerald-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-semibold">{stats.emails}</p>
@@ -279,7 +279,7 @@ export default function Messages() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-purple-500/10">
-                  <Phone className="h-4 w-4 text-purple-400" />
+                  <Phone className="h-4 w-4 text-purple-600" />
                 </div>
                 <div>
                   <p className="text-2xl font-semibold">{stats.sms}</p>
@@ -292,7 +292,7 @@ export default function Messages() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-red-500/10">
-                  <MessageSquare className="h-4 w-4 text-red-400" />
+                  <MessageSquare className="h-4 w-4 text-red-500" />
                 </div>
                 <div>
                   <p className="text-2xl font-semibold">{stats.failed}</p>
@@ -432,14 +432,14 @@ export default function Messages() {
                   messagesList.map((msg: any) => (
                     <TableRow
                       key={msg.id}
-                      className="cursor-pointer hover:bg-muted/30 border-border/30"
+                      className="cursor-pointer hover:bg-accent border-border/30"
                       onClick={() => setViewMessage(msg)}
                     >
                       <TableCell>
                         {msg.direction === "outbound" ? (
-                          <ArrowUpRight className="h-4 w-4 text-blue-400" />
+                          <ArrowUpRight className="h-4 w-4 text-blue-600" />
                         ) : (
-                          <ArrowDownLeft className="h-4 w-4 text-emerald-400" />
+                          <ArrowDownLeft className="h-4 w-4 text-emerald-600" />
                         )}
                       </TableCell>
                       <TableCell>
@@ -447,8 +447,8 @@ export default function Messages() {
                           variant="outline"
                           className={
                             msg.type === "email"
-                              ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                              : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                              ? "bg-blue-500/10 text-blue-600 border-blue-200"
+                              : "bg-purple-500/10 text-purple-600 border-purple-200"
                           }
                         >
                           {msg.type === "email" ? (
@@ -516,7 +516,7 @@ export default function Messages() {
                               View
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              className="text-red-400"
+                              className="text-red-500"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (
@@ -726,9 +726,9 @@ export default function Messages() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   {viewMessage.type === "email" ? (
-                    <Mail className="h-5 w-5 text-blue-400" />
+                    <Mail className="h-5 w-5 text-blue-600" />
                   ) : (
-                    <Phone className="h-5 w-5 text-purple-400" />
+                    <Phone className="h-5 w-5 text-purple-600" />
                   )}
                   {viewMessage.subject || `${viewMessage.type.toUpperCase()} Message`}
                 </DialogTitle>
@@ -753,8 +753,8 @@ export default function Messages() {
                     variant="outline"
                     className={
                       viewMessage.direction === "outbound"
-                        ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                        : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                        ? "bg-blue-500/10 text-blue-600 border-blue-200"
+                        : "bg-emerald-500/10 text-emerald-600 border-emerald-200"
                     }
                   >
                     {viewMessage.direction === "outbound" ? (
@@ -778,8 +778,8 @@ export default function Messages() {
 
                 {/* Error message if failed */}
                 {viewMessage.errorMessage && (
-                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-                    <p className="text-sm text-red-400">
+                  <div className="rounded-lg border border-red-200 bg-red-500/10 p-3">
+                    <p className="text-sm text-red-500">
                       <strong>Error:</strong> {viewMessage.errorMessage}
                     </p>
                   </div>

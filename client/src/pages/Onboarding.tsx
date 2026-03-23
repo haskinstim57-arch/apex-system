@@ -270,7 +270,7 @@ export default function Onboarding() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Top bar */}
-      <div className="border-b border-border/50 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <div className="border-b bg-white/50 border-0 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
@@ -342,7 +342,7 @@ export default function Onboarding() {
               </p>
             </div>
 
-            <Card className="border-border/50 bg-card">
+            <Card className="bg-white border-0 card-shadow">
               <CardContent className="pt-6 space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="businessName" className="text-sm font-medium">
@@ -444,7 +444,7 @@ export default function Onboarding() {
             </div>
 
             {/* Twilio */}
-            <Card className="border-border/50 bg-card">
+            <Card className="bg-white border-0 card-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
@@ -504,7 +504,7 @@ export default function Onboarding() {
             </Card>
 
             {/* SendGrid */}
-            <Card className="border-border/50 bg-card">
+            <Card className="bg-white border-0 card-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-muted-foreground" />
@@ -610,7 +610,7 @@ export default function Onboarding() {
             </div>
 
             {/* Facebook Card */}
-            <Card className="border-border/50 bg-card">
+            <Card className="bg-white border-0 card-shadow">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
                   <div className="h-12 w-12 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0">
@@ -628,7 +628,7 @@ export default function Onboarding() {
             </Card>
 
             {/* Google Card (Placeholder) */}
-            <Card className="border-border/50 bg-card opacity-70">
+            <Card className="bg-white border-0 card-shadow opacity-70">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-4">
                   <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
@@ -682,7 +682,7 @@ export default function Onboarding() {
               </p>
             </div>
 
-            <Card className="border-border/50 bg-card">
+            <Card className="bg-white border-0 card-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -824,7 +824,7 @@ export default function Onboarding() {
               </p>
             </div>
 
-            <Card className="border-border/50 bg-card max-w-md mx-auto">
+            <Card className="bg-white border-0 card-shadow max-w-md mx-auto">
               <CardContent className="pt-6">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between text-sm">
@@ -1006,7 +1006,7 @@ function FacebookConnectButton({ accountId }: { accountId: number }) {
   if (isConnected) {
     return (
       <div className="mt-3 flex items-center gap-2">
-        <Badge className="bg-green-500/10 text-green-500 border-green-500/30 text-xs">
+        <Badge className="bg-green-500/10 text-green-500 border-green-200 text-xs">
           <CheckCircle2 className="h-3 w-3 mr-1" />
           Connected{connectedName ? ` as ${connectedName}` : ""}
         </Badge>
@@ -1018,7 +1018,7 @@ function FacebookConnectButton({ accountId }: { accountId: number }) {
     <Button
       variant="outline"
       size="sm"
-      className="mt-3 text-xs border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+      className="mt-3 text-xs border-blue-200 text-blue-600 hover:bg-blue-500/10"
       onClick={handleConnect}
       disabled={isConnecting || callbackMutation.isPending}
     >

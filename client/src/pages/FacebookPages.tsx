@@ -233,7 +233,7 @@ export default function FacebookPages() {
       </div>
 
       {/* Webhook endpoint info */}
-      <Card className="border-border/50 bg-card">
+      <Card className="bg-white border-0 card-shadow">
         <CardContent className="pt-4 pb-4 px-5">
           <div className="flex items-start gap-3">
             <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -268,7 +268,7 @@ export default function FacebookPages() {
       </Card>
 
       {/* Mappings table */}
-      <Card className="border-border/50 bg-card">
+      <Card className="bg-white border-0 card-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">
             Page Mappings

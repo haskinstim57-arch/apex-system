@@ -56,7 +56,7 @@ export default function InviteAccept() {
   if (error || !invitation) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="max-w-md w-full border-border/50 bg-card">
+        <Card className="max-w-md w-full bg-white border-0 card-shadow">
           <CardContent className="pt-8 pb-6 px-6 text-center">
             <XCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">Invalid Invitation</h2>
@@ -75,7 +75,7 @@ export default function InviteAccept() {
   if (accepted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <Card className="max-w-md w-full border-border/50 bg-card">
+        <Card className="max-w-md w-full bg-white border-0 card-shadow">
           <CardContent className="pt-8 pb-6 px-6 text-center">
             <CheckCircle2 className="h-12 w-12 text-success mx-auto mb-4" />
             <h2 className="text-lg font-semibold mb-2">Welcome Aboard!</h2>
@@ -100,7 +100,7 @@ export default function InviteAccept() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="max-w-md w-full border-border/50 bg-card">
+      <Card className="max-w-md w-full bg-white border-0 card-shadow">
         <CardHeader className="text-center pb-2">
           <div className="flex items-center justify-center gap-2 mb-4">
             <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">

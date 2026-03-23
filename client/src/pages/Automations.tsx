@@ -722,7 +722,7 @@ function StepCard({
       return {
         label: `Wait ${step.delayValue} ${step.delayType}`,
         icon: Clock,
-        color: "text-amber-400",
+        color: "text-amber-600",
         bg: "bg-amber-500/10",
       };
     }
@@ -730,7 +730,7 @@ function StepCard({
     return {
       label: action?.label ?? step.actionType,
       icon: action?.icon ?? Zap,
-      color: "text-blue-400",
+      color: "text-blue-600",
       bg: "bg-blue-500/10",
     };
   };
@@ -1422,10 +1422,10 @@ function ExecutionLogs({ accountId }: { accountId: number }) {
 
   const statusIcon = (status: string) => {
     switch (status) {
-      case "completed": return <CheckCircle2 className="h-4 w-4 text-green-400" />;
-      case "running": return <Loader2 className="h-4 w-4 text-blue-400 animate-spin" />;
-      case "failed": return <XCircle className="h-4 w-4 text-red-400" />;
-      case "paused": return <Pause className="h-4 w-4 text-amber-400" />;
+      case "completed": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case "running": return <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />;
+      case "failed": return <XCircle className="h-4 w-4 text-red-500" />;
+      case "paused": return <Pause className="h-4 w-4 text-amber-600" />;
       case "cancelled": return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
       default: return <Clock className="h-4 w-4 text-muted-foreground" />;
     }
@@ -1554,11 +1554,11 @@ function ExecutionDetail({
               {step.stepOrder}
             </span>
             {step.status === "completed" ? (
-              <CheckCircle2 className="h-3.5 w-3.5 text-green-400" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
             ) : step.status === "failed" ? (
-              <XCircle className="h-3.5 w-3.5 text-red-400" />
+              <XCircle className="h-3.5 w-3.5 text-red-500" />
             ) : step.status === "running" ? (
-              <Loader2 className="h-3.5 w-3.5 text-blue-400 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 text-blue-600 animate-spin" />
             ) : (
               <Clock className="h-3.5 w-3.5 text-muted-foreground" />
             )}

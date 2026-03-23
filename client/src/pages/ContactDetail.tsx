@@ -71,14 +71,14 @@ const STATUSES = [
 ] as const;
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  contacted: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  qualified: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  proposal: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  negotiation: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  won: "bg-green-500/15 text-green-300 border-green-500/30",
-  lost: "bg-red-500/15 text-red-400 border-red-500/30",
-  nurture: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+  new: "bg-blue-50 text-blue-600 border-blue-200",
+  contacted: "bg-amber-50 text-amber-600 border-amber-200",
+  qualified: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  proposal: "bg-purple-50 text-purple-600 border-purple-200",
+  negotiation: "bg-orange-50 text-orange-600 border-orange-200",
+  won: "bg-green-50 text-green-600 border-green-200",
+  lost: "bg-red-50 text-red-500 border-red-200",
+  nurture: "bg-cyan-50 text-cyan-600 border-cyan-200",
 };
 
 const LEAD_SOURCES = [
@@ -293,7 +293,7 @@ export default function ContactDetail({
         {/* Left Column — Contact Info */}
         <div className="lg:col-span-1 space-y-4">
           {/* Contact Details Card */}
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">
                 Contact Information
@@ -339,7 +339,7 @@ export default function ContactDetail({
           </Card>
 
           {/* Assignment Card */}
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">
                 Assigned To
@@ -377,7 +377,7 @@ export default function ContactDetail({
           </Card>
 
           {/* Tags Card */}
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Tag className="h-3.5 w-3.5" />
@@ -453,7 +453,7 @@ export default function ContactDetail({
         {/* Right Column — Notes + Activity */}
         <div className="lg:col-span-2 space-y-4">
           {/* Add Note */}
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <div className="space-y-2">
                 <Textarea
@@ -496,7 +496,7 @@ export default function ContactDetail({
               notes.map((note) => (
                 <Card
                   key={note.id}
-                  className={`border-border/50 bg-card ${note.isPinned ? "border-primary/30" : ""}`}
+                  className={`bg-white border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""}`}
                 >
                   <CardContent className="pt-3 pb-3">
                     <div className="flex items-start justify-between gap-3">
@@ -558,7 +558,7 @@ export default function ContactDetail({
                 </Card>
               ))
             ) : (
-              <Card className="border-border/50 bg-card">
+              <Card className="bg-white border-0 card-shadow">
                 <CardContent className="py-8 text-center">
                   <p className="text-sm text-muted-foreground">
                     No notes yet. Add a note above to get started.
@@ -827,30 +827,30 @@ function EditContactDialog({
 }
 
 const MSG_STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  sent: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  delivered: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  failed: "bg-red-500/15 text-red-400 border-red-500/30",
-  bounced: "bg-orange-500/15 text-orange-400 border-orange-500/30",
+  pending: "bg-amber-50 text-amber-600 border-amber-200",
+  sent: "bg-blue-50 text-blue-600 border-blue-200",
+  delivered: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  failed: "bg-red-50 text-red-500 border-red-200",
+  bounced: "bg-orange-50 text-orange-600 border-orange-200",
 };
 
 // ─── Activity Timeline ───
 
 const ACTIVITY_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
-  contact_created: { icon: UserPlus, color: "text-emerald-400", bg: "bg-emerald-500/15" },
-  tag_added: { icon: Tag, color: "text-blue-400", bg: "bg-blue-500/15" },
-  tag_removed: { icon: Tag, color: "text-orange-400", bg: "bg-orange-500/15" },
-  pipeline_stage_changed: { icon: GitBranch, color: "text-purple-400", bg: "bg-purple-500/15" },
-  message_sent: { icon: ArrowUpRight, color: "text-blue-400", bg: "bg-blue-500/15" },
-  message_received: { icon: ArrowDownLeft, color: "text-emerald-400", bg: "bg-emerald-500/15" },
-  ai_call_made: { icon: PhoneCall, color: "text-amber-400", bg: "bg-amber-500/15" },
-  appointment_booked: { icon: Calendar, color: "text-cyan-400", bg: "bg-cyan-500/15" },
-  appointment_confirmed: { icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/15" },
-  appointment_cancelled: { icon: XCircle, color: "text-red-400", bg: "bg-red-500/15" },
-  automation_triggered: { icon: Zap, color: "text-yellow-400", bg: "bg-yellow-500/15" },
+  contact_created: { icon: UserPlus, color: "text-emerald-600", bg: "bg-emerald-50" },
+  tag_added: { icon: Tag, color: "text-blue-600", bg: "bg-blue-50" },
+  tag_removed: { icon: Tag, color: "text-orange-600", bg: "bg-orange-50" },
+  pipeline_stage_changed: { icon: GitBranch, color: "text-purple-600", bg: "bg-purple-50" },
+  message_sent: { icon: ArrowUpRight, color: "text-blue-600", bg: "bg-blue-50" },
+  message_received: { icon: ArrowDownLeft, color: "text-emerald-600", bg: "bg-emerald-50" },
+  ai_call_made: { icon: PhoneCall, color: "text-amber-600", bg: "bg-amber-50" },
+  appointment_booked: { icon: Calendar, color: "text-cyan-600", bg: "bg-cyan-50" },
+  appointment_confirmed: { icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
+  appointment_cancelled: { icon: XCircle, color: "text-red-500", bg: "bg-red-50" },
+  automation_triggered: { icon: Zap, color: "text-yellow-600", bg: "bg-yellow-500/15" },
   note_added: { icon: Pencil, color: "text-slate-400", bg: "bg-slate-500/15" },
   task_created: { icon: CheckCircle2, color: "text-indigo-400", bg: "bg-indigo-500/15" },
-  task_completed: { icon: CheckCircle2, color: "text-emerald-400", bg: "bg-emerald-500/15" },
+  task_completed: { icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
 };
 
 const DEFAULT_ICON = { icon: Clock, color: "text-muted-foreground", bg: "bg-muted" };
@@ -899,7 +899,7 @@ function ActivityTimeline({
   }
 
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <History className="h-3.5 w-3.5" />
@@ -961,8 +961,8 @@ function ActivityTimeline({
                               variant="outline"
                               className={`text-[9px] ${
                                 meta.channel === "email"
-                                  ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                                  : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                                  ? "bg-blue-500/10 text-blue-600 border-blue-200"
+                                  : "bg-purple-500/10 text-purple-600 border-purple-200"
                               }`}
                             >
                               {meta.channel === "email" ? (
@@ -978,8 +978,8 @@ function ActivityTimeline({
                               variant="outline"
                               className={`text-[9px] ${
                                 meta.direction === "inbound"
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                                  : "bg-blue-500/10 text-blue-400 border-blue-500/30"
+                                  ? "bg-emerald-500/10 text-emerald-600 border-emerald-200"
+                                  : "bg-blue-500/10 text-blue-600 border-blue-200"
                               }`}
                             >
                               {meta.direction === "inbound" ? (
@@ -993,7 +993,7 @@ function ActivityTimeline({
                           {meta.fromStage && meta.toStage && (
                             <Badge
                               variant="outline"
-                              className="text-[9px] bg-purple-500/10 text-purple-400 border-purple-500/30"
+                              className="text-[9px] bg-purple-500/10 text-purple-600 border-purple-200"
                             >
                               {meta.fromStage} → {meta.toStage}
                             </Badge>
@@ -1001,7 +1001,7 @@ function ActivityTimeline({
                           {meta.tag && (
                             <Badge
                               variant="outline"
-                              className="text-[9px] bg-blue-500/10 text-blue-400 border-blue-500/30"
+                              className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-200"
                             >
                               <Tag className="h-2.5 w-2.5 mr-0.5" />
                               {meta.tag}
@@ -1010,7 +1010,7 @@ function ActivityTimeline({
                           {meta.workflowName && (
                             <Badge
                               variant="outline"
-                              className="text-[9px] bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                              className="text-[9px] bg-yellow-500/10 text-yellow-600 border-yellow-500/30"
                             >
                               <Zap className="h-2.5 w-2.5 mr-0.5" />
                               {meta.workflowName}

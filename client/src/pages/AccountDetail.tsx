@@ -58,7 +58,7 @@ import { toast } from "sonner";
 
 const roleColors: Record<string, string> = {
   owner: "border-primary/30 text-primary bg-primary/10",
-  manager: "border-blue-500/30 text-blue-400 bg-blue-500/10",
+  manager: "border-blue-200 text-blue-600 bg-blue-500/10",
   employee: "border-muted-foreground/30 text-muted-foreground bg-muted",
 };
 
@@ -197,13 +197,13 @@ export default function AccountDetail({ id }: { id: number }) {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Team Members</p>
             <p className="text-xl font-semibold">{account.members ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">
               Pending Invites
@@ -211,13 +211,13 @@ export default function AccountDetail({ id }: { id: number }) {
             <p className="text-xl font-semibold">{pendingCount}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Contacts</p>
             <p className="text-xl font-semibold text-muted-foreground">--</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Campaigns</p>
             <p className="text-xl font-semibold text-muted-foreground">--</p>
@@ -348,7 +348,7 @@ export default function AccountDetail({ id }: { id: number }) {
               {members.map((member) => (
                 <Card
                   key={member.memberId}
-                  className="border-border/50 bg-card"
+                  className="bg-white border-0 card-shadow"
                 >
                   <CardContent className="py-3 px-4">
                     <div className="flex items-center justify-between">
@@ -470,7 +470,7 @@ export default function AccountDetail({ id }: { id: number }) {
               {pendingInvites.map((invite) => (
                 <Card
                   key={invite.id}
-                  className="border-border/50 bg-card"
+                  className="bg-white border-0 card-shadow"
                 >
                   <CardContent className="py-3 px-4">
                     <div className="flex items-center justify-between">
@@ -540,7 +540,7 @@ export default function AccountDetail({ id }: { id: number }) {
 
         {/* Details Tab */}
         <TabsContent value="details" className="space-y-4">
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardHeader>
               <CardTitle className="text-sm font-medium">
                 Account Information

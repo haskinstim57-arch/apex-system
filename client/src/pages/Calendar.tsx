@@ -63,9 +63,9 @@ import { NoAccountSelected } from "@/components/NoAccountSelected";
 import { useIsMobile } from "@/hooks/useMobile";
 
 const STATUS_COLORS: Record<string, string> = {
-  pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  confirmed: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  cancelled: "bg-red-500/15 text-red-400 border-red-500/30",
+  pending: "bg-amber-50 text-amber-600 border-amber-200",
+  confirmed: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  cancelled: "bg-red-50 text-red-500 border-red-200",
 };
 
 const APPOINTMENT_BG: Record<string, string> = {
@@ -1122,7 +1122,7 @@ function CalendarsList({
                     variant="outline"
                     className={
                       cal.isActive
-                        ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+                        ? "bg-emerald-50 text-emerald-600 border-emerald-200"
                         : "bg-zinc-500/15 text-zinc-400 border-zinc-500/30"
                     }
                   >
@@ -1151,7 +1151,7 @@ function CalendarsList({
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
-                        className="text-red-400"
+                        className="text-red-500"
                         onClick={() => {
                           if (confirm("Delete this calendar? All appointments will also be removed.")) {
                             deleteMut.mutate({ id: cal.id, accountId });
@@ -1360,7 +1360,7 @@ function AppointmentsList({
                         )}
                         {appt.status !== "cancelled" && (
                           <DropdownMenuItem
-                            className="text-red-400"
+                            className="text-red-500"
                             onClick={() =>
                               cancelMut.mutate({ id: appt.id, accountId })
                             }

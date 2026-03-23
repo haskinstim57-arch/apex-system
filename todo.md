@@ -1254,3 +1254,32 @@
 ### Testing
 - [x] Fix analytics tests for DATE() SQL compatibility
 - [x] All 898 tests pass
+
+## UI Overhaul: Light Theme + Gold Accent Design System
+
+### Global Theme
+- [x] Update index.css: Replace dark theme CSS variables with light theme (off-white bg, white cards, gold accent)
+- [x] Typography: Inter font, 28px titles, 18px section headers, 14px body, 12px labels
+- [x] Cards: white bg, 12px radius, subtle shadow, no harsh borders
+- [x] Buttons: gold primary (#C9A84C), outline secondary, 8px radius
+- [x] Status badges: pill shape, green/amber/red/blue/purple
+- [x] Form inputs: light border, 8px radius, gold focus ring
+- [x] Keep dark theme for public booking page (/book/:slug)
+
+### DashboardLayout
+- [x] Sidebar: white bg, gold active state, section labels (CLIENT PORTAL / SETTINGS)
+- [x] Top bar: white bg, search bar, notification bell, user avatar + name + role
+- [x] Sidebar nav items: gray icons + dark text, gold active state with left border
+- [x] Logo: "A" icon (amber square) + "ApexSystem" wordmark
+
+### Page Components (styling only, no logic changes)
+- [x] Home.tsx: 4 KPI cards + performance chart + light theme
+- [x] Contacts.tsx: stat cards + filter tabs + rich table with light theme
+- [x] All other pages: apply card/table/button/badge styling updates
+- [x] Charts: gold primary line, light grid lines, white card backgrounds
+
+### Verification
+- [x] All pages render correctly with new theme
+- [x] Public booking page retains dark theme
+- [x] All tests still pass (898/898)
+- [ ] Checkpoint saved (pending)

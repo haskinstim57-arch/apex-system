@@ -68,14 +68,14 @@ const STATUSES = [
 ] as const;
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  contacted: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  qualified: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  proposal: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  negotiation: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  won: "bg-green-500/15 text-green-300 border-green-500/30",
-  lost: "bg-red-500/15 text-red-400 border-red-500/30",
-  nurture: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+  new: "bg-blue-50 text-blue-700 border-blue-200",
+  contacted: "bg-amber-50 text-amber-700 border-amber-200",
+  qualified: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  proposal: "bg-purple-50 text-purple-700 border-purple-200",
+  negotiation: "bg-orange-50 text-orange-700 border-orange-200",
+  won: "bg-green-50 text-green-700 border-green-200",
+  lost: "bg-red-50 text-red-700 border-red-200",
+  nurture: "bg-cyan-50 text-cyan-700 border-cyan-200",
 };
 
 const LEAD_SOURCES = [
@@ -201,8 +201,8 @@ export default function Contacts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Contacts</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <h1 className="text-[28px] font-bold tracking-tight text-foreground">Contacts</h1>
+          <p className="text-sm text-muted-foreground mt-1">
             {total} contact{total !== 1 ? "s" : ""} in this account
           </p>
         </div>
@@ -223,13 +223,13 @@ export default function Contacts() {
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <MiniStat label="Total" value={stats.total} />
-          <MiniStat label="New" value={stats.new} color="text-blue-400" />
+          <MiniStat label="New" value={stats.new} color="text-blue-600" />
           <MiniStat
             label="Qualified"
             value={stats.qualified}
-            color="text-emerald-400"
+            color="text-emerald-600"
           />
-          <MiniStat label="Won" value={stats.won} color="text-green-300" />
+          <MiniStat label="Won" value={stats.won} color="text-green-600" />
         </div>
       )}
 
@@ -333,30 +333,30 @@ export default function Contacts() {
       )}
 
       {/* Table */}
-      <Card className="border-border/50 bg-card overflow-hidden">
+      <Card className="bg-white border-0 card-shadow overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-border/50 hover:bg-transparent">
-                <TableHead className="text-xs font-medium text-muted-foreground">
+              <TableRow className="bg-secondary hover:bg-secondary border-b border-border">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Name
                 </TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Email
                 </TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Phone
                 </TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Status
                 </TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Source
                 </TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Assigned To
                 </TableHead>
-                <TableHead className="text-xs font-medium text-muted-foreground w-[50px]">
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[50px]">
                   Actions
                 </TableHead>
               </TableRow>
@@ -387,7 +387,7 @@ export default function Contacts() {
                   return (
                     <TableRow
                       key={contact.id}
-                      className="border-border/50 cursor-pointer hover:bg-muted/30"
+                      className="border-b border-border/50 cursor-pointer hover:bg-accent h-14"
                       onClick={() =>
                         navigate(
                           `/contacts/${contact.id}?account=${accountId}`
@@ -616,10 +616,10 @@ function MiniStat({
   color?: string;
 }) {
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardContent className="py-3 px-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={`text-lg font-semibold ${color || ""}`}>{value}</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
+        <p className={`text-lg font-bold ${color || "text-foreground"}`}>{value}</p>
       </CardContent>
     </Card>
   );

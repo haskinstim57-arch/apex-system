@@ -6,12 +6,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Building2,
   Users,
-  UserPlus,
   Activity,
   TrendingUp,
+  TrendingDown,
   Phone,
   MessageSquare,
   BarChart3,
+  ArrowUpRight,
 } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
 import { useMemo } from "react";
@@ -43,17 +44,19 @@ export default function Home() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {greeting()}, {user?.name?.split(" ")[0] || "there"}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {isAdmin && isAgencyScope
-            ? "Here\u2019s an overview of your platform."
-            : currentAccount
-              ? `Managing ${currentAccount.name}`
-              : "Here\u2019s what\u2019s happening with your accounts."}
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div>
+          <h1 className="text-[28px] font-bold tracking-tight text-foreground">
+            {greeting()}, {user?.name?.split(" ")[0] || "there"}
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {isAdmin && isAgencyScope
+              ? "Here\u2019s an overview of your platform."
+              : currentAccount
+                ? `Managing ${currentAccount.name}`
+                : "Here\u2019s what\u2019s happening with your accounts."}
+          </p>
+        </div>
       </div>
 
       {/* Admin Stats */}
@@ -63,26 +66,30 @@ export default function Home() {
             title="Total Accounts"
             value={adminStats.totalAccounts}
             icon={Building2}
+            iconColor="text-blue-600 bg-blue-50"
             description="Active sub-accounts"
             trend="+2 this month"
+            trendUp
           />
           <StatsCard
             title="Total Users"
             value={adminStats.totalUsers}
             icon={Users}
+            iconColor="text-purple-600 bg-purple-50"
             description="Across all accounts"
           />
           <StatsCard
             title="Active Accounts"
             value={adminStats.activeAccounts}
             icon={Activity}
+            iconColor="text-emerald-600 bg-emerald-50"
             description="Currently active"
-            highlight
           />
           <StatsCard
             title="Platform Health"
             value="99.9%"
             icon={TrendingUp}
+            iconColor="text-primary bg-primary/10"
             description="System uptime"
           />
         </div>
@@ -91,28 +98,32 @@ export default function Home() {
       {/* Agency scope: show accounts overview for admins */}
       {isAdmin && isAgencyScope && accounts && accounts.length > 0 && (
         <div>
-          <h2 className="text-lg font-medium tracking-tight mb-4">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-4">
             Sub-Accounts
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {accounts.slice(0, 12).map((account) => (
               <Card
                 key={account.id}
-                className="card-hover cursor-pointer border-border/50 bg-card"
+                className="card-hover cursor-pointer bg-white border-0 card-shadow"
                 onClick={() => {
                   window.location.href = `/contacts`;
                 }}
               >
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium">
+                    <CardTitle className="text-sm font-medium text-foreground">
                       {account.name}
                     </CardTitle>
                     <Badge
                       variant={
                         account.status === "active" ? "default" : "secondary"
                       }
-                      className="text-[10px] h-5"
+                      className={`text-[11px] h-5 rounded-full px-2.5 font-medium ${
+                        account.status === "active"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-gray-50 text-gray-600 border-gray-200"
+                      }`}
                     >
                       {account.status}
                     </Badge>
@@ -135,21 +146,25 @@ export default function Home() {
           {accounts.map((account) => (
             <Card
               key={account.id}
-              className="card-hover cursor-pointer border-border/50 bg-card"
+              className="card-hover cursor-pointer bg-white border-0 card-shadow"
               onClick={() => {
                 window.location.href = `/accounts/${account.id}`;
               }}
             >
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">
+                  <CardTitle className="text-sm font-medium text-foreground">
                     {account.name}
                   </CardTitle>
                   <Badge
                     variant={
                       account.status === "active" ? "default" : "secondary"
                     }
-                    className="text-[10px] h-5"
+                    className={`text-[11px] h-5 rounded-full px-2.5 font-medium ${
+                      account.status === "active"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-gray-50 text-gray-600 border-gray-200"
+                    }`}
                   >
                     {account.status}
                   </Badge>
@@ -168,7 +183,7 @@ export default function Home() {
       {/* Quick Overview — shows real stats when account is selected */}
       {currentAccountId && (
         <div>
-          <h2 className="text-lg font-medium tracking-tight mb-4">
+          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-4">
             Quick Overview
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -181,29 +196,33 @@ export default function Home() {
               </>
             ) : (
               <>
-                <QuickStatCard
+                <StatsCard
                   title="Contacts"
-                  value={accountStats?.totalContacts?.toLocaleString() ?? "0"}
+                  value={accountStats?.totalContacts ?? 0}
                   icon={Users}
-                  subtitle="Total contacts"
+                  iconColor="text-blue-600 bg-blue-50"
+                  description="Total contacts"
                 />
-                <QuickStatCard
+                <StatsCard
                   title="Messages"
-                  value={accountStats?.totalMessages?.toLocaleString() ?? "0"}
+                  value={accountStats?.totalMessages ?? 0}
                   icon={MessageSquare}
-                  subtitle="Total sent"
+                  iconColor="text-emerald-600 bg-emerald-50"
+                  description="Total sent"
                 />
-                <QuickStatCard
+                <StatsCard
                   title="AI Calls"
-                  value={accountStats?.totalCalls?.toLocaleString() ?? "0"}
+                  value={accountStats?.totalCalls ?? 0}
                   icon={Phone}
-                  subtitle="Calls made"
+                  iconColor="text-purple-600 bg-purple-50"
+                  description="Calls made"
                 />
-                <QuickStatCard
+                <StatsCard
                   title="Campaigns"
-                  value={accountStats?.activeCampaigns?.toLocaleString() ?? "0"}
+                  value={accountStats?.activeCampaigns ?? 0}
                   icon={BarChart3}
-                  subtitle="Active campaigns"
+                  iconColor="text-primary bg-primary/10"
+                  description="Active campaigns"
                 />
               </>
             )}
@@ -218,41 +237,52 @@ function StatsCard({
   title,
   value,
   icon: Icon,
+  iconColor,
   description,
   trend,
-  highlight,
+  trendUp,
 }: {
   title: string;
   value: number | string;
   icon: React.ComponentType<{ className?: string }>;
+  iconColor?: string;
   description: string;
   trend?: string;
-  highlight?: boolean;
+  trendUp?: boolean;
 }) {
   return (
-    <Card
-      className={`border-border/50 bg-card ${highlight ? "border-primary/20" : ""}`}
-    >
+    <Card className="bg-white border-0 card-shadow">
       <CardContent className="pt-5 pb-4 px-5">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               {title}
             </p>
-            <p className="text-2xl font-semibold tracking-tight">{value}</p>
+            <p className="text-[28px] font-bold tracking-tight text-foreground leading-none">
+              {typeof value === "number" ? value.toLocaleString() : value}
+            </p>
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
           <div
-            className={`h-9 w-9 rounded-lg flex items-center justify-center ${highlight ? "bg-primary/10" : "bg-muted"}`}
+            className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${iconColor || "bg-gray-50 text-gray-500"}`}
           >
-            <Icon
-              className={`h-4 w-4 ${highlight ? "text-primary" : "text-muted-foreground"}`}
-            />
+            <Icon className="h-5 w-5" />
           </div>
         </div>
         {trend && (
           <div className="mt-3 pt-3 border-t border-border/50">
-            <p className="text-xs text-primary font-medium">{trend}</p>
+            <div className="flex items-center gap-1">
+              {trendUp !== undefined && (
+                trendUp ? (
+                  <ArrowUpRight className="h-3.5 w-3.5 text-emerald-600" />
+                ) : (
+                  <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+                )
+              )}
+              <p className={`text-xs font-medium ${trendUp ? "text-emerald-600" : "text-red-500"}`}>
+                {trend}
+              </p>
+            </div>
           </div>
         )}
       </CardContent>
@@ -260,44 +290,17 @@ function StatsCard({
   );
 }
 
-function QuickStatCard({
-  title,
-  value,
-  icon: Icon,
-  subtitle,
-}: {
-  title: string;
-  value: string;
-  icon: React.ComponentType<{ className?: string }>;
-  subtitle: string;
-}) {
-  return (
-    <Card className="border-border/50 bg-card">
-      <CardContent className="pt-5 pb-4 px-5">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-            <Icon className="h-4.5 w-4.5 text-muted-foreground" />
-          </div>
-          <div>
-            <p className="text-lg font-semibold tracking-tight">{value}</p>
-            <p className="text-xs text-muted-foreground">{subtitle}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function StatsCardSkeleton() {
   return (
-    <Card className="border-border/50 bg-card">
+    <Card className="bg-white border-0 card-shadow">
       <CardContent className="pt-5 pb-4 px-5">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-lg" />
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-16" />
+        <div className="flex items-start justify-between">
+          <div className="space-y-3">
+            <Skeleton className="h-3 w-20" />
+            <Skeleton className="h-8 w-16" />
             <Skeleton className="h-3 w-24" />
           </div>
+          <Skeleton className="h-10 w-10 rounded-xl" />
         </div>
       </CardContent>
     </Card>

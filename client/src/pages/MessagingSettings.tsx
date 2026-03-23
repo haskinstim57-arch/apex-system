@@ -115,7 +115,7 @@ export default function MessagingSettings() {
             </h1>
           </div>
         </div>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
               Please select an account to configure messaging settings.
@@ -159,7 +159,7 @@ export default function MessagingSettings() {
       ) : (
         <>
           {/* Twilio SMS Settings */}
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -251,7 +251,7 @@ export default function MessagingSettings() {
           <Separator className="bg-border/30" />
 
           {/* SendGrid Email Settings */}
-          <Card className="border-border/50 bg-card">
+          <Card className="bg-white border-0 card-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">

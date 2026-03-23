@@ -109,7 +109,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
                   className={`w-full text-left text-xs px-2.5 py-2 rounded-md flex items-center gap-2 transition-colors ${
                     !currentAccountId
                       ? "bg-primary/10 text-primary"
-                      : "hover:bg-muted/50"
+                      : "hover:bg-accent"
                   }`}
                   onClick={() => {
                     clearAccount();
@@ -192,7 +192,7 @@ function AccountItem({
   return (
     <button
       className={`w-full text-left text-xs px-2.5 py-1.5 rounded-md flex items-center gap-2 transition-colors ${
-        isSelected ? "bg-primary/10 text-primary" : "hover:bg-muted/50"
+        isSelected ? "bg-primary/10 text-primary" : "hover:bg-accent"
       }`}
       onClick={onSelect}
     >

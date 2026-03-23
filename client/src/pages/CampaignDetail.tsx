@@ -33,21 +33,21 @@ import { toast } from "sonner";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
-  scheduled: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  sending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-  sent: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  paused: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  cancelled: "bg-red-500/15 text-red-400 border-red-500/30",
+  scheduled: "bg-blue-50 text-blue-600 border-blue-200",
+  sending: "bg-amber-50 text-amber-600 border-amber-200",
+  sent: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  paused: "bg-orange-50 text-orange-600 border-orange-200",
+  cancelled: "bg-red-50 text-red-500 border-red-200",
 };
 
 const RECIPIENT_STATUS_COLORS: Record<string, string> = {
   pending: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
-  sent: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-  delivered: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-  opened: "bg-purple-500/15 text-purple-400 border-purple-500/30",
-  clicked: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
-  bounced: "bg-orange-500/15 text-orange-400 border-orange-500/30",
-  failed: "bg-red-500/15 text-red-400 border-red-500/30",
+  sent: "bg-blue-50 text-blue-600 border-blue-200",
+  delivered: "bg-emerald-50 text-emerald-600 border-emerald-200",
+  opened: "bg-purple-50 text-purple-600 border-purple-200",
+  clicked: "bg-cyan-50 text-cyan-600 border-cyan-200",
+  bounced: "bg-orange-50 text-orange-600 border-orange-200",
+  failed: "bg-red-50 text-red-500 border-red-200",
   unsubscribed: "bg-zinc-500/15 text-zinc-400 border-zinc-500/30",
 };
 
@@ -192,8 +192,8 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
               variant="outline"
               className={`text-[10px] ${
                 campaign.type === "email"
-                  ? "bg-blue-500/10 text-blue-400 border-blue-500/30"
-                  : "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                  ? "bg-blue-500/10 text-blue-600 border-blue-200"
+                  : "bg-purple-500/10 text-purple-600 border-purple-200"
               }`}
             >
               {campaign.type === "email" ? (
@@ -271,7 +271,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
 
       {/* Performance Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -282,54 +282,54 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
             <p className="text-2xl font-semibold mt-1">{stats.total}</p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <Send className="h-4 w-4 text-blue-400" />
+              <Send className="h-4 w-4 text-blue-600" />
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Sent
               </p>
             </div>
-            <p className="text-2xl font-semibold mt-1 text-blue-400">
+            <p className="text-2xl font-semibold mt-1 text-blue-600">
               {stats.sent + stats.delivered + stats.opened + stats.clicked}
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Delivery Rate
               </p>
             </div>
-            <p className="text-2xl font-semibold mt-1 text-emerald-400">
+            <p className="text-2xl font-semibold mt-1 text-emerald-600">
               {deliveryRate}%
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <XCircle className="h-4 w-4 text-red-400" />
+              <XCircle className="h-4 w-4 text-red-500" />
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Failed
               </p>
             </div>
-            <p className="text-2xl font-semibold mt-1 text-red-400">
+            <p className="text-2xl font-semibold mt-1 text-red-500">
               {stats.failed + stats.bounced}
             </p>
           </CardContent>
         </Card>
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-amber-400" />
+              <Clock className="h-4 w-4 text-amber-600" />
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Pending
               </p>
             </div>
-            <p className="text-2xl font-semibold mt-1 text-amber-400">
+            <p className="text-2xl font-semibold mt-1 text-amber-600">
               {stats.pending}
             </p>
           </CardContent>
@@ -339,7 +339,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
       {/* Campaign Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Message Content */}
-        <Card className="border-border/50 bg-card lg:col-span-2">
+        <Card className="bg-white border-0 card-shadow lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Message Content</CardTitle>
           </CardHeader>
@@ -364,7 +364,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
         </Card>
 
         {/* Campaign Details */}
-        <Card className="border-border/50 bg-card">
+        <Card className="bg-white border-0 card-shadow">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Details</CardTitle>
           </CardHeader>
@@ -415,20 +415,20 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Sent Count
               </p>
-              <p className="text-sm text-emerald-400">{campaign.sentCount}</p>
+              <p className="text-sm text-emerald-600">{campaign.sentCount}</p>
             </div>
             <div>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Failed Count
               </p>
-              <p className="text-sm text-red-400">{campaign.failedCount}</p>
+              <p className="text-sm text-red-500">{campaign.failedCount}</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Recipients Table */}
-      <Card className="border-border/50 bg-card overflow-x-auto">
+      <Card className="bg-white border-0 card-shadow overflow-x-auto">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">
@@ -489,7 +489,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
                       ? new Date(r.deliveredAt).toLocaleString()
                       : "—"}
                   </TableCell>
-                  <TableCell className="text-xs text-red-400 max-w-[150px] truncate">
+                  <TableCell className="text-xs text-red-500 max-w-[150px] truncate">
                     {r.errorMessage || "—"}
                   </TableCell>
                   {campaign.status === "draft" && (

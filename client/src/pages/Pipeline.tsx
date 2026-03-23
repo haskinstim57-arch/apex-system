@@ -597,7 +597,7 @@ function DealCard({
             )}
           </div>
           {(deal.value ?? 0) > 0 && (
-            <div className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+            <div className="flex items-center gap-1 text-xs font-medium text-emerald-600">
               <DollarSign className="h-3 w-3" />
               {(deal.value ?? 0).toLocaleString()}
             </div>
