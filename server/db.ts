@@ -77,6 +77,8 @@ import {
   type InsertDialerSession,
   dialerScripts,
   type InsertDialerScript,
+  leadRoutingRules,
+  type InsertLeadRoutingRule,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -3914,4 +3916,113 @@ export async function getDialerAnalytics(params: {
     perUser: Object.values(perUserStats),
     daily: Object.values(dailyStats).sort((a, b) => a.date.localeCompare(b.date)),
   };
+}
+
+
+// ─── Lead Routing Rules ───
+
+export async function createLeadRoutingRule(data: InsertLeadRoutingRule) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(leadRoutingRules).values(data).$returningId();
+  return { id: result.id };
+}
+
+export async function listLeadRoutingRules(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(leadRoutingRules)
+    .where(eq(leadRoutingRules.accountId, accountId))
+    .orderBy(leadRoutingRules.priority);
+}
+
+export async function getLeadRoutingRuleById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(leadRoutingRules)
+    .where(and(eq(leadRoutingRules.id, id), eq(leadRoutingRules.accountId, accountId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function updateLeadRoutingRule(
+  id: number,
+  accountId: number,
+  data: Partial<InsertLeadRoutingRule>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(leadRoutingRules)
+    .set(data)
+    .where(and(eq(leadRoutingRules.id, id), eq(leadRoutingRules.accountId, accountId)));
+  return { success: true };
+}
+
+export async function deleteLeadRoutingRule(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(leadRoutingRules)
+    .where(and(eq(leadRoutingRules.id, id), eq(leadRoutingRules.accountId, accountId)));
+  return { success: true };
+}
+
+export async function getActiveRoutingRules(
+  accountId: number,
+  source: "csv_import" | "facebook_lead" | "manual_create"
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const allRules = await db
+    .select()
+    .from(leadRoutingRules)
+    .where(
+      and(
+        eq(leadRoutingRules.accountId, accountId),
+        eq(leadRoutingRules.isActive, true)
+      )
+    )
+    .orderBy(leadRoutingRules.priority);
+
+  // Filter by source applicability
+  return allRules.filter((rule) => {
+    if (source === "csv_import") return rule.applyToCsvImport;
+    if (source === "facebook_lead") return rule.applyToFacebookLeads;
+    if (source === "manual_create") return rule.applyToManualCreate;
+    return false;
+  });
+}
+
+export async function incrementRoundRobinIndex(ruleId: number, newIndex: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(leadRoutingRules)
+    .set({ roundRobinIndex: newIndex })
+    .where(eq(leadRoutingRules.id, ruleId));
+}
+
+/**
+ * Count how many contacts are currently assigned to a user in an account.
+ * Used for capacity-based routing.
+ */
+export async function getAssignedContactCount(accountId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.accountId, accountId),
+        eq(contacts.assignedUserId, userId)
+      )
+    );
+  return rows[0]?.count || 0;
 }

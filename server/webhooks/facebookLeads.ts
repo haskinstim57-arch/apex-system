@@ -9,6 +9,7 @@ import {
   createNotification,
 } from "../db";
 import { ENV } from "../_core/env";
+import { routeLead } from "../services/leadRoutingEngine";
 
 const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 
@@ -407,12 +408,22 @@ async function processLead(
     // Don't fail the whole webhook — contact was already created
   }
 
-  // 3. Fire automation triggers (async, non-blocking)
+  // 3. Auto-route lead via routing rules (async, non-blocking)
+  routeLead({
+    contactId,
+    accountId: data.accountId,
+    leadSource: "facebook",
+    source: "facebook_lead",
+  }).catch((err: any) => {
+    console.error(`[FB Leads Webhook] Lead routing failed for contact ${contactId}:`, err);
+  });
+
+  // 4. Fire automation triggers (async, non-blocking)
   fireTriggers(data.accountId, contactId).catch((err) => {
     console.error(`[FB Leads Webhook] Error firing triggers for contact ${contactId}:`, err);
   });
 
-  // 4. Create in-app notification
+  // 5. Create in-app notification
   createNotification({
     accountId: data.accountId,
     userId: null,

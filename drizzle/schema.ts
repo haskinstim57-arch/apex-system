@@ -899,6 +899,7 @@ export const contactActivities = mysqlTable("contact_activities", {
     "note_added",
     "task_created",
     "task_completed",
+    "lead_routed",
   ]).notNull(),
   /** Human-readable description of the activity */
   description: text("description").notNull(),
@@ -1111,3 +1112,40 @@ export const dialerScripts = mysqlTable("dialer_scripts", {
 
 export type DialerScript = typeof dialerScripts.$inferSelect;
 export type InsertDialerScript = typeof dialerScripts.$inferInsert;
+
+
+// ─── Lead Routing Rules ───
+export const leadRoutingRules = mysqlTable("lead_routing_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this rule belongs to */
+  accountId: int("accountId").notNull(),
+  /** Human-readable rule name */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Routing strategy: round_robin, capacity_based, or specific_user */
+  strategy: mysqlEnum("strategy", ["round_robin", "capacity_based", "specific_user"]).notNull().default("round_robin"),
+  /** JSON array of user IDs to route leads to */
+  assigneeIds: text("assigneeIds").notNull(), // JSON: number[]
+  /** Whether this rule is active */
+  isActive: boolean("isActive").default(true).notNull(),
+  /** Priority order (lower = higher priority) */
+  priority: int("priority").notNull().default(0),
+  /** JSON conditions for when this rule applies (lead source, tags, etc.) */
+  conditions: text("conditions"), // JSON: { leadSource?: string[], tags?: string[], source?: string[] }
+  /** Current index for round-robin rotation */
+  roundRobinIndex: int("roundRobinIndex").notNull().default(0),
+  /** Max leads per user for capacity-based routing (0 = unlimited) */
+  maxLeadsPerUser: int("maxLeadsPerUser").notNull().default(0),
+  /** Apply to CSV imports */
+  applyToCsvImport: boolean("applyToCsvImport").default(true).notNull(),
+  /** Apply to Facebook lead capture */
+  applyToFacebookLeads: boolean("applyToFacebookLeads").default(true).notNull(),
+  /** Apply to manual contact creation */
+  applyToManualCreate: boolean("applyToManualCreate").default(false).notNull(),
+  /** User who created the rule */
+  createdById: int("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type LeadRoutingRule = typeof leadRoutingRules.$inferSelect;
+export type InsertLeadRoutingRule = typeof leadRoutingRules.$inferInsert;

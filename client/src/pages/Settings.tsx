@@ -73,6 +73,9 @@ import {
   XCircle,
   ArrowRightLeft,
   BarChart3,
+  Route,
+  Shuffle,
+  Users2,
   MessageSquareText,
   PhoneCall,
   PhoneIncoming,
@@ -299,6 +302,11 @@ export default function SettingsPage() {
       {/* Call Scripts — visible to account owners and admins with an account selected */}
       {currentAccountId && (
         <CallScriptsCard accountId={currentAccountId} />
+      )}
+
+      {/* Lead Routing Rules — visible to account owners and admins with an account selected */}
+      {currentAccountId && (
+        <LeadRoutingRulesCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}
@@ -2347,6 +2355,497 @@ function CallScriptsCard({ accountId }: { accountId: number }) {
             <AlertDialogTitle>Delete Call Script</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this script? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (deleteId) deleteMutation.mutate({ id: deleteId, accountId });
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
+  );
+}
+
+
+// ─── Lead Routing Rules Card ───
+function LeadRoutingRulesCard({ accountId }: { accountId: number }) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingRule, setEditingRule] = useState<any>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  // Form state
+  const [name, setName] = useState("");
+  const [strategy, setStrategy] = useState<"round_robin" | "capacity_based" | "specific_user">("round_robin");
+  const [selectedAssignees, setSelectedAssignees] = useState<number[]>([]);
+  const [priority, setPriority] = useState(0);
+  const [maxLeadsPerUser, setMaxLeadsPerUser] = useState(0);
+  const [applyToCsvImport, setApplyToCsvImport] = useState(true);
+  const [applyToFacebookLeads, setApplyToFacebookLeads] = useState(true);
+  const [applyToManualCreate, setApplyToManualCreate] = useState(false);
+  const [conditionLeadSources, setConditionLeadSources] = useState("");
+  const [conditionTags, setConditionTags] = useState("");
+
+  const rulesQuery = trpc.leadRouting.list.useQuery({ accountId });
+  const membersQuery = trpc.members.list.useQuery({ accountId });
+
+  const createMutation = trpc.leadRouting.create.useMutation({
+    onSuccess: () => {
+      rulesQuery.refetch();
+      resetForm();
+    },
+  });
+  const updateMutation = trpc.leadRouting.update.useMutation({
+    onSuccess: () => {
+      rulesQuery.refetch();
+      resetForm();
+    },
+  });
+  const deleteMutation = trpc.leadRouting.delete.useMutation({
+    onSuccess: () => {
+      rulesQuery.refetch();
+      setDeleteId(null);
+    },
+  });
+  const toggleMutation = trpc.leadRouting.toggleActive.useMutation({
+    onSuccess: () => rulesQuery.refetch(),
+  });
+
+  const resetForm = () => {
+    setShowCreate(false);
+    setEditingRule(null);
+    setName("");
+    setStrategy("round_robin");
+    setSelectedAssignees([]);
+    setPriority(0);
+    setMaxLeadsPerUser(0);
+    setApplyToCsvImport(true);
+    setApplyToFacebookLeads(true);
+    setApplyToManualCreate(false);
+    setConditionLeadSources("");
+    setConditionTags("");
+  };
+
+  const handleEdit = (rule: any) => {
+    setEditingRule(rule);
+    setName(rule.name);
+    setStrategy(rule.strategy);
+    const assigneeIds = typeof rule.assigneeIds === "string" ? JSON.parse(rule.assigneeIds) : rule.assigneeIds;
+    setSelectedAssignees(Array.isArray(assigneeIds) ? assigneeIds : []);
+    setPriority(rule.priority || 0);
+    setMaxLeadsPerUser(rule.maxLeadsPerUser || 0);
+    setApplyToCsvImport(rule.applyToCsvImport ?? true);
+    setApplyToFacebookLeads(rule.applyToFacebookLeads ?? true);
+    setApplyToManualCreate(rule.applyToManualCreate ?? false);
+    const conditions = typeof rule.conditions === "string" ? JSON.parse(rule.conditions) : rule.conditions;
+    setConditionLeadSources(conditions?.leadSource?.join(", ") || "");
+    setConditionTags(conditions?.tags?.join(", ") || "");
+    setShowCreate(true);
+  };
+
+  const handleSave = () => {
+    if (!name.trim() || selectedAssignees.length === 0) return;
+
+    const conditions: { leadSource?: string[]; tags?: string[] } = {};
+    if (conditionLeadSources.trim()) {
+      conditions.leadSource = conditionLeadSources.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+    if (conditionTags.trim()) {
+      conditions.tags = conditionTags.split(",").map((s) => s.trim()).filter(Boolean);
+    }
+
+    const payload = {
+      accountId,
+      name: name.trim(),
+      strategy,
+      assigneeIds: selectedAssignees,
+      priority,
+      maxLeadsPerUser,
+      applyToCsvImport,
+      applyToFacebookLeads,
+      applyToManualCreate,
+      conditions: Object.keys(conditions).length > 0 ? conditions : undefined,
+    };
+
+    if (editingRule) {
+      updateMutation.mutate({ id: editingRule.id, ...payload });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  const toggleAssignee = (userId: number) => {
+    setSelectedAssignees((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const members = membersQuery.data || [];
+  const rules = rulesQuery.data || [];
+
+  const strategyLabels: Record<string, string> = {
+    round_robin: "Round Robin",
+    capacity_based: "Capacity Based",
+    specific_user: "Specific User",
+  };
+
+  const strategyDescriptions: Record<string, string> = {
+    round_robin: "Distributes leads evenly across assignees in rotation",
+    capacity_based: "Assigns to the team member with the fewest leads (respects max cap)",
+    specific_user: "Always assigns to the first selected team member",
+  };
+
+  return (
+    <Card className="bg-white border-0 card-shadow">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Route className="h-4 w-4 text-muted-foreground" />
+              Lead Routing Rules
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Automatically assign new leads to team members based on rules.
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => {
+              resetForm();
+              setShowCreate(true);
+            }}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            New Rule
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {rulesQuery.isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : rules.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Shuffle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No routing rules yet</p>
+            <p className="text-xs mt-1">Create a rule to automatically assign new leads to team members.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {rules.map((rule: any) => {
+              const assigneeIds = typeof rule.assigneeIds === "string" ? JSON.parse(rule.assigneeIds) : rule.assigneeIds;
+              const conditions = typeof rule.conditions === "string" ? JSON.parse(rule.conditions) : rule.conditions;
+              const assigneeNames = (Array.isArray(assigneeIds) ? assigneeIds : [])
+                .map((id: number) => {
+                  const m = members.find((m: any) => m.userId === id);
+                  return m ? (m.userName || m.userEmail || `User ${id}`) : `User ${id}`;
+                })
+                .join(", ");
+
+              const triggers = [];
+              if (rule.applyToCsvImport) triggers.push("CSV Import");
+              if (rule.applyToFacebookLeads) triggers.push("Facebook Leads");
+              if (rule.applyToManualCreate) triggers.push("Manual Create");
+
+              return (
+                <div
+                  key={rule.id}
+                  className={`border rounded-lg p-4 transition-colors ${
+                    rule.isActive ? "border-border" : "border-border/50 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="text-sm font-medium truncate">{rule.name}</h4>
+                        <Badge variant={rule.isActive ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                          {rule.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                          {strategyLabels[rule.strategy] || rule.strategy}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-y-0.5">
+                        <p>
+                          <Users2 className="h-3 w-3 inline mr-1" />
+                          {assigneeNames || "No assignees"}
+                        </p>
+                        {triggers.length > 0 && (
+                          <p>Triggers: {triggers.join(", ")}</p>
+                        )}
+                        {conditions?.leadSource?.length > 0 && (
+                          <p>Lead sources: {conditions.leadSource.join(", ")}</p>
+                        )}
+                        {conditions?.tags?.length > 0 && (
+                          <p>Tags: {conditions.tags.join(", ")}</p>
+                        )}
+                        {rule.maxLeadsPerUser > 0 && (
+                          <p>Max per user: {rule.maxLeadsPerUser}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() =>
+                          toggleMutation.mutate({
+                            id: rule.id,
+                            accountId,
+                            isActive: !rule.isActive,
+                          })
+                        }
+                        disabled={toggleMutation.isPending}
+                      >
+                        {rule.isActive ? (
+                          <ToggleRight className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <ToggleLeft className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => handleEdit(rule)}
+                      >
+                        <Edit3 className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                        onClick={() => setDeleteId(rule.id)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+
+      {/* Create / Edit Dialog */}
+      <Dialog open={showCreate} onOpenChange={(open) => !open && resetForm()}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editingRule ? "Edit Routing Rule" : "Create Routing Rule"}</DialogTitle>
+            <DialogDescription>
+              {editingRule
+                ? "Update the lead routing rule settings."
+                : "Set up a rule to automatically assign new leads to team members."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2 max-h-[60vh] overflow-y-auto">
+            {/* Rule Name */}
+            <div className="space-y-2">
+              <Label>Rule Name</Label>
+              <Input
+                placeholder="e.g., Facebook Leads Round Robin"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+
+            {/* Strategy */}
+            <div className="space-y-2">
+              <Label>Distribution Strategy</Label>
+              <Select value={strategy} onValueChange={(v: any) => setStrategy(v)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="round_robin">Round Robin</SelectItem>
+                  <SelectItem value="capacity_based">Capacity Based</SelectItem>
+                  <SelectItem value="specific_user">Specific User</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{strategyDescriptions[strategy]}</p>
+            </div>
+
+            {/* Assignees */}
+            <div className="space-y-2">
+              <Label>Assign To</Label>
+              {membersQuery.isLoading ? (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Loading team members...
+                </div>
+              ) : members.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No team members found. Invite employees first.</p>
+              ) : (
+                <div className="border rounded-lg p-2 space-y-1 max-h-40 overflow-y-auto">
+                  {members.map((m: any) => (
+                    <button
+                      key={m.userId}
+                      type="button"
+                      onClick={() => toggleAssignee(m.userId)}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-left text-sm transition-colors ${
+                        selectedAssignees.includes(m.userId)
+                          ? "bg-primary/10 text-primary"
+                          : "hover:bg-accent"
+                      }`}
+                    >
+                      <div
+                        className={`h-4 w-4 rounded border flex items-center justify-center ${
+                          selectedAssignees.includes(m.userId)
+                            ? "bg-primary border-primary"
+                            : "border-muted-foreground/30"
+                        }`}
+                      >
+                        {selectedAssignees.includes(m.userId) && (
+                          <CheckCircle2 className="h-3 w-3 text-white" />
+                        )}
+                      </div>
+                      <span>{m.userName || m.userEmail || `User ${m.userId}`}</span>
+                      <Badge variant="outline" className="text-[10px] ml-auto">
+                        {m.role}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {selectedAssignees.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  {selectedAssignees.length} team member{selectedAssignees.length > 1 ? "s" : ""} selected
+                </p>
+              )}
+            </div>
+
+            {/* Capacity Limit */}
+            {strategy === "capacity_based" && (
+              <div className="space-y-2">
+                <Label>Max Leads Per User (0 = unlimited)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={maxLeadsPerUser}
+                  onChange={(e) => setMaxLeadsPerUser(parseInt(e.target.value) || 0)}
+                />
+              </div>
+            )}
+
+            {/* Priority */}
+            <div className="space-y-2">
+              <Label>Priority (higher = checked first)</Label>
+              <Input
+                type="number"
+                min={0}
+                value={priority}
+                onChange={(e) => setPriority(parseInt(e.target.value) || 0)}
+              />
+            </div>
+
+            <Separator />
+
+            {/* Trigger Sources */}
+            <div className="space-y-2">
+              <Label>Apply To</Label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyToCsvImport}
+                    onChange={(e) => setApplyToCsvImport(e.target.checked)}
+                    className="rounded border-muted-foreground/30"
+                  />
+                  CSV Imports
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyToFacebookLeads}
+                    onChange={(e) => setApplyToFacebookLeads(e.target.checked)}
+                    className="rounded border-muted-foreground/30"
+                  />
+                  Facebook Lead Ads
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={applyToManualCreate}
+                    onChange={(e) => setApplyToManualCreate(e.target.checked)}
+                    className="rounded border-muted-foreground/30"
+                  />
+                  Manual Contact Creation
+                </label>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Conditions (optional) */}
+            <div className="space-y-2">
+              <Label>Conditions (optional)</Label>
+              <p className="text-xs text-muted-foreground">
+                Only route leads matching these conditions. Leave blank to route all leads.
+              </p>
+              <div className="space-y-2">
+                <div>
+                  <Label className="text-xs">Lead Sources (comma-separated)</Label>
+                  <Input
+                    placeholder="e.g., facebook, csv_import, referral"
+                    value={conditionLeadSources}
+                    onChange={(e) => setConditionLeadSources(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Tags (comma-separated)</Label>
+                  <Input
+                    placeholder="e.g., hot lead, Broward County"
+                    value={conditionTags}
+                    onChange={(e) => setConditionTags(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={resetForm}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={
+                !name.trim() ||
+                selectedAssignees.length === 0 ||
+                createMutation.isPending ||
+                updateMutation.isPending
+              }
+            >
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
+              {editingRule ? "Update Rule" : "Create Rule"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Routing Rule</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this routing rule? New leads will no longer be automatically assigned by this rule.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

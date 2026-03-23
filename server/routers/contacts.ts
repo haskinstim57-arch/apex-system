@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
 import { isValidE164, normalizeToE164, E164_ERROR_MESSAGE } from "../../shared/phone";
+import { routeLeadsBatch } from "../services/leadRoutingEngine";
 import {
   createContact,
   getContactById,
@@ -32,7 +33,7 @@ import {
 
 // ─── Tenant guard: verify user is a member of the account ───
 // Platform admins (role='admin' on users table) bypass this check
-async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
+export async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
   // Platform admins can access any account
   if (userRole === "admin") {
     // Try to get membership; if they're a member return it, otherwise return a synthetic admin membership
@@ -633,6 +634,7 @@ export const contactsRouter = router({
       let skipped = 0;
       let failed = 0;
       const errorRows: Array<{ row: number; data: Record<string, string>; reason: string }> = [];
+      const importedContacts: Array<{ contactId: number; tags?: string[]; leadSource?: string }> = [];
 
       for (let i = 0; i < input.contacts.length; i++) {
         const row = input.contacts[i];
@@ -716,6 +718,10 @@ export const contactsRouter = router({
             description: `Contact ${firstName} ${lastName} imported via CSV`,
           });
 
+          // Collect for batch routing after import
+          const parsedTags = tagsStr ? tagsStr.split(",").map((t) => t.trim()).filter(Boolean) : [];
+          importedContacts.push({ contactId: id, tags: parsedTags, leadSource: "csv_import" });
+
           imported++;
         } catch (err) {
           failed++;
@@ -727,6 +733,20 @@ export const contactsRouter = router({
         }
       }
 
+      // Auto-route imported leads via routing rules
+      let routingResult = { totalRouted: 0, totalUnrouted: 0, routingDetails: [] as any[] };
+      if (importedContacts.length > 0) {
+        try {
+          routingResult = await routeLeadsBatch(
+            importedContacts,
+            input.accountId,
+            "csv_import"
+          );
+        } catch (err) {
+          console.error("[CSV Import] Lead routing failed (non-blocking):", err);
+        }
+      }
+
       // Audit log for the bulk import
       await createAuditLog({
         accountId: input.accountId,
@@ -734,10 +754,17 @@ export const contactsRouter = router({
         action: "contacts.bulk_import",
         resourceType: "contact",
         resourceId: 0,
-        metadata: JSON.stringify({ imported, skipped, failed }),
+        metadata: JSON.stringify({ imported, skipped, failed, routed: routingResult.totalRouted }),
       });
 
-      return { imported, skipped, failed, errorRows };
+      return {
+        imported,
+        skipped,
+        failed,
+        errorRows,
+        routed: routingResult.totalRouted,
+        unrouted: routingResult.totalUnrouted,
+      };
     }),
 
   // ─── Bulk assign contacts to a user ───

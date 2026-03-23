@@ -25,6 +25,7 @@ import { notificationsRouter } from "./routers/notifications";
 import { twilioPhoneNumberRouter } from "./routers/twilioPhoneNumber";
 import { analyticsRouter } from "./routers/analytics";
 import { powerDialerRouter } from "./routers/powerDialer";
+import { leadRoutingRouter } from "./routers/leadRouting";
 
 export const appRouter = router({
   system: systemRouter,
@@ -61,6 +62,7 @@ export const appRouter = router({
   twilioPhoneNumber: twilioPhoneNumberRouter,
   analytics: analyticsRouter,
   powerDialer: powerDialerRouter,
+  leadRouting: leadRoutingRouter,
 });
 
 export type AppRouter = typeof appRouter;

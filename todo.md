@@ -1454,4 +1454,17 @@
 ### All 3 Features: Tests & Delivery
 - [x] Write vitest tests for all 3 features (20/20 passing)
 - [x] Zero TypeScript errors
+- [x] Checkpoint saved (9fc1cdbf)
+
+### Feature: Automated Lead Routing Rules
+- [x] Schema: Add leadRoutingRules table (id, accountId, name, strategy, assigneeIds JSON, isActive, priority, conditions JSON, roundRobinIndex, createdAt, updatedAt)
+- [x] DB helpers: CRUD for leadRoutingRules + routing engine function
+- [x] tRPC procedures: create, list, get, update, delete, toggleActive routing rules
+- [x] Routing engine: round-robin, capacity-based, specific_user, condition-based (by tag, lead source)
+- [x] Integrate routing into CSV import flow (batch routing after all contacts created)
+- [x] Integrate routing into Facebook lead webhook (async, non-blocking)
+- [x] Frontend: Lead Routing Rules management UI in Settings (LeadRoutingRulesCard)
+- [x] Frontend: Rule builder with strategy selector, assignee picker, conditions, trigger sources
+- [x] Frontend: Toggle rules on/off, edit, delete, priority display
+- [x] Write vitest tests (28/28 passing)
 - [ ] Checkpoint saved
