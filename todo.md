@@ -899,3 +899,53 @@
 
 ### Final
 - [x] Checkpoint saved
+
+## Block-Based Email Template Builder
+
+### Schema
+- [x] Add emailTemplates table (id, accountId, name, subject, htmlContent, jsonBlocks JSON, createdAt, updatedAt)
+- [x] Run migration
+
+### Backend — DB Helpers
+- [x] createEmailTemplate, listEmailTemplates, getEmailTemplate, updateEmailTemplate, deleteEmailTemplate
+
+### Backend — tRPC Procedures
+- [x] listTemplates: list for an account ordered by updatedAt
+- [x] getTemplate: get single template by ID with access check
+- [x] createTemplate: create new template with name, subject, blocks JSON, rendered HTML
+- [x] updateTemplate: update existing template with access check
+- [x] deleteTemplate: delete template with access check
+
+### Backend — Email Sending Integration
+- [x] Add shared renderEmailTemplate utility with both {{contact.field}} and {{field}} format support
+- [x] Update campaign scheduler to load template HTML when templateId is set
+- [x] Update workflow engine send_email step to support config.templateId
+- [x] Backward compatible — falls back to plain body text when no template
+
+### Frontend — Email Templates List Page
+- [x] New /email-templates route with list of templates
+- [x] Create, edit, delete template actions
+- [x] Add "Email Templates" to sidebar nav (Mail icon)
+
+### Frontend — Block-Based Template Editor
+- [x] Block types: Header, Text, Button, Image, Divider, Footer
+- [x] Stacked block system — add/remove/reorder blocks with up/down arrows
+- [x] Inline editing — click to expand, edit text, colors, alignment, font size
+- [x] Live preview panel showing rendered email HTML via iframe
+- [x] Merge tag insertion buttons ({{contact.firstName}}, etc.)
+- [x] Save template with name and subject, unsaved changes indicator
+- [x] Toggle between editor-only and editor+preview modes
+
+### Frontend — Campaign/Automation Integration
+- [x] Template selector dropdown when creating a campaign email (CampaignBuilder)
+- [x] Template selector in automation AddStepDialog and EditStepDialog for send_email
+- [x] Preview of selected template (shows template name, hides manual subject/body)
+
+### Tests
+- [x] Vitest tests for template CRUD procedures (10 tests: list, get, create, update, delete with auth)
+- [x] Vitest tests for renderEmailTemplate merge tag substitution (14 tests)
+- [x] Vitest tests for MERGE_TAGS constant (2 tests)
+- [x] All 816 tests pass across 39 test files
+
+### Final
+- [x] Checkpoint saved

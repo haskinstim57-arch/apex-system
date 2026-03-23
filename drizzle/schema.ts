@@ -907,3 +907,23 @@ export const contactActivities = mysqlTable("contact_activities", {
 
 export type ContactActivity = typeof contactActivities.$inferSelect;
 export type InsertContactActivity = typeof contactActivities.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// Email Templates
+// ─────────────────────────────────────────────
+export const emailTemplates = mysqlTable("email_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  subject: varchar("subject", { length: 500 }).notNull().default(""),
+  /** Pre-rendered HTML for sending / preview */
+  htmlContent: text("html_content"),
+  /** JSON block structure for re-editing in the builder */
+  jsonBlocks: text("json_blocks"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type EmailTemplate = typeof emailTemplates.$inferSelect;
+export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;

@@ -169,6 +169,13 @@
       "when": 1774218467821,
       "tag": "0023_groovy_betty_ross",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1774219910958,
+      "tag": "0024_young_edwin_jarvis",
+      "breakpoints": true
     }
   ]
 }

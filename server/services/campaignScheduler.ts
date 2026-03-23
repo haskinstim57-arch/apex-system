@@ -5,8 +5,10 @@ import {
   listCampaignRecipients,
   updateCampaignRecipientStatus,
   getCampaignRecipientStats,
+  getEmailTemplate,
 } from "../db";
 import { dispatchSMS, dispatchEmail } from "./messaging";
+import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
 
 // ─────────────────────────────────────────────
 // Campaign Scheduler Background Worker
@@ -123,13 +125,25 @@ async function sendCampaign(campaignId: number, accountId: number) {
   let sentCount = 0;
   let failedCount = 0;
 
+  // If campaign has a template, load it and use its HTML content
+  let templateHtml: string | null = null;
+  if (campaign.templateId) {
+    const template = await getEmailTemplate(campaign.templateId);
+    if (template?.htmlContent) {
+      templateHtml = template.htmlContent;
+    }
+  }
+
   for (const recipient of recipients) {
-    const mergedBody = mergeTemplateVars(campaign.body, {
+    const contactData = {
       firstName: recipient.contactFirstName || undefined,
       lastName: recipient.contactLastName || undefined,
       email: recipient.contactEmail || undefined,
       phone: recipient.contactPhone || undefined,
-    });
+    };
+    // Use template HTML if available, otherwise fall back to campaign body
+    const rawBody = templateHtml || campaign.body;
+    const mergedBody = renderEmailTemplate(rawBody, contactData);
 
     try {
       let result;

@@ -64,7 +64,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText } from "lucide-react";
+import { FileText, Palette } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── Constants ───
@@ -785,7 +785,7 @@ function formatConfig(actionType: string, config: Record<string, unknown>): stri
     case "send_sms":
       return `Message: "${(config.message as string)?.substring(0, 60) ?? ""}..."`;
     case "send_email":
-      return `Subject: "${config.subject ?? ""}"`;
+      return config.templateId ? `Using template #${config.templateId}` : `Subject: "${config.subject ?? ""}"`;
     case "add_tag":
     case "remove_tag":
       return `Tag: ${config.tag ?? ""}`;
@@ -825,6 +825,7 @@ function AddStepDialog({
   const [smsMessage, setSmsMessage] = useState("");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
+  const [addStepTemplateId, setAddStepTemplateId] = useState<number | null>(null);
   const [tagName, setTagName] = useState("");
   const [contactField, setContactField] = useState("status");
   const [contactFieldValue, setContactFieldValue] = useState("");
@@ -851,6 +852,7 @@ function AddStepDialog({
     setSmsMessage("");
     setEmailSubject("");
     setEmailBody("");
+    setAddStepTemplateId(null);
     setTagName("");
     setContactField("status");
     setContactFieldValue("");
@@ -866,7 +868,11 @@ function AddStepDialog({
       case "send_sms":
         return JSON.stringify({ message: smsMessage });
       case "send_email":
-        return JSON.stringify({ subject: emailSubject, body: emailBody });
+        return JSON.stringify({
+          subject: emailSubject,
+          body: emailBody,
+          ...(addStepTemplateId ? { templateId: addStepTemplateId } : {}),
+        });
       case "add_tag":
       case "remove_tag":
         return JSON.stringify({ tag: tagName });
@@ -951,23 +957,37 @@ function AddStepDialog({
 
               {actionType === "send_email" && (
                 <>
-                  <div>
-                    <Label>Subject</Label>
-                    <Input
-                      value={emailSubject}
-                      onChange={(e) => setEmailSubject(e.target.value)}
-                      placeholder="Follow-up: {{firstName}}"
-                    />
-                  </div>
-                  <div>
-                    <Label>Body</Label>
-                    <Textarea
-                      value={emailBody}
-                      onChange={(e) => setEmailBody(e.target.value)}
-                      placeholder="Hi {{firstName}},\n\nThank you for..."
-                      rows={4}
-                    />
-                  </div>
+                  <EmailTemplateSelector
+                    accountId={accountId}
+                    selectedId={addStepTemplateId}
+                    onSelect={(id) => setAddStepTemplateId(id)}
+                  />
+                  {!addStepTemplateId && (
+                    <>
+                      <div>
+                        <Label>Subject</Label>
+                        <Input
+                          value={emailSubject}
+                          onChange={(e) => setEmailSubject(e.target.value)}
+                          placeholder="Follow-up: {{firstName}}"
+                        />
+                      </div>
+                      <div>
+                        <Label>Body</Label>
+                        <Textarea
+                          value={emailBody}
+                          onChange={(e) => setEmailBody(e.target.value)}
+                          placeholder="Hi {{firstName}},\n\nThank you for..."
+                          rows={4}
+                        />
+                      </div>
+                    </>
+                  )}
+                  {addStepTemplateId && (
+                    <p className="text-xs text-muted-foreground">
+                      The selected email template will be used. Merge tags will be replaced with contact data.
+                    </p>
+                  )}
                 </>
               )}
 
@@ -1162,6 +1182,7 @@ function EditStepDialog({
   const [smsMessage, setSmsMessage] = useState(config.message ?? "");
   const [emailSubject, setEmailSubject] = useState(config.subject ?? "");
   const [emailBody, setEmailBody] = useState(config.body ?? "");
+  const [editStepTemplateId, setEditStepTemplateId] = useState<number | null>(config.templateId ?? null);
   const [tagName, setTagName] = useState(config.tag ?? "");
   const [contactField, setContactField] = useState(config.field ?? "status");
   const [contactFieldValue, setContactFieldValue] = useState(config.value ?? "");
@@ -1186,7 +1207,11 @@ function EditStepDialog({
       case "send_sms":
         return JSON.stringify({ message: smsMessage });
       case "send_email":
-        return JSON.stringify({ subject: emailSubject, body: emailBody });
+        return JSON.stringify({
+          subject: emailSubject,
+          body: emailBody,
+          ...(editStepTemplateId ? { templateId: editStepTemplateId } : {}),
+        });
       case "add_tag":
       case "remove_tag":
         return JSON.stringify({ tag: tagName });
@@ -1257,14 +1282,28 @@ function EditStepDialog({
               )}
               {step.actionType === "send_email" && (
                 <>
-                  <div>
-                    <Label>Subject</Label>
-                    <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
-                  </div>
-                  <div>
-                    <Label>Body</Label>
-                    <Textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={4} />
-                  </div>
+                  <EmailTemplateSelector
+                    accountId={accountId}
+                    selectedId={editStepTemplateId}
+                    onSelect={(id) => setEditStepTemplateId(id)}
+                  />
+                  {!editStepTemplateId && (
+                    <>
+                      <div>
+                        <Label>Subject</Label>
+                        <Input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} />
+                      </div>
+                      <div>
+                        <Label>Body</Label>
+                        <Textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={4} />
+                      </div>
+                    </>
+                  )}
+                  {editStepTemplateId && (
+                    <p className="text-xs text-muted-foreground">
+                      The selected email template will be used. Merge tags will be replaced with contact data.
+                    </p>
+                  )}
                 </>
               )}
               {(step.actionType === "add_tag" || step.actionType === "remove_tag") && (
@@ -1600,5 +1639,51 @@ function TemplatesDropdown({
         })}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+
+// ═══════════════════════════════════════════
+// EMAIL TEMPLATE SELECTOR (shared by Add/Edit step dialogs)
+// ═══════════════════════════════════════════
+function EmailTemplateSelector({
+  accountId,
+  selectedId,
+  onSelect,
+}: {
+  accountId: number;
+  selectedId: number | null;
+  onSelect: (id: number | null) => void;
+}) {
+  const { data: templates } = trpc.emailTemplates.list.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+
+  if (!templates || templates.length === 0) return null;
+
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2">
+        <Palette className="h-4 w-4" />
+        Use Email Template
+      </Label>
+      <Select
+        value={selectedId ? String(selectedId) : "none"}
+        onValueChange={(v) => onSelect(v === "none" ? null : Number(v))}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="No template (write custom)" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="none">No template (write custom)</SelectItem>
+          {templates.map((t) => (
+            <SelectItem key={t.id} value={String(t.id)}>
+              {t.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
   );
 }

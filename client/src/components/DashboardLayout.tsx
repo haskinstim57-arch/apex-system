@@ -39,6 +39,7 @@ import {
   Settings,
   Users,
   Zap,
+  Mail,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -55,6 +56,7 @@ const menuItems = [
   { icon: Inbox, label: "Inbox", path: "/inbox" },
   { icon: MessageSquare, label: "Messages", path: "/messages" },
   { icon: Send, label: "Campaigns", path: "/campaigns" },
+  { icon: Mail, label: "Email Templates", path: "/email-templates" },
   { icon: Phone, label: "AI Calls", path: "/ai-calls" },
   { icon: Globe, label: "Websites", path: "/websites", placeholder: true },
   { icon: BarChart3, label: "Analytics", path: "/analytics", placeholder: true },

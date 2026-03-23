@@ -29,6 +29,8 @@ import ResetPassword from "./pages/ResetPassword";
 import CalendarPage from "./pages/Calendar";
 import Inbox from "./pages/Inbox";
 import BookingPage from "./pages/BookingPage";
+import EmailTemplates from "./pages/EmailTemplates";
+import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -134,6 +136,18 @@ function Router() {
             </DashboardLayout>
           );
         }}
+      </Route>
+      <Route path="/email-templates">
+        <DashboardLayout>
+          <EmailTemplates />
+        </DashboardLayout>
+      </Route>
+      <Route path="/email-templates/:id">
+        {(params) => (
+          <DashboardLayout>
+            <EmailTemplateEditor id={parseInt(params.id)} />
+          </DashboardLayout>
+        )}
       </Route>
       <Route path="/settings">
         <DashboardLayout>

@@ -36,6 +36,7 @@ import {
   Send,
   Users,
   X,
+  Palette,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -111,10 +112,19 @@ export default function CampaignBuilder({
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
+  // ─── State for email template selection ───
+  const [useEmailTemplate, setUseEmailTemplate] = useState(false);
+  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<number | null>(null);
+
   // ─── Queries ───
   const { data: templates } = trpc.campaigns.templates.list.useQuery(
     { accountId, type: campaignType || undefined },
     { enabled: !!accountId && !!campaignType }
+  );
+
+  const { data: emailTemplates } = trpc.emailTemplates.list.useQuery(
+    { accountId },
+    { enabled: !!accountId && campaignType === "email" }
   );
 
   const { data: contactsData, isLoading: contactsLoading } = trpc.contacts.list.useQuery(
@@ -161,6 +171,8 @@ export default function CampaignBuilder({
     setBody("");
     setFromAddress("");
     setCustomMessage(false);
+    setUseEmailTemplate(false);
+    setSelectedEmailTemplateId(null);
     setSelectedContacts([]);
     setContactSearch("");
     setStatusFilter("");
@@ -171,17 +183,31 @@ export default function CampaignBuilder({
     setScheduledTime("");
   };
 
+  const handleEmailTemplateSelect = (et: any) => {
+    setSelectedEmailTemplateId(et.id);
+    setSelectedTemplateId(null);
+    setCustomMessage(false);
+    setUseEmailTemplate(true);
+    setCampaignName(campaignName || et.name);
+    setSubject(et.subject || "");
+    setBody(et.name); // placeholder body for validation
+  };
+
   const handleTemplateSelect = (template: any) => {
     setSelectedTemplateId(template.id);
     setCampaignName(template.name);
     setBody(template.body);
     if (template.subject) setSubject(template.subject);
     setCustomMessage(false);
+    setUseEmailTemplate(false);
+    setSelectedEmailTemplateId(null);
   };
 
   const handleCustomMessage = () => {
     setSelectedTemplateId(null);
     setCustomMessage(true);
+    setUseEmailTemplate(false);
+    setSelectedEmailTemplateId(null);
     setBody("");
     setSubject("");
   };
@@ -232,10 +258,10 @@ export default function CampaignBuilder({
         return !!campaignType;
       case 2:
         return (
-          (!!selectedTemplateId || customMessage) &&
+          (!!selectedTemplateId || customMessage || useEmailTemplate) &&
           !!campaignName.trim() &&
-          !!body.trim() &&
-          (campaignType === "sms" || !!subject.trim())
+          (useEmailTemplate || !!body.trim()) &&
+          (campaignType === "sms" || !!subject.trim() || useEmailTemplate)
         );
       case 3:
         return selectedContacts.length > 0;
@@ -263,7 +289,7 @@ export default function CampaignBuilder({
         subject: campaignType === "email" ? subject : undefined,
         body,
         fromAddress: fromAddress || undefined,
-        templateId: selectedTemplateId || undefined,
+        templateId: selectedEmailTemplateId || selectedTemplateId || undefined,
       });
 
       // 2. Add recipients
@@ -471,9 +497,51 @@ export default function CampaignBuilder({
                 />
               </div>
 
+              {/* Email Template Builder templates (for email campaigns) */}
+              {campaignType === "email" && emailTemplates && emailTemplates.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-xs">Use a Designed Email Template</Label>
+                  <div className="grid grid-cols-2 gap-3 max-h-[140px] overflow-y-auto pr-1">
+                    {emailTemplates.map((et: any) => (
+                      <Card
+                        key={`et-${et.id}`}
+                        className={`cursor-pointer transition-all hover:border-primary/50 ${
+                          selectedEmailTemplateId === et.id
+                            ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                            : "border-border/50"
+                        }`}
+                        onClick={() => handleEmailTemplateSelect(et)}
+                      >
+                        <CardContent className="pt-3 pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <Palette className="h-3.5 w-3.5 text-primary shrink-0" />
+                                <p className="text-sm font-medium truncate">{et.name}</p>
+                              </div>
+                              {et.subject && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5 truncate">
+                                  {et.subject}
+                                </p>
+                              )}
+                              <Badge variant="outline" className="text-[9px] mt-1.5 bg-primary/10 text-primary border-primary/30">
+                                Rich HTML Template
+                              </Badge>
+                            </div>
+                            {selectedEmailTemplateId === et.id && (
+                              <Check className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Template grid */}
               <div className="space-y-2">
-                <Label className="text-xs">Choose a Template</Label>
+                <Label className="text-xs">{campaignType === "email" && emailTemplates && emailTemplates.length > 0 ? "Or Choose a Quick Template" : "Choose a Template"}</Label>
                 <div className="grid grid-cols-2 gap-3 max-h-[200px] overflow-y-auto pr-1">
                   {filteredTemplates.map((t: any) => (
                     <Card
@@ -534,8 +602,46 @@ export default function CampaignBuilder({
                 </div>
               </div>
 
+              {/* Email template preview when selected */}
+              {useEmailTemplate && selectedEmailTemplateId && (
+                <div className="space-y-3 border-t border-border/20 pt-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Palette className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Rich HTML Template Selected</span>
+                    </div>
+                    <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                      Template will render with contact data
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Subject Line (optional override)</Label>
+                      <Input
+                        value={subject}
+                        onChange={(e) => setSubject(e.target.value)}
+                        placeholder="Leave empty to use template subject"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">From Address</Label>
+                      <Input
+                        value={fromAddress}
+                        onChange={(e) => setFromAddress(e.target.value)}
+                        placeholder="team@company.com"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    Merge tags like {"{{contact.firstName}}"} in the template will be replaced with each contact's data when sent.
+                  </p>
+                </div>
+              )}
+
               {/* Template preview / editor */}
-              {(selectedTemplateId || customMessage) && (
+              {(selectedTemplateId || customMessage) && !useEmailTemplate && (
                 <div className="space-y-3 border-t border-border/20 pt-3">
                   {campaignType === "email" && (
                     <div className="grid grid-cols-2 gap-3">

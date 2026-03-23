@@ -13,10 +13,12 @@ import {
   updateContact,
   createTask,
   logContactActivity,
+  getEmailTemplate,
 } from "../db";
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
 import { dispatchSMS, dispatchEmail } from "./messaging";
+import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
 
 // ─────────────────────────────────────────────
 // Workflow Execution Engine
@@ -286,8 +288,16 @@ async function executeAction(
 
     case "send_email": {
       if (!contact.email) throw new Error("Contact has no email address");
-      const emailSubject = interpolateTemplate(config.subject || "", contact);
-      const emailBody = interpolateTemplate(config.body || "", contact);
+      // Support template-based emails
+      let emailBodyRaw = config.body || "";
+      if (config.templateId) {
+        const template = await getEmailTemplate(config.templateId);
+        if (template?.htmlContent) {
+          emailBodyRaw = template.htmlContent;
+        }
+      }
+      const emailSubject = renderEmailTemplate(config.subject || "", contact);
+      const emailBody = renderEmailTemplate(emailBodyRaw, contact);
       const { id } = await createMessage({
         accountId,
         contactId,

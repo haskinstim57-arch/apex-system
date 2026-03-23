@@ -63,6 +63,8 @@ import {
   type InsertCalendarIntegration,
   contactActivities,
   type InsertContactActivity,
+  emailTemplates,
+  type InsertEmailTemplate,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -3144,4 +3146,55 @@ export function logContactActivity(data: InsertContactActivity) {
   createContactActivity(data).catch((err) =>
     console.error("[Activity] Failed to log activity:", err)
   );
+}
+
+
+// ─────────────────────────────────────────────
+// Email Templates
+// ─────────────────────────────────────────────
+
+export async function createEmailTemplate(data: InsertEmailTemplate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(emailTemplates).values(data);
+  return { id: (result as any).insertId as number };
+}
+
+export async function listEmailTemplates(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(emailTemplates)
+    .where(eq(emailTemplates.accountId, accountId))
+    .orderBy(desc(emailTemplates.updatedAt));
+}
+
+export async function getEmailTemplate(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(emailTemplates)
+    .where(eq(emailTemplates.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function updateEmailTemplate(
+  id: number,
+  data: Partial<Omit<InsertEmailTemplate, "id" | "accountId" | "createdAt">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(emailTemplates)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(emailTemplates.id, id));
+}
+
+export async function deleteEmailTemplate(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
 }
