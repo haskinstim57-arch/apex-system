@@ -35,6 +35,7 @@ import Analytics from "./pages/Analytics";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
+import { RequireAccount } from "./components/RequireAccount";
 
 function Router() {
   return (
@@ -57,12 +58,14 @@ function Router() {
       {/* Onboarding wizard (full-screen, no sidebar) */}
       <Route path="/onboarding" component={Onboarding} />
 
-      {/* Dashboard routes wrapped in layout */}
+      {/* Dashboard home — shows agency overview or sub-account overview depending on context */}
       <Route path="/">
         <DashboardLayout>
           <Home />
         </DashboardLayout>
       </Route>
+
+      {/* Agency-level routes — admin only */}
       <Route path="/accounts">
         <DashboardLayout>
           <AdminRoute>
@@ -81,54 +84,76 @@ function Router() {
       </Route>
       <Route path="/team">
         <DashboardLayout>
-          <TeamMembers />
+          <AdminRoute>
+            <TeamMembers />
+          </AdminRoute>
         </DashboardLayout>
       </Route>
+
+      {/* Sub-account-level routes — require an account to be selected */}
       <Route path="/contacts">
         <DashboardLayout>
-          <Contacts />
+          <RequireAccount>
+            <Contacts />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/messages">
         <DashboardLayout>
-          <Messages />
+          <RequireAccount>
+            <Messages />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/inbox">
         <DashboardLayout>
-          <Inbox />
+          <RequireAccount>
+            <Inbox />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/campaigns">
         <DashboardLayout>
-          <Campaigns />
+          <RequireAccount>
+            <Campaigns />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/campaigns/:id">
         {(params) => (
           <DashboardLayout>
-            <CampaignDetail params={params} />
+            <RequireAccount>
+              <CampaignDetail params={params} />
+            </RequireAccount>
           </DashboardLayout>
         )}
       </Route>
       <Route path="/ai-calls">
         <DashboardLayout>
-          <AICalls />
+          <RequireAccount>
+            <AICalls />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/automations">
         <DashboardLayout>
-          <Automations />
+          <RequireAccount>
+            <Automations />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/pipeline">
         <DashboardLayout>
-          <Pipeline />
+          <RequireAccount>
+            <Pipeline />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/calendar">
         <DashboardLayout>
-          <CalendarPage />
+          <RequireAccount>
+            <CalendarPage />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/contacts/:id">
@@ -137,28 +162,38 @@ function Router() {
           const accountId = parseInt(searchParams.get("account") || "0");
           return (
             <DashboardLayout>
-              <ContactDetail id={parseInt(params.id)} accountId={accountId} />
+              <RequireAccount>
+                <ContactDetail id={parseInt(params.id)} accountId={accountId} />
+              </RequireAccount>
             </DashboardLayout>
           );
         }}
       </Route>
       <Route path="/email-templates">
         <DashboardLayout>
-          <EmailTemplates />
+          <RequireAccount>
+            <EmailTemplates />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/email-templates/:id">
         {(params) => (
           <DashboardLayout>
-            <EmailTemplateEditor id={parseInt(params.id)} />
+            <RequireAccount>
+              <EmailTemplateEditor id={parseInt(params.id)} />
+            </RequireAccount>
           </DashboardLayout>
         )}
       </Route>
       <Route path="/analytics">
         <DashboardLayout>
-          <Analytics />
+          <RequireAccount>
+            <Analytics />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
+
+      {/* Settings — accessible to all authenticated users */}
       <Route path="/settings">
         <DashboardLayout>
           <SettingsPage />
@@ -166,7 +201,9 @@ function Router() {
       </Route>
       <Route path="/settings/messaging">
         <DashboardLayout>
-          <MessagingSettings />
+          <RequireAccount>
+            <MessagingSettings />
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/settings/facebook-pages">

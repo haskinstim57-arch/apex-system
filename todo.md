@@ -1282,4 +1282,23 @@
 - [x] All pages render correctly with new theme
 - [x] Public booking page retains dark theme
 - [x] All tests still pass (898/898)
-- [ ] Checkpoint saved (pending)
+- [x] Checkpoint saved (a3b49973)
+
+## Role-Based Access Control: Agency vs Sub-Account Users
+
+### AccountSwitcher
+- [x] Hide "Agency Overview" option from non-agency_admin users
+- [x] Sub-account users only see their own account(s)
+
+### Sidebar Navigation
+- [x] Hide "Sub-Accounts" nav item from non-agency_admin users
+- [x] When agency_admin is in Agency Overview mode (no sub-account selected), show agency-only nav (Sub-Accounts, Users, Billing, Settings)
+- [x] When a sub-account is selected, show sub-account pages (Contacts, Conversations, Campaigns, etc.)
+
+### Route Protection
+- [x] Redirect sub-account users from /agency, /accounts (sub-accounts) routes to their dashboard
+- [x] Protect all agency-level routes from non-agency_admin users
+
+### Verification
+- [x] All 924 tests pass
+- [ ] Checkpoint saved

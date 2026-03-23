@@ -123,16 +123,18 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   // Resolve the current account ID with priority:
   // 1. Impersonated account (admin impersonating)
   // 2. User-selected account (persisted in localStorage)
-  // 3. Auto-select first account (both admins and clients)
+  // 3. For CLIENTS: auto-select first account
+  // 4. For ADMINS: null (agency scope — must explicitly choose)
   const currentAccountId = useMemo(() => {
     if (impersonatedAccountId) return impersonatedAccountId;
     if (selectedAccountId && accounts.some((a) => a.id === selectedAccountId)) {
       return selectedAccountId;
     }
-    // Auto-select first account for all users (admins + clients)
-    if (accounts.length > 0) return accounts[0].id;
+    // Auto-select first account for non-admin users only
+    if (!isAdmin && accounts.length > 0) return accounts[0].id;
+    // Admins start in agency scope (no account selected)
     return null;
-  }, [impersonatedAccountId, selectedAccountId, accounts]);
+  }, [impersonatedAccountId, selectedAccountId, accounts, isAdmin]);
 
   const currentAccount = useMemo(() => {
     if (!currentAccountId) return null;
