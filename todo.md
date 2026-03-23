@@ -1301,4 +1301,13 @@
 
 ### Verification
 - [x] All 924 tests pass
+- [x] Checkpoint saved (704780b8)
+
+## Dashboard KPI Fix: Context-Aware Stats
+
+- [x] Home.tsx: Show sub-account KPIs (Total Contacts, Messages Sent, AI Calls, Appointments) when sub-account selected
+- [x] Home.tsx: Show agency KPIs (Total Accounts, Total Users, Active Accounts, Platform Health) only in Agency Overview
+- [x] Backend: Add appointments count to accountDashboardStats (contacts, messages, aiCalls, appointments scoped to accountId)
+- [x] Quick Overview section scoped to selected sub-account
+- [x] All 924 tests pass
 - [ ] Checkpoint saved

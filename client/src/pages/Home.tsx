@@ -11,8 +11,9 @@ import {
   TrendingDown,
   Phone,
   MessageSquare,
-  BarChart3,
+  CalendarCheck,
   ArrowUpRight,
+  Mail,
 } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
 import { useMemo } from "react";
@@ -21,12 +22,12 @@ export default function Home() {
   const { user } = useAuth();
   const { isAdmin, accounts, isAgencyScope, currentAccountId, currentAccount } = useAccount();
 
-  // Admin stats
-  const { data: adminStats } = trpc.accounts.adminStats.useQuery(undefined, {
-    enabled: isAdmin,
+  // Admin stats — only fetch when in agency scope
+  const { data: adminStats, isLoading: adminStatsLoading } = trpc.accounts.adminStats.useQuery(undefined, {
+    enabled: isAdmin && isAgencyScope,
   });
 
-  // Account-level stats (when an account is selected)
+  // Account-level stats — only fetch when a sub-account is selected
   const stableAccountId = useMemo(() => currentAccountId, [currentAccountId]);
   const { data: accountStats, isLoading: accountStatsLoading } =
     trpc.accounts.accountDashboardStats.useQuery(
@@ -59,43 +60,99 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Admin Stats */}
-      {isAdmin && adminStats && (
+      {/* ─── Agency Overview KPI Cards (only in agency scope) ─── */}
+      {isAdmin && isAgencyScope && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatsCard
-            title="Total Accounts"
-            value={adminStats.totalAccounts}
-            icon={Building2}
-            iconColor="text-blue-600 bg-blue-50"
-            description="Active sub-accounts"
-            trend="+2 this month"
-            trendUp
-          />
-          <StatsCard
-            title="Total Users"
-            value={adminStats.totalUsers}
-            icon={Users}
-            iconColor="text-purple-600 bg-purple-50"
-            description="Across all accounts"
-          />
-          <StatsCard
-            title="Active Accounts"
-            value={adminStats.activeAccounts}
-            icon={Activity}
-            iconColor="text-emerald-600 bg-emerald-50"
-            description="Currently active"
-          />
-          <StatsCard
-            title="Platform Health"
-            value="99.9%"
-            icon={TrendingUp}
-            iconColor="text-primary bg-primary/10"
-            description="System uptime"
-          />
+          {adminStatsLoading ? (
+            <>
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatsCard
+                title="Total Accounts"
+                value={adminStats?.totalAccounts ?? 0}
+                icon={Building2}
+                iconColor="text-blue-600 bg-blue-50"
+                description="Active sub-accounts"
+                trend="+2 this month"
+                trendUp
+              />
+              <StatsCard
+                title="Total Users"
+                value={adminStats?.totalUsers ?? 0}
+                icon={Users}
+                iconColor="text-purple-600 bg-purple-50"
+                description="Across all accounts"
+              />
+              <StatsCard
+                title="Active Accounts"
+                value={adminStats?.activeAccounts ?? 0}
+                icon={Activity}
+                iconColor="text-emerald-600 bg-emerald-50"
+                description="Currently active"
+              />
+              <StatsCard
+                title="Platform Health"
+                value="99.9%"
+                icon={TrendingUp}
+                iconColor="text-primary bg-primary/10"
+                description="System uptime"
+              />
+            </>
+          )}
         </div>
       )}
 
-      {/* Agency scope: show accounts overview for admins */}
+      {/* ─── Sub-Account KPI Cards (when account is selected) ─── */}
+      {currentAccountId && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {accountStatsLoading ? (
+            <>
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+              <StatsCardSkeleton />
+            </>
+          ) : (
+            <>
+              <StatsCard
+                title="Total Contacts"
+                value={accountStats?.totalContacts ?? 0}
+                icon={Users}
+                iconColor="text-blue-600 bg-blue-50"
+                description="Contacts in this account"
+              />
+              <StatsCard
+                title="Messages Sent"
+                value={accountStats?.totalMessages ?? 0}
+                icon={Mail}
+                iconColor="text-emerald-600 bg-emerald-50"
+                description="SMS + email combined"
+              />
+              <StatsCard
+                title="AI Calls Made"
+                value={accountStats?.totalCalls ?? 0}
+                icon={Phone}
+                iconColor="text-purple-600 bg-purple-50"
+                description="Calls made"
+              />
+              <StatsCard
+                title="Appointments Booked"
+                value={accountStats?.totalAppointments ?? 0}
+                icon={CalendarCheck}
+                iconColor="text-primary bg-primary/10"
+                description="Total appointments"
+              />
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ─── Agency scope: sub-accounts grid ─── */}
       {isAdmin && isAgencyScope && accounts && accounts.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold tracking-tight text-foreground mb-4">
@@ -140,7 +197,63 @@ export default function Home() {
         </div>
       )}
 
-      {/* User's Accounts (clients only, no account selected) */}
+      {/* ─── Sub-account scope: Quick Overview ─── */}
+      {currentAccountId && (
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-4">
+            Quick Overview
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Card className="bg-white border-0 card-shadow">
+              <CardContent className="pt-5 pb-4 px-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-blue-50 text-blue-600 shrink-0">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Active Campaigns</p>
+                    <p className="text-xs text-muted-foreground">
+                      {accountStatsLoading ? "..." : `${accountStats?.activeCampaigns ?? 0} running`}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-0 card-shadow">
+              <CardContent className="pt-5 pb-4 px-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-emerald-50 text-emerald-600 shrink-0">
+                    <CalendarCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Upcoming Appointments</p>
+                    <p className="text-xs text-muted-foreground">
+                      {accountStatsLoading ? "..." : `${accountStats?.totalAppointments ?? 0} booked`}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="bg-white border-0 card-shadow">
+              <CardContent className="pt-5 pb-4 px-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-purple-50 text-purple-600 shrink-0">
+                    <Phone className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">AI Call Activity</p>
+                    <p className="text-xs text-muted-foreground">
+                      {accountStatsLoading ? "..." : `${accountStats?.totalCalls ?? 0} calls made`}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Non-admin with no account selected: show account list ─── */}
       {!isAdmin && !currentAccountId && accounts && accounts.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {accounts.map((account) => (
@@ -177,56 +290,6 @@ export default function Home() {
               </CardContent>
             </Card>
           ))}
-        </div>
-      )}
-
-      {/* Quick Overview — shows real stats when account is selected */}
-      {currentAccountId && (
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight text-foreground mb-4">
-            Quick Overview
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {accountStatsLoading ? (
-              <>
-                <StatsCardSkeleton />
-                <StatsCardSkeleton />
-                <StatsCardSkeleton />
-                <StatsCardSkeleton />
-              </>
-            ) : (
-              <>
-                <StatsCard
-                  title="Contacts"
-                  value={accountStats?.totalContacts ?? 0}
-                  icon={Users}
-                  iconColor="text-blue-600 bg-blue-50"
-                  description="Total contacts"
-                />
-                <StatsCard
-                  title="Messages"
-                  value={accountStats?.totalMessages ?? 0}
-                  icon={MessageSquare}
-                  iconColor="text-emerald-600 bg-emerald-50"
-                  description="Total sent"
-                />
-                <StatsCard
-                  title="AI Calls"
-                  value={accountStats?.totalCalls ?? 0}
-                  icon={Phone}
-                  iconColor="text-purple-600 bg-purple-50"
-                  description="Calls made"
-                />
-                <StatsCard
-                  title="Campaigns"
-                  value={accountStats?.activeCampaigns ?? 0}
-                  icon={BarChart3}
-                  iconColor="text-primary bg-primary/10"
-                  description="Active campaigns"
-                />
-              </>
-            )}
-          </div>
         </div>
       )}
     </div>

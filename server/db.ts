@@ -677,7 +677,7 @@ export async function getAdminStats() {
 
 export async function getAccountDashboardStats(accountId: number) {
   const db = await getDb();
-  if (!db) return { totalContacts: 0, totalMessages: 0, activeCampaigns: 0, totalCalls: 0 };
+  if (!db) return { totalContacts: 0, totalMessages: 0, activeCampaigns: 0, totalCalls: 0, totalAppointments: 0 };
 
   const [contactResult] = await db
     .select({ count: sql<number>`count(*)` })
@@ -699,11 +699,17 @@ export async function getAccountDashboardStats(accountId: number) {
     .from(aiCalls)
     .where(eq(aiCalls.accountId, accountId));
 
+  const [appointmentResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(appointments)
+    .where(eq(appointments.accountId, accountId));
+
   return {
     totalContacts: contactResult?.count ?? 0,
     totalMessages: messageResult?.count ?? 0,
     activeCampaigns: campaignResult?.count ?? 0,
     totalCalls: callResult?.count ?? 0,
+    totalAppointments: appointmentResult?.count ?? 0,
   };
 }
 
