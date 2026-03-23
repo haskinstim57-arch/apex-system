@@ -1230,10 +1230,17 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
       enabled: !!searchInput && searchTriggered,
     });
 
-  // Port requests
+  // Port requests — auto-refresh every 30s when there are active requests
   const { data: portRequests } = trpc.twilioPhoneNumber.getPortRequests.useQuery(
     { accountId },
-    { enabled: !!accountId }
+    {
+      enabled: !!accountId,
+      refetchInterval: (query) => {
+        const data = query.state.data as any[] | undefined;
+        const hasActive = data?.some((pr: any) => pr.status === "submitted" || pr.status === "in_progress");
+        return hasActive ? 30_000 : false;
+      },
+    }
   );
 
   // Usage data
@@ -1466,7 +1473,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
                       {portRequests.map((pr: any) => (
                         <div
                           key={pr.id}
-                          className="flex items-center justify-between p-3 rounded-lg border border-border/50"
+                          className="flex flex-wrap items-center justify-between p-3 rounded-lg border border-border/50 gap-y-1"
                         >
                           <div className="flex items-center gap-3">
                             <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
@@ -1489,6 +1496,12 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
                               {pr.status.replace("_", " ")}
                             </Badge>
                             {(pr.status === "submitted" || pr.status === "in_progress") && (
+                              <span className="relative flex h-2 w-2" title="Auto-checking status">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                              </span>
+                            )}
+                            {(pr.status === "submitted" || pr.status === "in_progress") && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1500,6 +1513,11 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
                               </Button>
                             )}
                           </div>
+                          {pr.notes && (
+                            <p className="w-full text-[11px] text-muted-foreground pl-12 leading-relaxed">
+                              {pr.notes}
+                            </p>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1518,6 +1536,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
                       <span className="font-medium text-foreground">How porting works: </span>
                       Number porting transfers your existing phone number from your current carrier to Twilio.
                       The process typically takes 1-4 weeks. During this time, your number remains active with your current carrier.
+                      Once porting completes, the number will be <strong>automatically assigned</strong> to your account and configured for SMS and voice.
                     </p>
                   </div>
                 </div>

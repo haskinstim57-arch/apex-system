@@ -13,6 +13,7 @@ import { startWorkflowWorker } from "../services/workflowEngine";
 import { startCampaignScheduler } from "../services/campaignScheduler";
 import { startFacebookTokenRefreshJob } from "../services/facebookTokenRefresh";
 import { startAppointmentReminders } from "../services/appointmentReminders";
+import { startPortRequestPoller } from "../services/portRequestPoller";
 import { calendarOAuthCallbackRouter } from "../webhooks/calendarOAuthCallbacks";
 import { inboundMessageRouter } from "../webhooks/inboundMessages";
 import { twilioVoiceStatusRouter } from "../webhooks/twilioVoiceStatus";
@@ -90,6 +91,9 @@ async function startServer() {
 
     // Start appointment reminders job (checks every 5 min for 24h and 1h reminders)
     startAppointmentReminders();
+
+    // Start port request poller (checks every 5 min for completed number ports)
+    startPortRequestPoller();
   });
 }
 

@@ -3342,3 +3342,22 @@ export async function updatePortRequest(
     .set(data)
     .where(and(eq(portRequests.id, id), eq(portRequests.accountId, accountId)));
 }
+
+/**
+ * Get all port requests that are still active (submitted or in_progress).
+ * Used by the port request poller to check for status updates.
+ */
+export async function getActivePortRequests() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db
+    .select()
+    .from(portRequests)
+    .where(
+      or(
+        eq(portRequests.status, "submitted"),
+        eq(portRequests.status, "in_progress")
+      )
+    )
+    .orderBy(asc(portRequests.createdAt));
+}

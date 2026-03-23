@@ -1131,4 +1131,27 @@
 - [x] Vitest tests for port number procedures (5 tests)
 - [x] Vitest tests for usage dashboard procedure (3 tests)
 - [x] All 847 tests pass
+- [x] Checkpoint saved
+
+## Auto-Complete Port Requests
+
+### Backend
+- [x] Created portRequestPoller service (server/services/portRequestPoller.ts) — polls every 5 min
+- [x] On completed port: auto-assigns number to account (upsertAccountMessagingSettings), configures SMS + voice webhooks, updates port request to "completed"
+- [x] On failed port (45-day timeout): updates port request to "failed" and creates notification
+- [x] Auto-cancels port if account already has a number assigned
+- [x] Auto-advances "submitted" to "in_progress" on first check
+- [x] Integrated into server startup (server/_core/index.ts) alongside other background workers
+- [x] Added getActivePortRequests DB helper
+- [x] Creates notifications on port completion, failure, and cancellation
+
+### Frontend
+- [x] Port requests auto-refresh every 30s when there are active requests (refetchInterval)
+- [x] Pulsing amber dot indicator on active port requests
+- [x] Notes displayed below each port request card (shows progress/completion/failure messages)
+- [x] "How porting works" text updated to mention auto-assignment on completion
+
+### Testing
+- [x] 12 vitest tests for portRequestPoller service (start/stop, complete, advance, timeout, cancel, webhooks, error handling, no-creds)
+- [x] All 859 tests pass
 - [ ] Checkpoint saved
