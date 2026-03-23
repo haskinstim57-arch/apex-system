@@ -25,6 +25,7 @@ import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   BarChart3,
+  Activity,
   Building2,
   CalendarDays,
   ChevronDown,
@@ -65,6 +66,7 @@ const subAccountMenuItems = [
   { icon: Inbox, label: "Conversations", path: "/inbox" },
   { icon: Phone, label: "AI Calls", path: "/ai-calls" },
   { icon: PhoneCall, label: "Power Dialer", path: "/power-dialer" },
+  { icon: Activity, label: "Dialer Analytics", path: "/dialer-analytics" },
   { icon: CalendarDays, label: "Calendar", path: "/calendar" },
   { icon: Send, label: "Campaigns", path: "/campaigns" },
   { icon: Zap, label: "Automations", path: "/automations" },

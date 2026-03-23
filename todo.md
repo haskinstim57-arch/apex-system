@@ -1428,3 +1428,30 @@
 - [x] Log summary note on each contacted contact after session (in recordDisposition)
 - [x] Call scripts management in Settings for account owners/admins
 - [x] Write vitest tests for Power Dialer procedures (23/23 passing)
+
+### Feature: Distribute Leads UI
+- [x] Backend: bulkAssign and distributeLeads tRPC procedures
+- [x] Backend: getFilteredIds for selecting contacts by filter
+- [x] Frontend: Multi-select checkboxes on contacts table
+- [x] Frontend: Bulk action bar (assign to, distribute)
+- [x] Frontend: Distribute leads dialog with round-robin preview
+- [x] Frontend: Success toast with per-user distribution summary
+
+### Feature: Call Recording Playback
+- [x] Backend: getRecording tRPC procedure to fetch recording URL, transcript, summary by callId
+- [x] Backend: Recording URL already stored via webhook (end-of-call-report) and syncStatus
+- [x] Frontend: CallRecordingPlayer component in activity timeline with audio player
+- [x] Frontend: Play/pause, seekbar, duration, transcript toggle, summary display, sentiment badge
+
+### Feature: Dialer Analytics Dashboard
+- [x] Backend: getDialerAnalytics DB helper (aggregates from dialerSessions)
+- [x] Backend: getAnalytics tRPC procedure with date range and user filters
+- [x] Frontend: /dialer-analytics page with summary cards, disposition pie chart, daily area chart
+- [x] Frontend: Team performance table (calls, answered, no answer, voicemails, connect rate)
+- [x] Frontend: Date range filter (7/14/30/60/90 days) and CSV export
+- [x] Added "Dialer Analytics" to sidebar navigation with Activity icon
+
+### All 3 Features: Tests & Delivery
+- [x] Write vitest tests for all 3 features (20/20 passing)
+- [x] Zero TypeScript errors
+- [ ] Checkpoint saved

@@ -33,6 +33,7 @@ import EmailTemplates from "./pages/EmailTemplates";
 import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import Analytics from "./pages/Analytics";
 import PowerDialer from "./pages/PowerDialer";
+import DialerAnalytics from "./pages/DialerAnalytics";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -197,6 +198,13 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <PowerDialer />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/dialer-analytics">
+        <DashboardLayout>
+          <RequireAccount>
+            <DialerAnalytics />
           </RequireAccount>
         </DashboardLayout>
       </Route>

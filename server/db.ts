@@ -1,4 +1,4 @@
-import { and, eq, desc, asc, sql, inArray, count, lte, gte } from "drizzle-orm";
+import { and, eq, desc, asc, sql, inArray, count, lte, gte, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { like, or } from "drizzle-orm";
 import {
@@ -3685,4 +3685,233 @@ export async function deleteDialerScript(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(dialerScripts).where(eq(dialerScripts.id, id));
+}
+
+// ─── Bulk assign contacts ───
+export async function bulkAssignContacts(
+  contactIds: number[],
+  accountId: number,
+  assignedUserId: number | null
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (contactIds.length === 0) return { updated: 0 };
+
+  let updated = 0;
+  // Process in batches of 100
+  for (let i = 0; i < contactIds.length; i += 100) {
+    const batch = contactIds.slice(i, i + 100);
+    const result = await db
+      .update(contacts)
+      .set({ assignedUserId })
+      .where(
+        and(
+          inArray(contacts.id, batch),
+          eq(contacts.accountId, accountId)
+        )
+      );
+    updated += (result as any)[0]?.affectedRows ?? batch.length;
+  }
+  return { updated };
+}
+
+// ─── Get contact IDs by filter (for distribute leads) ───
+export async function getContactIdsByFilter(
+  accountId: number,
+  filters: {
+    tag?: string;
+    status?: string;
+    leadSource?: string;
+    search?: string;
+    unassignedOnly?: boolean;
+  }
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const conditions = [eq(contacts.accountId, accountId)];
+
+  if (filters.status) {
+    conditions.push(eq(contacts.status, filters.status as any));
+  }
+  if (filters.leadSource) {
+    conditions.push(eq(contacts.leadSource, filters.leadSource));
+  }
+  if (filters.unassignedOnly) {
+    conditions.push(isNull(contacts.assignedUserId));
+  }
+  if (filters.search) {
+    const term = `%${filters.search}%`;
+    conditions.push(
+      or(
+        like(contacts.firstName, term),
+        like(contacts.lastName, term),
+        like(contacts.email, term),
+        like(contacts.phone, term),
+        like(contacts.company, term)
+      )!
+    );
+  }
+
+  let query;
+  if (filters.tag) {
+    query = db
+      .select({ id: contacts.id })
+      .from(contacts)
+      .innerJoin(contactTags, eq(contacts.id, contactTags.contactId))
+      .where(and(...conditions, eq(contactTags.tag, filters.tag)));
+  } else {
+    query = db
+      .select({ id: contacts.id })
+      .from(contacts)
+      .where(and(...conditions));
+  }
+
+  const result = await query;
+  return result.map((r) => r.id);
+}
+
+// ─── Dialer Analytics Helpers ───
+
+/** Get dialer session analytics for an account */
+export async function getDialerAnalytics(params: {
+  accountId: number;
+  startDate?: Date;
+  endDate?: Date;
+  userId?: number;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const conditions: any[] = [eq(dialerSessions.accountId, params.accountId)];
+  if (params.startDate) conditions.push(gte(dialerSessions.createdAt, params.startDate));
+  if (params.endDate) conditions.push(lte(dialerSessions.createdAt, params.endDate));
+  if (params.userId) conditions.push(eq(dialerSessions.userId, params.userId));
+
+  // Get all matching sessions
+  const sessions = await db
+    .select()
+    .from(dialerSessions)
+    .where(and(...conditions))
+    .orderBy(desc(dialerSessions.createdAt));
+
+  // Aggregate disposition counts from results JSON
+  let totalCalls = 0;
+  let answered = 0;
+  let noAnswer = 0;
+  let leftVoicemail = 0;
+  let notInterested = 0;
+  let callbackRequested = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  const perUserStats: Record<number, {
+    userId: number;
+    sessions: number;
+    totalCalls: number;
+    answered: number;
+    noAnswer: number;
+    leftVoicemail: number;
+    notInterested: number;
+    callbackRequested: number;
+    skipped: number;
+    failed: number;
+  }> = {};
+
+  const dailyStats: Record<string, {
+    date: string;
+    totalCalls: number;
+    answered: number;
+    noAnswer: number;
+  }> = {};
+
+  for (const session of sessions) {
+    const results: Array<{ disposition: string; calledAt?: string }> =
+      session.results ? JSON.parse(session.results) : [];
+
+    // Per-user stats
+    if (!perUserStats[session.userId]) {
+      perUserStats[session.userId] = {
+        userId: session.userId,
+        sessions: 0,
+        totalCalls: 0,
+        answered: 0,
+        noAnswer: 0,
+        leftVoicemail: 0,
+        notInterested: 0,
+        callbackRequested: 0,
+        skipped: 0,
+        failed: 0,
+      };
+    }
+    perUserStats[session.userId].sessions++;
+
+    for (const r of results) {
+      totalCalls++;
+      perUserStats[session.userId].totalCalls++;
+
+      // Daily stats
+      const dateKey = r.calledAt
+        ? new Date(r.calledAt).toISOString().split("T")[0]
+        : new Date(session.createdAt).toISOString().split("T")[0];
+      if (!dailyStats[dateKey]) {
+        dailyStats[dateKey] = { date: dateKey, totalCalls: 0, answered: 0, noAnswer: 0 };
+      }
+      dailyStats[dateKey].totalCalls++;
+
+      switch (r.disposition) {
+        case "answered":
+          answered++;
+          perUserStats[session.userId].answered++;
+          dailyStats[dateKey].answered++;
+          break;
+        case "no_answer":
+          noAnswer++;
+          perUserStats[session.userId].noAnswer++;
+          dailyStats[dateKey].noAnswer++;
+          break;
+        case "left_voicemail":
+          leftVoicemail++;
+          perUserStats[session.userId].leftVoicemail++;
+          break;
+        case "not_interested":
+          notInterested++;
+          perUserStats[session.userId].notInterested++;
+          break;
+        case "callback_requested":
+          callbackRequested++;
+          perUserStats[session.userId].callbackRequested++;
+          break;
+        case "skipped":
+          skipped++;
+          perUserStats[session.userId].skipped++;
+          break;
+        case "failed":
+          failed++;
+          perUserStats[session.userId].failed++;
+          break;
+      }
+    }
+  }
+
+  const connectRate = totalCalls > 0 ? Math.round((answered / totalCalls) * 100) : 0;
+
+  return {
+    summary: {
+      totalSessions: sessions.length,
+      completedSessions: sessions.filter((s) => s.status === "completed").length,
+      activeSessions: sessions.filter((s) => s.status === "active").length,
+      totalCalls,
+      answered,
+      noAnswer,
+      leftVoicemail,
+      notInterested,
+      callbackRequested,
+      skipped,
+      failed,
+      connectRate,
+    },
+    perUser: Object.values(perUserStats),
+    daily: Object.values(dailyStats).sort((a, b) => a.date.localeCompare(b.date)),
+  };
 }

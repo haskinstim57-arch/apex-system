@@ -508,6 +508,26 @@ export const aiCallsRouter = router({
       return getAICallStats(input.accountId);
     }),
 
+  /** Get call recording info by call ID */
+  getRecording: protectedProcedure
+    .input(z.object({ id: z.number(), accountId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+      const call = await getAICallById(input.id);
+      if (!call || call.accountId !== input.accountId) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Call not found." });
+      }
+      return {
+        id: call.id,
+        recordingUrl: call.recordingUrl,
+        transcript: call.transcript,
+        summary: call.summary,
+        durationSeconds: call.durationSeconds,
+        status: call.status,
+        sentiment: call.sentiment,
+      };
+    }),
+
   /** Get AI calls for a specific contact */
   byContact: protectedProcedure
     .input(z.object({ contactId: z.number(), accountId: z.number() }))

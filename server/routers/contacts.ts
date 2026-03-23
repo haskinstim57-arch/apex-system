@@ -25,6 +25,9 @@ import {
   logContactActivity,
   findContactByEmail,
   findContactByPhone,
+  bulkAssignContacts,
+  getContactIdsByFilter,
+  listMembers,
 } from "../db";
 
 // ─── Tenant guard: verify user is a member of the account ───
@@ -735,5 +738,132 @@ export const contactsRouter = router({
       });
 
       return { imported, skipped, failed, errorRows };
+    }),
+
+  // ─── Bulk assign contacts to a user ───
+  bulkAssign: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        contactIds: z.array(z.number().int().positive()).min(1).max(5000),
+        assignedUserId: z.number().int().positive().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      // Verify the target user is a member of the account (if assigning)
+      if (input.assignedUserId) {
+        const member = await getMember(input.accountId, input.assignedUserId);
+        if (!member) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Target user is not a member of this account.",
+          });
+        }
+      }
+
+      const result = await bulkAssignContacts(
+        input.contactIds,
+        input.accountId,
+        input.assignedUserId
+      );
+
+      await createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "contacts.bulk_assign",
+        resourceType: "contact",
+        resourceId: 0,
+        metadata: JSON.stringify({
+          contactCount: input.contactIds.length,
+          assignedUserId: input.assignedUserId,
+        }),
+      });
+
+      return { success: true, updated: result.updated };
+    }),
+
+  // ─── Distribute leads evenly among multiple users ───
+  distributeLeads: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        contactIds: z.array(z.number().int().positive()).min(1).max(10000),
+        userIds: z.array(z.number().int().positive()).min(1).max(50),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      // Verify all target users are members
+      for (const userId of input.userIds) {
+        const member = await getMember(input.accountId, userId);
+        if (!member) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `User ${userId} is not a member of this account.`,
+          });
+        }
+      }
+
+      // Round-robin distribution
+      const assignments: Record<number, number[]> = {};
+      for (const userId of input.userIds) {
+        assignments[userId] = [];
+      }
+
+      input.contactIds.forEach((contactId, idx) => {
+        const userId = input.userIds[idx % input.userIds.length];
+        assignments[userId].push(contactId);
+      });
+
+      // Execute bulk assignments
+      const results: Array<{ userId: number; count: number }> = [];
+      for (const [userIdStr, ids] of Object.entries(assignments)) {
+        const userId = parseInt(userIdStr, 10);
+        if (ids.length > 0) {
+          await bulkAssignContacts(ids, input.accountId, userId);
+          results.push({ userId, count: ids.length });
+        }
+      }
+
+      await createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "contacts.distribute_leads",
+        resourceType: "contact",
+        resourceId: 0,
+        metadata: JSON.stringify({
+          totalContacts: input.contactIds.length,
+          distribution: results,
+        }),
+      });
+
+      return { success: true, distribution: results };
+    }),
+
+  // ─── Get contact IDs by filter (for distribute leads UI) ───
+  getFilteredIds: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        tag: z.string().optional(),
+        status: z.string().optional(),
+        leadSource: z.string().optional(),
+        search: z.string().optional(),
+        unassignedOnly: z.boolean().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const ids = await getContactIdsByFilter(input.accountId, {
+        tag: input.tag,
+        status: input.status,
+        leadSource: input.leadSource,
+        search: input.search,
+        unassignedOnly: input.unassignedOnly,
+      });
+      return { ids, total: ids.length };
     }),
 });

@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -49,8 +50,10 @@ import {
   Pencil,
   PhoneForwarded,
   X,
+  Users,
+  Share2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
@@ -109,6 +112,14 @@ export default function Contacts() {
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(0);
   const pageSize = 25;
+
+  // Selection state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+
+  // Distribute leads dialog
+  const [distributeOpen, setDistributeOpen] = useState(false);
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
+  const [bulkAssignUserId, setBulkAssignUserId] = useState<string>("");
 
   // Contacts query
   const { data: contactsData, isLoading: contactsLoading } =
@@ -184,6 +195,33 @@ export default function Contacts() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Bulk assign mutation
+  const bulkAssignMutation = trpc.contacts.bulkAssign.useMutation({
+    onSuccess: (data) => {
+      toast.success(`${data.updated} contacts assigned`);
+      utils.contacts.list.invalidate();
+      setSelectedIds(new Set());
+      setBulkAssignOpen(false);
+      setBulkAssignUserId("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // Distribute leads mutation
+  const distributeMutation = trpc.contacts.distributeLeads.useMutation({
+    onSuccess: (data) => {
+      const summary = data.distribution.map((d) => {
+        const member = members?.find((m) => m.userId === d.userId);
+        return `${member?.userName || "User"}: ${d.count}`;
+      }).join(", ");
+      toast.success(`Leads distributed: ${summary}`);
+      utils.contacts.list.invalidate();
+      setSelectedIds(new Set());
+      setDistributeOpen(false);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   // Stats
   const { data: stats } = trpc.contacts.stats.useQuery(
     { accountId: accountId! },
@@ -193,6 +231,33 @@ export default function Contacts() {
   const contacts = contactsData?.data ?? [];
   const total = contactsData?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
+
+  // Selection helpers
+  const currentPageIds = useMemo(() => contacts.map((c) => c.id), [contacts]);
+  const allOnPageSelected = currentPageIds.length > 0 && currentPageIds.every((id) => selectedIds.has(id));
+  const someOnPageSelected = currentPageIds.some((id) => selectedIds.has(id));
+
+  const toggleSelectAll = () => {
+    if (allOnPageSelected) {
+      const next = new Set(selectedIds);
+      currentPageIds.forEach((id) => next.delete(id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      currentPageIds.forEach((id) => next.add(id));
+      setSelectedIds(next);
+    }
+  };
+
+  const toggleSelect = (id: number) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    setSelectedIds(next);
+  };
 
   if (!accountId) {
     return <NoAccountSelected />;
@@ -209,7 +274,6 @@ export default function Contacts() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Account selector removed — use sidebar AccountSwitcher instead */}
           <Button
             variant="outline"
             size="sm"
@@ -241,6 +305,43 @@ export default function Contacts() {
             color="text-emerald-600"
           />
           <MiniStat label="Won" value={stats.won} color="text-green-600" />
+        </div>
+      )}
+
+      {/* Bulk Action Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <Badge variant="secondary" className="text-sm font-medium">
+            {selectedIds.size} selected
+          </Badge>
+          <div className="flex items-center gap-2 ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => setBulkAssignOpen(true)}
+            >
+              <Users className="h-3.5 w-3.5" />
+              Assign To
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => setDistributeOpen(true)}
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              Distribute
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Clear
+            </Button>
+          </div>
         </div>
       )}
 
@@ -349,6 +450,13 @@ export default function Contacts() {
           <Table>
             <TableHeader>
               <TableRow className="bg-secondary hover:bg-secondary border-b border-border">
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={allOnPageSelected}
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all contacts on this page"
+                  />
+                </TableHead>
                 <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Name
                 </TableHead>
@@ -375,14 +483,14 @@ export default function Contacts() {
             <TableBody>
               {contactsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12">
+                  <TableCell colSpan={8} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : contacts.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center py-12 text-muted-foreground text-sm"
                   >
                     {search || statusFilter || sourceFilter
@@ -395,16 +503,24 @@ export default function Contacts() {
                   const assignedMember = members?.find(
                     (m) => m.userId === contact.assignedUserId
                   );
+                  const isSelected = selectedIds.has(contact.id);
                   return (
                     <TableRow
                       key={contact.id}
-                      className="border-b border-border/50 cursor-pointer hover:bg-accent h-14"
+                      className={`border-b border-border/50 cursor-pointer hover:bg-accent h-14 ${isSelected ? "bg-primary/5" : ""}`}
                       onClick={() =>
                         navigate(
                           `/contacts/${contact.id}?account=${accountId}`
                         )
                       }
                     >
+                      <TableCell onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => toggleSelect(contact.id)}
+                          aria-label={`Select ${contact.firstName} ${contact.lastName}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium text-sm">
                         {contact.firstName} {contact.lastName}
                         {contact.company && (
@@ -619,6 +735,69 @@ export default function Contacts() {
         onOpenChange={setImportOpen}
         accountId={accountId}
       />
+
+      {/* Bulk Assign Dialog */}
+      <Dialog open={bulkAssignOpen} onOpenChange={setBulkAssignOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Assign {selectedIds.size} Contacts</DialogTitle>
+            <DialogDescription>
+              Choose a team member to assign all selected contacts to.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Label className="text-xs">Assign To</Label>
+            <Select value={bulkAssignUserId || "unassigned"} onValueChange={(v) => setBulkAssignUserId(v === "unassigned" ? "" : v)}>
+              <SelectTrigger className="h-9 text-sm">
+                <SelectValue placeholder="Select team member" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="unassigned">Unassigned (remove assignment)</SelectItem>
+                {members?.filter((m) => m.isActive).map((m) => (
+                  <SelectItem key={m.userId} value={String(m.userId)}>
+                    {m.userName || m.userEmail} ({m.role})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAssignOpen(false)} className="border-border/50">
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                bulkAssignMutation.mutate({
+                  accountId: accountId!,
+                  contactIds: Array.from(selectedIds),
+                  assignedUserId: bulkAssignUserId ? parseInt(bulkAssignUserId) : null,
+                });
+              }}
+              disabled={bulkAssignMutation.isPending}
+            >
+              {bulkAssignMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+              Assign {selectedIds.size} Contacts
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Distribute Leads Dialog */}
+      <DistributeLeadsDialog
+        open={distributeOpen}
+        onOpenChange={setDistributeOpen}
+        accountId={accountId!}
+        selectedIds={Array.from(selectedIds)}
+        members={members?.filter((m) => m.isActive) ?? []}
+        onDistribute={(userIds) => {
+          distributeMutation.mutate({
+            accountId: accountId!,
+            contactIds: Array.from(selectedIds),
+            userIds,
+          });
+        }}
+        loading={distributeMutation.isPending}
+      />
     </div>
   );
 }
@@ -640,6 +819,128 @@ function MiniStat({
         <p className={`text-lg font-bold ${color || "text-foreground"}`}>{value}</p>
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Distribute Leads Dialog ───
+function DistributeLeadsDialog({
+  open,
+  onOpenChange,
+  accountId,
+  selectedIds,
+  members,
+  onDistribute,
+  loading,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: number;
+  selectedIds: number[];
+  members: any[];
+  onDistribute: (userIds: number[]) => void;
+  loading: boolean;
+}) {
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<number>>(new Set());
+
+  const toggleUser = (userId: number) => {
+    const next = new Set(selectedUserIds);
+    if (next.has(userId)) {
+      next.delete(userId);
+    } else {
+      next.add(userId);
+    }
+    setSelectedUserIds(next);
+  };
+
+  const perUser = selectedUserIds.size > 0
+    ? Math.floor(selectedIds.length / selectedUserIds.size)
+    : 0;
+  const remainder = selectedUserIds.size > 0
+    ? selectedIds.length % selectedUserIds.size
+    : 0;
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { onOpenChange(o); if (!o) setSelectedUserIds(new Set()); }}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Share2 className="h-4 w-4" />
+            Distribute {selectedIds.length} Leads
+          </DialogTitle>
+          <DialogDescription>
+            Select team members to distribute leads evenly among them using round-robin assignment.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label className="text-xs font-medium">Select Team Members</Label>
+            <div className="space-y-2 max-h-[250px] overflow-y-auto rounded-lg border border-border/50 p-2">
+              {members.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No team members found. Invite members first.
+                </p>
+              ) : (
+                members.map((m) => (
+                  <div
+                    key={m.userId}
+                    className={`flex items-center gap-3 p-2.5 rounded-md cursor-pointer transition-colors ${
+                      selectedUserIds.has(m.userId)
+                        ? "bg-primary/10 border border-primary/30"
+                        : "hover:bg-accent border border-transparent"
+                    }`}
+                    onClick={() => toggleUser(m.userId)}
+                  >
+                    <Checkbox
+                      checked={selectedUserIds.has(m.userId)}
+                      onCheckedChange={() => toggleUser(m.userId)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {m.userName || m.userEmail}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground capitalize">
+                        {m.role}
+                      </p>
+                    </div>
+                    {selectedUserIds.has(m.userId) && (
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                        ~{perUser + (Array.from(selectedUserIds).indexOf(m.userId) < remainder ? 1 : 0)} leads
+                      </Badge>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {selectedUserIds.size > 0 && (
+            <div className="rounded-lg bg-secondary/50 p-3 space-y-1">
+              <p className="text-xs font-medium">Distribution Preview</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedIds.length} leads will be distributed evenly among {selectedUserIds.size} team member{selectedUserIds.size > 1 ? "s" : ""}.
+                Each will receive approximately <strong>{perUser}</strong> leads
+                {remainder > 0 ? ` (${remainder} member${remainder > 1 ? "s" : ""} will get 1 extra)` : ""}.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="border-border/50">
+            Cancel
+          </Button>
+          <Button
+            onClick={() => onDistribute(Array.from(selectedUserIds))}
+            disabled={loading || selectedUserIds.size === 0}
+          >
+            {loading && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
+            <Share2 className="h-3.5 w-3.5 mr-1.5" />
+            Distribute Leads
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

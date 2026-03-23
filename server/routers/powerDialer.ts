@@ -19,6 +19,7 @@ import {
   createContactNote,
   getMember,
   listContacts,
+  getDialerAnalytics,
 } from "../db";
 import {
   createVapiCall,
@@ -481,5 +482,51 @@ export const powerDialerRouter = router({
 
       await deleteDialerScript(input.id);
       return { success: true };
+    }),
+
+  // ─── ANALYTICS ───
+
+  /** Get dialer analytics for an account */
+  getAnalytics: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        userId: z.number().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+
+      const result = await getDialerAnalytics({
+        accountId: input.accountId,
+        startDate: input.startDate ? new Date(input.startDate) : undefined,
+        endDate: input.endDate ? new Date(input.endDate) : undefined,
+        userId: input.userId,
+      });
+
+      if (!result) {
+        return {
+          summary: {
+            totalSessions: 0,
+            completedSessions: 0,
+            activeSessions: 0,
+            totalCalls: 0,
+            answered: 0,
+            noAnswer: 0,
+            leftVoicemail: 0,
+            notInterested: 0,
+            callbackRequested: 0,
+            skipped: 0,
+            failed: 0,
+            connectRate: 0,
+          },
+          perUser: [],
+          daily: [],
+        };
+      }
+
+      return result;
     }),
 });

@@ -54,8 +54,12 @@ import {
   PhoneCall,
   ChevronDown,
   History,
+  Play,
+  Pause,
+  Volume2,
+  FileText,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -1024,6 +1028,14 @@ function ActivityTimeline({
                         </div>
                       )}
 
+                      {/* Call Recording Player */}
+                      {activity.activityType === "ai_call_made" && meta?.callId && (
+                        <CallRecordingPlayer
+                          callId={meta.callId}
+                          accountId={accountId}
+                        />
+                      )}
+
                       <p className="text-[10px] text-muted-foreground mt-1">
                         {formatTimeAgo(activity.createdAt)}
                         <span className="mx-1">&middot;</span>
@@ -1053,5 +1065,159 @@ function ActivityTimeline({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Call Recording Player ───
+
+function CallRecordingPlayer({ callId, accountId }: { callId: number; accountId: number }) {
+  const { data, isLoading } = trpc.aiCalls.getRecording.useQuery(
+    { id: callId, accountId },
+    { enabled: !!callId && !!accountId, staleTime: 60_000 }
+  );
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showTranscript, setShowTranscript] = useState(false);
+
+  const togglePlay = useCallback(() => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setIsPlaying(!isPlaying);
+  }, [isPlaying]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onEnded = () => setIsPlaying(false);
+    audio.addEventListener("timeupdate", onTimeUpdate);
+    audio.addEventListener("loadedmetadata", onLoadedMetadata);
+    audio.addEventListener("ended", onEnded);
+    return () => {
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("ended", onEnded);
+    };
+  }, [data?.recordingUrl]);
+
+  function formatDuration(sec: number) {
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+
+  if (isLoading) return null;
+  if (!data) return null;
+
+  const hasRecording = !!data.recordingUrl;
+  const hasTranscript = !!data.transcript;
+  const hasSummary = !!data.summary;
+
+  if (!hasRecording && !hasTranscript && !hasSummary) {
+    return (
+      <div className="mt-1.5">
+        <Badge variant="outline" className="text-[9px] bg-slate-500/10 text-slate-500 border-slate-200">
+          {data.status === "completed" ? "No recording available" : data.status}
+        </Badge>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Audio Player */}
+      {hasRecording && (
+        <div className="flex items-center gap-2 bg-slate-50 rounded-lg p-2 border border-slate-200">
+          <audio ref={audioRef} src={data.recordingUrl!} preload="metadata" />
+          <button
+            onClick={togglePlay}
+            className="shrink-0 h-7 w-7 rounded-full bg-primary flex items-center justify-center hover:bg-primary/90 transition-colors"
+          >
+            {isPlaying ? (
+              <Pause className="h-3 w-3 text-white" />
+            ) : (
+              <Play className="h-3 w-3 text-white ml-0.5" />
+            )}
+          </button>
+          <div className="flex-1 min-w-0">
+            <div
+              className="h-1.5 bg-slate-200 rounded-full cursor-pointer relative"
+              onClick={(e) => {
+                if (!audioRef.current || !duration) return;
+                const rect = e.currentTarget.getBoundingClientRect();
+                const pct = (e.clientX - rect.left) / rect.width;
+                audioRef.current.currentTime = pct * duration;
+              }}
+            >
+              <div
+                className="absolute top-0 left-0 h-full bg-primary rounded-full transition-all"
+                style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }}
+              />
+            </div>
+          </div>
+          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+            {formatDuration(currentTime)} / {formatDuration(duration || data.durationSeconds || 0)}
+          </span>
+          <Volume2 className="h-3 w-3 text-muted-foreground shrink-0" />
+        </div>
+      )}
+
+      {/* Duration badge if no recording but we have duration */}
+      {!hasRecording && data.durationSeconds && data.durationSeconds > 0 && (
+        <Badge variant="outline" className="text-[9px] bg-blue-500/10 text-blue-600 border-blue-200">
+          <Phone className="h-2.5 w-2.5 mr-0.5" />
+          {formatDuration(data.durationSeconds)}
+        </Badge>
+      )}
+
+      {/* Summary */}
+      {hasSummary && (
+        <p className="text-[10px] text-muted-foreground bg-amber-50 border border-amber-200 rounded px-2 py-1">
+          <strong className="text-amber-700">Summary:</strong> {data.summary}
+        </p>
+      )}
+
+      {/* Transcript toggle */}
+      {hasTranscript && (
+        <div>
+          <button
+            onClick={() => setShowTranscript(!showTranscript)}
+            className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+          >
+            <FileText className="h-2.5 w-2.5" />
+            {showTranscript ? "Hide transcript" : "View transcript"}
+          </button>
+          {showTranscript && (
+            <div className="mt-1 text-[10px] text-muted-foreground bg-slate-50 border border-slate-200 rounded p-2 max-h-40 overflow-y-auto whitespace-pre-wrap">
+              {data.transcript}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sentiment badge */}
+      {data.sentiment && (
+        <Badge
+          variant="outline"
+          className={`text-[9px] ${
+            data.sentiment === "positive"
+              ? "bg-emerald-500/10 text-emerald-600 border-emerald-200"
+              : data.sentiment === "negative"
+                ? "bg-red-500/10 text-red-500 border-red-200"
+                : "bg-slate-500/10 text-slate-500 border-slate-200"
+          }`}
+        >
+          {data.sentiment}
+        </Badge>
+      )}
+    </div>
   );
 }
