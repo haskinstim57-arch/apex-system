@@ -14,6 +14,7 @@ import {
   createTask,
   logContactActivity,
   getEmailTemplate,
+  createNotification,
 } from "../db";
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
@@ -135,6 +136,18 @@ async function processPendingExecutions() {
         errorMessage: err instanceof Error ? err.message : String(err),
         completedAt: new Date(),
       });
+
+      // Create in-app notification for workflow failure
+      if (execution.accountId) {
+        createNotification({
+          accountId: execution.accountId,
+          userId: null,
+          type: "workflow_failed",
+          title: `Automation workflow failed`,
+          body: `Execution #${execution.id} failed: ${err instanceof Error ? err.message : String(err)}`.substring(0, 200),
+          link: `/automations`,
+        }).catch((notifErr) => console.error("[WorkflowEngine] Notification error:", notifErr));
+      }
     }
   }
 }
@@ -232,6 +245,18 @@ async function processExecution(executionId: number) {
       completedAt: new Date(),
     });
     console.error(`[WorkflowEngine] Execution ${executionId} step ${step.stepOrder} failed:`, err);
+
+    // Create in-app notification for step failure
+    if (execution.accountId) {
+      createNotification({
+        accountId: execution.accountId,
+        userId: null,
+        type: "workflow_failed",
+        title: `Automation step failed`,
+        body: `Step ${step.stepOrder} of execution #${executionId} failed: ${errorMsg}`.substring(0, 200),
+        link: `/automations`,
+      }).catch((notifErr) => console.error("[WorkflowEngine] Notification error:", notifErr));
+    }
   }
 }
 

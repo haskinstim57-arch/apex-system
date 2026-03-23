@@ -65,6 +65,8 @@ import {
   type InsertContactActivity,
   emailTemplates,
   type InsertEmailTemplate,
+  notifications,
+  type InsertNotification,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -3197,4 +3199,99 @@ export async function deleteEmailTemplate(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   await db.delete(emailTemplates).where(eq(emailTemplates.id, id));
+}
+
+
+// ─────────────────────────────────────────────
+// NOTIFICATION HELPERS
+// ─────────────────────────────────────────────
+
+export async function createNotification(data: Omit<InsertNotification, "id" | "createdAt" | "isRead" | "dismissed">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(notifications).values(data);
+  return { id: Number(result[0].insertId) };
+}
+
+/**
+ * Get notifications for a user within an account.
+ * Returns notifications targeted to the specific user OR account-wide (userId=null).
+ */
+export async function getNotifications(accountId: number, userId: number, limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.accountId, accountId),
+        eq(notifications.dismissed, false),
+        or(
+          eq(notifications.userId, userId),
+          sql`${notifications.userId} IS NULL`
+        )
+      )
+    )
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
+}
+
+/**
+ * Get unread notification count for a user within an account.
+ */
+export async function getUnreadNotificationCount(accountId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db
+    .select({ count: count() })
+    .from(notifications)
+    .where(
+      and(
+        eq(notifications.accountId, accountId),
+        eq(notifications.isRead, false),
+        eq(notifications.dismissed, false),
+        or(
+          eq(notifications.userId, userId),
+          sql`${notifications.userId} IS NULL`
+        )
+      )
+    );
+  return result[0]?.count ?? 0;
+}
+
+export async function markNotificationAsRead(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(and(eq(notifications.id, id), eq(notifications.accountId, accountId)));
+}
+
+export async function markAllNotificationsAsRead(accountId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(
+      and(
+        eq(notifications.accountId, accountId),
+        eq(notifications.isRead, false),
+        or(
+          eq(notifications.userId, userId),
+          sql`${notifications.userId} IS NULL`
+        )
+      )
+    );
+}
+
+export async function dismissNotification(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(notifications)
+    .set({ dismissed: true })
+    .where(and(eq(notifications.id, id), eq(notifications.accountId, accountId)));
 }

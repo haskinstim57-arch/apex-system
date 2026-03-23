@@ -21,6 +21,7 @@ import { calendarSyncRouter } from "./routers/calendarSync";
 import { inboxRouter } from "./routers/inbox";
 import { missedCallTextBackRouter } from "./routers/missedCallTextBack";
 import { emailTemplatesRouter } from "./routers/emailTemplates";
+import { notificationsRouter } from "./routers/notifications";
 
 export const appRouter = router({
   system: systemRouter,
@@ -53,6 +54,7 @@ export const appRouter = router({
   inbox: inboxRouter,
   missedCallTextBack: missedCallTextBackRouter,
   emailTemplates: emailTemplatesRouter,
+  notifications: notificationsRouter,
 });
 
 export type AppRouter = typeof appRouter;

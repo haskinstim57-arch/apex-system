@@ -6,6 +6,7 @@ import {
   listPipelineStages,
   createDeal,
   getAccountFacebookPageByFbPageId,
+  createNotification,
 } from "../db";
 import { ENV } from "../_core/env";
 
@@ -410,6 +411,16 @@ async function processLead(
   fireTriggers(data.accountId, contactId).catch((err) => {
     console.error(`[FB Leads Webhook] Error firing triggers for contact ${contactId}:`, err);
   });
+
+  // 4. Create in-app notification
+  createNotification({
+    accountId: data.accountId,
+    userId: null,
+    type: "new_contact_facebook",
+    title: `New Facebook lead`,
+    body: `${data.firstName} ${data.lastName}${data.email ? ` (${data.email})` : ""}`,
+    link: `/contacts/${contactId}`,
+  }).catch((err) => console.error(`[FB Leads Webhook] Notification error:`, err));
 
   return { contactId, dealId };
 }

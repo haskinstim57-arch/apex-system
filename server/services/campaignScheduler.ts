@@ -6,6 +6,7 @@ import {
   updateCampaignRecipientStatus,
   getCampaignRecipientStats,
   getEmailTemplate,
+  createNotification,
 } from "../db";
 import { dispatchSMS, dispatchEmail } from "./messaging";
 import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
@@ -195,4 +196,14 @@ async function sendCampaign(campaignId: number, accountId: number) {
   console.log(
     `[CampaignScheduler] Campaign ${campaignId} complete: ${sentCount} sent, ${failedCount} failed out of ${recipients.length}`
   );
+
+  // Create in-app notification
+  createNotification({
+    accountId,
+    userId: null,
+    type: "campaign_finished",
+    title: `Campaign finished sending`,
+    body: `${sentCount} sent, ${failedCount} failed out of ${recipients.length} recipients`,
+    link: `/campaigns`,
+  }).catch((err) => console.error("[CampaignScheduler] Notification error:", err));
 }

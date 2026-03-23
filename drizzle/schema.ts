@@ -927,3 +927,35 @@ export const emailTemplates = mysqlTable("email_templates", {
 
 export type EmailTemplate = typeof emailTemplates.$inferSelect;
 export type InsertEmailTemplate = typeof emailTemplates.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS — In-app notification center
+// ─────────────────────────────────────────────
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** null = account-wide notification visible to all members */
+  userId: int("user_id"),
+  type: mysqlEnum("type", [
+    "inbound_message",
+    "appointment_booked",
+    "appointment_cancelled",
+    "ai_call_completed",
+    "campaign_finished",
+    "workflow_failed",
+    "new_contact_facebook",
+    "new_contact_booking",
+    "missed_call",
+  ]).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  body: text("body"),
+  /** Relative link to the relevant page, e.g. /contacts/123 */
+  link: varchar("link", { length: 500 }),
+  isRead: boolean("is_read").default(false).notNull(),
+  dismissed: boolean("dismissed").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;

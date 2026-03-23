@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `notifications` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `account_id` int NOT NULL,\n  `user_id` int DEFAULT NULL,\n  `type` enum('inbound_message','appointment_booked','appointment_cancelled','ai_call_completed','campaign_finished','workflow_failed','new_contact_facebook','new_contact_booking','missed_call') NOT NULL,\n  `title` varchar(500) NOT NULL,\n  `body` text,\n  `link` varchar(500),\n  `is_read` boolean NOT NULL DEFAULT false,\n  `dismissed` boolean NOT NULL DEFAULT false,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  INDEX `idx_notifications_account` (`account_id`),\n  INDEX `idx_notifications_user` (`account_id`, `user_id`),\n  INDEX `idx_notifications_unread` (`account_id`, `is_read`, `dismissed`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute CREATE TABLE IF NOT EXISTS `notifications` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `account_id` int NOT NULL,\n  `user_id` int DEFAULT NULL,\n  `type` enum('inbound_message','appointment_booked','appointment_cancelled','ai_call_completed','campaign_finished','workflow_failed','new_contact_facebook','new_contact_booking','missed_call') NOT NULL,\n  `title` varchar(500) NOT NULL,\n  `body` text,\n  `link` varchar(500),\n  `is_read` boolean NOT NULL DEFAULT false,\n  `dismissed` boolean NOT NULL DEFAULT false,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  INDEX `idx_notifications_account` (`account_id`),\n  INDEX `idx_notifications_user` (`account_id`, `user_id`),\n  INDEX `idx_notifications_unread` (`account_id`, `is_read`, `dismissed`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 617
+}

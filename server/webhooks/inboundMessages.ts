@@ -5,6 +5,7 @@ import {
   findContactByEmail,
   getAccountMessagingSettings,
   logContactActivity,
+  createNotification,
 } from "../db";
 import { getDb } from "../db";
 import { accountMessagingSettings } from "../../drizzle/schema";
@@ -99,6 +100,16 @@ inboundMessageRouter.post(
         metadata: JSON.stringify({ messageId: id, channel: "sms", direction: "inbound", preview: Body.substring(0, 150) }),
       });
 
+      // Create in-app notification
+      createNotification({
+        accountId,
+        userId: contact.assignedUserId || null,
+        type: "inbound_message",
+        title: `New SMS from ${contact.firstName || From}`,
+        body: Body.substring(0, 200),
+        link: `/inbox`,
+      }).catch((err) => console.error("[Twilio Inbound] Notification error:", err));
+
       // Return TwiML empty response (no auto-reply)
       res.type("text/xml").status(200).send("<Response></Response>");
     } catch (err: any) {
@@ -190,6 +201,16 @@ inboundMessageRouter.post(
         description: `Inbound email from ${senderEmail}${subject ? `: ${subject}` : ""}`,
         metadata: JSON.stringify({ messageId: id, channel: "email", direction: "inbound", preview: messageBody.substring(0, 150) }),
       });
+
+      // Create in-app notification
+      createNotification({
+        accountId,
+        userId: contact.assignedUserId || null,
+        type: "inbound_message",
+        title: `New email from ${contact.firstName || senderEmail}`,
+        body: subject ? subject.substring(0, 200) : messageBody.substring(0, 200),
+        link: `/inbox`,
+      }).catch((err) => console.error("[SendGrid Inbound] Notification error:", err));
 
       res.status(200).json({ received: true, matched: true, messageId: id });
     } catch (err: any) {

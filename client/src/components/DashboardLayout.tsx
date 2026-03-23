@@ -49,6 +49,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { useAccount } from "@/contexts/AccountContext";
+import { NotificationCenter } from "./NotificationCenter";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -449,18 +450,18 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset className={isImpersonating ? "pt-10" : ""}>
-        {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
-            <div className="flex items-center gap-2">
+        {/* Top bar — mobile: hamburger + page title; desktop: just notification bell */}
+        <div className="flex border-b h-14 items-center justify-between bg-background/95 px-3 md:px-6 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="flex items-center gap-2">
+            {isMobile && (
               <SidebarTrigger className="h-9 w-9 rounded-lg bg-background" />
-              <div className="flex items-center gap-2">
-                <span className="font-medium tracking-tight text-foreground text-sm">
-                  {activeMenuItem?.label ?? "Menu"}
-                </span>
-              </div>
-            </div>
+            )}
+            <span className="font-medium tracking-tight text-foreground text-sm">
+              {activeMenuItem?.label ?? "Menu"}
+            </span>
           </div>
-        )}
+          <NotificationCenter />
+        </div>
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </SidebarInset>
     </>

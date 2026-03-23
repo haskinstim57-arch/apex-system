@@ -4,6 +4,7 @@ import {
   findContactByPhone,
   createMessage,
   logContactActivity,
+  createNotification,
 } from "../db";
 import { dispatchSMS } from "../services/messaging";
 import { resolveAccountByTwilioNumber, normalizePhone } from "./inboundMessages";
@@ -82,6 +83,16 @@ twilioVoiceStatusRouter.post(
       console.log(
         `[Twilio Voice Status] Missed call from ${callerPhone} to account ${accountId}. Scheduling text-back in ${delayMinutes} min.`
       );
+
+      // Create in-app notification for missed call
+      createNotification({
+        accountId,
+        userId: null,
+        type: "missed_call",
+        title: `Missed call`,
+        body: `Missed call from ${callerPhone}`,
+        link: `/inbox`,
+      }).catch((err) => console.error("[Twilio Voice Status] Notification error:", err));
 
       // Schedule the text-back (fire-and-forget with delay)
       setTimeout(async () => {

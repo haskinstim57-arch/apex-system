@@ -1044,4 +1044,38 @@
 
 ### Final
 - [x] Test all pages on mobile viewport (all 816 tests pass)
+- [x] Checkpoint saved
+
+## In-App Notification Center
+
+### Backend
+- [x] Schema: notifications table (id, accountId, userId, type enum, title, body, link, isRead, dismissed, createdAt)
+- [x] DB migration pushed (via SQL)
+- [x] DB helpers: createNotification, getNotifications, getUnreadNotificationCount, markAsRead, markAllAsRead, dismissNotification
+- [x] tRPC procedures: notifications.list, notifications.unreadCount, notifications.markAsRead, notifications.markAllAsRead, notifications.dismiss
+
+### Notification Triggers
+- [x] New inbound message received (SMS) — server/webhooks/inboundMessages.ts
+- [x] New inbound message received (email) — server/webhooks/inboundMessages.ts
+- [x] New appointment booked — server/routers/calendar.ts (bookAppointment)
+- [x] Appointment cancelled — server/routers/calendar.ts (cancel)
+- [x] AI call completed — server/webhooks/vapi.ts (native + simplified)
+- [x] Campaign finished sending — server/services/campaignScheduler.ts
+- [x] Automation workflow failed — server/services/workflowEngine.ts (top-level + step-level)
+- [x] New contact created via Facebook lead — server/webhooks/facebookLeads.ts
+- [x] Missed call received — server/webhooks/twilioVoiceStatus.ts
+
+### Frontend
+- [x] Bell icon component with unread count badge in top nav bar
+- [x] Notification dropdown showing last 20 notifications
+- [x] Each notification: icon (type-based), title, description, timestamp, link
+- [x] Mark all as read button
+- [x] Individual notification dismiss
+- [x] Unread notifications highlighted (blue dot + bold)
+- [x] Poll for new notifications every 15 seconds
+- [x] Integrate bell into DashboardLayout top bar (mobile + desktop)
+
+### Testing
+- [x] Vitest tests for notification CRUD procedures (9 tests)
+- [x] All 825 tests pass
 - [ ] Checkpoint saved

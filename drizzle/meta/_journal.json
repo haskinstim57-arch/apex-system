@@ -176,6 +176,13 @@
       "when": 1774219910958,
       "tag": "0024_young_edwin_jarvis",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1774248811512,
+      "tag": "0025_lovely_serpent_society",
+      "breakpoints": true
     }
   ]
 }

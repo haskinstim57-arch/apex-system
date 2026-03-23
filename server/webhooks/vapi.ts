@@ -3,6 +3,7 @@ import {
   getAICallById,
   getAICallByExternalId,
   updateAICall,
+  createNotification,
 } from "../db";
 import { mapVapiStatus, mapVapiEndedReason } from "../services/vapi";
 
@@ -148,6 +149,19 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
     fireCallCompletedTrigger(call.accountId, call.contactId);
   }
 
+  // Create in-app notification when call ends
+  if (message.type === "end-of-call-report" && call.accountId) {
+    const summary = message.analysis?.summary ?? message.summary ?? "Call completed";
+    createNotification({
+      accountId: call.accountId,
+      userId: null,
+      type: "ai_call_completed",
+      title: `AI call completed`,
+      body: summary.substring(0, 200),
+      link: `/ai-calls`,
+    }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
+  }
+
   return { success: true };
 }
 
@@ -209,6 +223,19 @@ async function handleSimplifiedPayload(body: any): Promise<{ success: boolean; e
   const isEnded = body.status === "ended" || body.status === "completed";
   if (isEnded && call.contactId && call.accountId) {
     fireCallCompletedTrigger(call.accountId, call.contactId);
+  }
+
+  // Create in-app notification when call ends (simplified format)
+  if (isEnded && call.accountId) {
+    const summary = body.summary || body.transcript?.substring(0, 100) || "Call completed";
+    createNotification({
+      accountId: call.accountId,
+      userId: null,
+      type: "ai_call_completed",
+      title: `AI call completed`,
+      body: summary.substring(0, 200),
+      link: `/ai-calls`,
+    }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
   }
 
   return { success: true };

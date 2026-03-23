@@ -23,6 +23,7 @@ import {
   decryptCalendarTokens,
   updateCalendarIntegration,
   logContactActivity,
+  createNotification,
 } from "../db";
 import { dispatchEmail, dispatchSMS } from "../services/messaging";
 import { generateICSBase64 } from "../utils/icsGenerator";
@@ -509,6 +510,16 @@ export const calendarRouter = router({
         resourceId: input.id,
       });
 
+      // Create in-app notification
+      createNotification({
+        accountId: input.accountId,
+        userId: null,
+        type: "appointment_cancelled",
+        title: `Appointment cancelled`,
+        body: `Appointment for ${appt.guestName} on ${new Date(appt.startTime).toLocaleDateString()} was cancelled`,
+        link: `/calendar`,
+      }).catch((err) => console.error("[Calendar] Cancel notification error:", err));
+
       return { success: true };
     }),
 
@@ -752,6 +763,16 @@ export const calendarRouter = router({
         description: `Appointment booked by ${input.guestName} (${input.guestEmail}) on ${calendar.name} for ${dateStr} at ${timeStr}`,
         metadata: JSON.stringify({ appointmentId: result.id, calendarName: calendar.name, guestName: input.guestName, guestEmail: input.guestEmail }),
       });
+
+      // Create in-app notification
+      createNotification({
+        accountId: calendar.accountId,
+        userId: null,
+        type: "appointment_booked",
+        title: `New appointment booked`,
+        body: `${input.guestName} booked on ${calendar.name} for ${dateStr} at ${timeStr}`,
+        link: `/calendar`,
+      }).catch((err) => console.error("[Calendar] Booking notification error:", err));
 
       return {
         id: result.id,
