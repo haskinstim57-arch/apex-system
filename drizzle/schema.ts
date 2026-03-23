@@ -1058,3 +1058,56 @@ export const externalCalendarEvents = mysqlTable("external_calendar_events", {
 
 export type ExternalCalendarEvent = typeof externalCalendarEvents.$inferSelect;
 export type InsertExternalCalendarEvent = typeof externalCalendarEvents.$inferInsert;
+
+// ─────────────────────────────────────────────
+// DIALER SESSIONS — Power dialer session tracking
+// ─────────────────────────────────────────────
+export const dialerSessions = mysqlTable("dialer_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this session belongs to */
+  accountId: int("accountId").notNull(),
+  /** User who started the session */
+  userId: int("userId").notNull(),
+  /** JSON array of contact IDs to call */
+  contactIds: text("contactIds").notNull(),
+  /** Session status */
+  status: mysqlEnum("status", ["active", "paused", "completed"])
+    .default("active")
+    .notNull(),
+  /** Current index in the contactIds array (0-based) */
+  currentIndex: int("currentIndex").default(0).notNull(),
+  /** JSON array of per-contact results */
+  results: text("results"),
+  /** Optional script ID used during this session */
+  scriptId: int("scriptId"),
+  /** Total contacts in the session */
+  totalContacts: int("totalContacts").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type DialerSession = typeof dialerSessions.$inferSelect;
+export type InsertDialerSession = typeof dialerSessions.$inferInsert;
+
+// ─────────────────────────────────────────────
+// DIALER SCRIPTS — Call scripts for power dialer
+// ─────────────────────────────────────────────
+export const dialerScripts = mysqlTable("dialer_scripts", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this script belongs to */
+  accountId: int("accountId").notNull(),
+  /** Script display name */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Script content (markdown/plain text) */
+  content: text("content").notNull(),
+  /** Whether this script is active */
+  isActive: boolean("isActive").default(true).notNull(),
+  /** User who created the script */
+  createdById: int("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type DialerScript = typeof dialerScripts.$inferSelect;
+export type InsertDialerScript = typeof dialerScripts.$inferInsert;

@@ -73,6 +73,10 @@ import {
   type InsertCalendarWatch,
   externalCalendarEvents,
   type InsertExternalCalendarEvent,
+  dialerSessions,
+  type InsertDialerSession,
+  dialerScripts,
+  type InsertDialerScript,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -3556,4 +3560,129 @@ export async function getExternalCalendarEventsByAccount(
       )
     )
     .orderBy(asc(externalCalendarEvents.startTime));
+}
+
+
+// ─────────────────────────────────────────────
+// DIALER SESSIONS
+// ─────────────────────────────────────────────
+
+export async function createDialerSession(data: InsertDialerSession) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(dialerSessions).values(data);
+  return { id: (result as any).insertId as number };
+}
+
+export async function getDialerSessionById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(dialerSessions)
+    .where(eq(dialerSessions.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function listDialerSessions(params: {
+  accountId: number;
+  userId?: number;
+  status?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { data: [], total: 0 };
+  const limit = params.limit ?? 20;
+  const offset = params.offset ?? 0;
+
+  const conditions = [eq(dialerSessions.accountId, params.accountId)];
+  if (params.userId) conditions.push(eq(dialerSessions.userId, params.userId));
+  if (params.status) conditions.push(eq(dialerSessions.status, params.status as any));
+
+  const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+  const [data, [{ count: total }]] = await Promise.all([
+    db
+      .select()
+      .from(dialerSessions)
+      .where(whereClause)
+      .orderBy(desc(dialerSessions.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`count(*)` })
+      .from(dialerSessions)
+      .where(whereClause),
+  ]);
+
+  return { data, total };
+}
+
+export async function updateDialerSession(
+  id: number,
+  data: Partial<{
+    status: "active" | "paused" | "completed";
+    currentIndex: number;
+    results: string;
+    completedAt: Date;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(dialerSessions).set(data as any).where(eq(dialerSessions.id, id));
+}
+
+export async function deleteDialerSession(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(dialerSessions).where(eq(dialerSessions.id, id));
+}
+
+// ─────────────────────────────────────────────
+// DIALER SCRIPTS
+// ─────────────────────────────────────────────
+
+export async function createDialerScript(data: InsertDialerScript) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(dialerScripts).values(data);
+  return { id: (result as any).insertId as number };
+}
+
+export async function getDialerScriptById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select()
+    .from(dialerScripts)
+    .where(eq(dialerScripts.id, id))
+    .limit(1);
+  return result[0] ?? null;
+}
+
+export async function listDialerScripts(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(dialerScripts)
+    .where(eq(dialerScripts.accountId, accountId))
+    .orderBy(desc(dialerScripts.createdAt));
+}
+
+export async function updateDialerScript(
+  id: number,
+  data: Partial<{ name: string; content: string; isActive: boolean }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(dialerScripts).set(data as any).where(eq(dialerScripts.id, id));
+}
+
+export async function deleteDialerScript(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(dialerScripts).where(eq(dialerScripts.id, id));
 }

@@ -8,6 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
@@ -82,6 +83,9 @@ import {
   Info,
   Ban,
   Timer,
+  FileText,
+  Plus,
+  Edit3,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
@@ -290,6 +294,11 @@ export default function SettingsPage() {
       {/* Missed Call Text-Back — visible to anyone with an account selected */}
       {currentAccountId && (
         <MissedCallTextBackCard accountId={currentAccountId} />
+      )}
+
+      {/* Call Scripts — visible to account owners and admins with an account selected */}
+      {currentAccountId && (
+        <CallScriptsCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}
@@ -2141,5 +2150,224 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+
+// ─── Call Scripts Card ───
+function CallScriptsCard({ accountId }: { accountId: number }) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingScript, setEditingScript] = useState<any>(null);
+  const [name, setName] = useState("");
+  const [content, setContent] = useState("");
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  const scriptsQuery = trpc.powerDialer.listScripts.useQuery({ accountId });
+  const createMutation = trpc.powerDialer.createScript.useMutation({
+    onSuccess: () => {
+      scriptsQuery.refetch();
+      setShowCreate(false);
+      setName("");
+      setContent("");
+    },
+  });
+  const updateMutation = trpc.powerDialer.updateScript.useMutation({
+    onSuccess: () => {
+      scriptsQuery.refetch();
+      setEditingScript(null);
+      setName("");
+      setContent("");
+    },
+  });
+  const deleteMutation = trpc.powerDialer.deleteScript.useMutation({
+    onSuccess: () => {
+      scriptsQuery.refetch();
+      setDeleteId(null);
+    },
+  });
+
+  const handleSave = () => {
+    if (!name.trim() || !content.trim()) return;
+    if (editingScript) {
+      updateMutation.mutate({
+        id: editingScript.id,
+        accountId,
+        name: name.trim(),
+        content: content.trim(),
+      });
+    } else {
+      createMutation.mutate({
+        accountId,
+        name: name.trim(),
+        content: content.trim(),
+      });
+    }
+  };
+
+  const handleEdit = (script: any) => {
+    setEditingScript(script);
+    setName(script.name);
+    setContent(script.content);
+    setShowCreate(true);
+  };
+
+  return (
+    <Card className="bg-white border-0 card-shadow">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              Call Scripts
+            </CardTitle>
+            <CardDescription className="text-xs mt-1">
+              Create call scripts for your Power Dialer sessions.
+            </CardDescription>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setEditingScript(null);
+              setName("");
+              setContent("");
+              setShowCreate(true);
+            }}
+          >
+            <Plus className="h-3.5 w-3.5 mr-1" />
+            New Script
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {scriptsQuery.isLoading ? (
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : scriptsQuery.data && scriptsQuery.data.length > 0 ? (
+          scriptsQuery.data.map((script: any) => (
+            <div
+              key={script.id}
+              className="flex items-start justify-between p-3 rounded-lg border bg-muted/20"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{script.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                  {script.content}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Created {new Date(script.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-1 ml-3 shrink-0">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                  onClick={() => handleEdit(script)}
+                >
+                  <Edit3 className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                  onClick={() => setDeleteId(script.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No call scripts yet. Create one to use in your Power Dialer sessions.
+          </p>
+        )}
+      </CardContent>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingScript ? "Edit Call Script" : "Create Call Script"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingScript
+                ? "Update the script name and content."
+                : "Write a script that your team can follow during Power Dialer sessions."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Script Name</Label>
+              <Input
+                placeholder="e.g., Initial Contact Script"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Script Content</Label>
+              <Textarea
+                placeholder="Write your call script here..."
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={10}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreate(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={
+                !name.trim() ||
+                !content.trim() ||
+                createMutation.isPending ||
+                updateMutation.isPending
+              }
+            >
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              )}
+              {editingScript ? "Update Script" : "Create Script"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Call Script</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this script? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (deleteId) deleteMutation.mutate({ id: deleteId, accountId });
+              }}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-1" />
+              )}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Card>
   );
 }

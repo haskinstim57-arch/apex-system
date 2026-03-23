@@ -1408,4 +1408,23 @@
 - [x] Copy 751 assigned leads from Kyle's account INTO Alfonso's own account (390024)
 - [x] Copy 750 assigned leads from Kyle's account INTO Evol's own account (390023)
 - [x] Verify: Alfonso sees only his account (751 leads), Evol sees only his account (750 leads), Kyle sees all 3 accounts
-- [ ] Checkpoint saved
+- [x] Checkpoint saved (18b3469e)
+
+### Feature: Power Dialer
+- [x] Schema: Add dialerSessions table (id, accountId, userId, contactIds JSON, status, currentIndex, results JSON, createdAt, completedAt)
+- [x] Schema: Add dialerScripts table (id, accountId, name, content, createdAt)
+- [x] Run pnpm db:push for new tables
+- [x] DB helpers: CRUD for dialerSessions and dialerScripts
+- [x] tRPC procedures: createDialerSession, getDialerSession, updateDialerProgress, completeDialerSession
+- [x] tRPC procedures: CRUD for dialerScripts (create, list, get, update, delete)
+- [x] tRPC procedure: initiateDialerCall (uses existing VAPI integration to place outbound call)
+- [x] Frontend: Power Dialer page (/power-dialer) with 3 screens (setup, active dialer, summary)
+- [x] Frontend: Setup screen — contact list selector (by tag, filter, manual), script selector, start button
+- [x] Frontend: Active dialer — contact info, call status, timer, skip/hangup, disposition buttons, notes, progress bar
+- [x] Frontend: Session summary — totals, CSV export
+- [x] Sidebar: Add "Power Dialer" nav item under AI Calls
+- [x] Route: Register /power-dialer in App.tsx
+- [x] Log each call attempt to contact activity timeline (in initiateCall + recordDisposition)
+- [x] Log summary note on each contacted contact after session (in recordDisposition)
+- [x] Call scripts management in Settings for account owners/admins
+- [x] Write vitest tests for Power Dialer procedures (23/23 passing)
