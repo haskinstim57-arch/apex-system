@@ -55,6 +55,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
+import { CsvImportModal } from "@/components/CsvImportModal";
 
 const STATUSES = [
   "new",
@@ -133,6 +134,7 @@ export default function Contacts() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editContact, setEditContact] = useState<any>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<any>(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   // Create mutation
   const createMutation = trpc.contacts.create.useMutation({
@@ -208,6 +210,15 @@ export default function Contacts() {
         </div>
         <div className="flex items-center gap-2">
           {/* Account selector removed — use sidebar AccountSwitcher instead */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportOpen(true)}
+            className="h-9 gap-1.5"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Import CSV
+          </Button>
           <Button
             size="sm"
             onClick={() => setCreateOpen(true)}
@@ -601,6 +612,13 @@ export default function Contacts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* CSV Import Modal */}
+      <CsvImportModal
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        accountId={accountId}
+      />
     </div>
   );
 }

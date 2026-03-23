@@ -1310,4 +1310,25 @@
 - [x] Backend: Add appointments count to accountDashboardStats (contacts, messages, aiCalls, appointments scoped to accountId)
 - [x] Quick Overview section scoped to selected sub-account
 - [x] All 924 tests pass
+- [x] Checkpoint saved (ae3b6b7a)
+
+## Bulk CSV Contact Import
+
+### Backend
+- [x] importContacts tRPC procedure: accepts array of contact objects, bulk inserts for active accountId
+- [x] Duplicate detection: skip contacts with same email or phone already in account
+- [x] Required field validation: at least one of firstName, lastName, or phone
+- [x] Tags support: comma-separated tags auto-created on contact
+- [x] Return result: imported, skipped, failed counts + error rows array
+
+### Frontend (Multi-Step Modal)
+- [x] "Import Contacts" button on Contacts page next to "Add Contact"
+- [x] Step 1 — Upload: drag-and-drop or click-to-browse CSV upload + "Download Template" link
+- [x] Step 2 — Map Fields: preview first 3 rows, dropdown field mapping with auto-map
+- [x] Step 3 — Review & Import: summary (total, errors, ready), error table, import button
+- [x] Step 4 — Complete: results (imported, skipped, failed counts)
+- [x] CSV Template: First Name, Last Name, Email, Phone, Tags, Notes
+
+### Verification
+- [x] Tests written and passing (20 tests, 944 total)
 - [ ] Checkpoint saved

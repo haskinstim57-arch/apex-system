@@ -23,6 +23,8 @@ import {
   createAuditLog,
   getContactActivities,
   logContactActivity,
+  findContactByEmail,
+  findContactByPhone,
 } from "../db";
 
 // ─── Tenant guard: verify user is a member of the account ───
@@ -602,5 +604,136 @@ export const contactsRouter = router({
         limit: input.limit,
         offset: input.offset,
       });
+    }),
+
+  // ─── Bulk import contacts from CSV ───
+  importContacts: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        contacts: z.array(
+          z.object({
+            firstName: z.string().max(100).optional().default(""),
+            lastName: z.string().max(100).optional().default(""),
+            email: z.string().max(320).optional().default(""),
+            phone: z.string().max(30).optional().default(""),
+            tags: z.string().optional().default(""),
+            notes: z.string().optional().default(""),
+          })
+        ).min(1).max(5000),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      let imported = 0;
+      let skipped = 0;
+      let failed = 0;
+      const errorRows: Array<{ row: number; data: Record<string, string>; reason: string }> = [];
+
+      for (let i = 0; i < input.contacts.length; i++) {
+        const row = input.contacts[i];
+        const rowNum = i + 1;
+        const firstName = row.firstName?.trim() || "";
+        const lastName = row.lastName?.trim() || "";
+        const email = row.email?.trim() || "";
+        const rawPhone = row.phone?.trim() || "";
+        const tagsStr = row.tags?.trim() || "";
+        const notes = row.notes?.trim() || "";
+
+        // Validate: at least one of firstName, lastName, or phone
+        if (!firstName && !lastName && !rawPhone) {
+          failed++;
+          errorRows.push({
+            row: rowNum,
+            data: { firstName, lastName, email, phone: rawPhone, tags: tagsStr, notes },
+            reason: "At least one of First Name, Last Name, or Phone is required",
+          });
+          continue;
+        }
+
+        // Check for duplicates by email
+        if (email) {
+          const existingByEmail = await findContactByEmail(email, input.accountId);
+          if (existingByEmail) {
+            skipped++;
+            continue;
+          }
+        }
+
+        // Check for duplicates by phone
+        let normalizedPhone: string | null = null;
+        if (rawPhone) {
+          const normalized = normalizeToE164(rawPhone);
+          if (normalized && isValidE164(normalized)) {
+            normalizedPhone = normalized;
+            const existingByPhone = await findContactByPhone(normalizedPhone, input.accountId);
+            if (existingByPhone) {
+              skipped++;
+              continue;
+            }
+          } else {
+            // Invalid phone format — still import but without phone
+            normalizedPhone = null;
+          }
+        }
+
+        try {
+          const { id } = await createContact({
+            accountId: input.accountId,
+            firstName: firstName || "Unknown",
+            lastName: lastName || "",
+            email: email || null,
+            phone: normalizedPhone,
+            status: "new",
+          });
+
+          // Add tags if provided (comma-separated)
+          if (tagsStr) {
+            const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
+            for (const tag of tags) {
+              await addContactTag(id, tag);
+            }
+          }
+
+          // Add notes as a contact note if provided
+          if (notes) {
+            await createContactNote({
+              contactId: id,
+              authorId: ctx.user.id,
+              content: notes,
+            });
+          }
+
+          // Log activity
+          logContactActivity({
+            contactId: id,
+            accountId: input.accountId,
+            activityType: "contact_created",
+            description: `Contact ${firstName} ${lastName} imported via CSV`,
+          });
+
+          imported++;
+        } catch (err) {
+          failed++;
+          errorRows.push({
+            row: rowNum,
+            data: { firstName, lastName, email, phone: rawPhone, tags: tagsStr, notes },
+            reason: err instanceof Error ? err.message : "Unknown error",
+          });
+        }
+      }
+
+      // Audit log for the bulk import
+      await createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "contacts.bulk_import",
+        resourceType: "contact",
+        resourceId: 0,
+        metadata: JSON.stringify({ imported, skipped, failed }),
+      });
+
+      return { imported, skipped, failed, errorRows };
     }),
 });
