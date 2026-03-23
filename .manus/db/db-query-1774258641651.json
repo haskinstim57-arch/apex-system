@@ -1,0 +1,15 @@
+{
+  "query": "SELECT id, name, parentId FROM accounts WHERE id = 360078;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, parentId FROM accounts WHERE id = 360078;",
+  "rows": [
+    {
+      "id": "360078",
+      "name": "Test Account Industry",
+      "parentId": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tparentId\n360078\tTest Account Industry\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 52
+}

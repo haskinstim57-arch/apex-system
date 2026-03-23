@@ -1,0 +1,14 @@
+{
+  "query": "SELECT a.id, a.name FROM accounts a JOIN account_members am ON a.id = am.accountId WHERE am.userId = 1 AND a.id = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT a.id, a.name FROM accounts a JOIN account_members am ON a.id = am.accountId WHERE am.userId = 1 AND a.id = 1;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Test Account"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n1\tTest Account\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

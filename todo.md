@@ -1238,4 +1238,19 @@
 - [x] 20 vitest tests for double-booking prevention (hasTimeConflict, getCachedExternalBusyBlocks logic, buffer time, cancelled appointments)
 - [x] Updated existing calendar.test.ts for new error message
 - [x] All 882 tests pass
-- [ ] Checkpoint saved
+- [x] Checkpoint saved
+
+## Analytics Dashboard
+
+### Backend Fixes
+- [x] Fix DATE() SQL compatibility issue in analytics router (use DATE_FORMAT raw SQL)
+- [x] Register analytics router in server/routers.ts
+
+### Frontend Wiring
+- [x] Add /analytics route to App.tsx
+- [x] Remove placeholder flag from Analytics sidebar nav item
+- [x] Verify Analytics page loads with real data (KPI cards + 6 charts)
+
+### Testing
+- [x] Fix analytics tests for DATE() SQL compatibility
+- [x] All 898 tests pass

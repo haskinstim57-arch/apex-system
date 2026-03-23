@@ -60,7 +60,7 @@ const menuItems = [
   { icon: Mail, label: "Email Templates", path: "/email-templates" },
   { icon: Phone, label: "AI Calls", path: "/ai-calls" },
   { icon: Globe, label: "Websites", path: "/websites", placeholder: true },
-  { icon: BarChart3, label: "Analytics", path: "/analytics", placeholder: true },
+  { icon: BarChart3, label: "Analytics", path: "/analytics" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: CalendarDays, label: "Calendar", path: "/calendar" },
   { icon: Zap, label: "Automations", path: "/automations" },

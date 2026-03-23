@@ -31,6 +31,7 @@ import Inbox from "./pages/Inbox";
 import BookingPage from "./pages/BookingPage";
 import EmailTemplates from "./pages/EmailTemplates";
 import EmailTemplateEditor from "./pages/EmailTemplateEditor";
+import Analytics from "./pages/Analytics";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -148,6 +149,11 @@ function Router() {
             <EmailTemplateEditor id={parseInt(params.id)} />
           </DashboardLayout>
         )}
+      </Route>
+      <Route path="/analytics">
+        <DashboardLayout>
+          <Analytics />
+        </DashboardLayout>
       </Route>
       <Route path="/settings">
         <DashboardLayout>

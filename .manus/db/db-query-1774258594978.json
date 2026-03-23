@@ -1,0 +1,35 @@
+{
+  "query": "SELECT c.accountId, a.name, COUNT(*) as cnt FROM contacts c JOIN accounts a ON c.accountId = a.id GROUP BY c.accountId, a.name ORDER BY cnt DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT c.accountId, a.name, COUNT(*) as cnt FROM contacts c JOIN accounts a ON c.accountId = a.id GROUP BY c.accountId, a.name ORDER BY cnt DESC LIMIT 5;",
+  "rows": [
+    {
+      "accountId": "1",
+      "name": "Test Account",
+      "cnt": "1872"
+    },
+    {
+      "accountId": "60012",
+      "name": "Test Account Industry",
+      "cnt": "4"
+    },
+    {
+      "accountId": "60046",
+      "name": "Test Account Active",
+      "cnt": "3"
+    },
+    {
+      "accountId": "60039",
+      "name": "Test Account Industry",
+      "cnt": "3"
+    },
+    {
+      "accountId": "90001",
+      "name": "test sub account",
+      "cnt": "2"
+    }
+  ],
+  "messages": [],
+  "stdout": "accountId\tname\tcnt\n1\tTest Account\t1872\n60012\tTest Account Industry\t4\n60046\tTest Account Active\t3\n60039\tTest Account Industry\t3\n90001\ttest sub account\t2\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

@@ -1,0 +1,30 @@
+{
+  "query": "SELECT accountId, COUNT(*) as cnt FROM contacts GROUP BY accountId ORDER BY cnt DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT accountId, COUNT(*) as cnt FROM contacts GROUP BY accountId ORDER BY cnt DESC LIMIT 5;",
+  "rows": [
+    {
+      "accountId": "1",
+      "cnt": "1872"
+    },
+    {
+      "accountId": "60012",
+      "cnt": "4"
+    },
+    {
+      "accountId": "60046",
+      "cnt": "3"
+    },
+    {
+      "accountId": "60039",
+      "cnt": "3"
+    },
+    {
+      "accountId": "60060",
+      "cnt": "2"
+    }
+  ],
+  "messages": [],
+  "stdout": "accountId\tcnt\n1\t1872\n60012\t4\n60046\t3\n60039\t3\n60060\t2\n",
+  "stderr": "",
+  "execution_time_ms": 65
+}
