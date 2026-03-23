@@ -3528,3 +3528,26 @@ export async function deleteExternalCalendarEventsByUser(userId: number, account
       )
     );
 }
+
+// Get external calendar events by account (all users) for conflict checking
+export async function getExternalCalendarEventsByAccount(
+  accountId: number,
+  timeMin: Date,
+  timeMax: Date
+) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(externalCalendarEvents)
+    .where(
+      and(
+        eq(externalCalendarEvents.accountId, accountId),
+        sql`${externalCalendarEvents.status} != 'cancelled'`,
+        // Include events that overlap with the time range (not just start within it)
+        sql`${externalCalendarEvents.startTime} < ${timeMax}`,
+        sql`${externalCalendarEvents.endTime} > ${timeMin}`
+      )
+    )
+    .orderBy(asc(externalCalendarEvents.startTime));
+}

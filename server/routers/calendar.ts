@@ -24,6 +24,7 @@ import {
   updateCalendarIntegration,
   logContactActivity,
   createNotification,
+  getExternalCalendarEventsByAccount,
 } from "../db";
 import { dispatchEmail, dispatchSMS } from "../services/messaging";
 import { generateICSBase64 } from "../utils/icsGenerator";
@@ -178,6 +179,46 @@ async function syncAppointmentToExternalCalendars(params: {
       // Don't fail the whole booking if external sync fails
     }
   }
+}
+
+// ─── Cached external calendar events as busy blocks ───
+async function getCachedExternalBusyBlocks(
+  accountId: number,
+  dateStr: string,
+  bufferMinutes: number
+): Promise<{ start: number; end: number }[]> {
+  const dayStart = new Date(`${dateStr}T00:00:00Z`);
+  const dayEnd = new Date(`${dateStr}T23:59:59Z`);
+  const events = await getExternalCalendarEventsByAccount(accountId, dayStart, dayEnd);
+
+  return events.map((evt) => {
+    let evtStart: number;
+    let evtEnd: number;
+
+    if (evt.allDay) {
+      // All-day events block the entire day
+      evtStart = dayStart.getTime();
+      evtEnd = dayEnd.getTime() + 1000; // include full day
+    } else {
+      evtStart = new Date(evt.startTime).getTime();
+      evtEnd = new Date(evt.endTime).getTime();
+    }
+
+    // Apply buffer around external events
+    return {
+      start: evtStart - bufferMinutes * 60 * 1000,
+      end: evtEnd + bufferMinutes * 60 * 1000,
+    };
+  });
+}
+
+// ─── Unified conflict checker ───
+function hasTimeConflict(
+  slotStartMs: number,
+  slotEndMs: number,
+  busyBlocks: { start: number; end: number }[]
+): boolean {
+  return busyBlocks.some((busy) => slotStartMs < busy.end && slotEndMs > busy.start);
 }
 
 // ─── Tenant guard ───
@@ -444,6 +485,63 @@ export const calendarRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Appointment not found" });
       }
 
+      // If rescheduling (changing start/end time), check for conflicts
+      if (input.startTime && input.endTime) {
+        const calendar = await getCalendar(appt.calendarId, input.accountId);
+        const bufferMinutes = calendar?.bufferMinutes || 0;
+        const dateStr = input.startTime.toISOString().split("T")[0];
+
+        // Check CRM appointments (exclude the current appointment being rescheduled)
+        const crmSlots = await getAvailableSlots(appt.calendarId, dateStr);
+        const slotStartStr = `${String(input.startTime.getUTCHours()).padStart(2, "0")}:${String(input.startTime.getUTCMinutes()).padStart(2, "0")}`;
+        const matchesAvailableSlot = crmSlots.some((s) => s.start === slotStartStr);
+        // The slot might show as taken because the current appointment occupies it — that's OK
+        // We need to check if the NEW time conflicts with OTHER appointments
+        if (!matchesAvailableSlot) {
+          // Check if the only conflict is with the appointment being rescheduled itself
+          const existingAppts = await getAppointments(input.accountId, {
+            calendarId: appt.calendarId,
+            startDate: new Date(`${dateStr}T00:00:00Z`),
+            endDate: new Date(`${dateStr}T23:59:59Z`),
+          });
+          const otherAppts = existingAppts.filter(
+            (a) => a.id !== input.id && a.status !== "cancelled"
+          );
+          const newStart = input.startTime.getTime();
+          const newEnd = input.endTime.getTime();
+          const crmConflict = otherAppts.some((a) => {
+            const aStart = new Date(a.startTime).getTime() - bufferMinutes * 60 * 1000;
+            const aEnd = new Date(a.endTime).getTime() + bufferMinutes * 60 * 1000;
+            return newStart < aEnd && newEnd > aStart;
+          });
+          if (crmConflict) {
+            throw new TRPCError({
+              code: "CONFLICT",
+              message: "This time slot is already booked. Please choose a different time.",
+            });
+          }
+        }
+
+        // Check external calendar events
+        const [liveBusy, cachedBusy] = await Promise.all([
+          getExternalBusyTimes(input.accountId, `${dateStr}T00:00:00Z`, `${dateStr}T23:59:59Z`),
+          getCachedExternalBusyBlocks(input.accountId, dateStr, bufferMinutes),
+        ]);
+        const allBusy: { start: number; end: number }[] = [
+          ...liveBusy.map((b) => ({
+            start: new Date(b.start).getTime() - bufferMinutes * 60 * 1000,
+            end: new Date(b.end).getTime() + bufferMinutes * 60 * 1000,
+          })),
+          ...cachedBusy,
+        ];
+        if (hasTimeConflict(input.startTime.getTime(), input.endTime.getTime(), allBusy)) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "This time slot is already booked. Please choose a different time.",
+          });
+        }
+      }
+
       const updateData: Record<string, unknown> = {};
       if (input.status !== undefined) updateData.status = input.status;
       if (input.notes !== undefined) updateData.notes = input.notes;
@@ -585,24 +683,35 @@ export const calendarRouter = router({
         return slotTime.getTime() > now.getTime() + minNoticeMs;
       });
 
-      // Also filter out slots that conflict with external calendar busy times
+      // Also filter out slots that conflict with external calendar busy times (live API)
       const busyBlocks = await getExternalBusyTimes(
         calendar.accountId,
         `${input.date}T00:00:00Z`,
         `${input.date}T23:59:59Z`
       );
 
-      if (busyBlocks.length === 0) return filteredSlots;
+      // Also check cached external calendar events (from push notifications)
+      const cachedBusyBlocks = await getCachedExternalBusyBlocks(
+        calendar.accountId,
+        input.date,
+        calendar.bufferMinutes
+      );
+
+      // Merge all busy blocks into a unified list
+      const allBusyBlocks: { start: number; end: number }[] = [
+        ...busyBlocks.map((b) => ({
+          start: new Date(b.start).getTime() - calendar.bufferMinutes * 60 * 1000,
+          end: new Date(b.end).getTime() + calendar.bufferMinutes * 60 * 1000,
+        })),
+        ...cachedBusyBlocks,
+      ];
+
+      if (allBusyBlocks.length === 0) return filteredSlots;
 
       return filteredSlots.filter((slot) => {
         const slotStart = new Date(`${input.date}T${slot.start}:00Z`).getTime();
         const slotEnd = new Date(`${input.date}T${slot.end}:00Z`).getTime();
-        // Slot is available if it doesn't overlap with any busy block
-        return !busyBlocks.some((busy) => {
-          const busyStart = new Date(busy.start).getTime();
-          const busyEnd = new Date(busy.end).getTime();
-          return slotStart < busyEnd && slotEnd > busyStart;
-        });
+        return !hasTimeConflict(slotStart, slotEnd, allBusyBlocks);
       });
     }),
 
@@ -625,13 +734,13 @@ export const calendarRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Calendar not found" });
       }
 
-      // Verify the slot is still available
+      // Verify the slot is still available (checks CRM appointments)
       const slots = await getAvailableSlots(calendar.id, input.date);
       const selectedSlot = slots.find((s) => s.start === input.startTime);
       if (!selectedSlot) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "This time slot is no longer available. Please choose another time.",
+          message: "This time slot is already booked. Please choose a different time.",
         });
       }
 
@@ -648,6 +757,35 @@ export const calendarRouter = router({
 
       const startTimeDate = new Date(`${input.date}T${selectedSlot.start}:00Z`);
       const endTimeDate = new Date(`${input.date}T${selectedSlot.end}:00Z`);
+
+      // Double-check against external calendar events (live API + cached push events)
+      const [liveBusyBlocks, cachedBusyBlocks] = await Promise.all([
+        getExternalBusyTimes(
+          calendar.accountId,
+          `${input.date}T00:00:00Z`,
+          `${input.date}T23:59:59Z`
+        ),
+        getCachedExternalBusyBlocks(
+          calendar.accountId,
+          input.date,
+          calendar.bufferMinutes
+        ),
+      ]);
+
+      const allBusyBlocks: { start: number; end: number }[] = [
+        ...liveBusyBlocks.map((b) => ({
+          start: new Date(b.start).getTime() - calendar.bufferMinutes * 60 * 1000,
+          end: new Date(b.end).getTime() + calendar.bufferMinutes * 60 * 1000,
+        })),
+        ...cachedBusyBlocks,
+      ];
+
+      if (hasTimeConflict(startTimeDate.getTime(), endTimeDate.getTime(), allBusyBlocks)) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "This time slot is already booked. Please choose a different time.",
+        });
+      }
 
       const result = await createAppointment({
         calendarId: calendar.id,

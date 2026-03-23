@@ -497,7 +497,7 @@ describe("calendar.bookAppointment", () => {
         guestName: "Test",
         guestEmail: "test@example.com",
       })
-    ).rejects.toThrow("This time slot is no longer available");
+    ).rejects.toThrow("This time slot is already booked. Please choose a different time.");
   });
 
   it("rejects booking for nonexistent calendar", async () => {

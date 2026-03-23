@@ -1197,4 +1197,45 @@
 ### Testing
 - [x] 24 calendarSync tests (including 3 new listCachedExternalEvents + updated disconnect tests)
 - [x] All 862 tests pass
+- [x] Checkpoint saved
+
+## Double-Booking Prevention
+
+### Public Booking Page
+- [x] Update getPublicSlots to check externalCalendarEvents (cached push events) for conflicts
+- [x] Check both CRM appointments (confirmed/pending) and external events (live API + cached)
+- [x] Hide any slot with partial or full overlap (hasTimeConflict helper)
+- [x] Respect bufferMinutes field on calendar for buffer time (applied to both CRM and external events)
+- [x] All-day external events block the entire day
+- [x] Cancelled appointments do NOT block slots (filtered with status != 'cancelled')
+
+### CRM Appointment Creation (bookAppointment)
+- [x] Add double conflict check: first via getAvailableSlots (CRM), then via external calendar events
+- [x] Check against CRM appointments AND external calendar events (live + cached)
+- [x] Return error "This time slot is already booked. Please choose a different time." if conflict found
+- [x] Include buffer time in conflict check
+
+### CRM Appointment Rescheduling (updateAppointment)
+- [x] Add conflict check when startTime/endTime are changed
+- [x] Exclude the appointment being rescheduled from self-conflict
+- [x] Check both CRM and external events with buffer
+
+### Post-Booking Sync
+- [x] Push new CRM appointments to connected external calendars immediately after booking (already existed via syncAppointmentToExternalCalendars)
+- [x] Prevents external calendar double-booking after CRM booking
+
+### Backend Helpers
+- [x] getCachedExternalBusyBlocks — converts cached external events to busy blocks with buffer
+- [x] hasTimeConflict — unified overlap detection function
+- [x] getExternalCalendarEventsByAccount — DB helper for account-wide external event query
+
+### Frontend
+- [x] Conflict error message shown via toast.error(e.message) on CRM calendar booking
+- [x] Conflict error message shown via toast.error(e.message) on public booking page
+- [x] Error handling already wired in both Calendar.tsx and BookingPage.tsx
+
+### Testing
+- [x] 20 vitest tests for double-booking prevention (hasTimeConflict, getCachedExternalBusyBlocks logic, buffer time, cancelled appointments)
+- [x] Updated existing calendar.test.ts for new error message
+- [x] All 882 tests pass
 - [ ] Checkpoint saved
