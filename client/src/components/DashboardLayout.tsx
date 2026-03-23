@@ -186,7 +186,7 @@ function DashboardLayoutContent({
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const { currentAccountId } = useAccount();
 
   // Unread message count for inbox badge
@@ -248,6 +248,10 @@ function DashboardLayoutContent({
       return;
     }
     setLocation(item.path);
+    // Close sidebar on mobile after navigation
+    if (isMobile) {
+      setOpenMobile(false);
+    }
   };
 
   return (
@@ -340,7 +344,7 @@ function DashboardLayoutContent({
                     <SidebarMenuItem key={item.path}>
                       <SidebarMenuButton
                         isActive={isActive}
-                        onClick={() => setLocation(item.path)}
+                        onClick={() => { setLocation(item.path); if (isMobile) setOpenMobile(false); }}
                         tooltip={item.label}
                         className="h-9 transition-all font-normal text-[13px]"
                       >
@@ -364,7 +368,7 @@ function DashboardLayoutContent({
                     <SidebarMenuItem key={item.path}>
                       <SidebarMenuButton
                         isActive={isActive}
-                        onClick={() => setLocation(item.path)}
+                        onClick={() => { setLocation(item.path); if (isMobile) setOpenMobile(false); }}
                         tooltip={item.label}
                         className="h-9 transition-all font-normal text-[13px]"
                       >

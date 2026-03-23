@@ -160,7 +160,7 @@ export default function AccountDetail({ id }: { id: number }) {
     pendingInvites?.filter((i) => i.status === "pending").length ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button

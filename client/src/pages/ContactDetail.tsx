@@ -674,7 +674,7 @@ function EditContactDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">First Name *</Label>
               <Input
@@ -694,7 +694,7 @@ function EditContactDialog({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Email</Label>
               <Input
@@ -713,7 +713,7 @@ function EditContactDialog({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Company</Label>
               <Input
@@ -731,7 +731,7 @@ function EditContactDialog({
               />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Status</Label>
               <Select value={status} onValueChange={setStatus}>
@@ -768,8 +768,8 @@ function EditContactDialog({
             </div>
           </div>
           <Separator className="bg-border/50" />
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5 col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 col-span-1 sm:col-span-2">
               <Label className="text-xs">Address</Label>
               <Input
                 value={address}
@@ -785,7 +785,7 @@ function EditContactDialog({
                 className="h-9 text-sm"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">State</Label>
                 <Input

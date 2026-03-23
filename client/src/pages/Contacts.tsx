@@ -234,8 +234,8 @@ export default function Contacts() {
       )}
 
       {/* Search & Filters */}
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             placeholder="Search contacts..."
@@ -276,7 +276,7 @@ export default function Contacts() {
 
       {/* Filter Row */}
       {showFilters && (
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-card border border-border/50">
+        <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-card border border-border/50">
           <Select
             value={statusFilter || "all"}
             onValueChange={(v) => {
@@ -284,7 +284,7 @@ export default function Contacts() {
               setPage(0);
             }}
           >
-            <SelectTrigger className="w-[150px] h-8 text-xs">
+            <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs">
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
@@ -303,7 +303,7 @@ export default function Contacts() {
               setPage(0);
             }}
           >
-            <SelectTrigger className="w-[150px] h-8 text-xs">
+            <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs">
               <SelectValue placeholder="Lead Source" />
             </SelectTrigger>
             <SelectContent>

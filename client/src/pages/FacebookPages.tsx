@@ -207,7 +207,7 @@ export default function FacebookPages() {
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-4 sm:space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button

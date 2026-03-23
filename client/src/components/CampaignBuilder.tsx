@@ -415,7 +415,7 @@ export default function CampaignBuilder({
               <p className="text-sm text-muted-foreground">
                 Choose the type of campaign you want to create.
               </p>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Card
                   className={`cursor-pointer transition-all hover:border-primary/50 ${
                     campaignType === "email"
@@ -501,7 +501,7 @@ export default function CampaignBuilder({
               {campaignType === "email" && emailTemplates && emailTemplates.length > 0 && (
                 <div className="space-y-2">
                   <Label className="text-xs">Use a Designed Email Template</Label>
-                  <div className="grid grid-cols-2 gap-3 max-h-[140px] overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[140px] overflow-y-auto pr-1">
                     {emailTemplates.map((et: any) => (
                       <Card
                         key={`et-${et.id}`}
@@ -542,7 +542,7 @@ export default function CampaignBuilder({
               {/* Template grid */}
               <div className="space-y-2">
                 <Label className="text-xs">{campaignType === "email" && emailTemplates && emailTemplates.length > 0 ? "Or Choose a Quick Template" : "Choose a Template"}</Label>
-                <div className="grid grid-cols-2 gap-3 max-h-[200px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[200px] overflow-y-auto pr-1">
                   {filteredTemplates.map((t: any) => (
                     <Card
                       key={t.id}
@@ -614,7 +614,7 @@ export default function CampaignBuilder({
                       Template will render with contact data
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className="text-xs">Subject Line (optional override)</Label>
                       <Input
@@ -644,7 +644,7 @@ export default function CampaignBuilder({
               {(selectedTemplateId || customMessage) && !useEmailTemplate && (
                 <div className="space-y-3 border-t border-border/20 pt-3">
                   {campaignType === "email" && (
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs">Subject Line *</Label>
                         <Input
@@ -879,7 +879,7 @@ export default function CampaignBuilder({
               {/* Campaign summary */}
               <Card className="border-border/50">
                 <CardContent className="pt-4 pb-4 space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                         Campaign Name
@@ -983,7 +983,7 @@ export default function CampaignBuilder({
                 Choose when to send your campaign.
               </p>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Card
                   className={`cursor-pointer transition-all hover:border-primary/50 ${
                     sendOption === "now"
@@ -1052,7 +1052,7 @@ export default function CampaignBuilder({
               {sendOption === "scheduled" && (
                 <Card className="border-border/50">
                   <CardContent className="pt-4 pb-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs flex items-center gap-1">
                           <Calendar className="h-3 w-3" /> Date *

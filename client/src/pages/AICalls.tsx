@@ -260,7 +260,7 @@ export default function AICalls() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -383,7 +383,7 @@ export default function AICalls() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <Filter className="h-4 w-4 mr-2" />
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
@@ -399,7 +399,7 @@ export default function AICalls() {
       </div>
 
       {/* Call History Table */}
-      <Card className="bg-card/50 border-border/50">
+      <Card className="bg-card/50 border-border/50 overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
@@ -734,7 +734,7 @@ export default function AICalls() {
           </DialogHeader>
           {callDetailOpen && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Contact</p>
                   <p className="font-medium text-sm">

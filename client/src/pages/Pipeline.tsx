@@ -235,8 +235,8 @@ export default function Pipeline() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 pb-2 shrink-0">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 p-4 pb-2 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3">
           <h1 className="text-xl font-semibold">Pipeline</h1>
           {pipelineData?.pipeline && (
             <Badge variant="outline" className="text-xs">
@@ -267,8 +267,8 @@ export default function Pipeline() {
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       ) : (
-        <div className="flex-1 overflow-x-auto p-4 pt-2">
-          <div className="flex gap-3 h-full min-h-[500px]">
+        <div className="flex-1 overflow-x-auto p-2 sm:p-4 pt-2">
+          <div className="flex gap-2 sm:gap-3 h-full min-h-[400px] sm:min-h-[500px] pb-4">
             {stages.map((stage) => (
               <StageColumn
                 key={stage.id}
@@ -449,7 +449,7 @@ function StageColumn({
 
   return (
     <div
-      className={`flex flex-col w-[280px] min-w-[280px] rounded-lg transition-colors ${
+      className={`flex flex-col w-[260px] min-w-[260px] sm:w-[280px] sm:min-w-[280px] rounded-lg transition-colors ${
         isDragOver
           ? "bg-accent/30 ring-2 ring-primary/40"
           : "bg-muted/20"

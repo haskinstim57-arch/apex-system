@@ -166,7 +166,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
       : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button
@@ -428,7 +428,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
       </div>
 
       {/* Recipients Table */}
-      <Card className="border-border/50 bg-card">
+      <Card className="border-border/50 bg-card overflow-x-auto">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">

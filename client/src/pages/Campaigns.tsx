@@ -187,9 +187,9 @@ export default function Campaigns() {
 
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Campaigns</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -303,8 +303,8 @@ export default function Campaigns() {
         {/* Campaigns Tab */}
         <TabsContent value="campaigns" className="mt-4 space-y-4">
           {/* Search & Filters */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative flex-1 min-w-[180px] max-w-sm">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 placeholder="Search campaigns..."
@@ -323,7 +323,7 @@ export default function Campaigns() {
                 setPage(0);
               }}
             >
-              <SelectTrigger className="w-[140px] h-9 text-sm border-border/50">
+              <SelectTrigger className="w-full sm:w-[140px] h-9 text-sm border-border/50">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -343,7 +343,7 @@ export default function Campaigns() {
                 setPage(0);
               }}
             >
-              <SelectTrigger className="w-[120px] h-9 text-sm border-border/50">
+              <SelectTrigger className="w-full sm:w-[120px] h-9 text-sm border-border/50">
                 <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
@@ -355,7 +355,7 @@ export default function Campaigns() {
           </div>
 
           {/* Campaigns Table */}
-          <Card className="border-border/50 bg-card">
+          <Card className="border-border/50 bg-card overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">
@@ -555,7 +555,7 @@ export default function Campaigns() {
 
         {/* Templates Tab */}
         <TabsContent value="templates" className="mt-4 space-y-4">
-          <Card className="border-border/50 bg-card">
+          <Card className="border-border/50 bg-card overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">
@@ -700,7 +700,7 @@ function CreateTemplateDialog({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-2">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Template Name *</Label>
               <Input

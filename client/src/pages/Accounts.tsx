@@ -165,7 +165,7 @@ export default function Accounts() {
   const suspendedCount = accounts?.filter((a) => a.status === "suspended").length ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -214,7 +214,7 @@ export default function Accounts() {
                   If this user hasn't signed up yet, an invitation will be sent automatically.
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="industry">Industry</Label>
                   <Select value={newIndustry} onValueChange={setNewIndustry}>
@@ -272,7 +272,7 @@ export default function Accounts() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card className="border-border/50 bg-card">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Total Accounts</p>
@@ -305,7 +305,7 @@ export default function Accounts() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px] h-9 bg-muted/50 border-border/50">
+          <SelectTrigger className="w-full sm:w-[140px] h-9 bg-muted/50 border-border/50">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -328,9 +328,9 @@ export default function Accounts() {
           ))}
         </div>
       ) : filteredAccounts && filteredAccounts.length > 0 ? (
-        <div className="border border-border/50 rounded-lg overflow-hidden">
+        <div className="border border-border/50 rounded-lg overflow-hidden overflow-x-auto">
           {/* Table Header */}
-          <div className="grid grid-cols-[1fr_1fr_120px_140px_48px] gap-4 px-5 py-3 bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30">
+          <div className="grid grid-cols-[1fr_1fr_120px_140px_48px] gap-4 px-5 py-3 bg-muted/30 text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30 min-w-[600px]">
             <span>Account</span>
             <span>Owner</span>
             <span>Status</span>
@@ -342,7 +342,7 @@ export default function Accounts() {
           {filteredAccounts.map((account) => (
             <div
               key={account.id}
-              className="grid grid-cols-[1fr_1fr_120px_140px_48px] gap-4 px-5 py-3.5 items-center border-b border-border/20 last:border-b-0 hover:bg-muted/20 transition-colors group"
+              className="grid grid-cols-[1fr_1fr_120px_140px_48px] gap-4 px-5 py-3.5 items-center border-b border-border/20 last:border-b-0 hover:bg-muted/20 transition-colors group min-w-[600px]"
             >
               {/* Account Name + Industry */}
               <div

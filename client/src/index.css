@@ -222,4 +222,58 @@
   .glow-gold {
     box-shadow: 0 0 20px oklch(0.82 0.12 85 / 15%);
   }
+
+  /* ─── Mobile Responsive Utilities ─── */
+
+  /* Ensure all tables are horizontally scrollable on mobile */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ─── Mobile-friendly tap targets ─── */
+@media (max-width: 767px) {
+  /* Ensure minimum tap target size on mobile */
+  button,
+  [role="button"],
+  a[href],
+  select,
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Exempt small inline elements like badges and icon buttons that are already accessible */
+  .badge,
+  [data-slot="badge"],
+  .inline-tap-exempt {
+    min-height: unset;
+    min-width: unset;
+  }
+
+  /* Make dialogs full-screen on mobile */
+  [data-slot="dialog-content"],
+  [role="dialog"] > div:first-child {
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    width: 100vw !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure form inputs are full-width on mobile */
+  input[type="text"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="number"],
+  input[type="search"],
+  input[type="password"],
+  textarea,
+  select {
+    max-width: 100%;
+  }
 }

@@ -60,6 +60,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
+import { useIsMobile } from "@/hooks/useMobile";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-amber-500/15 text-amber-400 border-amber-500/30",
@@ -313,6 +314,15 @@ function CalendarGridView({ accountId }: { accountId: number }) {
       }
     }
   }, []);
+
+  const isMobile = useIsMobile();
+
+  // Auto-switch to day view on mobile
+  useEffect(() => {
+    if (isMobile && viewMode === "week") {
+      setViewMode("day");
+    }
+  }, [isMobile]);
 
   const goToday = () => setCurrentDate(new Date());
   const goPrev = () => setCurrentDate((d) => addDays(d, viewMode === "day" ? -1 : -7));
@@ -1235,7 +1245,7 @@ function AppointmentsList({
           value={calendarId?.toString() || "all"}
           onValueChange={(v) => onCalendarFilter(v === "all" ? null : parseInt(v))}
         >
-          <SelectTrigger className="w-[200px]">
+          <SelectTrigger className="w-full sm:w-[200px]">
             <SelectValue placeholder="All Calendars" />
           </SelectTrigger>
           <SelectContent>
@@ -1249,7 +1259,7 @@ function AppointmentsList({
         </Select>
 
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="All Statuses" />
           </SelectTrigger>
           <SelectContent>
@@ -1276,7 +1286,7 @@ function AppointmentsList({
           </CardContent>
         </Card>
       ) : (
-        <Card>
+        <Card className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -1497,7 +1507,7 @@ function CalendarFormDialog({
 
         <div className="space-y-5">
           {/* Name & Slug */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Calendar Name</Label>
               <Input
@@ -1532,7 +1542,7 @@ function CalendarFormDialog({
           </div>
 
           {/* Settings row */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label>Timezone</Label>
               <Select value={timezone} onValueChange={setTimezone}>
@@ -1565,7 +1575,7 @@ function CalendarFormDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1.5">
               <Label>Buffer (min)</Label>
               <Input

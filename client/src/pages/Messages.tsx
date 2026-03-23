@@ -223,9 +223,9 @@ export default function Messages() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
           <p className="text-sm text-muted-foreground">
@@ -398,7 +398,7 @@ export default function Messages() {
 
         {/* Messages Table */}
         <TabsContent value={activeTab} className="mt-4">
-          <Card className="border-border/50">
+          <Card className="border-border/50 overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/50">

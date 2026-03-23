@@ -130,16 +130,16 @@ export default function Automations() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+    <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Automations</h1>
           <p className="text-sm text-muted-foreground mt-1">
             Create trigger-based workflows to automate your pipeline
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Account selector removed — use sidebar AccountSwitcher */}
 
           {/* View tabs */}
@@ -1064,7 +1064,7 @@ function AddStepDialog({
                       rows={2}
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <Label>Priority</Label>
                       <Select value={taskPriority} onValueChange={setTaskPriority}>
@@ -1102,7 +1102,7 @@ function AddStepDialog({
               )}
             </>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Wait</Label>
                 <Input
@@ -1239,7 +1239,7 @@ function EditStepDialog({
         </DialogHeader>
         <div className="space-y-4">
           {step.stepType === "delay" ? (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Wait</Label>
                 <Input
@@ -1341,7 +1341,7 @@ function EditStepDialog({
                     <Label>Description</Label>
                     <Textarea value={taskDescription} onChange={(e) => setTaskDescription(e.target.value)} rows={2} />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <Label>Priority</Label>
                       <Select value={taskPriority} onValueChange={setTaskPriority}>
@@ -1441,9 +1441,9 @@ function ExecutionLogs({ accountId }: { accountId: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[160px]">
+          <SelectTrigger className="w-full sm:w-[160px]">
             <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>

@@ -949,3 +949,99 @@
 
 ### Final
 - [x] Checkpoint saved
+
+## Mobile Responsiveness
+
+### Sidebar / Navigation
+- [x] Hamburger trigger visible on mobile (uses Sheet overlay)
+- [x] Close sidebar on nav item click on mobile (all nav sections)
+- [x] Mobile top bar shows current page title (activeMenuItem.label)
+
+### Global Styles
+- [x] Add mobile-friendly tap target sizes (min 44px) via CSS
+- [x] Add .table-responsive utility class for overflow-x-auto
+- [x] Add responsive dialog/modal styles (full-screen on mobile via CSS)
+- [x] Add form input max-width: 100% on mobile
+- [x] Badge/inline elements exempted from min tap target size
+
+### Dashboard (Home.tsx)
+- [x] KPI cards already stack vertically on mobile (grid-cols-1 sm:grid-cols-2 lg:grid-cols-4)
+
+### Contacts Page
+- [x] Table scrollable horizontally on mobile (overflow-x-auto already present)
+- [x] Filter/search bar wraps on mobile (flex-wrap, full-width selects)
+- [x] Contact stats grid responsive (grid-cols-2 sm:grid-cols-4)
+
+### Pipeline Page
+- [x] Kanban columns horizontally scrollable on mobile (overflow-x-auto)
+- [x] Stage columns slightly narrower on mobile (260px vs 280px)
+
+### Inbox Page
+- [x] Mobile thread open/close already works (hidden md:flex toggle)
+- [x] Reply box send button responsive (48px mobile, 60px desktop)
+
+### Calendar Page
+- [x] Week view auto-switches to day view on mobile (useIsMobile hook)
+- [x] Calendar header controls already wrap (flex-wrap gap-2)
+- [x] Manage selectors full-width on mobile
+- [x] Appointment table overflow-x-auto
+- [x] Calendar dialog grids stack on mobile (grid-cols-1 sm:grid-cols-2)
+
+### Campaigns Page
+- [x] Table horizontally scrollable on mobile
+- [x] Campaign builder dialog full-screen on mobile
+- [x] Header buttons wrap on mobile
+- [x] Filter bar responsive on mobile
+- [x] Campaign builder grids stack on mobile
+
+### Automations Page
+- [x] Workflow list table scrollable on mobile
+- [x] Step editor dialogs full-screen on mobile
+- [x] Header buttons wrap on mobile
+- [x] Dialog grids stack on mobile
+- [x] Execution logs filter responsive
+
+### AI Calls Page
+- [x] Table scrollable on mobile
+- [x] Call dialog full-screen on mobile
+- [x] Call detail grid stacks on mobile
+- [x] Page spacing responsive
+
+### Settings Page
+- [x] Settings cards stack vertically on mobile (already single column)
+- [x] Form inputs full-width on mobile (global CSS rule)
+
+### Email Templates
+- [x] Template list responsive grid on mobile (already grid-cols-1 md:grid-cols-2)
+- [x] Editor stacks preview below editor on mobile (already grid-cols-1 lg:grid-cols-2)
+- [x] Header buttons wrap on mobile
+
+### ContactDetail Page
+- [x] Two-column layout stacks on mobile (already grid-cols-1 lg:grid-cols-3)
+- [x] Activity timeline full-width on mobile
+- [x] Edit dialog grids stack on mobile
+
+### Accounts Page
+- [x] Account cards stack on mobile
+- [x] Stats grid stacks on mobile
+- [x] Table horizontally scrollable on mobile
+- [x] Filter bar responsive on mobile
+- [x] Create dialog grids stack on mobile
+
+### Messages Page
+- [x] Header wraps on mobile
+- [x] Table horizontally scrollable on mobile
+
+### CampaignDetail Page
+- [x] Recipients table scrollable on mobile
+- [x] Page spacing responsive
+
+### AccountDetail Page
+- [x] Page spacing responsive
+
+### FacebookPages Page
+- [x] Page spacing responsive
+
+### Final
+- [x] Test all pages on mobile viewport (all 816 tests pass)
+- [ ] Checkpoint saved

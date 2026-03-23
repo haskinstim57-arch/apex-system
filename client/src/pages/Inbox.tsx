@@ -348,7 +348,7 @@ export default function Inbox() {
                   onClick={handleSendReply}
                   disabled={sendReply.isPending || !replyBody.trim()}
                   size="icon"
-                  className="h-[60px] w-[60px] bg-primary hover:bg-primary/90 shrink-0"
+                  className="h-[48px] w-[48px] sm:h-[60px] sm:w-[60px] bg-primary hover:bg-primary/90 shrink-0"
                 >
                   {sendReply.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
