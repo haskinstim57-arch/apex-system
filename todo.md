@@ -1467,4 +1467,16 @@
 - [x] Frontend: Rule builder with strategy selector, assignee picker, conditions, trigger sources
 - [x] Frontend: Toggle rules on/off, edit, delete, priority display
 - [x] Write vitest tests (28/28 passing)
+- [x] Checkpoint saved (35d59bbc)
+
+### Bug Fix: CSV Import Failing for 7,000+ Contacts
+- [x] Express body limit already at 50mb (confirmed in server/_core/index.ts)
+- [x] Increased Zod array limit from 5,000 to 50,000
+- [x] Increased frontend file size limit from 10MB to 50MB
+- [x] Rewrote import with bulk duplicate checks (batch queries instead of N individual queries)
+- [x] Added batched inserts (500 rows at a time)
+- [x] Added frontend chunking (1000 contacts per request) with progress indicator
+- [x] Added intra-batch duplicate detection
+- [x] Capped error rows to 100 to prevent huge responses
+- [x] All 26 existing CSV import tests passing
 - [ ] Checkpoint saved

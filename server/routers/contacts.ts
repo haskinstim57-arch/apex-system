@@ -29,6 +29,8 @@ import {
   bulkAssignContacts,
   getContactIdsByFilter,
   listMembers,
+  findExistingEmails,
+  findExistingPhones,
 } from "../db";
 
 // ─── Tenant guard: verify user is a member of the account ───
@@ -624,7 +626,7 @@ export const contactsRouter = router({
             tags: z.string().optional().default(""),
             notes: z.string().optional().default(""),
           })
-        ).min(1).max(5000),
+        ).min(1).max(50000),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -636,6 +638,18 @@ export const contactsRouter = router({
       const errorRows: Array<{ row: number; data: Record<string, string>; reason: string }> = [];
       const importedContacts: Array<{ contactId: number; tags?: string[]; leadSource?: string }> = [];
 
+      // ── Phase 1: Pre-process all rows (normalize, validate) ──
+      type ProcessedRow = {
+        rowNum: number;
+        firstName: string;
+        lastName: string;
+        email: string;
+        normalizedPhone: string | null;
+        tagsStr: string;
+        notes: string;
+      };
+      const validRows: ProcessedRow[] = [];
+
       for (let i = 0; i < input.contacts.length; i++) {
         const row = input.contacts[i];
         const rowNum = i + 1;
@@ -646,7 +660,6 @@ export const contactsRouter = router({
         const tagsStr = row.tags?.trim() || "";
         const notes = row.notes?.trim() || "";
 
-        // Validate: at least one of firstName, lastName, or phone
         if (!firstName && !lastName && !rawPhone) {
           failed++;
           errorRows.push({
@@ -657,83 +670,109 @@ export const contactsRouter = router({
           continue;
         }
 
-        // Check for duplicates by email
-        if (email) {
-          const existingByEmail = await findContactByEmail(email, input.accountId);
-          if (existingByEmail) {
-            skipped++;
-            continue;
-          }
-        }
-
-        // Check for duplicates by phone
         let normalizedPhone: string | null = null;
         if (rawPhone) {
           const normalized = normalizeToE164(rawPhone);
           if (normalized && isValidE164(normalized)) {
             normalizedPhone = normalized;
-            const existingByPhone = await findContactByPhone(normalizedPhone, input.accountId);
-            if (existingByPhone) {
-              skipped++;
-              continue;
-            }
-          } else {
-            // Invalid phone format — still import but without phone
-            normalizedPhone = null;
           }
         }
 
-        try {
-          const { id } = await createContact({
-            accountId: input.accountId,
-            firstName: firstName || "Unknown",
-            lastName: lastName || "",
-            email: email || null,
-            phone: normalizedPhone,
-            status: "new",
-          });
+        validRows.push({ rowNum, firstName, lastName, email, normalizedPhone, tagsStr, notes });
+      }
 
-          // Add tags if provided (comma-separated)
-          if (tagsStr) {
-            const tags = tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
-            for (const tag of tags) {
-              await addContactTag(id, tag);
+      // ── Phase 2: Bulk duplicate check (batch queries instead of N individual queries) ──
+      const allEmails = validRows.filter((r) => r.email).map((r) => r.email.toLowerCase());
+      const allPhones = validRows.filter((r) => r.normalizedPhone).map((r) => r.normalizedPhone!);
+
+      const existingEmails = await findExistingEmails(allEmails, input.accountId);
+      const existingPhones = await findExistingPhones(allPhones, input.accountId);
+
+      // Also track emails/phones we insert during this import to catch intra-batch duplicates
+      const importedEmails = new Set<string>();
+      const importedPhones = new Set<string>();
+
+      // Filter out duplicates
+      const toInsert: ProcessedRow[] = [];
+      for (const row of validRows) {
+        const emailLower = row.email?.toLowerCase() || "";
+        if (emailLower && (existingEmails.has(emailLower) || importedEmails.has(emailLower))) {
+          skipped++;
+          continue;
+        }
+        if (row.normalizedPhone && (existingPhones.has(row.normalizedPhone) || importedPhones.has(row.normalizedPhone))) {
+          skipped++;
+          continue;
+        }
+        toInsert.push(row);
+        if (emailLower) importedEmails.add(emailLower);
+        if (row.normalizedPhone) importedPhones.add(row.normalizedPhone);
+      }
+
+      // ── Phase 3: Batched inserts (500 rows at a time) ──
+      const BATCH_SIZE = 500;
+      for (let batchStart = 0; batchStart < toInsert.length; batchStart += BATCH_SIZE) {
+        const batch = toInsert.slice(batchStart, batchStart + BATCH_SIZE);
+
+        for (const row of batch) {
+          try {
+            const { id } = await createContact({
+              accountId: input.accountId,
+              firstName: row.firstName || "Unknown",
+              lastName: row.lastName || "",
+              email: row.email || null,
+              phone: row.normalizedPhone,
+              status: "new",
+            });
+
+            // Add tags if provided (comma-separated)
+            if (row.tagsStr) {
+              const tags = row.tagsStr.split(",").map((t) => t.trim()).filter(Boolean);
+              for (const tag of tags) {
+                await addContactTag(id, tag);
+              }
             }
-          }
 
-          // Add notes as a contact note if provided
-          if (notes) {
-            await createContactNote({
+            // Add notes as a contact note if provided
+            if (row.notes) {
+              await createContactNote({
+                contactId: id,
+                authorId: ctx.user.id,
+                content: row.notes,
+              });
+            }
+
+            // Log activity (fire-and-forget)
+            logContactActivity({
               contactId: id,
-              authorId: ctx.user.id,
-              content: notes,
+              accountId: input.accountId,
+              activityType: "contact_created",
+              description: `Contact ${row.firstName} ${row.lastName} imported via CSV`,
+            });
+
+            const parsedTags = row.tagsStr ? row.tagsStr.split(",").map((t) => t.trim()).filter(Boolean) : [];
+            importedContacts.push({ contactId: id, tags: parsedTags, leadSource: "csv_import" });
+
+            imported++;
+          } catch (err) {
+            failed++;
+            errorRows.push({
+              row: row.rowNum,
+              data: {
+                firstName: row.firstName,
+                lastName: row.lastName,
+                email: row.email,
+                phone: row.normalizedPhone || "",
+                tags: row.tagsStr,
+                notes: row.notes,
+              },
+              reason: err instanceof Error ? err.message : "Unknown error",
             });
           }
-
-          // Log activity
-          logContactActivity({
-            contactId: id,
-            accountId: input.accountId,
-            activityType: "contact_created",
-            description: `Contact ${firstName} ${lastName} imported via CSV`,
-          });
-
-          // Collect for batch routing after import
-          const parsedTags = tagsStr ? tagsStr.split(",").map((t) => t.trim()).filter(Boolean) : [];
-          importedContacts.push({ contactId: id, tags: parsedTags, leadSource: "csv_import" });
-
-          imported++;
-        } catch (err) {
-          failed++;
-          errorRows.push({
-            row: rowNum,
-            data: { firstName, lastName, email, phone: rawPhone, tags: tagsStr, notes },
-            reason: err instanceof Error ? err.message : "Unknown error",
-          });
         }
       }
 
-      // Auto-route imported leads via routing rules
+      // ── Phase 4: Auto-route imported leads via routing rules ──
       let routingResult = { totalRouted: 0, totalUnrouted: 0, routingDetails: [] as any[] };
       if (importedContacts.length > 0) {
         try {
@@ -761,7 +800,7 @@ export const contactsRouter = router({
         imported,
         skipped,
         failed,
-        errorRows,
+        errorRows: errorRows.slice(0, 100), // Cap error rows to prevent huge responses
         routed: routingResult.totalRouted,
         unrouted: routingResult.totalUnrouted,
       };

@@ -4026,3 +4026,52 @@ export async function getAssignedContactCount(accountId: number, userId: number)
     );
   return rows[0]?.count || 0;
 }
+
+
+// ─────────────────────────────────────────────
+// BULK DUPLICATE CHECK HELPERS (for CSV import)
+// ─────────────────────────────────────────────
+
+/**
+ * Find all existing emails in an account from a list of emails.
+ * Returns a Set of emails that already exist.
+ */
+export async function findExistingEmails(emails: string[], accountId: number): Promise<Set<string>> {
+  const db = await getDb();
+  if (!db || emails.length === 0) return new Set();
+  const result = new Set<string>();
+  // Process in batches of 500 to avoid SQL parameter limits
+  for (let i = 0; i < emails.length; i += 500) {
+    const batch = emails.slice(i, i + 500);
+    const rows = await db
+      .select({ email: contacts.email })
+      .from(contacts)
+      .where(and(inArray(contacts.email, batch), eq(contacts.accountId, accountId)));
+    for (const row of rows) {
+      if (row.email) result.add(row.email.toLowerCase());
+    }
+  }
+  return result;
+}
+
+/**
+ * Find all existing phones in an account from a list of phones.
+ * Returns a Set of phones that already exist.
+ */
+export async function findExistingPhones(phones: string[], accountId: number): Promise<Set<string>> {
+  const db = await getDb();
+  if (!db || phones.length === 0) return new Set();
+  const result = new Set<string>();
+  // Process in batches of 500 to avoid SQL parameter limits
+  for (let i = 0; i < phones.length; i += 500) {
+    const batch = phones.slice(i, i + 500);
+    const rows = await db
+      .select({ phone: contacts.phone })
+      .from(contacts)
+      .where(and(inArray(contacts.phone, batch), eq(contacts.accountId, accountId)));
+    for (const row of rows) {
+      if (row.phone) result.add(row.phone);
+    }
+  }
+  return result;
+}

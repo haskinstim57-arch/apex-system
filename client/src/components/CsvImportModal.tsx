@@ -98,23 +98,9 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
     failed: number;
     errorRows: Array<{ row: number; data: Record<string, string>; reason: string }>;
   } | null>(null);
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
 
-  const importMutation = trpc.contacts.importContacts.useMutation({
-    onSuccess: (result) => {
-      setImportResult(result);
-      setStep("complete");
-      utils.contacts.list.invalidate();
-      utils.contacts.stats.invalidate();
-      if (result.imported > 0) {
-        toast.success(`${result.imported} contacts imported successfully`);
-      }
-    },
-    onError: (err) => {
-      console.error("[CSV Import] Server error:", err);
-      const msg = err.message || "Import failed";
-      toast.error(`Import failed: ${msg}`);
-    },
-  });
+  const importMutation = trpc.contacts.importContacts.useMutation();
 
   const reset = useCallback(() => {
     setStep("upload");
@@ -138,8 +124,8 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
       toast.error("Please upload a CSV file (.csv or .txt)");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("File size must be under 10MB");
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("File size must be under 50MB");
       return;
     }
     if (file.size === 0) {
@@ -272,7 +258,7 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
     return { total: mapped.length, ready, errors, errorList };
   }, [getMappedContacts]);
 
-  const handleImport = useCallback(() => {
+  const handleImport = useCallback(async () => {
     const mapped = getMappedContacts();
     if (!mapped || mapped.length === 0) {
       toast.error("No contacts to import");
@@ -282,17 +268,67 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
       toast.error("No account selected. Please select a sub-account first.");
       return;
     }
-    // Filter out rows that have no usable data
     const validContacts = mapped.filter(c => c.firstName || c.lastName || c.phone || c.email);
     if (validContacts.length === 0) {
       toast.error("No valid contacts found. Each row needs at least a name, phone, or email.");
       return;
     }
-    importMutation.mutate({
-      accountId,
-      contacts: validContacts,
-    });
-  }, [getMappedContacts, accountId, importMutation]);
+
+    // Batch contacts into chunks of 1000 to avoid payload/timeout issues
+    const CHUNK_SIZE = 1000;
+    const totalChunks = Math.ceil(validContacts.length / CHUNK_SIZE);
+    let totalImported = 0;
+    let totalSkipped = 0;
+    let totalFailed = 0;
+    const allErrors: Array<{ row: number; data: Record<string, string>; reason: string }> = [];
+
+    setImportProgress({ current: 0, total: validContacts.length });
+
+    try {
+      for (let i = 0; i < totalChunks; i++) {
+        const chunk = validContacts.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        const result = await importMutation.mutateAsync({
+          accountId,
+          contacts: chunk,
+        });
+        totalImported += result.imported;
+        totalSkipped += result.skipped;
+        totalFailed += result.failed;
+        if (result.errorRows) allErrors.push(...result.errorRows);
+        setImportProgress({ current: Math.min((i + 1) * CHUNK_SIZE, validContacts.length), total: validContacts.length });
+      }
+
+      setImportResult({
+        imported: totalImported,
+        skipped: totalSkipped,
+        failed: totalFailed,
+        errorRows: allErrors.slice(0, 100),
+      });
+      setStep("complete");
+      setImportProgress(null);
+      utils.contacts.list.invalidate();
+      utils.contacts.stats.invalidate();
+      if (totalImported > 0) {
+        toast.success(`${totalImported} contacts imported successfully`);
+      }
+    } catch (err: any) {
+      console.error("[CSV Import] Batch error:", err);
+      // If we already imported some, show partial results
+      if (totalImported > 0) {
+        setImportResult({
+          imported: totalImported,
+          skipped: totalSkipped,
+          failed: totalFailed + (validContacts.length - totalImported - totalSkipped - totalFailed),
+          errorRows: allErrors.slice(0, 100),
+        });
+        setStep("complete");
+        toast.warning(`Partial import: ${totalImported} imported, but an error occurred during processing.`);
+      } else {
+        toast.error(`Import failed: ${err.message || "Unknown error"}`);
+      }
+      setImportProgress(null);
+    }
+  }, [getMappedContacts, accountId, importMutation, utils]);
 
   const hasMappedFields = Object.values(fieldMapping).some((v) => v !== "skip");
 
@@ -370,7 +406,7 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
                     Drag & drop your CSV file here
                   </p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    or click to browse files (max 10MB)
+                    or click to browse files (max 50MB)
                   </p>
                 </div>
                 <Button
@@ -578,7 +614,7 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
                       variant="outline"
                       size="sm"
                       onClick={() => setStep("map")}
-                      disabled={importMutation.isPending}
+                      disabled={importMutation.isPending || !!importProgress}
                     >
                       <ArrowLeft className="h-4 w-4 mr-1" />
                       Back
@@ -586,12 +622,12 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
                     <Button
                       size="sm"
                       onClick={handleImport}
-                      disabled={stats.ready === 0 || importMutation.isPending}
+                      disabled={stats.ready === 0 || importMutation.isPending || !!importProgress}
                     >
-                      {importMutation.isPending ? (
+                      {(importMutation.isPending || importProgress) ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-                          Importing...
+                          {importProgress ? `Importing ${importProgress.current} / ${importProgress.total}...` : "Importing..."}  
                         </>
                       ) : (
                         <>
