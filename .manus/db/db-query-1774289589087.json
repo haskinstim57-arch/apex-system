@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO account_members (userId, accountId, role) VALUES (902504, 390025, 'employee'), (901752, 390025, 'employee');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute INSERT INTO account_members (userId, accountId, role) VALUES (902504, 390025, 'employee'), (901752, 390025, 'employee');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 117
+}

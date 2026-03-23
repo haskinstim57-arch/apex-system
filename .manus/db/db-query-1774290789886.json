@@ -1,0 +1,18 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM contacts) as contacts,\n  (SELECT COUNT(*) FROM messages) as messages,\n  (SELECT COUNT(*) FROM campaigns) as campaigns,\n  (SELECT COUNT(*) FROM ai_calls) as aiCalls,\n  (SELECT COUNT(*) FROM account_members) as members,\n  (SELECT COUNT(*) FROM invitations) as invitations;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT \n  (SELECT COUNT(*) FROM contacts) as contacts,\n  (SELECT COUNT(*) FROM messages) as messages,\n  (SELECT COUNT(*) FROM campaigns) as campaigns,\n  (SELECT COUNT(*) FROM ai_calls) as aiCalls,\n  (SELECT COUNT(*) FROM account_members) as members,\n  (SELECT COUNT(*) FROM invitations) as invitations;",
+  "rows": [
+    {
+      "contacts": "1",
+      "messages": "0",
+      "campaigns": "0",
+      "aiCalls": "1",
+      "members": "5",
+      "invitations": "4"
+    }
+  ],
+  "messages": [],
+  "stdout": "contacts\tmessages\tcampaigns\taiCalls\tmembers\tinvitations\n1\t0\t0\t1\t5\t4\n",
+  "stderr": "",
+  "execution_time_ms": 69
+}

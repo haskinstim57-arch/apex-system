@@ -1,0 +1,24 @@
+{
+  "query": "SELECT am.userId, u.name, am.accountId, a.name as accountName, am.role FROM account_members am JOIN users u ON u.id = am.userId JOIN accounts a ON a.id = am.accountId WHERE am.accountId = 390025;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT am.userId, u.name, am.accountId, a.name as accountName, am.role FROM account_members am JOIN users u ON u.id = am.userId JOIN accounts a ON a.id = am.accountId WHERE am.accountId = 390025;",
+  "rows": [
+    {
+      "userId": "901752",
+      "name": "Alfonso Parra Lenis",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "role": "employee"
+    },
+    {
+      "userId": "902504",
+      "name": "Evol Hosang",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "role": "employee"
+    }
+  ],
+  "messages": [],
+  "stdout": "userId\tname\taccountId\taccountName\trole\n901752\tAlfonso Parra Lenis\t390025\tKyle\temployee\n902504\tEvol Hosang\t390025\tKyle\temployee\n",
+  "stderr": "",
+  "execution_time_ms": 65
+}

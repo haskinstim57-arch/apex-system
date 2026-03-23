@@ -110,7 +110,9 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
       }
     },
     onError: (err) => {
-      toast.error(err.message);
+      console.error("[CSV Import] Server error:", err);
+      const msg = err.message || "Import failed";
+      toast.error(`Import failed: ${msg}`);
     },
   });
 
@@ -130,46 +132,68 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
   }, [onOpenChange, reset]);
 
   const handleFile = useCallback((file: File) => {
-    if (!file.name.endsWith(".csv")) {
-      toast.error("Please upload a CSV file");
+    // Validate file extension
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".csv") && !name.endsWith(".txt")) {
+      toast.error("Please upload a CSV file (.csv or .txt)");
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
       toast.error("File size must be under 10MB");
       return;
     }
+    if (file.size === 0) {
+      toast.error("The file is empty. Please select a valid CSV file.");
+      return;
+    }
     setFileName(file.name);
 
-    Papa.parse(file, {
-      skipEmptyLines: true,
-      complete: (result) => {
-        const rows = result.data as string[][];
-        if (rows.length < 2) {
-          toast.error("CSV must have at least a header row and one data row");
-          return;
-        }
-        const headers = rows[0];
-        const dataRows = rows.slice(1);
-        setCsvHeaders(headers);
-        setCsvRows(dataRows);
-
-        // Auto-map columns
-        const mapping: Record<number, string> = {};
-        headers.forEach((header, idx) => {
-          const normalized = header.trim().toLowerCase();
-          if (FIELD_ALIASES[normalized]) {
-            mapping[idx] = FIELD_ALIASES[normalized];
-          } else {
-            mapping[idx] = "skip";
+    try {
+      Papa.parse(file, {
+        skipEmptyLines: true,
+        complete: (result) => {
+          if (result.errors && result.errors.length > 0) {
+            console.error("[CSV Import] Parse errors:", result.errors);
+            toast.error(`CSV parsing error: ${result.errors[0]?.message || "Unknown error"}`);
+            return;
           }
-        });
-        setFieldMapping(mapping);
-        setStep("map");
-      },
-      error: () => {
-        toast.error("Failed to parse CSV file");
-      },
-    });
+          const rows = result.data as string[][];
+          if (!rows || rows.length < 2) {
+            toast.error("CSV must have at least a header row and one data row");
+            return;
+          }
+          const headers = rows[0];
+          // Filter out completely empty rows
+          const dataRows = rows.slice(1).filter(row => row.some(cell => cell && cell.trim()));
+          if (dataRows.length === 0) {
+            toast.error("CSV has headers but no data rows");
+            return;
+          }
+          setCsvHeaders(headers);
+          setCsvRows(dataRows);
+
+          // Auto-map columns
+          const mapping: Record<number, string> = {};
+          headers.forEach((header, idx) => {
+            const normalized = header.trim().toLowerCase();
+            if (FIELD_ALIASES[normalized]) {
+              mapping[idx] = FIELD_ALIASES[normalized];
+            } else {
+              mapping[idx] = "skip";
+            }
+          });
+          setFieldMapping(mapping);
+          setStep("map");
+        },
+        error: (err: Error) => {
+          console.error("[CSV Import] Parse error:", err);
+          toast.error(`Failed to parse CSV: ${err.message || "Unknown error"}`);
+        },
+      });
+    } catch (err) {
+      console.error("[CSV Import] Unexpected error:", err);
+      toast.error(`Failed to read file: ${err instanceof Error ? err.message : "Unknown error"}`);
+    }
   }, []);
 
   const handleDrop = useCallback(
@@ -250,9 +274,23 @@ export function CsvImportModal({ open, onOpenChange, accountId }: CsvImportModal
 
   const handleImport = useCallback(() => {
     const mapped = getMappedContacts();
+    if (!mapped || mapped.length === 0) {
+      toast.error("No contacts to import");
+      return;
+    }
+    if (!accountId || accountId <= 0) {
+      toast.error("No account selected. Please select a sub-account first.");
+      return;
+    }
+    // Filter out rows that have no usable data
+    const validContacts = mapped.filter(c => c.firstName || c.lastName || c.phone || c.email);
+    if (validContacts.length === 0) {
+      toast.error("No valid contacts found. Each row needs at least a name, phone, or email.");
+      return;
+    }
     importMutation.mutate({
       accountId,
-      contacts: mapped,
+      contacts: validContacts,
     });
   }, [getMappedContacts, accountId, importMutation]);
 

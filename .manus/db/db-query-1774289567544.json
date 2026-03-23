@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, name, email, role FROM users WHERE name LIKE '%Evol%' OR name LIKE '%Alfonso%' LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, email, role FROM users WHERE name LIKE '%Evol%' OR name LIKE '%Alfonso%' LIMIT 10;",
+  "rows": [
+    {
+      "id": "901752",
+      "name": "Alfonso Parra Lenis",
+      "email": "alfonso@optimallendingsolutions.com",
+      "role": "user"
+    },
+    {
+      "id": "902504",
+      "name": "Evol Hosang",
+      "email": "evol@optimallendingsolutions.com",
+      "role": "user"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\n901752\tAlfonso Parra Lenis\talfonso@optimallendingsolutions.com\tuser\n902504\tEvol Hosang\tevol@optimallendingsolutions.com\tuser\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}

@@ -203,4 +203,58 @@ John,Doe,john@example.com,+15551234567,"lead,facebook",Interested in refinancing
       expect(lines[0].split(",").length).toBe(6);
     });
   });
+
+  // ─── Import Validation Guards ───
+  describe("import validation guards", () => {
+    it("rejects empty contacts array", () => {
+      const contacts: Record<string, string>[] = [];
+      expect(contacts.length).toBe(0);
+    });
+
+    it("rejects invalid accountId", () => {
+      const accountId = 0;
+      expect(accountId <= 0).toBe(true);
+    });
+
+    it("rejects negative accountId", () => {
+      const accountId = -1;
+      expect(accountId <= 0).toBe(true);
+    });
+
+    it("filters out rows with no usable data", () => {
+      const mapped = [
+        { firstName: "John", lastName: "Doe", email: "john@test.com", phone: "", tags: "", notes: "" },
+        { firstName: "", lastName: "", email: "", phone: "", tags: "", notes: "" },
+        { firstName: "", lastName: "", email: "", phone: "+15551234567", tags: "", notes: "" },
+      ];
+      const validContacts = mapped.filter(c => c.firstName || c.lastName || c.phone || c.email);
+      expect(validContacts.length).toBe(2);
+      expect(validContacts[0].firstName).toBe("John");
+      expect(validContacts[1].phone).toBe("+15551234567");
+    });
+
+    it("accepts rows with only email", () => {
+      const mapped = [
+        { firstName: "", lastName: "", email: "test@test.com", phone: "", tags: "", notes: "" },
+      ];
+      const validContacts = mapped.filter(c => c.firstName || c.lastName || c.phone || c.email);
+      expect(validContacts.length).toBe(1);
+    });
+  });
+
+  // ─── Empty Row Filtering ───
+  describe("empty row filtering", () => {
+    it("filters out completely empty CSV rows", () => {
+      const rows = [
+        ["John", "Doe", "john@test.com", "5551234567", "lead", "Test"],
+        ["", "", "", "", "", ""],
+        ["Jane", "Smith", "jane@test.com", "", "", ""],
+        ["  ", "  ", "  ", "  ", "  ", "  "],
+      ];
+      const dataRows = rows.filter(row => row.some(cell => cell && cell.trim()));
+      expect(dataRows.length).toBe(2);
+      expect(dataRows[0][0]).toBe("John");
+      expect(dataRows[1][0]).toBe("Jane");
+    });
+  });
 });

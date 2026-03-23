@@ -19,12 +19,27 @@ export function applySecurityMiddleware(app: Express) {
   // ─── Helmet: sets various HTTP headers for security ───
   app.use(
     helmet({
-      // Allow inline scripts for Vite HMR in development
+      // Custom CSP that allows blob: URLs (needed for CSV template download)
+      // and worker-src for papaparse CSV parsing
       contentSecurityPolicy: process.env.NODE_ENV === "production"
-        ? undefined
+        ? {
+            directives: {
+              defaultSrc: ["'self'"],
+              scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://manus-analytics.com"],
+              styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+              fontSrc: ["'self'", "https://fonts.gstatic.com"],
+              imgSrc: ["'self'", "data:", "blob:", "https:"],
+              connectSrc: ["'self'", "https:", "wss:"],
+              workerSrc: ["'self'", "blob:"],
+              childSrc: ["'self'", "blob:"],
+              frameSrc: ["'self'"],
+              objectSrc: ["'none'"],
+              mediaSrc: ["'self'", "https:", "blob:"],
+            },
+          }
         : false,
       // Allow cross-origin embedding for dev tools
-      crossOriginEmbedderPolicy: process.env.NODE_ENV === "production",
+      crossOriginEmbedderPolicy: false,
     })
   );
 

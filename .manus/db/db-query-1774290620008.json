@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM workflow_executions WHERE accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');\nDELETE ws FROM workflow_steps ws INNER JOIN workflows w ON ws.workflowId = w.id WHERE w.accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');\nDELETE FROM workflows WHERE accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');\nDELETE cr FROM campaign_recipients cr INNER JOIN campaigns c ON cr.campaignId = c.id WHERE c.accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute DELETE FROM workflow_executions WHERE accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');\nDELETE ws FROM workflow_steps ws INNER JOIN workflows w ON ws.workflowId = w.id WHERE w.accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');\nDELETE FROM workflows WHERE accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');\nDELETE cr FROM campaign_recipients cr INNER JOIN campaigns c ON cr.campaignId = c.id WHERE c.accountId IN (SELECT id FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 139
+}

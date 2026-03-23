@@ -1,0 +1,90 @@
+{
+  "query": "SELECT id, name FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test' ORDER BY id LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name FROM accounts WHERE (LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%') AND name != 'Apex Systems Test' ORDER BY id LIMIT 20;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Test Account"
+    },
+    {
+      "id": "2",
+      "name": "Test Account"
+    },
+    {
+      "id": "3",
+      "name": "Test Account"
+    },
+    {
+      "id": "4",
+      "name": "Test Account Active"
+    },
+    {
+      "id": "5",
+      "name": "Test Account Suspended"
+    },
+    {
+      "id": "6",
+      "name": "Test Account Industry"
+    },
+    {
+      "id": "7",
+      "name": "Test Account Active"
+    },
+    {
+      "id": "8",
+      "name": "Test Account Suspended"
+    },
+    {
+      "id": "9",
+      "name": "Test Account Industry"
+    },
+    {
+      "id": "10",
+      "name": "Test Account Active"
+    },
+    {
+      "id": "11",
+      "name": "Test Account Suspended"
+    },
+    {
+      "id": "12",
+      "name": "Test Account Industry"
+    },
+    {
+      "id": "13",
+      "name": "Test Account Active"
+    },
+    {
+      "id": "14",
+      "name": "Test Account Suspended"
+    },
+    {
+      "id": "15",
+      "name": "Test Account Industry"
+    },
+    {
+      "id": "16",
+      "name": "Test Account Active"
+    },
+    {
+      "id": "17",
+      "name": "Test Account Suspended"
+    },
+    {
+      "id": "18",
+      "name": "Test Account Industry"
+    },
+    {
+      "id": "19",
+      "name": "Test Account Active"
+    },
+    {
+      "id": "20",
+      "name": "Test Account Suspended"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\n1\tTest Account\n2\tTest Account\n3\tTest Account\n4\tTest Account Active\n5\tTest Account Suspended\n6\tTest Account Industry\n7\tTest Account Active\n8\tTest Account Suspended\n9\tTest Account Industry\n10\tTest Account Active\n11\tTest Account Suspended\n12\tTest Account Industry\n13\tTest Account Active\n14\tTest Account Suspended\n15\tTest Account Industry\n16\tTest Account Active\n17\tTest Account Suspended\n18\tTest Account Industry\n19\tTest Account Active\n20\tTest Account Suspended\n",
+  "stderr": "",
+  "execution_time_ms": 71
+}

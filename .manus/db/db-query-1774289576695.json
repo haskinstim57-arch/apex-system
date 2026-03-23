@@ -1,0 +1,22 @@
+{
+  "query": "SELECT am.userId, am.accountId, am.role, a.name as accountName FROM account_members am JOIN accounts a ON a.id = am.accountId WHERE am.userId IN (901752, 902504);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT am.userId, am.accountId, am.role, a.name as accountName FROM account_members am JOIN accounts a ON a.id = am.accountId WHERE am.userId IN (901752, 902504);",
+  "rows": [
+    {
+      "userId": "902504",
+      "accountId": "390023",
+      "role": "owner",
+      "accountName": "Evol"
+    },
+    {
+      "userId": "901752",
+      "accountId": "390024",
+      "role": "owner",
+      "accountName": "Alfonso"
+    }
+  ],
+  "messages": [],
+  "stdout": "userId\taccountId\trole\taccountName\n902504\t390023\towner\tEvol\n901752\t390024\towner\tAlfonso\n",
+  "stderr": "",
+  "execution_time_ms": 61
+}

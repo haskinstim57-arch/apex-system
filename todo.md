@@ -1376,4 +1376,14 @@
 - [x] "Copy Invite Link" button on AccountDetail page for pending invitations
 - [x] Backend: return invite token in create/resend responses so frontend can build the link
 - [x] All 944 tests pass
+- [x] Checkpoint saved (25c28cce)
+
+### Bug Fix: CSV Contact Import Error (Published Site)
+- [x] Investigate on dev server — import works correctly (3/3 imported)
+- [x] Investigate published site — upload step fails with error for Tariq
+- [x] Fix: Updated Helmet CSP to allow blob: URLs, worker-src, and inline scripts needed by papaparse
+- [x] Fix: Improved CsvImportModal error handling (try/catch, detailed error messages, empty row filtering)
+- [x] Fix: Added validation guards (accountId check, empty contacts check, usable data filter)
+- [x] Test end-to-end with 3-row sample CSV (passed on dev server)
+- [x] All 26 CSV import tests passing
 - [ ] Checkpoint saved

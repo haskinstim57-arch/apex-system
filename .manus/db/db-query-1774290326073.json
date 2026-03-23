@@ -1,0 +1,16 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM contacts WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as contacts,\n  (SELECT COUNT(*) FROM messages WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as messages,\n  (SELECT COUNT(*) FROM campaigns WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as campaigns,\n  (SELECT COUNT(*) FROM ai_calls WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as aiCalls;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT \n  (SELECT COUNT(*) FROM contacts WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as contacts,\n  (SELECT COUNT(*) FROM messages WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as messages,\n  (SELECT COUNT(*) FROM campaigns WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as campaigns,\n  (SELECT COUNT(*) FROM ai_calls WHERE accountId IN (SELECT id FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%')) as aiCalls;",
+  "rows": [
+    {
+      "contacts": "2049",
+      "messages": "7",
+      "campaigns": "2",
+      "aiCalls": "17"
+    }
+  ],
+  "messages": [],
+  "stdout": "contacts\tmessages\tcampaigns\taiCalls\n2049\t7\t2\t17\n",
+  "stderr": "",
+  "execution_time_ms": 73
+}

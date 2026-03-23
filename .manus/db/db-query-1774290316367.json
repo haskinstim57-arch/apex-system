@@ -1,0 +1,34 @@
+{
+  "query": "SELECT name, COUNT(*) as cnt FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%' GROUP BY name ORDER BY cnt DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT name, COUNT(*) as cnt FROM accounts WHERE LOWER(name) LIKE '%test%' OR LOWER(name) LIKE '%demo%' GROUP BY name ORDER BY cnt DESC;",
+  "rows": [
+    {
+      "name": "Test Account Industry",
+      "cnt": "106"
+    },
+    {
+      "name": "Test Account Active",
+      "cnt": "106"
+    },
+    {
+      "name": "Test Account Suspended",
+      "cnt": "106"
+    },
+    {
+      "name": "Test Account",
+      "cnt": "3"
+    },
+    {
+      "name": "test sub account",
+      "cnt": "1"
+    },
+    {
+      "name": "Apex Systems Test",
+      "cnt": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "name\tcnt\nTest Account Industry\t106\nTest Account Active\t106\nTest Account Suspended\t106\nTest Account\t3\ntest sub account\t1\nApex Systems Test\t1\n",
+  "stderr": "",
+  "execution_time_ms": 61
+}
