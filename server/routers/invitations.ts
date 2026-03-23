@@ -145,7 +145,7 @@ export const invitationsRouter = router({
         );
       }
 
-      return { id: result.id, emailSent };
+      return { id: result.id, emailSent, token };
     }),
 
   /** Accept an invitation (authenticated user) */
@@ -367,7 +367,7 @@ export const invitationsRouter = router({
         }),
       });
 
-      return { success: true, emailSent };
+      return { success: true, emailSent, token: newToken };
     }),
 
   /** Revoke a pending invitation */

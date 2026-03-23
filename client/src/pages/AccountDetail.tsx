@@ -43,6 +43,8 @@ import {
   ArrowLeft,
   Building2,
   Clock,
+  Copy,
+  Link2,
   Mail,
   MoreVertical,
   Phone,
@@ -51,6 +53,7 @@ import {
   UserMinus,
   UserPlus,
   Users,
+  AlertTriangle,
 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -83,6 +86,21 @@ export default function AccountDetail({ id }: { id: number }) {
 
   const utils = trpc.useUtils();
 
+  const buildInviteUrl = (token: string) => {
+    const base = window.location.origin;
+    return `${base}/accept-invite?token=${token}`;
+  };
+
+  const copyInviteLink = (token: string) => {
+    const url = buildInviteUrl(token);
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success("Invite link copied to clipboard");
+    }).catch(() => {
+      // Fallback: show the link in a toast so user can copy manually
+      toast.info("Copy this link:", { description: url, duration: 10000 });
+    });
+  };
+
   const inviteMutation = trpc.invitations.create.useMutation({
     onSuccess: (data) => {
       utils.invitations.list.invalidate({ accountId: id });
@@ -90,9 +108,24 @@ export default function AccountDetail({ id }: { id: number }) {
       setInviteEmail("");
       setInviteRole("employee");
       setInviteMessage("");
-      toast.success("Invitation sent", {
-        description: "An invitation email has been sent to the user.",
-      });
+      if (data.emailSent) {
+        toast.success("Invitation sent", {
+          description: "An invitation email has been sent to the user.",
+        });
+      } else {
+        const url = buildInviteUrl(data.token);
+        toast.warning("Account created but invitation email failed to send", {
+          description: "Please share the login link manually.",
+          duration: 15000,
+          action: {
+            label: "Copy Link",
+            onClick: () => {
+              navigator.clipboard.writeText(url);
+              toast.success("Link copied!");
+            },
+          },
+        });
+      }
     },
     onError: (err) => {
       toast.error("Failed to send invitation", { description: err.message });
@@ -509,19 +542,30 @@ export default function AccountDetail({ id }: { id: number }) {
                       </div>
 
                       {invite.status === "pending" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive h-7 text-xs"
-                          onClick={() =>
-                            revokeMutation.mutate({
-                              accountId: id,
-                              invitationId: invite.id,
-                            })
-                          }
-                        >
-                          Revoke
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs gap-1 text-primary hover:text-primary/80"
+                            onClick={() => copyInviteLink(invite.token)}
+                          >
+                            <Copy className="h-3 w-3" />
+                            Copy Link
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:text-destructive h-7 text-xs"
+                            onClick={() =>
+                              revokeMutation.mutate({
+                                accountId: id,
+                                invitationId: invite.id,
+                              })
+                            }
+                          >
+                            Revoke
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </CardContent>

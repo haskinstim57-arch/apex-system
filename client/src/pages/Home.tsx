@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
 import { useMemo } from "react";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 
 export default function Home() {
   const { user } = useAuth();
@@ -105,6 +106,11 @@ export default function Home() {
             </>
           )}
         </div>
+      )}
+
+      {/* ─── Onboarding Checklist (sub-account mode, admin/owner only) ─── */}
+      {currentAccountId && isAdmin && (
+        <OnboardingChecklist accountId={currentAccountId} />
       )}
 
       {/* ─── Sub-Account KPI Cards (when account is selected) ─── */}

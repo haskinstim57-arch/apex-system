@@ -101,6 +101,7 @@ export const accountsRouter = router({
       });
 
       // Send invitation email to the owner
+      let emailSent = false;
       const baseUrl = process.env.VITE_APP_URL || "http://localhost:5000";
       const inviteUrl = `${baseUrl}/accept-invite?token=${token}`;
       const inviterName = ctx.user.name || "An administrator";
@@ -131,6 +132,7 @@ export const accountsRouter = router({
         console.log(
           `[INVITE] dispatchEmail result: ${JSON.stringify(emailResult)}`
         );
+        emailSent = emailResult.success;
         if (!emailResult.success) {
           console.error(
             `[Accounts] Invitation email failed for ${input.ownerEmail}: ${emailResult.error}`
@@ -156,7 +158,7 @@ export const accountsRouter = router({
         metadata: JSON.stringify({ name: input.name, ownerEmail: input.ownerEmail }),
       });
 
-      return result;
+      return { ...result, emailSent, inviteToken: token };
     }),
 
   /** List all accounts (admin) or user's accounts */
@@ -255,6 +257,71 @@ export const accountsRouter = router({
         await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager", "employee"]);
       }
       return db.getAccountDashboardStats(input.accountId);
+    }),
+
+  /** Get onboarding checklist status for a sub-account */
+  getOnboardingStatus: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      // Verify access
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager", "employee"]);
+      }
+      const database = await db.getDb();
+      if (!database) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const { accounts, contacts, calendars, campaigns, workflows, accountMessagingSettings } = await import("../../drizzle/schema");
+      const { count } = await import("drizzle-orm");
+
+      // 1. Get account record
+      const [account] = await database
+        .select({
+          phone: accounts.phone,
+          missedCallTextBackEnabled: accounts.missedCallTextBackEnabled,
+        })
+        .from(accounts)
+        .where(eq(accounts.id, input.accountId))
+        .limit(1);
+
+      // 2. Get messaging settings (sendgridFromEmail)
+      const [msgSettings] = await database
+        .select({ sendgridFromEmail: accountMessagingSettings.sendgridFromEmail })
+        .from(accountMessagingSettings)
+        .where(eq(accountMessagingSettings.accountId, input.accountId))
+        .limit(1);
+
+      // 3. Count contacts
+      const [contactCount] = await database
+        .select({ cnt: count() })
+        .from(contacts)
+        .where(eq(contacts.accountId, input.accountId));
+
+      // 4. Count calendars
+      const [calendarCount] = await database
+        .select({ cnt: count() })
+        .from(calendars)
+        .where(eq(calendars.accountId, input.accountId));
+
+      // 5. Count campaigns
+      const [campaignCount] = await database
+        .select({ cnt: count() })
+        .from(campaigns)
+        .where(eq(campaigns.accountId, input.accountId));
+
+      // 6. Count workflows
+      const [workflowCount] = await database
+        .select({ cnt: count() })
+        .from(workflows)
+        .where(eq(workflows.accountId, input.accountId));
+
+      return {
+        hasPhoneNumber: !!account?.phone,
+        hasEmail: !!msgSettings?.sendgridFromEmail,
+        hasContact: (contactCount?.cnt ?? 0) > 0,
+        hasCalendar: (calendarCount?.cnt ?? 0) > 0,
+        hasMissedCallTextBack: !!account?.missedCallTextBackEnabled,
+        hasCampaign: (campaignCount?.cnt ?? 0) > 0,
+        hasWorkflow: (workflowCount?.cnt ?? 0) > 0,
+      };
     }),
 
   /** Mark onboarding as complete for a sub-account */

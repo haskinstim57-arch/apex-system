@@ -43,6 +43,8 @@ import {
   Calendar,
   LogIn,
   Send,
+  Copy,
+  AlertTriangle,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -71,8 +73,13 @@ export default function Accounts() {
   const { data: accounts, isLoading } = trpc.accounts.list.useQuery();
   const utils = trpc.useUtils();
 
+  const buildInviteUrl = (token: string) => {
+    const base = window.location.origin;
+    return `${base}/accept-invite?token=${token}`;
+  };
+
   const createMutation = trpc.accounts.create.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       utils.accounts.list.invalidate();
       utils.accounts.adminStats.invalidate();
       setCreateOpen(false);
@@ -80,7 +87,24 @@ export default function Accounts() {
       setNewIndustry("mortgage");
       setNewOwnerEmail("");
       setNewStatus("active");
-      toast.success("Sub-account created successfully");
+      if (data.emailSent) {
+        toast.success("Sub-account created successfully", {
+          description: "Invitation email sent to the owner.",
+        });
+      } else {
+        const url = buildInviteUrl(data.inviteToken);
+        toast.warning("Account created but invitation email failed to send", {
+          description: "Please share the login link manually.",
+          duration: 15000,
+          action: {
+            label: "Copy Invite Link",
+            onClick: () => {
+              navigator.clipboard.writeText(url);
+              toast.success("Invite link copied!");
+            },
+          },
+        });
+      }
     },
     onError: (err) => {
       toast.error("Failed to create account", { description: err.message });
@@ -99,8 +123,23 @@ export default function Accounts() {
   });
 
   const resendMutation = trpc.invitations.resend.useMutation({
-    onSuccess: () => {
-      toast.success("Invitation email resent successfully");
+    onSuccess: (data) => {
+      if (data.emailSent) {
+        toast.success("Invitation email resent successfully");
+      } else {
+        const url = buildInviteUrl(data.token);
+        toast.warning("Email failed to send", {
+          description: "Please share the login link manually.",
+          duration: 15000,
+          action: {
+            label: "Copy Invite Link",
+            onClick: () => {
+              navigator.clipboard.writeText(url);
+              toast.success("Invite link copied!");
+            },
+          },
+        });
+      }
     },
     onError: (err) => {
       toast.error("Failed to resend invitation", { description: err.message });
@@ -390,6 +429,20 @@ export default function Accounts() {
                       >
                         <Send className="h-3 w-3" />
                         {resendMutation.isPending ? "Sending..." : "Resend"}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 px-2 text-[10px] gap-1 text-muted-foreground hover:text-foreground"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Need to get the token - trigger resend which returns the token
+                          // For now, navigate to account detail where they can copy the link
+                          setLocation(`/accounts/${account.id}`);
+                        }}
+                      >
+                        <Copy className="h-3 w-3" />
+                        Copy Link
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground truncate mt-0.5">

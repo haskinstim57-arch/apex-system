@@ -1331,4 +1331,49 @@
 
 ### Verification
 - [x] Tests written and passing (20 tests, 944 total)
+- [x] Checkpoint saved (49c27f0b)
+
+## Onboarding Checklist for Sub-Accounts
+
+### Backend
+- [ ] getOnboardingStatus tRPC procedure: checks 7 conditions for active accountId
+- [ ] Check: phoneNumber set on account
+- [ ] Check: sendgridFromEmail set on account
+- [ ] Check: at least 1 contact exists
+- [ ] Check: at least 1 calendar exists
+- [ ] Check: missedCallTextBackEnabled is true
+- [ ] Check: at least 1 campaign exists
+- [ ] Check: at least 1 workflow exists
+- [ ] Add missing schema fields if needed (phoneNumber, sendgridFromEmail, missedCallTextBackEnabled)
+
+### Frontend
+- [ ] Onboarding checklist card on Dashboard (sub-account mode only)
+- [ ] Progress bar showing X/7 steps complete
+- [ ] Green checkmark for complete steps, grey circle for incomplete
+- [ ] "Set Up" button on incomplete steps linking to relevant page
+- [ ] "Dismiss" button (localStorage persistence)
+- [ ] Auto-hide when all 7 steps complete
+- [ ] Only show to agency_admin or account_owner roles
+
+### Verification
+- [ ] Tests written and passing
+- [ ] Checkpoint saved
+
+## Fix: Invitation Email Not Sending
+
+- [ ] Investigate invitation email dispatch in accounts router and team members router
+- [ ] Check SendGrid API key configuration and from email verification
+- [ ] Check dispatchEmail function implementation and error handling
+- [ ] Verify invitation token generation and link format
+- [ ] Fix silent email failures — surface errors to user
+- [ ] Test invitation email delivery
+- [ ] Checkpoint saved
+
+## Fix: Invitation Email Failure Workaround
+
+- [x] Warning toast when invitation email fails: show invite link for manual sharing
+- [x] "Copy Invite Link" button on Sub-Accounts page for pending invitations
+- [x] "Copy Invite Link" button on AccountDetail page for pending invitations
+- [x] Backend: return invite token in create/resend responses so frontend can build the link
+- [x] All 944 tests pass
 - [ ] Checkpoint saved
