@@ -1078,4 +1078,29 @@
 ### Testing
 - [x] Vitest tests for notification CRUD procedures (9 tests)
 - [x] All 825 tests pass
+- [x] Checkpoint saved
+
+## Twilio Phone Number Purchase (In-CRM)
+
+### Backend
+- [x] Update account schema: add twilioPhoneSid column to accountMessagingSettings
+- [x] DB migration pushed (via SQL ALTER TABLE)
+- [x] tRPC procedure: searchAvailable (area code or city/state search via Twilio API)
+- [x] tRPC procedure: purchase (buy via Twilio API, configure SMS + voice webhooks, store on account)
+- [x] tRPC procedure: release (release via Twilio API, clear from account)
+- [x] tRPC procedure: getAssigned (return current number for account)
+
+### Frontend
+- [x] Phone Number section in Settings page (PhoneNumberCard component)
+- [x] "Get a Phone Number" button when no number assigned
+- [x] Search modal: area code or city/state search with tabs
+- [x] Available numbers list with area code, location, and monthly cost ($1.15)
+- [x] Confirmation step before purchase with cost display and billing details
+- [x] Purchase flow: buy, assign, close modal, auto-configure webhooks
+- [x] Display assigned number with release option
+- [x] Release confirmation dialog with warning about losing the number
+
+### Testing
+- [x] Vitest tests for phone number tRPC procedures (11 tests)
+- [x] All 836 tests pass
 - [ ] Checkpoint saved

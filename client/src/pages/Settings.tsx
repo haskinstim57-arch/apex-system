@@ -11,6 +11,31 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Shield,
   User,
   Bell,
@@ -34,6 +59,12 @@ import {
   ToggleRight,
   Clock,
   Save,
+  Phone,
+  Search,
+  Trash2,
+  DollarSign,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
@@ -199,6 +230,11 @@ export default function SettingsPage() {
 
       {/* Change Password Section — only for email-authenticated users */}
       {user?.loginMethod === "email" && <ChangePasswordCard />}
+
+      {/* Phone Number — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <PhoneNumberCard accountId={currentAccountId} />
+      )}
 
       {/* Messaging Settings — visible to anyone with an account selected */}
       {showMessagingSettings && (
@@ -1079,5 +1115,538 @@ function MissedCallTextBackCard({ accountId }: { accountId: number }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ─────────────────────────────────────────────
+// Phone Number Management Card
+// ─────────────────────────────────────────────
+
+const US_STATES = [
+  { code: "AL", name: "Alabama" }, { code: "AK", name: "Alaska" }, { code: "AZ", name: "Arizona" },
+  { code: "AR", name: "Arkansas" }, { code: "CA", name: "California" }, { code: "CO", name: "Colorado" },
+  { code: "CT", name: "Connecticut" }, { code: "DE", name: "Delaware" }, { code: "FL", name: "Florida" },
+  { code: "GA", name: "Georgia" }, { code: "HI", name: "Hawaii" }, { code: "ID", name: "Idaho" },
+  { code: "IL", name: "Illinois" }, { code: "IN", name: "Indiana" }, { code: "IA", name: "Iowa" },
+  { code: "KS", name: "Kansas" }, { code: "KY", name: "Kentucky" }, { code: "LA", name: "Louisiana" },
+  { code: "ME", name: "Maine" }, { code: "MD", name: "Maryland" }, { code: "MA", name: "Massachusetts" },
+  { code: "MI", name: "Michigan" }, { code: "MN", name: "Minnesota" }, { code: "MS", name: "Mississippi" },
+  { code: "MO", name: "Missouri" }, { code: "MT", name: "Montana" }, { code: "NE", name: "Nebraska" },
+  { code: "NV", name: "Nevada" }, { code: "NH", name: "New Hampshire" }, { code: "NJ", name: "New Jersey" },
+  { code: "NM", name: "New Mexico" }, { code: "NY", name: "New York" }, { code: "NC", name: "North Carolina" },
+  { code: "ND", name: "North Dakota" }, { code: "OH", name: "Ohio" }, { code: "OK", name: "Oklahoma" },
+  { code: "OR", name: "Oregon" }, { code: "PA", name: "Pennsylvania" }, { code: "RI", name: "Rhode Island" },
+  { code: "SC", name: "South Carolina" }, { code: "SD", name: "South Dakota" }, { code: "TN", name: "Tennessee" },
+  { code: "TX", name: "Texas" }, { code: "UT", name: "Utah" }, { code: "VT", name: "Vermont" },
+  { code: "VA", name: "Virginia" }, { code: "WA", name: "Washington" }, { code: "WV", name: "West Virginia" },
+  { code: "WI", name: "Wisconsin" }, { code: "WY", name: "Wyoming" }, { code: "DC", name: "Washington DC" },
+];
+
+function formatPhoneNumber(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length === 11 && digits.startsWith("1")) {
+    return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  return phone;
+}
+
+function PhoneNumberCard({ accountId }: { accountId: number }) {
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showReleaseDialog, setShowReleaseDialog] = useState(false);
+  const [showConfirmPurchase, setShowConfirmPurchase] = useState(false);
+  const [selectedNumber, setSelectedNumber] = useState<{
+    phoneNumber: string;
+    friendlyName: string;
+    locality: string;
+    region: string;
+    monthlyCost: number;
+  } | null>(null);
+
+  // Search state
+  const [searchMode, setSearchMode] = useState<"areaCode" | "location">("areaCode");
+  const [areaCode, setAreaCode] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [searchTriggered, setSearchTriggered] = useState(false);
+
+  const utils = trpc.useUtils();
+
+  // Get assigned number
+  const { data: assigned, isLoading: assignedLoading } =
+    trpc.twilioPhoneNumber.getAssigned.useQuery(
+      { accountId },
+      { enabled: !!accountId }
+    );
+
+  // Search available numbers
+  const searchInput = searchTriggered
+    ? {
+        accountId,
+        ...(searchMode === "areaCode" && areaCode.length === 3
+          ? { areaCode }
+          : {}),
+        ...(searchMode === "location" && city ? { locality: city } : {}),
+        ...(searchMode === "location" && state ? { state } : {}),
+      }
+    : null;
+
+  const { data: availableNumbers, isLoading: searching, error: searchError } =
+    trpc.twilioPhoneNumber.searchAvailable.useQuery(searchInput as any, {
+      enabled: !!searchInput && searchTriggered,
+    });
+
+  // Purchase mutation
+  const purchaseMutation = trpc.twilioPhoneNumber.purchase.useMutation({
+    onSuccess: () => {
+      utils.twilioPhoneNumber.getAssigned.invalidate({ accountId });
+      setShowSearchModal(false);
+      setShowConfirmPurchase(false);
+      setSelectedNumber(null);
+      resetSearch();
+    },
+  });
+
+  // Release mutation
+  const releaseMutation = trpc.twilioPhoneNumber.release.useMutation({
+    onSuccess: () => {
+      utils.twilioPhoneNumber.getAssigned.invalidate({ accountId });
+      setShowReleaseDialog(false);
+    },
+  });
+
+  function resetSearch() {
+    setAreaCode("");
+    setCity("");
+    setState("");
+    setSearchTriggered(false);
+    setSelectedNumber(null);
+  }
+
+  function handleSearch() {
+    if (searchMode === "areaCode" && areaCode.length !== 3) return;
+    if (searchMode === "location" && !city && !state) return;
+    setSearchTriggered(true);
+  }
+
+  function handleSelectNumber(num: typeof availableNumbers extends (infer T)[] | undefined ? T : never) {
+    if (!num) return;
+    setSelectedNumber({
+      phoneNumber: num.phoneNumber,
+      friendlyName: num.friendlyName,
+      locality: num.locality,
+      region: num.region,
+      monthlyCost: num.monthlyCost,
+    });
+    setShowConfirmPurchase(true);
+  }
+
+  function handleConfirmPurchase() {
+    if (!selectedNumber) return;
+    purchaseMutation.mutate({
+      accountId,
+      phoneNumber: selectedNumber.phoneNumber,
+      appUrl: window.location.origin,
+    });
+  }
+
+  function handleRelease() {
+    releaseMutation.mutate({ accountId });
+  }
+
+  return (
+    <>
+      <Card className="border-border/50 bg-card">
+        <CardHeader>
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Phone className="h-4 w-4 text-muted-foreground" />
+            Phone Number
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Manage the phone number used for SMS and calls in this account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {assignedLoading ? (
+            <div className="flex items-center gap-2 py-3">
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Loading...</span>
+            </div>
+          ) : assigned?.hasNumber ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <Phone className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-base font-semibold tracking-tight">
+                      {formatPhoneNumber(assigned.phoneNumber!)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Active &middot; Used for SMS &amp; voice
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setShowReleaseDialog(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Release
+                </Button>
+              </div>
+              <div className="rounded-lg bg-muted/30 p-3">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="font-medium text-foreground">Billing: </span>
+                  This number costs approximately $1.15/month, billed to your Twilio account.
+                  SMS and voice usage are billed separately by Twilio.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center py-6 gap-3">
+              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                <Phone className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium">No phone number assigned</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Get a local phone number to send SMS and receive calls.
+                </p>
+              </div>
+              <Button
+                onClick={() => setShowSearchModal(true)}
+                className="mt-2"
+              >
+                <Phone className="h-4 w-4 mr-2" />
+                Get a Phone Number
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Search & Purchase Modal */}
+      <Dialog
+        open={showSearchModal}
+        onOpenChange={(open) => {
+          setShowSearchModal(open);
+          if (!open) resetSearch();
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Get a Phone Number</DialogTitle>
+            <DialogDescription>
+              Search for available local phone numbers by area code or location.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+            {/* Search mode tabs */}
+            <div className="flex gap-2">
+              <Button
+                variant={searchMode === "areaCode" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSearchMode("areaCode");
+                  setSearchTriggered(false);
+                }}
+              >
+                By Area Code
+              </Button>
+              <Button
+                variant={searchMode === "location" ? "default" : "outline"}
+                size="sm"
+                onClick={() => {
+                  setSearchMode("location");
+                  setSearchTriggered(false);
+                }}
+              >
+                By Location
+              </Button>
+            </div>
+
+            {/* Search inputs */}
+            {searchMode === "areaCode" ? (
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter area code (e.g. 305)"
+                  value={areaCode}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "").slice(0, 3);
+                    setAreaCode(val);
+                    setSearchTriggered(false);
+                  }}
+                  className="flex-1"
+                  maxLength={3}
+                />
+                <Button
+                  onClick={handleSearch}
+                  disabled={areaCode.length !== 3 || searching}
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="City (optional)"
+                    value={city}
+                    onChange={(e) => {
+                      setCity(e.target.value);
+                      setSearchTriggered(false);
+                    }}
+                    className="flex-1"
+                  />
+                  <Select
+                    value={state}
+                    onValueChange={(val) => {
+                      setState(val);
+                      setSearchTriggered(false);
+                    }}
+                  >
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="State" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {US_STATES.map((s) => (
+                        <SelectItem key={s.code} value={s.code}>
+                          {s.code} — {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  onClick={handleSearch}
+                  disabled={(!city && !state) || searching}
+                  className="w-full"
+                >
+                  {searching ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Search className="h-4 w-4 mr-2" />
+                  )}
+                  Search Numbers
+                </Button>
+              </div>
+            )}
+
+            {/* Error */}
+            {searchError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  {searchError.message}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Results */}
+            {searchTriggered && (
+              <div className="flex-1 overflow-y-auto -mx-1 px-1">
+                {searching ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <span className="ml-2 text-sm text-muted-foreground">
+                      Searching available numbers...
+                    </span>
+                  </div>
+                ) : availableNumbers && availableNumbers.length > 0 ? (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {availableNumbers.length} number{availableNumbers.length !== 1 ? "s" : ""} found
+                    </p>
+                    {availableNumbers.map((num) => (
+                      <button
+                        key={num.phoneNumber}
+                        onClick={() => handleSelectNumber(num)}
+                        className="w-full flex items-center justify-between p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-accent/50 transition-all text-left group"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Phone className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium">
+                              {formatPhoneNumber(num.phoneNumber)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {num.locality ? `${num.locality}, ` : ""}
+                              {num.region || ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold text-emerald-500">
+                            ${num.monthlyCost.toFixed(2)}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">/month</p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center py-8 text-center">
+                    <XCircle className="h-8 w-8 text-muted-foreground/50 mb-2" />
+                    <p className="text-sm text-muted-foreground">
+                      No numbers found for this search.
+                    </p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">
+                      Try a different area code or location.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Purchase Confirmation Dialog */}
+      <AlertDialog
+        open={showConfirmPurchase}
+        onOpenChange={(open) => {
+          setShowConfirmPurchase(open);
+          if (!open) setSelectedNumber(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Purchase</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>You are about to purchase the following phone number:</p>
+                <div className="rounded-lg bg-muted/50 p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Number</span>
+                    <span className="text-sm font-semibold text-foreground">
+                      {selectedNumber
+                        ? formatPhoneNumber(selectedNumber.phoneNumber)
+                        : ""}
+                    </span>
+                  </div>
+                  {selectedNumber?.locality && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Location</span>
+                      <span className="text-sm text-foreground">
+                        {selectedNumber.locality}
+                        {selectedNumber.region ? `, ${selectedNumber.region}` : ""}
+                      </span>
+                    </div>
+                  )}
+                  <Separator className="bg-border/50" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Monthly cost</span>
+                    <span className="text-sm font-semibold text-emerald-500">
+                      ${selectedNumber?.monthlyCost.toFixed(2)}/month
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This number will be billed to your Twilio account at $1.15/month.
+                  SMS and voice usage are billed separately. The number will be
+                  automatically configured for inbound SMS and voice webhooks.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={purchaseMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmPurchase}
+              disabled={purchaseMutation.isPending}
+              className="bg-primary"
+            >
+              {purchaseMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Purchasing...
+                </>
+              ) : (
+                <>
+                  <DollarSign className="h-4 w-4 mr-1" />
+                  Confirm Purchase
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+          {purchaseMutation.error && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                {purchaseMutation.error.message}
+              </AlertDescription>
+            </Alert>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Release Confirmation Dialog */}
+      <AlertDialog
+        open={showReleaseDialog}
+        onOpenChange={setShowReleaseDialog}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Release Phone Number</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to release{" "}
+              <span className="font-semibold text-foreground">
+                {assigned?.phoneNumber
+                  ? formatPhoneNumber(assigned.phoneNumber)
+                  : "this number"}
+              </span>
+              ? This action cannot be undone. The number will be returned to
+              Twilio's pool and may be assigned to someone else. All inbound
+              SMS and calls to this number will stop working.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={releaseMutation.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRelease}
+              disabled={releaseMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {releaseMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Releasing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Release Number
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+          {releaseMutation.error && (
+            <Alert variant="destructive" className="mt-2">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                {releaseMutation.error.message}
+              </AlertDescription>
+            </Alert>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

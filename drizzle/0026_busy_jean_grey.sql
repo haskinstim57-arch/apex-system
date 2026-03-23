@@ -1,0 +1,1 @@
+ALTER TABLE `account_messaging_settings` ADD `twilio_phone_sid` varchar(64);

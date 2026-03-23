@@ -692,6 +692,8 @@ export const accountMessagingSettings = mysqlTable("account_messaging_settings",
   twilioAccountSid: varchar("twilio_account_sid", { length: 255 }),
   twilioAuthToken: varchar("twilio_auth_token", { length: 255 }),
   twilioFromNumber: varchar("twilio_from_number", { length: 50 }),
+  /** Twilio purchased phone number SID (for releasing) */
+  twilioPhoneSid: varchar("twilio_phone_sid", { length: 64 }),
   /** SendGrid credentials */
   sendgridApiKey: varchar("sendgrid_api_key", { length: 255 }),
   sendgridFromEmail: varchar("sendgrid_from_email", { length: 255 }),

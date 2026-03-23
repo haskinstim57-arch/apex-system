@@ -22,6 +22,7 @@ import { inboxRouter } from "./routers/inbox";
 import { missedCallTextBackRouter } from "./routers/missedCallTextBack";
 import { emailTemplatesRouter } from "./routers/emailTemplates";
 import { notificationsRouter } from "./routers/notifications";
+import { twilioPhoneNumberRouter } from "./routers/twilioPhoneNumber";
 
 export const appRouter = router({
   system: systemRouter,
@@ -55,6 +56,7 @@ export const appRouter = router({
   missedCallTextBack: missedCallTextBackRouter,
   emailTemplates: emailTemplatesRouter,
   notifications: notificationsRouter,
+  twilioPhoneNumber: twilioPhoneNumberRouter,
 });
 
 export type AppRouter = typeof appRouter;
