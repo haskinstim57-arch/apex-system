@@ -1,0 +1,30 @@
+{
+  "query": "SELECT ct.contactId, ct.tag FROM contact_tags ct JOIN contacts c ON ct.contactId = c.id WHERE c.accountId = 390025 AND c.assignedUserId = 901752 LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT ct.contactId, ct.tag FROM contact_tags ct JOIN contacts c ON ct.contactId = c.id WHERE c.accountId = 390025 AND c.assignedUserId = 901752 LIMIT 5;",
+  "rows": [
+    {
+      "contactId": "360485",
+      "tag": "Broward County"
+    },
+    {
+      "contactId": "360485",
+      "tag": "multifamily"
+    },
+    {
+      "contactId": "360486",
+      "tag": "Broward County"
+    },
+    {
+      "contactId": "360486",
+      "tag": "multifamily"
+    },
+    {
+      "contactId": "360487",
+      "tag": "Broward County"
+    }
+  ],
+  "messages": [],
+  "stdout": "contactId\ttag\n360485\tBroward County\n360485\tmultifamily\n360486\tBroward County\n360486\tmultifamily\n360487\tBroward County\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

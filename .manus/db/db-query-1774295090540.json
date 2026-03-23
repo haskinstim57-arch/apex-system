@@ -1,0 +1,16 @@
+{
+  "query": "SELECT \n  COUNT(*) AS total_contacts,\n  SUM(CASE WHEN assignedUserId = 901752 THEN 1 ELSE 0 END) AS alfonso_leads,\n  SUM(CASE WHEN assignedUserId = 902504 THEN 1 ELSE 0 END) AS evol_leads,\n  SUM(CASE WHEN assignedUserId IS NULL THEN 1 ELSE 0 END) AS unassigned_leads\nFROM contacts \nWHERE accountId = 390025;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT \n  COUNT(*) AS total_contacts,\n  SUM(CASE WHEN assignedUserId = 901752 THEN 1 ELSE 0 END) AS alfonso_leads,\n  SUM(CASE WHEN assignedUserId = 902504 THEN 1 ELSE 0 END) AS evol_leads,\n  SUM(CASE WHEN assignedUserId IS NULL THEN 1 ELSE 0 END) AS unassigned_leads\nFROM contacts \nWHERE accountId = 390025;",
+  "rows": [
+    {
+      "total_contacts": "8944",
+      "alfonso_leads": "750",
+      "evol_leads": "750",
+      "unassigned_leads": "7444"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_contacts\talfonso_leads\tevol_leads\tunassigned_leads\n8944\t750\t750\t7444\n",
+  "stderr": "",
+  "execution_time_ms": 101
+}

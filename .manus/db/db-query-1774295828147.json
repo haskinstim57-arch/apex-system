@@ -1,0 +1,25 @@
+{
+  "query": "SELECT c.accountId, a.name AS accountName, COUNT(*) AS contactCount FROM contacts c JOIN accounts a ON c.accountId = a.id WHERE c.accountId IN (390023, 390024, 390025) GROUP BY c.accountId, a.name;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT c.accountId, a.name AS accountName, COUNT(*) AS contactCount FROM contacts c JOIN accounts a ON c.accountId = a.id WHERE c.accountId IN (390023, 390024, 390025) GROUP BY c.accountId, a.name;",
+  "rows": [
+    {
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "contactCount": "8944"
+    },
+    {
+      "accountId": "390024",
+      "accountName": "Alfonso Parra Lenis",
+      "contactCount": "751"
+    },
+    {
+      "accountId": "390023",
+      "accountName": "Evol Hosang",
+      "contactCount": "750"
+    }
+  ],
+  "messages": [],
+  "stdout": "accountId\taccountName\tcontactCount\n390025\tKyle\t8944\n390024\tAlfonso Parra Lenis\t751\n390023\tEvol Hosang\t750\n",
+  "stderr": "",
+  "execution_time_ms": 75
+}

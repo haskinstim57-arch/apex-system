@@ -1,0 +1,22 @@
+{
+  "query": "SELECT leadSource, COUNT(*) AS cnt FROM contacts WHERE accountId = 390025 GROUP BY leadSource ORDER BY cnt DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT leadSource, COUNT(*) AS cnt FROM contacts WHERE accountId = 390025 GROUP BY leadSource ORDER BY cnt DESC;",
+  "rows": [
+    {
+      "leadSource": "Broward County Multifamily",
+      "cnt": "4860"
+    },
+    {
+      "leadSource": "Palm Beach County Multifamily",
+      "cnt": "4081"
+    },
+    {
+      "leadSource": "NULL",
+      "cnt": "3"
+    }
+  ],
+  "messages": [],
+  "stdout": "leadSource\tcnt\nBroward County Multifamily\t4860\nPalm Beach County Multifamily\t4081\nNULL\t3\n",
+  "stderr": "",
+  "execution_time_ms": 68
+}

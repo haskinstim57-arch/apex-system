@@ -1,0 +1,24 @@
+{
+  "query": "SELECT m.accountId, a.name AS accountName, m.role AS memberRole, m.userId, u.name AS userName FROM account_members m JOIN accounts a ON m.accountId = a.id JOIN users u ON m.userId = u.id WHERE m.userId IN (901752, 902504) AND m.role = 'owner';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT m.accountId, a.name AS accountName, m.role AS memberRole, m.userId, u.name AS userName FROM account_members m JOIN accounts a ON m.accountId = a.id JOIN users u ON m.userId = u.id WHERE m.userId IN (901752, 902504) AND m.role = 'owner';",
+  "rows": [
+    {
+      "accountId": "390023",
+      "accountName": "Evol Hosang",
+      "memberRole": "owner",
+      "userId": "902504",
+      "userName": "Evol Hosang"
+    },
+    {
+      "accountId": "390024",
+      "accountName": "Alfonso Parra Lenis",
+      "memberRole": "owner",
+      "userId": "901752",
+      "userName": "Alfonso Parra Lenis"
+    }
+  ],
+  "messages": [],
+  "stdout": "accountId\taccountName\tmemberRole\tuserId\tuserName\n390023\tEvol Hosang\towner\t902504\tEvol Hosang\n390024\tAlfonso Parra Lenis\towner\t901752\tAlfonso Parra Lenis\n",
+  "stderr": "",
+  "execution_time_ms": 58
+}

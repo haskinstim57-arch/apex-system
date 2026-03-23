@@ -1,0 +1,18 @@
+{
+  "query": "SELECT assignedUserId, COUNT(*) AS cnt FROM contacts WHERE accountId = 390025 AND assignedUserId IN (901752, 902504) GROUP BY assignedUserId;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT assignedUserId, COUNT(*) AS cnt FROM contacts WHERE accountId = 390025 AND assignedUserId IN (901752, 902504) GROUP BY assignedUserId;",
+  "rows": [
+    {
+      "assignedUserId": "902504",
+      "cnt": "750"
+    },
+    {
+      "assignedUserId": "901752",
+      "cnt": "751"
+    }
+  ],
+  "messages": [],
+  "stdout": "assignedUserId\tcnt\n902504\t750\n901752\t751\n",
+  "stderr": "",
+  "execution_time_ms": 71
+}

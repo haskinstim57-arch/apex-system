@@ -1,0 +1,52 @@
+{
+  "query": "SELECT m.*, u.name, u.email, u.role AS userRole, u.openId FROM account_members m JOIN users u ON u.id = m.userId WHERE m.accountId = 390025;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT m.*, u.name, u.email, u.role AS userRole, u.openId FROM account_members m JOIN users u ON u.id = m.userId WHERE m.accountId = 390025;",
+  "rows": [
+    {
+      "id": "210004",
+      "accountId": "390025",
+      "userId": "901752",
+      "role": "employee",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 18:13:09",
+      "updatedAt": "2026-03-23 18:13:09",
+      "name": "Alfonso Parra Lenis",
+      "email": "alfonso@optimallendingsolutions.com",
+      "userRole": "user",
+      "openId": "E2v3T23CsTRNnUqxz3yJYr"
+    },
+    {
+      "id": "210003",
+      "accountId": "390025",
+      "userId": "902504",
+      "role": "employee",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 18:13:09",
+      "updatedAt": "2026-03-23 18:13:09",
+      "name": "Evol Hosang",
+      "email": "evol@optimallendingsolutions.com",
+      "userRole": "user",
+      "openId": "email_97b0fbeb-428f-44d5-b0a7-f27f6eb9d185"
+    },
+    {
+      "id": "210005",
+      "accountId": "390025",
+      "userId": "903188",
+      "role": "owner",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 18:59:36",
+      "updatedAt": "2026-03-23 18:59:36",
+      "name": "Kyle Dombecki",
+      "email": "info@optimallendingsolutions.com",
+      "userRole": "user",
+      "openId": "email_a447c409-ff80-4a01-9eb4-7ac1c4de9a35"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\tuserId\trole\tisActive\tpermissions\tjoinedAt\tupdatedAt\tname\temail\tuserRole\topenId\n210004\t390025\t901752\temployee\t1\tNULL\t2026-03-23 18:13:09\t2026-03-23 18:13:09\tAlfonso Parra Lenis\talfonso@optimallendingsolutions.com\tuser\tE2v3T23CsTRNnUqxz3yJYr\n210003\t390025\t902504\temployee\t1\tNULL\t2026-03-23 18:13:09\t2026-03-23 18:13:09\tEvol Hosang\tevol@optimallendingsolutions.com\tuser\temail_97b0fbeb-428f-44d5-b0a7-f27f6eb9d185\n210005\t390025\t903188\towner\t1\tNULL\t2026-03-23 18:59:36\t2026-03-23 18:59:36\tKyle Dombecki\tinfo@optimallendingsolutions.com\tuser\temail_a447c409-ff80-4a01-9eb4-7ac1c4de9a35\n",
+  "stderr": "",
+  "execution_time_ms": 66
+}

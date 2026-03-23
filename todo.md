@@ -1386,4 +1386,26 @@
 - [x] Fix: Added validation guards (accountId check, empty contacts check, usable data filter)
 - [x] Test end-to-end with 3-row sample CSV (passed on dev server)
 - [x] All 26 CSV import tests passing
+- [x] Checkpoint saved (74fd9aa0)
+
+### Bulk Lead Import: Kyle's Account (Broward + Palm Beach County Multifamily)
+- [x] Examine both CSV files (BrowardCountyMultifamily.csv, Palmbeachcountymultifamily.csv)
+- [x] Identify Kyle's sub-account ID (390025), Alfonso (901752), Evol (902504)
+- [x] Import all leads into Kyle's sub-account (8,941 imported, 5,086 duplicates skipped)
+- [x] Assign 750 leads to Alfonso (unique leads)
+- [x] Assign 750 leads to Evol (different unique leads)
+- [x] Verify import counts and assignments
+
+### Bug: Alfonso and Evol can't see assigned leads in Kyle's account
+- [ ] Investigate how contacts list query filters for employee users
+- [ ] Fix visibility so assigned leads appear for employees
+- [ ] Verify fix
+
+### Fix: Lead distribution model for Kyle's employees
+- [x] Confirmed: memberships are correct, login works
+- [x] Remove Alfonso & Evol from Kyle's account members (they should NOT see Kyle's account)
+- [x] Add Kyle as manager of Alfonso's and Evol's accounts (so Kyle can monitor them)
+- [x] Copy 751 assigned leads from Kyle's account INTO Alfonso's own account (390024)
+- [x] Copy 750 assigned leads from Kyle's account INTO Evol's own account (390023)
+- [x] Verify: Alfonso sees only his account (751 leads), Evol sees only his account (750 leads), Kyle sees all 3 accounts
 - [ ] Checkpoint saved

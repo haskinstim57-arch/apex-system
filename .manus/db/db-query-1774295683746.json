@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO account_members (accountId, userId, role, isActive, joinedAt, updatedAt) VALUES (390024, 903188, 'manager', 1, NOW(), NOW()), (390023, 903188, 'manager', 1, NOW(), NOW());",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute INSERT INTO account_members (accountId, userId, role, isActive, joinedAt, updatedAt) VALUES (390024, 903188, 'manager', 1, NOW(), NOW()), (390023, 903188, 'manager', 1, NOW(), NOW());",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 172
+}

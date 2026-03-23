@@ -1,0 +1,31 @@
+{
+  "query": "SELECT m.userId, m.accountId, m.role AS member_role, u.name AS user_name, u.email FROM account_members m JOIN users u ON u.id = m.userId WHERE m.accountId = 390025;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT m.userId, m.accountId, m.role AS member_role, u.name AS user_name, u.email FROM account_members m JOIN users u ON u.id = m.userId WHERE m.accountId = 390025;",
+  "rows": [
+    {
+      "userId": "901752",
+      "accountId": "390025",
+      "member_role": "employee",
+      "user_name": "Alfonso Parra Lenis",
+      "email": "alfonso@optimallendingsolutions.com"
+    },
+    {
+      "userId": "902504",
+      "accountId": "390025",
+      "member_role": "employee",
+      "user_name": "Evol Hosang",
+      "email": "evol@optimallendingsolutions.com"
+    },
+    {
+      "userId": "903188",
+      "accountId": "390025",
+      "member_role": "owner",
+      "user_name": "Kyle Dombecki",
+      "email": "info@optimallendingsolutions.com"
+    }
+  ],
+  "messages": [],
+  "stdout": "userId\taccountId\tmember_role\tuser_name\temail\n901752\t390025\temployee\tAlfonso Parra Lenis\talfonso@optimallendingsolutions.com\n902504\t390025\temployee\tEvol Hosang\tevol@optimallendingsolutions.com\n903188\t390025\towner\tKyle Dombecki\tinfo@optimallendingsolutions.com\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}
