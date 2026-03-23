@@ -69,6 +69,10 @@ import {
   type InsertNotification,
   portRequests,
   type InsertPortRequest,
+  calendarWatches,
+  type InsertCalendarWatch,
+  externalCalendarEvents,
+  type InsertExternalCalendarEvent,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -3360,4 +3364,167 @@ export async function getActivePortRequests() {
       )
     )
     .orderBy(asc(portRequests.createdAt));
+}
+
+
+// ─────────────────────────────────────────────
+// CALENDAR WATCHES
+// ─────────────────────────────────────────────
+
+export async function createCalendarWatch(data: InsertCalendarWatch) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(calendarWatches).values(data).$returningId();
+  return { id: result.id, ...data };
+}
+
+export async function getCalendarWatchByIntegration(integrationId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(calendarWatches)
+    .where(eq(calendarWatches.integrationId, integrationId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getCalendarWatchByWatchId(watchId: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(calendarWatches)
+    .where(eq(calendarWatches.watchId, watchId))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getExpiringCalendarWatches(beforeDate: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(calendarWatches)
+    .where(lte(calendarWatches.expiresAt, beforeDate));
+}
+
+export async function updateCalendarWatch(
+  id: number,
+  data: Partial<Pick<InsertCalendarWatch, "watchId" | "resourceId" | "channelToken" | "expiresAt">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(calendarWatches).set(data).where(eq(calendarWatches.id, id));
+}
+
+export async function deleteCalendarWatch(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(calendarWatches).where(eq(calendarWatches.id, id));
+}
+
+export async function deleteCalendarWatchByIntegration(integrationId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(calendarWatches).where(eq(calendarWatches.integrationId, integrationId));
+}
+
+// ─────────────────────────────────────────────
+// EXTERNAL CALENDAR EVENTS (cache)
+// ─────────────────────────────────────────────
+
+export async function upsertExternalCalendarEvent(data: InsertExternalCalendarEvent) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Check if event already exists
+  const existing = await db
+    .select()
+    .from(externalCalendarEvents)
+    .where(
+      and(
+        eq(externalCalendarEvents.userId, data.userId),
+        eq(externalCalendarEvents.accountId, data.accountId),
+        eq(externalCalendarEvents.provider, data.provider),
+        eq(externalCalendarEvents.externalEventId, data.externalEventId)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    // Update existing
+    await db
+      .update(externalCalendarEvents)
+      .set({
+        title: data.title,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        allDay: data.allDay,
+        status: data.status,
+        syncedAt: new Date(),
+      })
+      .where(eq(externalCalendarEvents.id, existing[0].id));
+    return { id: existing[0].id, updated: true };
+  } else {
+    // Insert new
+    const [result] = await db.insert(externalCalendarEvents).values(data).$returningId();
+    return { id: result.id, updated: false };
+  }
+}
+
+export async function deleteExternalCalendarEvent(
+  userId: number,
+  accountId: number,
+  provider: "google" | "outlook",
+  externalEventId: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(externalCalendarEvents)
+    .where(
+      and(
+        eq(externalCalendarEvents.userId, userId),
+        eq(externalCalendarEvents.accountId, accountId),
+        eq(externalCalendarEvents.provider, provider),
+        eq(externalCalendarEvents.externalEventId, externalEventId)
+      )
+    );
+}
+
+export async function getExternalCalendarEvents(
+  userId: number,
+  accountId: number,
+  timeMin: Date,
+  timeMax: Date
+) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(externalCalendarEvents)
+    .where(
+      and(
+        eq(externalCalendarEvents.userId, userId),
+        eq(externalCalendarEvents.accountId, accountId),
+        gte(externalCalendarEvents.startTime, timeMin),
+        lte(externalCalendarEvents.endTime, timeMax),
+        sql`${externalCalendarEvents.status} != 'cancelled'`
+      )
+    )
+    .orderBy(asc(externalCalendarEvents.startTime));
+}
+
+export async function deleteExternalCalendarEventsByUser(userId: number, accountId: number, provider: "google" | "outlook") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(externalCalendarEvents)
+    .where(
+      and(
+        eq(externalCalendarEvents.userId, userId),
+        eq(externalCalendarEvents.accountId, accountId),
+        eq(externalCalendarEvents.provider, provider)
+      )
+    );
 }

@@ -998,3 +998,63 @@ export const portRequests = mysqlTable("port_requests", {
 
 export type PortRequest = typeof portRequests.$inferSelect;
 export type InsertPortRequest = typeof portRequests.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// CALENDAR WATCHES — Push notification subscriptions for Google/Outlook
+// ─────────────────────────────────────────────
+
+export const calendarWatches = mysqlTable("calendar_watches", {
+  id: int("id").autoincrement().primaryKey(),
+  /** User who owns this watch */
+  userId: int("user_id").notNull(),
+  /** Sub-account this watch belongs to */
+  accountId: int("account_id").notNull(),
+  /** Calendar integration ID this watch is for */
+  integrationId: int("integration_id").notNull(),
+  /** Provider: google or outlook */
+  provider: mysqlEnum("provider", ["google", "outlook"]).notNull(),
+  /** Google: channel ID / Outlook: subscription ID */
+  watchId: varchar("watch_id", { length: 500 }).notNull(),
+  /** Google: resource ID / Outlook: not used */
+  resourceId: varchar("resource_id", { length: 500 }),
+  /** Channel token for verifying Google push notifications */
+  channelToken: varchar("channel_token", { length: 500 }),
+  /** When this watch/subscription expires */
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type CalendarWatch = typeof calendarWatches.$inferSelect;
+export type InsertCalendarWatch = typeof calendarWatches.$inferInsert;
+
+// ─────────────────────────────────────────────
+// EXTERNAL CALENDAR EVENTS — Cached events from Google/Outlook
+// ─────────────────────────────────────────────
+
+export const externalCalendarEvents = mysqlTable("external_calendar_events", {
+  id: int("id").autoincrement().primaryKey(),
+  /** User who owns this event */
+  userId: int("user_id").notNull(),
+  /** Sub-account this event belongs to */
+  accountId: int("account_id").notNull(),
+  /** Provider: google or outlook */
+  provider: mysqlEnum("provider", ["google", "outlook"]).notNull(),
+  /** External event ID from Google/Outlook */
+  externalEventId: varchar("external_event_id", { length: 500 }).notNull(),
+  /** Event title */
+  title: varchar("title", { length: 500 }).notNull(),
+  /** Event start time */
+  startTime: timestamp("start_time").notNull(),
+  /** Event end time */
+  endTime: timestamp("end_time").notNull(),
+  /** Whether this is an all-day event */
+  allDay: boolean("all_day").default(false).notNull(),
+  /** Event status: confirmed, tentative, cancelled */
+  status: varchar("status", { length: 50 }).default("confirmed").notNull(),
+  /** When this event was last synced */
+  syncedAt: timestamp("synced_at").defaultNow().notNull(),
+});
+
+export type ExternalCalendarEvent = typeof externalCalendarEvents.$inferSelect;
+export type InsertExternalCalendarEvent = typeof externalCalendarEvents.$inferInsert;

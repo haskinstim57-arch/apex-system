@@ -14,6 +14,9 @@ import { startCampaignScheduler } from "../services/campaignScheduler";
 import { startFacebookTokenRefreshJob } from "../services/facebookTokenRefresh";
 import { startAppointmentReminders } from "../services/appointmentReminders";
 import { startPortRequestPoller } from "../services/portRequestPoller";
+import { startCalendarWatchRenewal } from "../services/calendarWatchRenewal";
+import { googleCalendarWebhookRouter } from "../webhooks/googleCalendarWebhook";
+import { outlookCalendarWebhookRouter } from "../webhooks/outlookCalendarWebhook";
 import { calendarOAuthCallbackRouter } from "../webhooks/calendarOAuthCallbacks";
 import { inboundMessageRouter } from "../webhooks/inboundMessages";
 import { twilioVoiceStatusRouter } from "../webhooks/twilioVoiceStatus";
@@ -58,6 +61,9 @@ async function startServer() {
   app.use(inboundMessageRouter);
   // Twilio voice status callback (missed call text-back)
   app.use(twilioVoiceStatusRouter);
+  // Calendar push notification webhooks (Google & Outlook)
+  app.use(googleCalendarWebhookRouter);
+  app.use(outlookCalendarWebhookRouter);
   // tRPC API
   app.use(
     "/api/trpc",
@@ -94,6 +100,9 @@ async function startServer() {
 
     // Start port request poller (checks every 5 min for completed number ports)
     startPortRequestPoller();
+
+    // Start calendar watch renewal job (checks every 6h for expiring watches/subscriptions)
+    startCalendarWatchRenewal();
   });
 }
 

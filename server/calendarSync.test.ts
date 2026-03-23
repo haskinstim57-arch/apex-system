@@ -230,17 +230,18 @@ describe("calendarSync.listIntegrations", () => {
 // calendarSync.disconnect
 // ═══════════════════════════════════════════
 describe("calendarSync.disconnect", () => {
-  it("deletes the integration", async () => {
+  it("deletes the integration and attempts watch cleanup", async () => {
     mockDb.deleteCalendarIntegration.mockResolvedValue(undefined);
+    (db as any).getCalendarIntegration = vi.fn().mockResolvedValue(mockGoogleIntegration);
     const caller = appRouter.createCaller(createAuthContext());
-    const result = await caller.calendarSync.disconnect({ id: 1 });
+    const result = await caller.calendarSync.disconnect({ id: 1, accountId: ACCOUNT_ID });
     expect(result.success).toBe(true);
     expect(mockDb.deleteCalendarIntegration).toHaveBeenCalledWith(1, 1); // id, userId
   });
 
   it("requires authentication", async () => {
     const caller = appRouter.createCaller(createPublicContext());
-    await expect(caller.calendarSync.disconnect({ id: 1 })).rejects.toThrow();
+    await expect(caller.calendarSync.disconnect({ id: 1, accountId: ACCOUNT_ID })).rejects.toThrow();
   });
 });
 
@@ -557,16 +558,81 @@ describe("calendarSync token refresh", () => {
 });
 
 // ═══════════════════════════════════════════
+// calendarSync.listCachedExternalEvents (two-way sync)
+// ═══════════════════════════════════════════
+describe("calendarSync.listCachedExternalEvents", () => {
+  it("returns cached external events from the database", async () => {
+    (db as any).getExternalCalendarEvents = vi.fn().mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        accountId: ACCOUNT_ID,
+        provider: "google",
+        externalEventId: "ext-event-1",
+        title: "Synced Meeting",
+        startTime: new Date("2026-03-25T10:00:00Z"),
+        endTime: new Date("2026-03-25T11:00:00Z"),
+        allDay: false,
+        status: "confirmed",
+        syncedAt: new Date(),
+      },
+    ]);
+
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.calendarSync.listCachedExternalEvents({
+      accountId: ACCOUNT_ID,
+      timeMin: "2026-03-24T00:00:00Z",
+      timeMax: "2026-03-26T00:00:00Z",
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      provider: "google",
+      id: "ext-event-1",
+      title: "Synced Meeting",
+      allDay: false,
+      status: "confirmed",
+    });
+    expect(result[0].start).toBeDefined();
+    expect(result[0].end).toBeDefined();
+  });
+
+  it("returns empty array when no cached events", async () => {
+    (db as any).getExternalCalendarEvents = vi.fn().mockResolvedValue([]);
+
+    const caller = appRouter.createCaller(createAuthContext());
+    const result = await caller.calendarSync.listCachedExternalEvents({
+      accountId: ACCOUNT_ID,
+      timeMin: "2026-03-24T00:00:00Z",
+      timeMax: "2026-03-26T00:00:00Z",
+    });
+    expect(result).toHaveLength(0);
+  });
+
+  it("requires authentication", async () => {
+    const caller = appRouter.createCaller(createPublicContext());
+    await expect(
+      caller.calendarSync.listCachedExternalEvents({
+        accountId: ACCOUNT_ID,
+        timeMin: "2026-03-24T00:00:00Z",
+        timeMax: "2026-03-26T00:00:00Z",
+      })
+    ).rejects.toThrow();
+  });
+});
+
+// ═══════════════════════════════════════════
 // Router structure
 // ═══════════════════════════════════════════
 describe("calendarSync router structure", () => {
-  it("has all expected procedures", () => {
+  it("has all expected procedures including two-way sync", () => {
     const caller = appRouter.createCaller(createAuthContext());
     expect(typeof caller.calendarSync.getGoogleOAuthUrl).toBe("function");
     expect(typeof caller.calendarSync.getOutlookOAuthUrl).toBe("function");
     expect(typeof caller.calendarSync.listIntegrations).toBe("function");
     expect(typeof caller.calendarSync.disconnect).toBe("function");
     expect(typeof caller.calendarSync.listExternalEvents).toBe("function");
+    expect(typeof caller.calendarSync.listCachedExternalEvents).toBe("function");
     expect(typeof caller.calendarSync.getBusyTimes).toBe("function");
     expect(typeof caller.calendarSync.syncAppointmentToExternal).toBe("function");
   });

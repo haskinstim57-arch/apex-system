@@ -798,7 +798,7 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
 
   const handleDisconnect = (id: number, provider: string) => {
     if (window.confirm(`Are you sure you want to disconnect your ${provider === "google" ? "Google" : "Outlook"} Calendar?`)) {
-      disconnectMutation.mutate({ id });
+      disconnectMutation.mutate({ id, accountId });
     }
   };
 

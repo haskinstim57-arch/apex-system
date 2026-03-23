@@ -23,6 +23,7 @@ import {
   getCalendarIntegrationByProvider,
   updateCalendarIntegration,
 } from "../db";
+import { registerGoogleWatch, registerOutlookSubscription } from "../services/calendarWatchManager";
 
 export const calendarOAuthCallbackRouter = Router();
 
@@ -75,6 +76,21 @@ calendarOAuthCallbackRouter.get(
           externalCalendarId: "primary",
           isActive: true,
         });
+      }
+
+      // Register Google Calendar push notification watch
+      const integration = existing || await getCalendarIntegrationByProvider(stateData.userId, stateData.accountId, "google");
+      if (integration) {
+        registerGoogleWatch({
+          integrationId: integration.id,
+          userId: stateData.userId,
+          accountId: stateData.accountId,
+          accessToken,
+          calendarId: "primary",
+          webhookBaseUrl: stateData.origin,
+        }).catch((err) =>
+          console.error("[CalendarOAuth] Google watch registration error:", err)
+        );
       }
 
       // Redirect back to the app
@@ -141,6 +157,20 @@ calendarOAuthCallbackRouter.get(
           externalCalendarId: "default",
           isActive: true,
         });
+      }
+
+      // Register Outlook Calendar push notification subscription
+      const integration = existing || await getCalendarIntegrationByProvider(stateData.userId, stateData.accountId, "outlook");
+      if (integration) {
+        registerOutlookSubscription({
+          integrationId: integration.id,
+          userId: stateData.userId,
+          accountId: stateData.accountId,
+          accessToken,
+          webhookBaseUrl: stateData.origin,
+        }).catch((err) =>
+          console.error("[CalendarOAuth] Outlook subscription registration error:", err)
+        );
       }
 
       // Redirect back to the app

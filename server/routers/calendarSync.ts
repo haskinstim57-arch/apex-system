@@ -16,11 +16,14 @@ import { protectedProcedure, publicProcedure } from "../_core/trpc";
 import {
   getCalendarIntegrations,
   getCalendarIntegrationByProvider,
+  getCalendarIntegration,
   getActiveCalendarIntegrations,
   deleteCalendarIntegration,
   decryptCalendarTokens,
   updateCalendarIntegration,
+  getExternalCalendarEvents,
 } from "../db";
+import { unregisterWatch } from "../services/calendarWatchManager";
 import {
   getGoogleOAuthUrl,
   listGoogleEvents,
@@ -148,10 +151,54 @@ export const calendarSyncRouter = {
 
   /** Disconnect a calendar integration */
   disconnect: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.number(), accountId: z.number().int().positive() }))
     .mutation(async ({ ctx, input }) => {
+      // Get integration details before deleting (for watch cleanup)
+      const integration = await getCalendarIntegration(input.id, ctx.user.id);
+      if (integration) {
+        // Unregister the push notification watch and clear cached events
+        try {
+          const tokens = decryptCalendarTokens(integration);
+          await unregisterWatch({
+            integrationId: input.id,
+            userId: ctx.user.id,
+            accountId: input.accountId,
+            provider: integration.provider as "google" | "outlook",
+            accessToken: tokens.accessToken,
+          });
+        } catch (err: any) {
+          console.error("[CalendarSync] Watch unregister error:", err.message);
+        }
+      }
       await deleteCalendarIntegration(input.id, ctx.user.id);
       return { success: true };
+    }),
+
+  /** Get cached external calendar events (from push notification sync) */
+  listCachedExternalEvents: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        timeMin: z.string(),
+        timeMax: z.string(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const events = await getExternalCalendarEvents(
+        ctx.user.id,
+        input.accountId,
+        new Date(input.timeMin),
+        new Date(input.timeMax)
+      );
+      return events.map((e) => ({
+        provider: e.provider,
+        id: e.externalEventId,
+        title: e.title,
+        start: e.startTime instanceof Date ? e.startTime.toISOString() : String(e.startTime),
+        end: e.endTime instanceof Date ? e.endTime.toISOString() : String(e.endTime),
+        allDay: e.allDay ?? false,
+        status: e.status,
+      }));
     }),
 
   /** Fetch external calendar events for the calendar grid overlay */

@@ -1154,4 +1154,47 @@
 ### Testing
 - [x] 12 vitest tests for portRequestPoller service (start/stop, complete, advance, timeout, cancel, webhooks, error handling, no-creds)
 - [x] All 859 tests pass
+- [x] Checkpoint saved
+
+## Two-Way Calendar Sync Webhooks
+
+### Database
+- [x] calendarWatches table (id, userId, accountId, provider, watchId, resourceId, channelToken, expiresAt, createdAt)
+- [x] externalCalendarEvents table (id, userId, accountId, provider, externalEventId, title, startTime, endTime, allDay, status, syncedAt)
+- [x] DB migration pushed (via SQL)
+- [x] DB helpers: createCalendarWatch, getCalendarWatchByIntegration, getCalendarWatchByWatchId, getExpiringCalendarWatches, updateCalendarWatch, deleteCalendarWatch, deleteCalendarWatchByIntegration
+- [x] DB helpers: upsertExternalCalendarEvent, deleteExternalCalendarEvent, getExternalCalendarEvents, deleteExternalCalendarEventsByUser
+
+### Google Calendar Push Notifications
+- [x] Webhook endpoint POST /api/webhooks/google-calendar (server/webhooks/googleCalendarWebhook.ts)
+- [x] Register watch on user's calendar after Google Calendar connect (calendarOAuthCallbacks.ts)
+- [x] Fetch changed events on notification and update external events cache
+- [x] Handle new/updated/deleted external events (upsert confirmed, remove cancelled)
+- [x] Watch registration via calendarWatchManager.registerGoogleWatch
+
+### Microsoft Outlook Push Notifications
+- [x] Webhook endpoint POST /api/webhooks/outlook-calendar (server/webhooks/outlookCalendarWebhook.ts)
+- [x] Handle Microsoft validation handshake (validationToken response)
+- [x] Register subscription after Outlook Calendar connect (calendarOAuthCallbacks.ts)
+- [x] Fetch changed events on notification and update external events cache
+- [x] Subscription registration via calendarWatchManager.registerOutlookSubscription
+
+### Background Renewal Job
+- [x] Recurring job every 6 hours (server/services/calendarWatchRenewal.ts)
+- [x] Renew Google watches before 7-day expiry (24-hour buffer)
+- [x] Renew Microsoft subscriptions before 4230-minute expiry (24-hour buffer)
+- [x] Integrated into server startup (server/_core/index.ts)
+
+### Watch Management
+- [x] calendarWatchManager service: registerGoogleWatch, registerOutlookSubscription, unregisterWatch
+- [x] Unregister watches on calendar disconnect (calendarSync.disconnect procedure)
+- [x] Clean up cached events on disconnect
+
+### Frontend
+- [x] listCachedExternalEvents tRPC procedure for cached event display
+- [x] External events available for calendar grid overlay
+
+### Testing
+- [x] 24 calendarSync tests (including 3 new listCachedExternalEvents + updated disconnect tests)
+- [x] All 862 tests pass
 - [ ] Checkpoint saved
