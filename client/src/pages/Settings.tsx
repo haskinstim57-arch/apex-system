@@ -1,5 +1,4 @@
-import { useState } from "react";
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -36,6 +35,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Shield,
   User,
   Bell,
@@ -65,6 +70,18 @@ import {
   DollarSign,
   CheckCircle,
   XCircle,
+  ArrowRightLeft,
+  BarChart3,
+  MessageSquareText,
+  PhoneCall,
+  PhoneIncoming,
+  PhoneOutgoing,
+  Send,
+  Inbox,
+  CalendarRange,
+  Info,
+  Ban,
+  Timer,
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
@@ -1157,20 +1174,34 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showReleaseDialog, setShowReleaseDialog] = useState(false);
   const [showConfirmPurchase, setShowConfirmPurchase] = useState(false);
+  const [showPortModal, setShowPortModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("manage");
   const [selectedNumber, setSelectedNumber] = useState<{
     phoneNumber: string;
     friendlyName: string;
     locality: string;
     region: string;
     monthlyCost: number;
+    numberType: string;
   } | null>(null);
 
   // Search state
   const [searchMode, setSearchMode] = useState<"areaCode" | "location">("areaCode");
+  const [numberType, setNumberType] = useState<"local" | "tollFree">("local");
   const [areaCode, setAreaCode] = useState("");
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [searchTriggered, setSearchTriggered] = useState(false);
+
+  // Port form state
+  const [portPhone, setPortPhone] = useState("");
+  const [portCarrier, setPortCarrier] = useState("");
+  const [portAccountNum, setPortAccountNum] = useState("");
+  const [portPin, setPortPin] = useState("");
+  const [portName, setPortName] = useState("");
+
+  // Usage date range
+  const [usagePeriod, setUsagePeriod] = useState<"current" | "last" | "custom">("current");
 
   const utils = trpc.useUtils();
 
@@ -1181,15 +1212,16 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
       { enabled: !!accountId }
     );
 
-  // Search available numbers
+  // Search available numbers (with numberType)
   const searchInput = searchTriggered
     ? {
         accountId,
+        numberType,
         ...(searchMode === "areaCode" && areaCode.length === 3
           ? { areaCode }
           : {}),
-        ...(searchMode === "location" && city ? { locality: city } : {}),
-        ...(searchMode === "location" && state ? { state } : {}),
+        ...(searchMode === "location" && numberType === "local" && city ? { locality: city } : {}),
+        ...(searchMode === "location" && numberType === "local" && state ? { state } : {}),
       }
     : null;
 
@@ -1197,6 +1229,36 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
     trpc.twilioPhoneNumber.searchAvailable.useQuery(searchInput as any, {
       enabled: !!searchInput && searchTriggered,
     });
+
+  // Port requests
+  const { data: portRequests } = trpc.twilioPhoneNumber.getPortRequests.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+
+  // Usage data
+  const usageDates = useMemo(() => {
+    const now = new Date();
+    if (usagePeriod === "last") {
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastDay = new Date(now.getFullYear(), now.getMonth(), 0);
+      return {
+        startDate: `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, "0")}-01`,
+        endDate: `${lastDay.getFullYear()}-${String(lastDay.getMonth() + 1).padStart(2, "0")}-${String(lastDay.getDate()).padStart(2, "0")}`,
+      };
+    }
+    // current month
+    return {
+      startDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`,
+      endDate: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`,
+    };
+  }, [usagePeriod]);
+
+  const { data: usageData, isLoading: usageLoading } =
+    trpc.twilioPhoneNumber.getUsage.useQuery(
+      { accountId, ...usageDates },
+      { enabled: !!accountId && assigned?.hasNumber === true && activeTab === "usage" }
+    );
 
   // Purchase mutation
   const purchaseMutation = trpc.twilioPhoneNumber.purchase.useMutation({
@@ -1239,6 +1301,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
       locality: num.locality,
       region: num.region,
       monthlyCost: num.monthlyCost,
+      numberType: (num as any).numberType || numberType,
     });
     setShowConfirmPurchase(true);
   }
@@ -1249,12 +1312,50 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
       accountId,
       phoneNumber: selectedNumber.phoneNumber,
       appUrl: window.location.origin,
+      numberType: (selectedNumber.numberType as "local" | "tollFree") || "local",
     });
   }
 
   function handleRelease() {
     releaseMutation.mutate({ accountId });
   }
+
+  // Port mutations
+  const submitPortMutation = trpc.twilioPhoneNumber.submitPortRequest.useMutation({
+    onSuccess: () => {
+      utils.twilioPhoneNumber.getPortRequests.invalidate({ accountId });
+      setShowPortModal(false);
+      setPortPhone(""); setPortCarrier(""); setPortAccountNum(""); setPortPin(""); setPortName("");
+    },
+  });
+
+  const cancelPortMutation = trpc.twilioPhoneNumber.cancelPortRequest.useMutation({
+    onSuccess: () => {
+      utils.twilioPhoneNumber.getPortRequests.invalidate({ accountId });
+    },
+  });
+
+  function handleSubmitPort() {
+    if (!portPhone || !portCarrier || !portAccountNum || !portName) return;
+    submitPortMutation.mutate({
+      accountId,
+      phoneNumber: portPhone,
+      currentCarrier: portCarrier,
+      carrierAccountNumber: portAccountNum,
+      carrierPin: portPin || undefined,
+      authorizedName: portName,
+      appUrl: window.location.origin,
+    });
+  }
+
+  const portStatusColors: Record<string, string> = {
+    draft: "bg-muted text-muted-foreground",
+    submitted: "bg-blue-500/10 text-blue-500",
+    in_progress: "bg-amber-500/10 text-amber-500",
+    completed: "bg-emerald-500/10 text-emerald-500",
+    failed: "bg-destructive/10 text-destructive",
+    cancelled: "bg-muted text-muted-foreground",
+  };
 
   return (
     <>
@@ -1274,59 +1375,280 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Loading...</span>
             </div>
-          ) : assigned?.hasNumber ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                    <Phone className="h-5 w-5 text-emerald-500" />
+          ) : (
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="manage" className="text-xs">Manage</TabsTrigger>
+                <TabsTrigger value="porting" className="text-xs">Porting</TabsTrigger>
+                <TabsTrigger value="usage" className="text-xs" disabled={!assigned?.hasNumber}>Usage</TabsTrigger>
+              </TabsList>
+
+              {/* ── Manage Tab ── */}
+              <TabsContent value="manage" className="mt-0">
+                {assigned?.hasNumber ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                          <Phone className="h-5 w-5 text-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="text-base font-semibold tracking-tight">
+                            {formatPhoneNumber(assigned.phoneNumber!)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Active &middot; Used for SMS &amp; voice
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setShowReleaseDialog(true)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Release
+                      </Button>
+                    </div>
+                    <div className="rounded-lg bg-muted/30 p-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        <span className="font-medium text-foreground">Billing: </span>
+                        This number is billed to your Twilio account.
+                        SMS and voice usage are billed separately by Twilio.
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-base font-semibold tracking-tight">
-                      {formatPhoneNumber(assigned.phoneNumber!)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Active &middot; Used for SMS &amp; voice
+                ) : (
+                  <div className="flex flex-col items-center py-6 gap-3">
+                    <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
+                      <Phone className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium">No phone number assigned</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Get a new number or port an existing one.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 mt-2 flex-wrap justify-center">
+                      <Button onClick={() => setShowSearchModal(true)}>
+                        <Phone className="h-4 w-4 mr-2" />
+                        Get a Phone Number
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowPortModal(true)}>
+                        <ArrowRightLeft className="h-4 w-4 mr-2" />
+                        Port Existing Number
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* ── Porting Tab ── */}
+              <TabsContent value="porting" className="mt-0">
+                <div className="space-y-4">
+                  {!assigned?.hasNumber && (
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => setShowPortModal(true)}
+                    >
+                      <ArrowRightLeft className="h-4 w-4 mr-2" />
+                      Port an Existing Number
+                    </Button>
+                  )}
+
+                  {portRequests && portRequests.length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Port Requests
+                      </p>
+                      {portRequests.map((pr: any) => (
+                        <div
+                          key={pr.id}
+                          className="flex items-center justify-between p-3 rounded-lg border border-border/50"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                              <ArrowRightLeft className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">
+                                {formatPhoneNumber(pr.phoneNumber)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {pr.currentCarrier} &middot; {new Date(pr.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant="secondary"
+                              className={`text-[10px] ${portStatusColors[pr.status] || ""}`}
+                            >
+                              {pr.status.replace("_", " ")}
+                            </Badge>
+                            {(pr.status === "submitted" || pr.status === "in_progress") && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-destructive hover:text-destructive"
+                                onClick={() => cancelPortMutation.mutate({ accountId, portRequestId: pr.id })}
+                                disabled={cancelPortMutation.isPending}
+                              >
+                                <Ban className="h-3 w-3" />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center py-6 text-center">
+                      <ArrowRightLeft className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                      <p className="text-sm text-muted-foreground">No port requests yet.</p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        Port an existing number to keep your current phone number.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="rounded-lg bg-muted/30 p-3">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      <span className="font-medium text-foreground">How porting works: </span>
+                      Number porting transfers your existing phone number from your current carrier to Twilio.
+                      The process typically takes 1-4 weeks. During this time, your number remains active with your current carrier.
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => setShowReleaseDialog(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Release
-                </Button>
-              </div>
-              <div className="rounded-lg bg-muted/30 p-3">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  <span className="font-medium text-foreground">Billing: </span>
-                  This number costs approximately $1.15/month, billed to your Twilio account.
-                  SMS and voice usage are billed separately by Twilio.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center py-6 gap-3">
-              <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                <Phone className="h-5 w-5 text-muted-foreground" />
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-medium">No phone number assigned</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Get a local phone number to send SMS and receive calls.
-                </p>
-              </div>
-              <Button
-                onClick={() => setShowSearchModal(true)}
-                className="mt-2"
-              >
-                <Phone className="h-4 w-4 mr-2" />
-                Get a Phone Number
-              </Button>
-            </div>
+              </TabsContent>
+
+              {/* ── Usage Tab ── */}
+              <TabsContent value="usage" className="mt-0">
+                {assigned?.hasNumber ? (
+                  <div className="space-y-4">
+                    {/* Period selector */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant={usagePeriod === "current" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setUsagePeriod("current")}
+                      >
+                        This Month
+                      </Button>
+                      <Button
+                        variant={usagePeriod === "last" ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setUsagePeriod("last")}
+                      >
+                        Last Month
+                      </Button>
+                    </div>
+
+                    {usageLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-sm text-muted-foreground">Loading usage data...</span>
+                      </div>
+                    ) : usageData ? (
+                      <>
+                        {/* Total cost banner */}
+                        <div className="rounded-lg bg-primary/5 border border-primary/20 p-4">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Usage Cost</p>
+                              <p className="text-2xl font-bold text-primary">
+                                ${usageData.totalCost.toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground">Period</p>
+                              <p className="text-xs font-medium">
+                                {usageData.period.start} to {usageData.period.end}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* SMS stats */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <div className="rounded-lg border border-border/50 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Send className="h-4 w-4 text-blue-500" />
+                              <span className="text-xs text-muted-foreground">SMS Sent</span>
+                            </div>
+                            <p className="text-xl font-bold">{usageData.sms.sent}</p>
+                          </div>
+                          <div className="rounded-lg border border-border/50 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Inbox className="h-4 w-4 text-emerald-500" />
+                              <span className="text-xs text-muted-foreground">SMS Received</span>
+                            </div>
+                            <p className="text-xl font-bold">{usageData.sms.received}</p>
+                          </div>
+                          <div className="rounded-lg border border-border/50 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <DollarSign className="h-4 w-4 text-amber-500" />
+                              <span className="text-xs text-muted-foreground">SMS Cost</span>
+                            </div>
+                            <p className="text-xl font-bold">${usageData.sms.cost.toFixed(2)}</p>
+                          </div>
+                        </div>
+
+                        {/* Voice stats */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                          <div className="rounded-lg border border-border/50 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <PhoneOutgoing className="h-4 w-4 text-blue-500" />
+                              <span className="text-xs text-muted-foreground">Outbound Calls</span>
+                            </div>
+                            <p className="text-xl font-bold">{usageData.voice.outbound}</p>
+                          </div>
+                          <div className="rounded-lg border border-border/50 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <PhoneIncoming className="h-4 w-4 text-emerald-500" />
+                              <span className="text-xs text-muted-foreground">Inbound Calls</span>
+                            </div>
+                            <p className="text-xl font-bold">{usageData.voice.inbound}</p>
+                          </div>
+                          <div className="rounded-lg border border-border/50 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Timer className="h-4 w-4 text-purple-500" />
+                              <span className="text-xs text-muted-foreground">Minutes</span>
+                            </div>
+                            <p className="text-xl font-bold">{usageData.voice.minutes}</p>
+                          </div>
+                          <div className="rounded-lg border border-border/50 p-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <DollarSign className="h-4 w-4 text-amber-500" />
+                              <span className="text-xs text-muted-foreground">Voice Cost</span>
+                            </div>
+                            <p className="text-xl font-bold">${usageData.voice.cost.toFixed(2)}</p>
+                          </div>
+                        </div>
+
+                        {(usageData as any).error && (
+                          <Alert>
+                            <Info className="h-4 w-4" />
+                            <AlertDescription className="text-xs">
+                              {(usageData as any).error}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center py-6 text-center">
+                    <BarChart3 className="h-8 w-8 text-muted-foreground/30 mb-2" />
+                    <p className="text-sm text-muted-foreground">No phone number assigned.</p>
+                    <p className="text-xs text-muted-foreground/70 mt-1">
+                      Assign a phone number to view usage statistics.
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           )}
         </CardContent>
       </Card>
@@ -1343,12 +1665,43 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
           <DialogHeader>
             <DialogTitle>Get a Phone Number</DialogTitle>
             <DialogDescription>
-              Search for available local phone numbers by area code or location.
+              Search for available phone numbers by area code or location.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
-            {/* Search mode tabs */}
+            {/* Number type toggle */}
+            <div className="flex gap-2 p-1 rounded-lg bg-muted/50">
+              <button
+                className={`flex-1 text-xs font-medium py-2 px-3 rounded-md transition-all ${
+                  numberType === "local"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => {
+                  setNumberType("local");
+                  setSearchTriggered(false);
+                }}
+              >
+                Local ($1.15/mo)
+              </button>
+              <button
+                className={`flex-1 text-xs font-medium py-2 px-3 rounded-md transition-all ${
+                  numberType === "tollFree"
+                    ? "bg-background shadow-sm text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => {
+                  setNumberType("tollFree");
+                  setSearchMode("areaCode");
+                  setSearchTriggered(false);
+                }}
+              >
+                Toll-Free ($2.15/mo)
+              </button>
+            </div>
+
+            {/* Search mode tabs (only for local) */}
             <div className="flex gap-2">
               <Button
                 variant={searchMode === "areaCode" ? "default" : "outline"}
@@ -1360,16 +1713,18 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
               >
                 By Area Code
               </Button>
-              <Button
-                variant={searchMode === "location" ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSearchMode("location");
-                  setSearchTriggered(false);
-                }}
-              >
-                By Location
-              </Button>
+              {numberType === "local" && (
+                <Button
+                  variant={searchMode === "location" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setSearchMode("location");
+                    setSearchTriggered(false);
+                  }}
+                >
+                  By Location
+                </Button>
+              )}
             </div>
 
             {/* Search inputs */}
@@ -1555,8 +1910,9 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  This number will be billed to your Twilio account at $1.15/month.
-                  SMS and voice usage are billed separately. The number will be
+                  This number will be billed to your Twilio account at ${selectedNumber?.monthlyCost.toFixed(2)}/month.
+                  {selectedNumber?.numberType === "tollFree" ? " Toll-free numbers include free inbound calls." : ""}
+                  {" "}SMS and voice usage are billed separately. The number will be
                   automatically configured for inbound SMS and voice webhooks.
                 </p>
               </div>
@@ -1594,6 +1950,124 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
           )}
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Port Number Modal */}
+      <Dialog
+        open={showPortModal}
+        onOpenChange={(open) => {
+          setShowPortModal(open);
+          if (!open) {
+            setPortPhone(""); setPortCarrier(""); setPortAccountNum(""); setPortPin(""); setPortName("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Port an Existing Number</DialogTitle>
+            <DialogDescription>
+              Transfer your existing phone number from your current carrier to Twilio.
+              This process typically takes 1-4 weeks.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Phone Number *</Label>
+                <Input
+                  placeholder="(555) 123-4567"
+                  value={portPhone}
+                  onChange={(e) => setPortPhone(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Current Carrier *</Label>
+                <Input
+                  placeholder="e.g. AT&T, Verizon"
+                  value={portCarrier}
+                  onChange={(e) => setPortCarrier(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Carrier Account Number *</Label>
+                <Input
+                  placeholder="Your account number"
+                  value={portAccountNum}
+                  onChange={(e) => setPortAccountNum(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Carrier PIN (optional)</Label>
+                <Input
+                  placeholder="Account PIN/passcode"
+                  value={portPin}
+                  onChange={(e) => setPortPin(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs">Authorized Name *</Label>
+              <Input
+                placeholder="Name on the carrier account"
+                value={portName}
+                onChange={(e) => setPortName(e.target.value)}
+              />
+            </div>
+
+            <div className="rounded-lg bg-amber-500/5 border border-amber-500/20 p-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-medium text-amber-500">Important: </span>
+                Ensure the phone number, account number, and authorized name match your current carrier records exactly.
+                Incorrect information may delay or prevent the port.
+              </p>
+            </div>
+
+            {submitPortMutation.error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-xs">
+                  {submitPortMutation.error.message}
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {submitPortMutation.isSuccess && (
+              <Alert>
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+                <AlertDescription className="text-xs">
+                  Port request submitted successfully! You will be notified when the number is active.
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPortModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmitPort}
+              disabled={!portPhone || !portCarrier || !portAccountNum || !portName || submitPortMutation.isPending}
+            >
+              {submitPortMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <ArrowRightLeft className="h-4 w-4 mr-2" />
+                  Submit Port Request
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Release Confirmation Dialog */}
       <AlertDialog

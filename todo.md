@@ -1103,4 +1103,32 @@
 ### Testing
 - [x] Vitest tests for phone number tRPC procedures (11 tests)
 - [x] All 836 tests pass
+- [x] Checkpoint saved
+
+## Twilio Phone Number Enhancements
+
+### 1. Toll-Free Number Support
+- [x] Backend: Add toll-free search to searchAvailable procedure (numberType param, tollFree endpoint)
+- [x] Frontend: Add Local/Toll-Free toggle in search modal
+- [x] Show toll-free monthly cost ($2.15/month) vs local ($1.15/month)
+
+### 2. Number Porting
+- [x] Backend: port_requests table in schema
+- [x] Backend: tRPC procedures submitPortRequest, getPortRequests, cancelPortRequest
+- [x] Backend: DB helpers createPortRequest, getPortRequestsByAccount, getPortRequestById, updatePortRequest
+- [x] Frontend: "Port Existing Number" tab in phone number card
+- [x] Frontend: Port request form (number, carrier, account number, PIN, authorized name)
+- [x] Frontend: Port request history with status badges and cancel option
+
+### 3. Usage Dashboard
+- [x] Backend: tRPC procedure getUsage (fetch SMS/voice usage from Twilio API)
+- [x] Frontend: Usage tab in Phone Number card (messages sent/received, calls, minutes, cost)
+- [x] Frontend: Date range selector for usage period (start/end)
+- [x] Frontend: Total cost summary and per-category breakdown
+
+### Testing
+- [x] Vitest tests for toll-free search (2 tests)
+- [x] Vitest tests for port number procedures (5 tests)
+- [x] Vitest tests for usage dashboard procedure (3 tests)
+- [x] All 847 tests pass
 - [ ] Checkpoint saved

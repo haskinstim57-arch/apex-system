@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `port_requests` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `account_id` int NOT NULL,\n  `phone_number` varchar(20) NOT NULL,\n  `current_carrier` varchar(255),\n  `carrier_account_number` varchar(255),\n  `carrier_pin` varchar(100),\n  `authorized_name` varchar(255),\n  `porting_sid` varchar(100),\n  `status` enum('draft','submitted','in_progress','completed','failed','cancelled') NOT NULL DEFAULT 'draft',\n  `notes` text,\n  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute CREATE TABLE IF NOT EXISTS `port_requests` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `account_id` int NOT NULL,\n  `phone_number` varchar(20) NOT NULL,\n  `current_carrier` varchar(255),\n  `carrier_account_number` varchar(255),\n  `carrier_pin` varchar(100),\n  `authorized_name` varchar(255),\n  `porting_sid` varchar(100),\n  `status` enum('draft','submitted','in_progress','completed','failed','cancelled') NOT NULL DEFAULT 'draft',\n  `notes` text,\n  `created_at` timestamp DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  `updated_at` timestamp DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 226
+}

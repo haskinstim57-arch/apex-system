@@ -961,3 +961,40 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// PORT REQUESTS — Track Twilio number porting
+// ─────────────────────────────────────────────
+export const portRequests = mysqlTable("port_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** The phone number being ported in E.164 format */
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  /** Current carrier name */
+  currentCarrier: varchar("current_carrier", { length: 255 }),
+  /** Account number with current carrier */
+  carrierAccountNumber: varchar("carrier_account_number", { length: 255 }),
+  /** PIN/passcode for the carrier account */
+  carrierPin: varchar("carrier_pin", { length: 100 }),
+  /** Authorized contact name */
+  authorizedName: varchar("authorized_name", { length: 255 }),
+  /** Twilio porting SID once submitted */
+  portingSid: varchar("porting_sid", { length: 100 }),
+  /** Status of the port request */
+  status: mysqlEnum("status", [
+    "draft",
+    "submitted",
+    "in_progress",
+    "completed",
+    "failed",
+    "cancelled",
+  ]).default("draft").notNull(),
+  /** Notes or error messages */
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PortRequest = typeof portRequests.$inferSelect;
+export type InsertPortRequest = typeof portRequests.$inferInsert;

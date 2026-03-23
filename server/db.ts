@@ -67,6 +67,8 @@ import {
   type InsertEmailTemplate,
   notifications,
   type InsertNotification,
+  portRequests,
+  type InsertPortRequest,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -3294,4 +3296,49 @@ export async function dismissNotification(id: number, accountId: number) {
     .update(notifications)
     .set({ dismissed: true })
     .where(and(eq(notifications.id, id), eq(notifications.accountId, accountId)));
+}
+
+
+// ─────────────────────────────────────────────
+// Port Requests
+// ─────────────────────────────────────────────
+
+export async function createPortRequest(data: InsertPortRequest) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(portRequests).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function getPortRequestsByAccount(accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db
+    .select()
+    .from(portRequests)
+    .where(eq(portRequests.accountId, accountId))
+    .orderBy(desc(portRequests.createdAt));
+}
+
+export async function getPortRequestById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const rows = await db
+    .select()
+    .from(portRequests)
+    .where(and(eq(portRequests.id, id), eq(portRequests.accountId, accountId)));
+  return rows[0] ?? null;
+}
+
+export async function updatePortRequest(
+  id: number,
+  accountId: number,
+  data: Partial<InsertPortRequest>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(portRequests)
+    .set(data)
+    .where(and(eq(portRequests.id, id), eq(portRequests.accountId, accountId)));
 }
