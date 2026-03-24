@@ -526,6 +526,7 @@ function FacebookLogo({ className }: { className?: string }) {
 function FacebookIntegrationCard({ accountId }: { accountId: number }) {
   const [isConnecting, setIsConnecting] = useState(false);
   const [showWebhookInfo, setShowWebhookInfo] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ leadsFound: number; leadsCreated: number } | null>(null);
   const utils = trpc.useUtils();
 
   const { data: fbStatus, isLoading } = trpc.facebookOAuth.getStatus.useQuery(
@@ -537,6 +538,20 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
     { accountId },
     { enabled: !!accountId }
   );
+
+  const syncLeadsMutation = trpc.facebookOAuth.syncLeads.useMutation({
+    onSuccess: (result) => {
+      setSyncResult({ leadsFound: result.leadsFound, leadsCreated: result.leadsCreated });
+      if (result.leadsCreated > 0) {
+        toast.success(`Synced ${result.leadsCreated} new lead${result.leadsCreated !== 1 ? "s" : ""} from Facebook!`);
+      } else {
+        toast.info(`No new leads found. Checked ${result.formsChecked} form${result.formsChecked !== 1 ? "s" : ""}.`);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to sync leads");
+    },
+  });
 
   const disconnectMutation = trpc.facebookOAuth.disconnect.useMutation({
     onSuccess: () => {
@@ -682,7 +697,21 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                     </div>
                   </div>
                 )}
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-green-200 text-green-600 hover:bg-green-500/10"
+                    onClick={() => syncLeadsMutation.mutate({ accountId })}
+                    disabled={syncLeadsMutation.isPending}
+                  >
+                    {syncLeadsMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                    )}
+                    {syncLeadsMutation.isPending ? "Syncing..." : "Sync Leads"}
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
@@ -706,6 +735,15 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                     )}
                     Disconnect
                   </Button>
+                </div>
+                {syncResult && (
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    Last sync: {syncResult.leadsFound} found, {syncResult.leadsCreated} new
+                  </div>
+                )}
+                <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                  Auto-polling every 60s
                 </div>
                 {showWebhookInfo && (
                   <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border/50 space-y-3">

@@ -1533,3 +1533,16 @@
 - [x] Workflow triggers and lead routing already fire async (non-blocking)
 - [x] All 67 Facebook tests passing after async refactor
 - [x] Confirmed: Facebook webhook response time went from 3000ms+ → 15ms
+
+### Feature: Facebook Lead Polling Fallback (guarantees no missed leads)
+- [x] Build background job that polls Facebook Graph API for new leads every 60 seconds
+- [x] Use page access tokens from account_facebook_pages to fetch leads per page
+- [x] Deduplicate leads by fb_lead_id to prevent duplicates from webhook + polling
+- [x] Process new leads through the same processLead pipeline (contact + deal + routing + notifications)
+- [x] Add manual "Sync Leads" button in Settings for on-demand pull
+- [x] Skip Meta test leads (dummy data) to prevent DB errors
+- [x] Wire poller into server startup (starts automatically on boot)
+- [x] Add syncLeads tRPC procedure for on-demand sync from UI
+- [x] Auto-polling indicator in Settings UI ("Auto-polling every 60s")
+- [x] 11 vitest tests passing for poller service
+- [x] Initial poll recovered 10 real leads that were missed due to webhook delivery failure

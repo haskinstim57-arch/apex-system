@@ -18,6 +18,7 @@ import { startCalendarWatchRenewal } from "../services/calendarWatchRenewal";
 import { googleCalendarWebhookRouter } from "../webhooks/googleCalendarWebhook";
 import { outlookCalendarWebhookRouter } from "../webhooks/outlookCalendarWebhook";
 import { calendarOAuthCallbackRouter } from "../webhooks/calendarOAuthCallbacks";
+import { startFacebookLeadPoller } from "../services/facebookLeadPoller";
 import { inboundMessageRouter } from "../webhooks/inboundMessages";
 import { twilioVoiceStatusRouter } from "../webhooks/twilioVoiceStatus";
 import { applySecurityMiddleware } from "../middleware/security";
@@ -103,6 +104,9 @@ async function startServer() {
 
     // Start calendar watch renewal job (checks every 6h for expiring watches/subscriptions)
     startCalendarWatchRenewal();
+
+    // Start Facebook lead polling fallback (every 60s, catches leads when webhooks fail)
+    startFacebookLeadPoller();
   });
 }
 

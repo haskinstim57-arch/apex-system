@@ -3,6 +3,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { ENV } from "../_core/env";
 import * as db from "../db";
 import { TRPCError } from "@trpc/server";
+import { pollAllPages } from "../services/facebookLeadPoller";
 
 // ─────────────────────────────────────────────
 // Facebook OAuth Router
@@ -321,6 +322,50 @@ export const facebookOAuthRouter = router({
         webhookUrl: null, // Frontend will construct this from window.location.origin
         verifyToken: ENV.facebookWebhookVerifyToken || null,
         verifyTokenConfigured,
+      };
+    }),
+
+  /**
+   * Manually sync leads from Facebook Graph API for an account.
+   * Triggers an on-demand poll of all connected pages.
+   */
+  syncLeads: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId);
+      }
+
+      // Verify the account has an active Facebook integration
+      const integration = await db.getAccountIntegration(input.accountId, "facebook");
+      if (!integration || !integration.isActive) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Facebook integration is not connected for this account.",
+        });
+      }
+
+      console.log(
+        `[Facebook Sync] Manual sync triggered by user ${ctx.user.id} for account ${input.accountId}`
+      );
+
+      const result = await pollAllPages();
+
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "integration.facebook_sync_leads",
+        resourceType: "integration",
+        resourceId: integration.id,
+        metadata: JSON.stringify(result),
+      });
+
+      return {
+        success: true,
+        pagesChecked: result.pagesChecked,
+        formsChecked: result.formsChecked,
+        leadsFound: result.leadsFound,
+        leadsCreated: result.leadsCreated,
       };
     }),
 
