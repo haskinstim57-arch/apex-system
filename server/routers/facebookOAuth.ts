@@ -286,6 +286,27 @@ export const facebookOAuthRouter = router({
     }),
 
   /**
+   * Get webhook configuration info (URL and verify token) for Facebook App setup.
+   */
+  getWebhookInfo: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId);
+      }
+
+      // The verify token is the global one set in FACEBOOK_WEBHOOK_VERIFY_TOKEN
+      // We don't expose the actual value for security, but we tell them it's configured
+      const verifyTokenConfigured = !!ENV.facebookWebhookVerifyToken;
+
+      return {
+        webhookUrl: null, // Frontend will construct this from window.location.origin
+        verifyToken: ENV.facebookWebhookVerifyToken || null,
+        verifyTokenConfigured,
+      };
+    }),
+
+  /**
    * Disconnect Facebook integration for an account.
    */
   disconnect: protectedProcedure

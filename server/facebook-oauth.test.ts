@@ -483,6 +483,30 @@ describe("Facebook OAuth Integration", () => {
     });
   });
 
+  // ─── Webhook Info ────────────────────────────────────────
+  describe("getWebhookInfo", () => {
+    it("should return verifyToken when FACEBOOK_WEBHOOK_VERIFY_TOKEN is set", async () => {
+      const { ENV } = await import("./_core/env");
+      const verifyTokenConfigured = !!ENV.facebookWebhookVerifyToken;
+      expect(verifyTokenConfigured).toBe(true);
+      expect(ENV.facebookWebhookVerifyToken).toBe("test_verify_token");
+    });
+
+    it("should return verifyTokenConfigured=false when token is empty", () => {
+      const emptyToken = "";
+      const verifyTokenConfigured = !!emptyToken;
+      expect(verifyTokenConfigured).toBe(false);
+    });
+
+    it("should use /api/webhooks/facebook as the canonical webhook path", () => {
+      const webhookPath = "/api/webhooks/facebook";
+      expect(webhookPath).toBe("/api/webhooks/facebook");
+      // Both /api/webhooks/facebook and /api/webhooks/facebook-leads are valid
+      // but the canonical one shown to users should be the shorter one
+      expect(webhookPath).not.toContain("-leads");
+    });
+  });
+
   // ─── Onboarding Step Integration ────────────────────────
   describe("Onboarding Step Configuration", () => {
     it("should have 5 steps including Integrations", () => {

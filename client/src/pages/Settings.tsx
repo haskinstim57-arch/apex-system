@@ -89,7 +89,9 @@ import {
   FileText,
   Plus,
   Edit3,
+  Copy,
 } from "lucide-react";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { useAccount } from "@/contexts/AccountContext";
 
@@ -523,9 +525,15 @@ function FacebookLogo({ className }: { className?: string }) {
 
 function FacebookIntegrationCard({ accountId }: { accountId: number }) {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showWebhookInfo, setShowWebhookInfo] = useState(false);
   const utils = trpc.useUtils();
 
   const { data: fbStatus, isLoading } = trpc.facebookOAuth.getStatus.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+
+  const { data: webhookInfo } = trpc.facebookOAuth.getWebhookInfo.useQuery(
     { accountId },
     { enabled: !!accountId }
   );
@@ -659,45 +667,169 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                     {fbStatus.pages.length} page{fbStatus.pages.length !== 1 ? "s" : ""} linked
                   </p>
                 )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
-                  onClick={handleDisconnect}
-                  disabled={disconnectMutation.isPending}
-                >
-                  {disconnectMutation.isPending ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Unlink className="h-3 w-3 mr-1" />
-                  )}
-                  Disconnect
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setShowWebhookInfo(!showWebhookInfo)}
+                  >
+                    <Link2 className="h-3 w-3 mr-1" />
+                    Webhook Setup
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                    onClick={handleDisconnect}
+                    disabled={disconnectMutation.isPending}
+                  >
+                    {disconnectMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Unlink className="h-3 w-3 mr-1" />
+                    )}
+                    Disconnect
+                  </Button>
+                </div>
+                {showWebhookInfo && (
+                  <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border/50 space-y-3">
+                    <p className="text-xs font-medium">Facebook App Webhook Configuration</p>
+                    <p className="text-[11px] text-muted-foreground">Enter these values in your Facebook App → Products → Webhooks → Edit Subscription:</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-[11px] text-muted-foreground mb-1">Callback URL</p>
+                        <div className="flex items-center gap-1.5">
+                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono truncate flex-1">
+                            {window.location.origin}/api/webhooks/facebook
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/facebook`);
+                              toast.success("Copied!");
+                            }}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground mb-1">Verify Token</p>
+                        <div className="flex items-center gap-1.5">
+                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono flex-1">
+                            {webhookInfo?.verifyToken || "(not configured)"}
+                          </code>
+                          {webhookInfo?.verifyToken && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(webhookInfo.verifyToken!);
+                                toast.success("Copied!");
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        <strong>Subscribed Fields:</strong> leadgen
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="mt-1">
-                <p className="text-xs text-muted-foreground mb-2">
+              <div className="mt-1 space-y-2">
+                <p className="text-xs text-muted-foreground">
                   Capture leads from Facebook Lead Ads automatically.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-blue-200 text-blue-600 hover:bg-blue-500/10"
-                  onClick={handleConnect}
-                  disabled={isConnecting || callbackMutation.isPending}
-                >
-                  {isConnecting || callbackMutation.isPending ? (
-                    <>
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                      Connecting...
-                    </>
-                  ) : (
-                    <>
-                      <ExternalLink className="h-3 w-3 mr-1" />
-                      Connect Facebook
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-blue-200 text-blue-600 hover:bg-blue-500/10"
+                    onClick={handleConnect}
+                    disabled={isConnecting || callbackMutation.isPending}
+                  >
+                    {isConnecting || callbackMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Connecting...
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Connect Facebook
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs"
+                    onClick={() => setShowWebhookInfo(!showWebhookInfo)}
+                  >
+                    <Link2 className="h-3 w-3 mr-1" />
+                    Webhook Setup
+                  </Button>
+                </div>
+                {showWebhookInfo && (
+                  <div className="mt-2 p-3 rounded-lg bg-muted/50 border border-border/50 space-y-3">
+                    <p className="text-xs font-medium">Facebook App Webhook Configuration</p>
+                    <p className="text-[11px] text-muted-foreground">Enter these values in your Facebook App → Products → Webhooks → Edit Subscription:</p>
+                    <div className="space-y-2">
+                      <div>
+                        <p className="text-[11px] text-muted-foreground mb-1">Callback URL</p>
+                        <div className="flex items-center gap-1.5">
+                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono truncate flex-1">
+                            {window.location.origin}/api/webhooks/facebook
+                          </code>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0 shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(`${window.location.origin}/api/webhooks/facebook`);
+                              toast.success("Copied!");
+                            }}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[11px] text-muted-foreground mb-1">Verify Token</p>
+                        <div className="flex items-center gap-1.5">
+                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono flex-1">
+                            {webhookInfo?.verifyToken || "(not configured)"}
+                          </code>
+                          {webhookInfo?.verifyToken && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 shrink-0"
+                              onClick={() => {
+                                navigator.clipboard.writeText(webhookInfo.verifyToken!);
+                                toast.success("Copied!");
+                              }}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-muted-foreground">
+                        <strong>Subscribed Fields:</strong> leadgen
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

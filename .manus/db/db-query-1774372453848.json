@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, account_id, provider, provider_user_id, provider_user_name, is_active, created_at FROM account_integrations WHERE provider LIKE '%facebook%' OR provider LIKE '%fb%' LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, account_id, provider, provider_user_id, provider_user_name, is_active, created_at FROM account_integrations WHERE provider LIKE '%facebook%' OR provider LIKE '%fb%' LIMIT 10;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 54
+}

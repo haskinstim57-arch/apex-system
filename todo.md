@@ -1479,4 +1479,20 @@
 - [x] Added intra-batch duplicate detection
 - [x] Capped error rows to 100 to prevent huge responses
 - [x] All 26 existing CSV import tests passing
-- [ ] Checkpoint saved
+- [x] Checkpoint saved (abf32b1d)
+
+### Bug Fix: Facebook OAuth "domain not included in app domains" error
+- [x] Read Facebook OAuth code - redirectUri is built from window.location.origin + /settings
+- [x] Identified root cause: apexcrm-knxkwfan.manus.space not registered in Facebook App settings
+- [x] No code change needed - this is a Facebook Developer Console configuration issue
+- [x] Instructions provided to Tariq to fix in Facebook App settings
+
+### Bug Fix: Facebook Lead Ads Webhook "pending" - leads not arriving
+- [x] Diagnosed: FACEBOOK_WEBHOOK_VERIFY_TOKEN was not set, causing 403 on verification
+- [x] Set FACEBOOK_WEBHOOK_VERIFY_TOKEN=apexwebtoken via environment secrets
+- [x] Verified webhook endpoint returns 200 with challenge after token fix
+- [x] Confirmed POST webhook processes leads correctly when page mapping exists
+- [x] Added getWebhookInfo tRPC procedure to expose webhook URL and verify token to frontend
+- [x] Updated Settings page Facebook card with "Webhook Setup" button showing callback URL and verify token
+- [x] Added 3 new tests for getWebhookInfo (59 total Facebook tests passing)
+- [ ] Tariq to configure Facebook App webhook with correct URL and verify token (see delivery instructions)

@@ -1,0 +1,16 @@
+{
+  "query": "SHOW TABLES LIKE '%facebook%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SHOW TABLES LIKE '%facebook%';",
+  "rows": [
+    {
+      "Tables_in_KNXKWFANWEUxWWEfuwT2Hr (%facebook%)": "account_facebook_pages"
+    },
+    {
+      "Tables_in_KNXKWFANWEUxWWEfuwT2Hr (%facebook%)": "facebook_page_mappings"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_KNXKWFANWEUxWWEfuwT2Hr (%facebook%)\naccount_facebook_pages\nfacebook_page_mappings\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}
