@@ -15,6 +15,7 @@ const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 const FACEBOOK_PERMISSIONS = [
   "leads_retrieval",
   "pages_manage_ads",
+  "pages_manage_metadata",
   "pages_read_engagement",
   "pages_show_list",
 ].join(",");
@@ -220,6 +221,23 @@ export const facebookOAuthRouter = router({
                 subErr
               );
             }
+          }
+
+          // Also upsert into facebook_page_mappings for fallback webhook routing
+          try {
+            await db.upsertFacebookPageMapping({
+              facebookPageId: page.id,
+              accountId,
+              pageName: page.name || null,
+            });
+            console.log(
+              `[Facebook OAuth] Upserted page mapping: ${page.id} → account ${accountId}`
+            );
+          } catch (mappingErr) {
+            console.error(
+              `[Facebook OAuth] Error upserting page mapping for ${page.id}:`,
+              mappingErr
+            );
           }
         }
       }

@@ -2418,6 +2418,33 @@ export async function listFacebookPageMappings(accountId?: number) {
     .orderBy(desc(facebookPageMappings.createdAt));
 }
 
+export async function upsertFacebookPageMapping(data: {
+  facebookPageId: string;
+  accountId: number;
+  pageName: string | null;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const existing = await db
+    .select()
+    .from(facebookPageMappings)
+    .where(eq(facebookPageMappings.facebookPageId, data.facebookPageId))
+    .limit(1);
+  if (existing[0]) {
+    await db
+      .update(facebookPageMappings)
+      .set({ accountId: data.accountId, pageName: data.pageName })
+      .where(eq(facebookPageMappings.id, existing[0].id));
+    return { id: existing[0].id };
+  } else {
+    const [result] = await db
+      .insert(facebookPageMappings)
+      .values(data)
+      .$returningId();
+    return result;
+  }
+}
+
 export async function deleteFacebookPageMapping(id: number) {
   const db = await getDb();
   if (!db) return;

@@ -1,0 +1,18 @@
+{
+  "query": "SELECT id, account_id, facebook_page_id, page_name, is_subscribed, LEFT(page_access_token, 20) as token_prefix FROM account_facebook_pages WHERE account_id = 420001;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, account_id, facebook_page_id, page_name, is_subscribed, LEFT(page_access_token, 20) as token_prefix FROM account_facebook_pages WHERE account_id = 420001;",
+  "rows": [
+    {
+      "id": "1",
+      "account_id": "420001",
+      "facebook_page_id": "500444413143324",
+      "page_name": "Home Loan Coach-NMLS #1116876",
+      "is_subscribed": "1",
+      "token_prefix": "EAAvwgCNktpQBRGf21s9"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccount_id\tfacebook_page_id\tpage_name\tis_subscribed\ttoken_prefix\n1\t420001\t500444413143324\tHome Loan Coach-NMLS #1116876\t1\tEAAvwgCNktpQBRGf21s9\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

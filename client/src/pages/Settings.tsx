@@ -663,9 +663,24 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                   </span>
                 </div>
                 {fbStatus.pages && fbStatus.pages.length > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    {fbStatus.pages.length} page{fbStatus.pages.length !== 1 ? "s" : ""} linked
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      {fbStatus.pages.length} page{fbStatus.pages.length !== 1 ? "s" : ""} linked
+                    </p>
+                    <div className="space-y-1">
+                      {fbStatus.pages.map((page: any) => (
+                        <div key={page.id} className="flex items-center gap-2 text-xs">
+                          <div className={`h-1.5 w-1.5 rounded-full ${page.isSubscribed ? 'bg-green-500' : 'bg-amber-500'}`} />
+                          <span className="text-muted-foreground">{page.pageName || page.facebookPageId}</span>
+                          {page.isSubscribed ? (
+                            <span className="text-[10px] text-green-600">Subscribed</span>
+                          ) : (
+                            <span className="text-[10px] text-amber-600">Not subscribed</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 <div className="flex gap-2">
                   <Button

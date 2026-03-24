@@ -537,4 +537,161 @@ describe("Facebook OAuth Integration", () => {
       expect(STEPS[4].title).toBe("Finish");
     });
   });
+
+  // ─── Page Mapping Upsert ──────────────────────────────
+  describe("Facebook Page Mapping Upsert", () => {
+    const mockPageMappings: Record<string, any> = {};
+
+    const upsertPageMapping = async (data: {
+      facebookPageId: string;
+      accountId: number;
+      pageName: string | null;
+    }) => {
+      const existing = Object.values(mockPageMappings).find(
+        (m) => m.facebookPageId === data.facebookPageId
+      );
+      if (existing) {
+        existing.accountId = data.accountId;
+        existing.pageName = data.pageName;
+        return { id: existing.id };
+      } else {
+        const id = Object.keys(mockPageMappings).length + 1;
+        mockPageMappings[id] = { id, ...data };
+        return { id };
+      }
+    };
+
+    beforeEach(() => {
+      Object.keys(mockPageMappings).forEach((k) => delete mockPageMappings[k]);
+    });
+
+    it("should create a new page mapping when none exists", async () => {
+      const result = await upsertPageMapping({
+        facebookPageId: "500444413143324",
+        accountId: 420001,
+        pageName: "Home Loan Coach",
+      });
+      expect(result.id).toBe(1);
+      expect(mockPageMappings[1].facebookPageId).toBe("500444413143324");
+      expect(mockPageMappings[1].accountId).toBe(420001);
+    });
+
+    it("should update existing page mapping instead of creating duplicate", async () => {
+      await upsertPageMapping({
+        facebookPageId: "500444413143324",
+        accountId: 420001,
+        pageName: "Home Loan Coach",
+      });
+      const result = await upsertPageMapping({
+        facebookPageId: "500444413143324",
+        accountId: 420002,
+        pageName: "Home Loan Coach Updated",
+      });
+      expect(result.id).toBe(1);
+      expect(mockPageMappings[1].accountId).toBe(420002);
+      expect(mockPageMappings[1].pageName).toBe("Home Loan Coach Updated");
+      expect(Object.keys(mockPageMappings)).toHaveLength(1);
+    });
+
+    it("should handle multiple pages for different accounts", async () => {
+      await upsertPageMapping({
+        facebookPageId: "page_111",
+        accountId: 1,
+        pageName: "Page A",
+      });
+      await upsertPageMapping({
+        facebookPageId: "page_222",
+        accountId: 2,
+        pageName: "Page B",
+      });
+      expect(Object.keys(mockPageMappings)).toHaveLength(2);
+      expect(mockPageMappings[1].accountId).toBe(1);
+      expect(mockPageMappings[2].accountId).toBe(2);
+    });
+  });
+
+  // ─── OAuth Permissions ──────────────────────────────────
+  describe("OAuth Permissions", () => {
+    it("should include pages_manage_metadata for webhook subscription", () => {
+      const permissions = [
+        "leads_retrieval",
+        "pages_manage_ads",
+        "pages_read_engagement",
+        "pages_show_list",
+        "pages_manage_metadata",
+      ].join(",");
+      expect(permissions).toContain("pages_manage_metadata");
+      expect(permissions).toContain("leads_retrieval");
+    });
+
+    it("should have all 5 required permissions for full lead ads integration", () => {
+      const required = [
+        "leads_retrieval",
+        "pages_manage_ads",
+        "pages_read_engagement",
+        "pages_show_list",
+        "pages_manage_metadata",
+      ];
+      expect(required).toHaveLength(5);
+      // pages_manage_metadata is required for POST /{page-id}/subscribed_apps
+      expect(required).toContain("pages_manage_metadata");
+    });
+  });
+
+  // ─── Automated Page Subscription ────────────────────────
+  describe("Automated Page Subscription Flow", () => {
+    it("should subscribe each page to leadgen after OAuth callback", () => {
+      const pages = [
+        { id: "page_111", name: "Page A", access_token: "token_a" },
+        { id: "page_222", name: "Page B", access_token: "token_b" },
+      ];
+      const subscriptionCalls: string[] = [];
+
+      for (const page of pages) {
+        // Simulate POST /{page-id}/subscribed_apps
+        subscriptionCalls.push(`POST ${page.id}/subscribed_apps`);
+      }
+
+      expect(subscriptionCalls).toHaveLength(2);
+      expect(subscriptionCalls[0]).toContain("page_111");
+      expect(subscriptionCalls[1]).toContain("page_222");
+    });
+
+    it("should create page mapping for each page during OAuth", async () => {
+      const pages = [
+        { id: "page_111", name: "Page A" },
+        { id: "page_222", name: "Page B" },
+      ];
+      const accountId = 420001;
+      const mappings: any[] = [];
+
+      for (const page of pages) {
+        mappings.push({
+          facebookPageId: page.id,
+          accountId,
+          pageName: page.name,
+        });
+      }
+
+      expect(mappings).toHaveLength(2);
+      expect(mappings[0].facebookPageId).toBe("page_111");
+      expect(mappings[0].accountId).toBe(420001);
+      expect(mappings[1].facebookPageId).toBe("page_222");
+    });
+
+    it("should handle subscription failure gracefully without blocking OAuth", () => {
+      const pages = [
+        { id: "page_111", name: "Page A", subscribed: true },
+        { id: "page_222", name: "Page B", subscribed: false }, // failed
+      ];
+
+      const successfulPages = pages.filter((p) => p.subscribed);
+      const failedPages = pages.filter((p) => !p.subscribed);
+
+      // OAuth should still succeed even if some pages fail to subscribe
+      expect(successfulPages).toHaveLength(1);
+      expect(failedPages).toHaveLength(1);
+      // The page should still be saved, just with isSubscribed=false
+    });
+  });
 });

@@ -1508,7 +1508,20 @@
 - [x] All 121 Facebook tests passing
 
 ### Bug Fix: Lead shows Success in Meta tester but not appearing in PMR contacts
-- [ ] Check server logs for leadgen_id 2112006266007324 processing
-- [ ] Check if the webhook is hitting the production URL vs dev URL
-- [ ] Check if the lead was actually fetched from Facebook Graph API (the webhook only sends a notification, not the full lead data)
-- [ ] Fix the lead fetching flow if broken
+- [x] Root cause: page ID in DB was wrong (500444131343324 vs correct 500444413143324)
+- [x] Fixed page ID in account_facebook_pages and facebook_page_mappings
+- [x] Stored page access token for Graph API lead fetching
+- [x] Subscribed page to app via Graph API POST /{page-id}/subscribed_apps
+- [x] Confirmed subscription active: Sterling Marketing app subscribed to leadgen on page
+- [x] Production webhook endpoint verified working (contact 390076 created)
+- [x] Test lead from Meta tester now arriving in PMR contacts
+
+### Feature: Templatize Facebook Lead Ads Setup for All Clients
+- [x] Audited existing OAuth callback handler — code was already well-built
+- [x] Added pages_manage_metadata permission to OAuth scope (required for webhook subscription)
+- [x] OAuth callback already auto-subscribes pages to leadgen webhooks via Graph API
+- [x] Added upsertFacebookPageMapping to auto-save page mappings during OAuth callback
+- [x] Updated Settings UI to show individual page names and subscription status (green/amber dots)
+- [x] Page selection handled via Facebook OAuth popup (user selects pages during auth)
+- [x] Added 8 new tests: page mapping upsert, OAuth permissions, automated subscription flow (48 total)
+- [x] Created SOP document: docs/SOP-Facebook-Lead-Ads-Onboarding.md

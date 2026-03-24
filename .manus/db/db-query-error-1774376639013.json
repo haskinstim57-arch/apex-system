@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, first_name, last_name, email, phone, lead_source, status, created_at, custom_fields FROM contacts WHERE account_id = 420001 ORDER BY created_at DESC LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, first_name, last_name, email, phone, lead_source, status, created_at, custom_fields FROM contacts WHERE account_id = 420001 ORDER BY created_at DESC LIMIT 20;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'account_id' in 'where clause'"
+  ]
+}

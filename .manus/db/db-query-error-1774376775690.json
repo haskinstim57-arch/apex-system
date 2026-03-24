@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE account_facebook_pages SET fbPageId = '500444413143324', pageAccessToken = 'EAAvwgCNktpQBRGf21s9hXRJ7bCiMqg19ZBZCdSRxFcU1E6Eujc3pWoOGEUElwUZB1AzEUhKldTIe7cFtrpt96FEQYF0T5TwZC7vn4nG7HTd1Qf8wLx6klnTgIPtyrwji1xiOXEr6IKFDWrZCzn0OgZBbQZBVZBpPBxCAPvGMFwDCX6Igd7DlRsFfJY1V2Bf9yRnQ3TwxIV9oAx7gSIASfibiuPiLMwFNsLURGzc3yLF0Gc6Fj6yNHCJXABAZD' WHERE accountId = 420001 AND fbPageId = '500444131343324';\n\nUPDATE facebook_page_mappings SET pageId = '500444413143324' WHERE accountId = 420001 AND pageId = '500444131343324';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute UPDATE account_facebook_pages SET fbPageId = '500444413143324', pageAccessToken = 'EAAvwgCNktpQBRGf21s9hXRJ7bCiMqg19ZBZCdSRxFcU1E6Eujc3pWoOGEUElwUZB1AzEUhKldTIe7cFtrpt96FEQYF0T5TwZC7vn4nG7HTd1Qf8wLx6klnTgIPtyrwji1xiOXEr6IKFDWrZCzn0OgZBbQZBVZBpPBxCAPvGMFwDCX6Igd7DlRsFfJY1V2Bf9yRnQ3TwxIV9oAx7gSIASfibiuPiLMwFNsLURGzc3yLF0Gc6Fj6yNHCJXABAZD' WHERE accountId = 420001 AND fbPageId = '500444131343324';\n\nUPDATE facebook_page_mappings SET pageId = '500444413143324' WHERE accountId = 420001 AND pageId = '500444131343324';",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'accountid' in 'where clause'"
+  ]
+}

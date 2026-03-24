@@ -1,0 +1,19 @@
+{
+  "query": "SELECT * FROM facebook_page_mappings WHERE account_id = 420001;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT * FROM facebook_page_mappings WHERE account_id = 420001;",
+  "rows": [
+    {
+      "id": "330005",
+      "facebook_page_id": "500444413143324",
+      "account_id": "420001",
+      "page_name": "Home Loan Coach-NMLS #1116876",
+      "created_at": "2026-03-24 17:45:19",
+      "updated_at": "2026-03-24 18:26:47",
+      "verify_token": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tfacebook_page_id\taccount_id\tpage_name\tcreated_at\tupdated_at\tverify_token\n330005\t500444413143324\t420001\tHome Loan Coach-NMLS #1116876\t2026-03-24 17:45:19\t2026-03-24 18:26:47\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}
