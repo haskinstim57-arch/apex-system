@@ -1,0 +1,18 @@
+{
+  "query": "SHOW COLUMNS FROM contacts LIKE '%account%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SHOW COLUMNS FROM contacts LIKE '%account%';",
+  "rows": [
+    {
+      "Field": "accountId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\naccountId\tint\tNO\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

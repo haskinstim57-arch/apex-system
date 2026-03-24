@@ -18,9 +18,11 @@ const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 // POST /api/webhooks/facebook-leads
 // GET  /api/webhooks/facebook-leads (verification challenge)
 //
-// Receives lead data from Facebook Lead Ads (via direct webhook or n8n).
-// Creates a contact, assigns to "New Lead" pipeline stage, and fires
-// automation triggers (contact_created + facebook_lead_received).
+// CRITICAL: Facebook requires a 200 response within 20 seconds.
+// We respond IMMEDIATELY with 200 and process leads asynchronously
+// in the background. This ensures:
+// 1. Facebook never times out → no missed leads
+// 2. Speed-to-lead is optimized → leads appear in CRM within seconds
 // ─────────────────────────────────────────────
 
 export const facebookLeadsWebhookRouter = Router();
@@ -48,8 +50,6 @@ facebookLeadsWebhookRouter.get(
     }
 
     // 2. Check per-client verify tokens from the facebook_page_mappings table.
-    // Each client has their own FB Ads Manager, so each mapping row stores
-    // the verify_token that the client configured in their Facebook App.
     try {
       const { listFacebookPageMappings } = await import("../db");
       const mappings = await listFacebookPageMappings();
@@ -71,50 +71,17 @@ facebookLeadsWebhookRouter.get(
 /**
  * POST — Receive Facebook Lead Ads data
  *
- * Accepted payload formats:
+ * IMPORTANT: For Facebook native webhooks, we respond with 200 IMMEDIATELY
+ * and process the lead data asynchronously. Facebook will retry if we don't
+ * respond within 20 seconds, which can cause duplicate leads.
  *
- * 1. Facebook native webhook format:
- * {
- *   "object": "page",
- *   "entry": [{
- *     "id": "page_id",
- *     "time": 1234567890,
- *     "changes": [{
- *       "field": "leadgen",
- *       "value": {
- *         "leadgen_id": "123",
- *         "page_id": "456",
- *         "form_id": "789",
- *         "ad_id": "ad_123",
- *         "ad_group_id": "adset_123",
- *         "campaign_id": "camp_123",
- *         "created_time": 1234567890,
- *         "field_data": [
- *           { "name": "full_name", "values": ["John Doe"] },
- *           { "name": "email", "values": ["john@example.com"] },
- *           { "name": "phone_number", "values": ["+15551234567"] }
- *         ]
- *       }
- *     }]
- *   }]
- * }
- *
- * 2. Simplified/flat format (from n8n or other middleware):
- * {
- *   "accountId": 1,
- *   "firstName": "John",
- *   "lastName": "Doe",
- *   "email": "john@example.com",
- *   "phone": "+15551234567",
- *   "leadId": "fb_lead_123",
- *   "campaignId": "camp_123",
- *   "adId": "ad_123",
- *   "formId": "form_123"
- * }
+ * For simplified/n8n payloads, we process synchronously since they're not
+ * subject to Facebook's timeout requirements.
  */
 facebookLeadsWebhookRouter.post(
   "/api/webhooks/facebook-leads",
   async (req: Request, res: Response) => {
+    const startTime = Date.now();
     console.log(`[FB Leads Webhook] Incoming POST /api/webhooks/facebook-leads from ${req.ip} | Content-Type: ${req.headers['content-type']} | Body keys: ${Object.keys(req.body || {}).join(',')}`);
     try {
       const body = req.body;
@@ -126,9 +93,29 @@ facebookLeadsWebhookRouter.post(
 
       // Detect format: Facebook native (has "object" + "entry") vs simplified
       if (body.object === "page" && Array.isArray(body.entry)) {
-        const results = await handleFacebookNativePayload(body);
-        return res.json({ success: true, processed: results.length, results });
+        // *** CRITICAL: Respond to Facebook IMMEDIATELY ***
+        // Facebook requires 200 within 20 seconds or it retries/drops the webhook
+        res.status(200).json({ success: true, message: "EVENT_RECEIVED" });
+        console.log(`[FB Leads Webhook] Responded 200 to Facebook in ${Date.now() - startTime}ms — processing ${body.entry.length} entries in background`);
+
+        // Process leads asynchronously in the background
+        handleFacebookNativePayload(body).then((results) => {
+          const elapsed = Date.now() - startTime;
+          console.log(`[FB Leads Webhook] Background processing complete in ${elapsed}ms — ${results.length} leads processed`);
+          for (const r of results) {
+            if (r.success) {
+              console.log(`[FB Leads Webhook] ✓ Lead ${r.leadId} → contact ${r.contactId}, deal ${r.dealId}`);
+            } else {
+              console.error(`[FB Leads Webhook] ✗ Lead ${r.leadId} failed: ${r.error}`);
+            }
+          }
+        }).catch((err) => {
+          console.error(`[FB Leads Webhook] Background processing error:`, err);
+        });
+
+        return; // Response already sent
       } else {
+        // Simplified/n8n payloads — process synchronously (no Facebook timeout concern)
         const result = await handleSimplifiedPayload(body);
         return res.json(result);
       }
@@ -479,8 +466,8 @@ facebookLeadsWebhookRouter.get(
 facebookLeadsWebhookRouter.post(
   "/api/webhooks/facebook",
   async (req: Request, res: Response) => {
+    const startTime = Date.now();
     console.log(`[FB Webhook] Incoming POST /api/webhooks/facebook from ${req.ip} | Content-Type: ${req.headers['content-type']} | Body keys: ${Object.keys(req.body || {}).join(',')}`);
-    // Delegate to the same handler as /api/webhooks/facebook-leads
     try {
       const body = req.body;
 
@@ -489,8 +476,26 @@ facebookLeadsWebhookRouter.post(
       }
 
       if (body.object === "page" && Array.isArray(body.entry)) {
-        const results = await handleFacebookNativePayload(body);
-        return res.json({ success: true, processed: results.length, results });
+        // *** CRITICAL: Respond to Facebook IMMEDIATELY ***
+        res.status(200).json({ success: true, message: "EVENT_RECEIVED" });
+        console.log(`[FB Webhook] Responded 200 to Facebook in ${Date.now() - startTime}ms — processing in background`);
+
+        // Process leads asynchronously in the background
+        handleFacebookNativePayload(body).then((results) => {
+          const elapsed = Date.now() - startTime;
+          console.log(`[FB Webhook] Background processing complete in ${elapsed}ms — ${results.length} leads processed`);
+          for (const r of results) {
+            if (r.success) {
+              console.log(`[FB Webhook] ✓ Lead ${r.leadId} → contact ${r.contactId}, deal ${r.dealId}`);
+            } else {
+              console.error(`[FB Webhook] ✗ Lead ${r.leadId} failed: ${r.error}`);
+            }
+          }
+        }).catch((err) => {
+          console.error(`[FB Webhook] Background processing error:`, err);
+        });
+
+        return; // Response already sent
       } else {
         const result = await handleSimplifiedPayload(body);
         return res.json(result);

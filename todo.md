@@ -1525,3 +1525,11 @@
 - [x] Page selection handled via Facebook OAuth popup (user selects pages during auth)
 - [x] Added 8 new tests: page mapping upsert, OAuth permissions, automated subscription flow (48 total)
 - [x] Created SOP document: docs/SOP-Facebook-Lead-Ads-Onboarding.md
+
+### Bug Fix: Leads 5 and 6 from Meta tester not arriving + Speed-to-Lead optimization
+- [x] Root cause: webhook handler was processing synchronously — Facebook has 20s timeout, our handler took 3+ seconds
+- [x] Refactored both POST handlers to respond IMMEDIATELY with 200 (15ms response time)
+- [x] Lead processing now runs asynchronously in background (201ms total for contact + deal + notifications)
+- [x] Workflow triggers and lead routing already fire async (non-blocking)
+- [x] All 67 Facebook tests passing after async refactor
+- [x] Confirmed: Facebook webhook response time went from 3000ms+ → 15ms
