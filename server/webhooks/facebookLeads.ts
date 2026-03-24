@@ -115,6 +115,7 @@ facebookLeadsWebhookRouter.get(
 facebookLeadsWebhookRouter.post(
   "/api/webhooks/facebook-leads",
   async (req: Request, res: Response) => {
+    console.log(`[FB Leads Webhook] Incoming POST /api/webhooks/facebook-leads from ${req.ip} | Content-Type: ${req.headers['content-type']} | Body keys: ${Object.keys(req.body || {}).join(',')}`);
     try {
       const body = req.body;
 
@@ -478,6 +479,7 @@ facebookLeadsWebhookRouter.get(
 facebookLeadsWebhookRouter.post(
   "/api/webhooks/facebook",
   async (req: Request, res: Response) => {
+    console.log(`[FB Webhook] Incoming POST /api/webhooks/facebook from ${req.ip} | Content-Type: ${req.headers['content-type']} | Body keys: ${Object.keys(req.body || {}).join(',')}`);
     // Delegate to the same handler as /api/webhooks/facebook-leads
     try {
       const body = req.body;

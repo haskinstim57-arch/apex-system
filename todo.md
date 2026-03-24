@@ -1506,3 +1506,9 @@
 - [x] Server log confirmed: [FB Leads Webhook] Resolved page 500444131343324 → account 420001 (via accountFacebookPages)
 - [x] Settings page getStatus logic is correct — will show Connected after page reload
 - [x] All 121 Facebook tests passing
+
+### Bug Fix: Lead shows Success in Meta tester but not appearing in PMR contacts
+- [ ] Check server logs for leadgen_id 2112006266007324 processing
+- [ ] Check if the webhook is hitting the production URL vs dev URL
+- [ ] Check if the lead was actually fetched from Facebook Graph API (the webhook only sends a notification, not the full lead data)
+- [ ] Fix the lead fetching flow if broken
