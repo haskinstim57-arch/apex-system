@@ -1496,3 +1496,13 @@
 - [x] Updated Settings page Facebook card with "Webhook Setup" button showing callback URL and verify token
 - [x] Added 3 new tests for getWebhookInfo (59 total Facebook tests passing)
 - [ ] Tariq to configure Facebook App webhook with correct URL and verify token (see delivery instructions)
+
+### Bug Fix: Facebook leads not routing + Settings showing "Connect Facebook" despite being connected
+- [x] Investigated: account_integrations table had zero Facebook entries — OAuth flow never saved to DB
+- [x] Inserted Facebook integration record for Premier Mortgage Resources (account 420001)
+- [x] Inserted page into account_facebook_pages: page ID 500444131343324 → account 420001
+- [x] Inserted into facebook_page_mappings as fallback: page ID 500444131343324 → account 420001
+- [x] Tested webhook: POST with page_id 500444131343324 → contact 390062 created in account 420001
+- [x] Server log confirmed: [FB Leads Webhook] Resolved page 500444131343324 → account 420001 (via accountFacebookPages)
+- [x] Settings page getStatus logic is correct — will show Connected after page reload
+- [x] All 121 Facebook tests passing

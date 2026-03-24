@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT ai.id, ai.account_id, a.name as account_name, ai.provider_user_name, ai.provider_user_id, ai.is_active, ai.created_at\nFROM account_integrations ai\nJOIN accounts a ON a.id = ai.account_id\nWHERE ai.provider = 'facebook'\nORDER BY ai.created_at DESC;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute \nSELECT ai.id, ai.account_id, a.name as account_name, ai.provider_user_name, ai.provider_user_id, ai.is_active, ai.created_at\nFROM account_integrations ai\nJOIN accounts a ON a.id = ai.account_id\nWHERE ai.provider = 'facebook'\nORDER BY ai.created_at DESC;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 55
+}

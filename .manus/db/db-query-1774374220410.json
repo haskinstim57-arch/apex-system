@@ -1,0 +1,20 @@
+{
+  "query": "\nSELECT a.id as account_id, a.name as account_name,\n       ai.id as integration_id, ai.provider, ai.provider_user_id, ai.provider_user_name, ai.is_active,\n       ai.created_at\nFROM accounts a\nLEFT JOIN account_integrations ai ON ai.account_id = a.id AND ai.provider = 'facebook'\nWHERE a.name LIKE '%Premier%' OR a.name LIKE '%Mortgage%'\nORDER BY a.id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute \nSELECT a.id as account_id, a.name as account_name,\n       ai.id as integration_id, ai.provider, ai.provider_user_id, ai.provider_user_name, ai.is_active,\n       ai.created_at\nFROM accounts a\nLEFT JOIN account_integrations ai ON ai.account_id = a.id AND ai.provider = 'facebook'\nWHERE a.name LIKE '%Premier%' OR a.name LIKE '%Mortgage%'\nORDER BY a.id;\n",
+  "rows": [
+    {
+      "account_id": "420001",
+      "account_name": "Premier Mortgage Resources",
+      "integration_id": "NULL",
+      "provider": "NULL",
+      "provider_user_id": "NULL",
+      "provider_user_name": "NULL",
+      "is_active": "NULL",
+      "created_at": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "account_id\taccount_name\tintegration_id\tprovider\tprovider_user_id\tprovider_user_name\tis_active\tcreated_at\n420001\tPremier Mortgage Resources\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

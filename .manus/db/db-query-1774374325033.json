@@ -1,0 +1,34 @@
+{
+  "query": "\nSELECT 'integration' as type, ai.id, ai.account_id, a.name as account_name, ai.provider_user_name, ai.is_active\nFROM account_integrations ai\nJOIN accounts a ON a.id = ai.account_id\nWHERE ai.provider = 'facebook'\n\nUNION ALL\n\nSELECT 'page' as type, afp.id, afp.account_id, a.name as account_name, afp.page_name, afp.is_subscribed\nFROM account_facebook_pages afp\nJOIN accounts a ON a.id = afp.account_id\n\nUNION ALL\n\nSELECT 'mapping' as type, fpm.id, fpm.account_id, a.name as account_name, fpm.page_name, 1\nFROM facebook_page_mappings fpm\nJOIN accounts a ON a.id = fpm.account_id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute \nSELECT 'integration' as type, ai.id, ai.account_id, a.name as account_name, ai.provider_user_name, ai.is_active\nFROM account_integrations ai\nJOIN accounts a ON a.id = ai.account_id\nWHERE ai.provider = 'facebook'\n\nUNION ALL\n\nSELECT 'page' as type, afp.id, afp.account_id, a.name as account_name, afp.page_name, afp.is_subscribed\nFROM account_facebook_pages afp\nJOIN accounts a ON a.id = afp.account_id\n\nUNION ALL\n\nSELECT 'mapping' as type, fpm.id, fpm.account_id, a.name as account_name, fpm.page_name, 1\nFROM facebook_page_mappings fpm\nJOIN accounts a ON a.id = fpm.account_id;\n",
+  "rows": [
+    {
+      "type": "page",
+      "id": "1",
+      "account_id": "420001",
+      "account_name": "Premier Mortgage Resources",
+      "provider_user_name": "Home Loan Coach-NMLS #1116876",
+      "is_active": "1"
+    },
+    {
+      "type": "mapping",
+      "id": "330005",
+      "account_id": "420001",
+      "account_name": "Premier Mortgage Resources",
+      "provider_user_name": "Home Loan Coach-NMLS #1116876",
+      "is_active": "1"
+    },
+    {
+      "type": "integration",
+      "id": "1",
+      "account_id": "420001",
+      "account_name": "Premier Mortgage Resources",
+      "provider_user_name": "Home Loan Coach-NMLS #1116876",
+      "is_active": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "type\tid\taccount_id\taccount_name\tprovider_user_name\tis_active\npage\t1\t420001\tPremier Mortgage Resources\tHome Loan Coach-NMLS #1116876\t1\nmapping\t330005\t420001\tPremier Mortgage Resources\tHome Loan Coach-NMLS #1116876\t1\nintegration\t1\t420001\tPremier Mortgage Resources\tHome Loan Coach-NMLS #1116876\t1\n",
+  "stderr": "",
+  "execution_time_ms": 88
+}

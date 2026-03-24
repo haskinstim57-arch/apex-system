@@ -1,0 +1,31 @@
+{
+  "query": "SELECT * FROM contacts WHERE id = 390062;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT * FROM contacts WHERE id = 390062;",
+  "rows": [
+    {
+      "id": "390062",
+      "accountId": "420001",
+      "firstName": "Test",
+      "lastName": "Lead Premier",
+      "email": "testpremier@example.com",
+      "phone": "+15551234567",
+      "leadSource": "facebook",
+      "status": "new",
+      "assignedUserId": "NULL",
+      "company": "NULL",
+      "title": "NULL",
+      "address": "NULL",
+      "city": "NULL",
+      "state": "NULL",
+      "zip": "NULL",
+      "dateOfBirth": "NULL",
+      "customFields": "{\"fb_lead_id\":\"1247400764184991\",\"fb_form_id\":\"8450690319260591\"}",
+      "createdAt": "2026-03-24 17:45:40",
+      "updatedAt": "2026-03-24 17:45:40"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\tfirstName\tlastName\temail\tphone\tleadSource\tstatus\tassignedUserId\tcompany\ttitle\taddress\tcity\tstate\tzip\tdateOfBirth\tcustomFields\tcreatedAt\tupdatedAt\n390062\t420001\tTest\tLead Premier\ttestpremier@example.com\t+15551234567\tfacebook\tnew\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\t{\"fb_lead_id\":\"1247400764184991\",\"fb_form_id\":\"8450690319260591\"}\t2026-03-24 17:45:40\t2026-03-24 17:45:40\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}
