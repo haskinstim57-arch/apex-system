@@ -1546,3 +1546,16 @@
 - [x] Auto-polling indicator in Settings UI ("Auto-polling every 60s")
 - [x] 11 vitest tests passing for poller service
 - [x] Initial poll recovered 10 real leads that were missed due to webhook delivery failure
+
+### Feature: Historical Facebook Lead Import (45 days)
+- [x] Exchanged short-lived user token for permanent never-expiring page token
+- [x] Updated page token in database (verified: type=PAGE, expires=NEVER)
+- [x] Fetched all leads from 3 forms (140 total, 138 valid, 2 test leads skipped)
+- [x] Built internal import endpoint with dedup by fb_lead_id and email
+- [x] Imported 128 new contacts + 10 already existed = 138 total Facebook contacts in CRM
+- [x] Each contact has deal in pipeline, lead routing, and notifications
+
+### Feature: Automatic Facebook Token Management
+- [x] OAuth flow already exchanges for long-lived user token → permanent page token
+- [x] Page tokens from me/accounts with long-lived user token are permanent (never expire)
+- [x] No additional refresh mechanism needed for page tokens

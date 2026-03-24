@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COUNT(*) as total_contacts, COUNT(CASE WHEN leadSource = 'Facebook' THEN 1 END) as facebook_contacts FROM contacts WHERE accountId = 420001;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT COUNT(*) as total_contacts, COUNT(CASE WHEN leadSource = 'Facebook' THEN 1 END) as facebook_contacts FROM contacts WHERE accountId = 420001;",
+  "rows": [
+    {
+      "total_contacts": "10",
+      "facebook_contacts": "10"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_contacts\tfacebook_contacts\n10\t10\n",
+  "stderr": "",
+  "execution_time_ms": 369
+}

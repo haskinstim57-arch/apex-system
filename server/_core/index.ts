@@ -65,6 +65,91 @@ async function startServer() {
   // Calendar push notification webhooks (Google & Outlook)
   app.use(googleCalendarWebhookRouter);
   app.use(outlookCalendarWebhookRouter);
+  // Internal import endpoint (localhost only, for one-time historical imports)
+  app.post("/api/internal/import-lead", async (req, res) => {
+    try {
+      // Only allow from localhost
+      const ip = req.ip || req.socket.remoteAddress || "";
+      if (!ip.includes("127.0.0.1") && !ip.includes("::1") && !ip.includes("::ffff:127.0.0.1")) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+
+      const { accountId, firstName, lastName, email, phone, leadSource, customFields, fbLeadId } = req.body;
+      if (!accountId || !firstName || !fbLeadId) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+
+      // Dedup check
+      const { getDb } = await import("../db");
+      const { sql } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return res.json({ error: "DB not available" });
+
+      const existing = await db.execute(
+        sql`SELECT id FROM contacts WHERE accountId = ${accountId} AND customFields LIKE ${`%"fb_lead_id":"${fbLeadId}"%`} LIMIT 1`
+      );
+      const rows = existing[0] as unknown as any[];
+      if (rows && rows.length > 0) {
+        return res.json({ skipped: true, reason: "already exists" });
+      }
+
+      // Also check by email for additional dedup
+      if (email) {
+        const emailCheck = await db.execute(
+          sql`SELECT id FROM contacts WHERE accountId = ${accountId} AND email = ${email} LIMIT 1`
+        );
+        const emailRows = emailCheck[0] as unknown as any[];
+        if (emailRows && emailRows.length > 0) {
+          return res.json({ skipped: true, reason: "email exists" });
+        }
+      }
+
+      // Create contact
+      const { createContact, getOrCreateDefaultPipeline, listPipelineStages, createDeal, createNotification } = await import("../db");
+      const { routeLead } = await import("../services/leadRoutingEngine");
+
+      const { id: contactId } = await createContact({
+        accountId,
+        firstName,
+        lastName,
+        email: email || null,
+        phone: phone || null,
+        leadSource: leadSource || "facebook",
+        status: "new",
+        customFields: JSON.stringify(customFields || {}),
+      });
+
+      // Create deal
+      try {
+        const pipeline = await getOrCreateDefaultPipeline(accountId);
+        const stages = await listPipelineStages(pipeline.id, accountId);
+        const newLeadStage = stages.find((s: any) => s.name === "New Lead");
+        if (newLeadStage) {
+          await createDeal({
+            accountId,
+            pipelineId: pipeline.id,
+            stageId: newLeadStage.id,
+            contactId,
+            title: `${firstName} ${lastName}`,
+          });
+        }
+      } catch {}
+
+      // Route lead (async, don't wait)
+      routeLead({
+        contactId,
+        accountId,
+        leadSource: leadSource || "facebook",
+        source: "facebook_lead",
+      }).catch(() => {});
+
+      return res.json({ created: true, contactId });
+    } catch (err: any) {
+      console.error("[Import] Error:", err.message);
+      return res.json({ error: err.message });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

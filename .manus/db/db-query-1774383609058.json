@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE account_facebook_pages SET page_access_token = 'EAAvwgCNktpQBRLu7ZB9noH66PzMAnZArfacfjW6ipZAXrujyCmAgDpr5VWIbLnmxYZAqWiv1crl4ovgQk7vqiZApZBnFfXpt2i5kbkaXzMfmJsNtM3zbYnWFVc6tvNhrj7Uht6bTlQ8xs2tpm6i2SJF4cK3cTwMj8CQXDoYhtnPZBhm9HMDcZC3lMBijNu1nWSlmT603p2ZAYXNjgs5ZBgYPlh05BJ', updated_at = NOW() WHERE facebook_page_id = '500444413143324';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute UPDATE account_facebook_pages SET page_access_token = 'EAAvwgCNktpQBRLu7ZB9noH66PzMAnZArfacfjW6ipZAXrujyCmAgDpr5VWIbLnmxYZAqWiv1crl4ovgQk7vqiZApZBnFfXpt2i5kbkaXzMfmJsNtM3zbYnWFVc6tvNhrj7Uht6bTlQ8xs2tpm6i2SJF4cK3cTwMj8CQXDoYhtnPZBhm9HMDcZC3lMBijNu1nWSlmT603p2ZAYXNjgs5ZBgYPlh05BJ', updated_at = NOW() WHERE facebook_page_id = '500444413143324';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 380
+}

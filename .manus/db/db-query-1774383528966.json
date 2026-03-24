@@ -1,0 +1,19 @@
+{
+  "query": "SELECT id, account_id, provider, LEFT(access_token, 30) as token_prefix, LENGTH(access_token) as token_len, token_expires_at, is_active FROM account_integrations WHERE provider = 'facebook';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, account_id, provider, LEFT(access_token, 30) as token_prefix, LENGTH(access_token) as token_len, token_expires_at, is_active FROM account_integrations WHERE provider = 'facebook';",
+  "rows": [
+    {
+      "id": "1",
+      "account_id": "420001",
+      "provider": "facebook",
+      "token_prefix": "NULL",
+      "token_len": "NULL",
+      "token_expires_at": "NULL",
+      "is_active": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccount_id\tprovider\ttoken_prefix\ttoken_len\ttoken_expires_at\tis_active\n1\t420001\tfacebook\tNULL\tNULL\tNULL\t1\n",
+  "stderr": "",
+  "execution_time_ms": 355
+}
