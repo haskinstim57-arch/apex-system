@@ -1695,3 +1695,4 @@
 - [x] TypeScript check: 0 errors
 - [x] Floating AI Advisor button renders bottom-right on sub-account pages
 - [x] Vitest tests for AI Advisor (6 tests passing)
+- [x] Applied user-provided AI Advisor patch (6 files replaced, 1 TS error fixed)

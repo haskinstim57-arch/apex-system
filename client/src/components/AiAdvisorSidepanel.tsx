@@ -1,126 +1,308 @@
-import { useState, useRef, useEffect } from "react";
-import { useAiAdvisor } from "@/contexts/AiAdvisorContext";
-import { useAccount } from "@/contexts/AccountContext";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
+import { useAccount } from "@/contexts/AccountContext";
+import { useAiAdvisor } from "@/contexts/AiAdvisorContext";
+import { AIChatBox, type Message } from "@/components/AIChatBox";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
 import {
   Sparkles,
   X,
-  Send,
-  Loader2,
-  Lightbulb,
   MessageSquare,
-  ArrowRight,
-  Phone,
-  Users,
+  Lightbulb,
+  ChevronRight,
   Zap,
-  BarChart3,
-  Target,
+  AlertTriangle,
+  TrendingUp,
+  ArrowRight,
+  Loader2,
+  RefreshCw,
 } from "lucide-react";
-import { Streamdown } from "streamdown";
+import { useLocation } from "wouter";
 
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
+// ─── Types ───
+
+type Suggestion = {
+  id: string;
+  title: string;
+  explanation: string;
+  impact: string;
+  actionType: string;
+  actionParams: Record<string, unknown>;
+  confirmationMessage: string;
 };
 
-const CATEGORY_ICONS: Record<string, React.ElementType> = {
-  "follow-up": Phone,
-  pipeline: Target,
-  campaign: Zap,
-  call: Phone,
-  general: BarChart3,
-};
+// ─── Suggestion Card ───
 
-const PRIORITY_COLORS: Record<string, string> = {
-  high: "bg-red-100 text-red-700 border-red-200",
-  medium: "bg-amber-100 text-amber-700 border-amber-200",
-  low: "bg-emerald-100 text-emerald-700 border-emerald-200",
-};
+function SuggestionCard({
+  suggestion,
+  onExecute,
+}: {
+  suggestion: Suggestion;
+  onExecute: (suggestion: Suggestion) => void;
+}) {
+  const impactColors: Record<string, string> = {
+    high: "bg-red-50 text-red-700 border-red-200",
+    medium: "bg-amber-50 text-amber-700 border-amber-200",
+    low: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  };
 
-/**
- * Floating AI Advisor button + slide-out sidepanel.
- * Renders at the bottom-right of the viewport.
- */
+  const impactIcons: Record<string, typeof Zap> = {
+    high: AlertTriangle,
+    medium: TrendingUp,
+    low: Sparkles,
+  };
+
+  const ImpactIcon = impactIcons[suggestion.impact] || Sparkles;
+  const isActionable = suggestion.actionType !== "info_only";
+
+  return (
+    <Card className="bg-white border border-border/50 shadow-sm hover:shadow-md transition-shadow">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            <ImpactIcon className="h-4 w-4 mt-0.5 shrink-0 text-muted-foreground" />
+            <h4 className="text-sm font-medium text-foreground leading-tight">
+              {suggestion.title}
+            </h4>
+          </div>
+          <Badge
+            className={cn(
+              "text-[10px] h-5 rounded-full px-2 font-medium shrink-0 border",
+              impactColors[suggestion.impact] || impactColors.low
+            )}
+          >
+            {suggestion.impact}
+          </Badge>
+        </div>
+
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {suggestion.explanation}
+        </p>
+
+        {isActionable && (
+          <Button
+            size="sm"
+            variant={suggestion.actionType === "navigate" ? "outline" : "default"}
+            className="w-full h-8 text-xs gap-1.5"
+            onClick={() => onExecute(suggestion)}
+          >
+            {suggestion.actionType === "navigate" ? (
+              <>
+                Go to page
+                <ArrowRight className="h-3 w-3" />
+              </>
+            ) : (
+              <>
+                <Zap className="h-3 w-3" />
+                Execute
+              </>
+            )}
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Main AI Advisor Sidepanel ───
+
 export function AiAdvisorSidepanel() {
-  const { isOpen, activeTab, pageContext, open, close, setActiveTab } =
-    useAiAdvisor();
+  const { isOpen, setIsOpen, toggle, pageContext, mode, setMode } = useAiAdvisor();
   const { currentAccountId } = useAccount();
+  const [, navigate] = useLocation();
+
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<Message[]>([
+    {
+      role: "system",
+      content: "You are the AI Advisor for Apex System CRM. Help the user understand their data and take action.",
+    },
+  ]);
+
+  // Confirmation dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    suggestion: {
+      id: string;
+      title: string;
+      confirmationMessage: string;
+      actionType: string;
+      actionParams: Record<string, unknown>;
+    } | null;
+  }>({ open: false, suggestion: null });
+
+  // Suggestions query
+  const {
+    data: suggestionsData,
+    isLoading: suggestionsLoading,
+    refetch: refetchSuggestions,
+  } = trpc.aiAdvisor.getSuggestions.useQuery(
+    { accountId: currentAccountId!, pageContext },
+    { enabled: !!currentAccountId && isOpen && mode === "suggestions", staleTime: 60_000 }
+  );
+
+  // Chat mutation
+  const chatMutation = trpc.aiAdvisor.chat.useMutation({
+    onSuccess: (data) => {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.response },
+      ]);
+    },
+  });
+
+  // Reset chat when switching accounts
+  useEffect(() => {
+    setChatMessages([
+      {
+        role: "system",
+        content: "You are the AI Advisor for Apex System CRM. Help the user understand their data and take action.",
+      },
+    ]);
+  }, [currentAccountId]);
+
+  const handleSendMessage = (content: string) => {
+    if (!currentAccountId) return;
+    const newMessages: Message[] = [
+      ...chatMessages,
+      { role: "user", content },
+    ];
+    setChatMessages(newMessages);
+    chatMutation.mutate({
+      accountId: currentAccountId,
+      messages: newMessages.filter((m) => m.role !== "system"),
+      pageContext,
+    });
+  };
+
+  const handleExecuteSuggestion = (suggestion: {
+    id: string;
+    title: string;
+    confirmationMessage: string;
+    actionType: string;
+    actionParams: Record<string, unknown>;
+  }) => {
+    if (suggestion.actionType === "navigate") {
+      const path = suggestion.actionParams.path as string;
+      if (path) navigate(path);
+      return;
+    }
+
+    if (suggestion.confirmationMessage) {
+      setConfirmDialog({ open: true, suggestion });
+    } else {
+      executeAction(suggestion);
+    }
+  };
+
+  const executeAction = (suggestion: {
+    actionType: string;
+    actionParams: Record<string, unknown>;
+  }) => {
+    // Navigate to the relevant page with action context
+    // The actual execution would call the appropriate tRPC mutation
+    switch (suggestion.actionType) {
+      case "launch_campaign":
+        navigate("/campaigns");
+        break;
+      case "start_ai_calls":
+        navigate("/ai-calls");
+        break;
+      case "create_workflow":
+        navigate("/automations");
+        break;
+      case "assign_contacts":
+        navigate("/contacts");
+        break;
+      case "move_pipeline_stage":
+        navigate("/pipeline");
+        break;
+      case "schedule_appointments":
+        navigate("/calendar");
+        break;
+      default:
+        break;
+    }
+    setConfirmDialog({ open: false, suggestion: null });
+  };
 
   if (!currentAccountId) return null;
 
   return (
     <>
-      {/* Floating trigger button */}
+      {/* Floating toggle button */}
       {!isOpen && (
         <button
-          onClick={open}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-primary px-4 py-3 text-primary-foreground shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95"
-          aria-label="Open AI Advisor"
+          onClick={toggle}
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-primary text-primary-foreground shadow-lg rounded-full pl-4 pr-5 py-3 hover:shadow-xl transition-all hover:scale-105 active:scale-95"
         >
           <Sparkles className="h-5 w-5" />
-          <span className="text-sm font-medium hidden sm:inline">AI Advisor</span>
+          <span className="text-sm font-medium">AI Advisor</span>
         </button>
-      )}
-
-      {/* Backdrop */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[2px] transition-opacity"
-          onClick={close}
-        />
       )}
 
       {/* Sidepanel */}
       <div
         className={cn(
-          "fixed top-0 right-0 z-50 h-full w-full sm:w-[420px] bg-background border-l border-border shadow-2xl transition-transform duration-300 ease-in-out flex flex-col",
+          "fixed top-0 right-0 z-50 h-full w-[380px] bg-background border-l shadow-2xl transition-transform duration-300 ease-in-out flex flex-col",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-card">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Sparkles className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h2 className="text-sm font-semibold">AI Advisor</h2>
+              <h3 className="text-sm font-semibold text-foreground">AI Advisor</h3>
               <p className="text-[10px] text-muted-foreground">
-                Your CRM copilot
+                {suggestionsData?.context
+                  ? `${suggestionsData.context.totalContacts} contacts | ${suggestionsData.context.connectRate}% connect rate`
+                  : "Analyzing your account..."}
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={close} className="h-8 w-8">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-border">
+        {/* Mode tabs */}
+        <div className="flex border-b px-2 bg-card">
           <button
-            onClick={() => setActiveTab("suggestions")}
+            onClick={() => setMode("suggestions")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
-              activeTab === "suggestions"
-                ? "text-primary border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground"
+              "flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors",
+              mode === "suggestions"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             <Lightbulb className="h-3.5 w-3.5" />
             Suggestions
           </button>
           <button
-            onClick={() => setActiveTab("chat")}
+            onClick={() => setMode("chat")}
             className={cn(
-              "flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
-              activeTab === "chat"
-                ? "text-primary border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground"
+              "flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium border-b-2 transition-colors",
+              mode === "chat"
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             <MessageSquare className="h-3.5 w-3.5" />
@@ -130,301 +312,117 @@ export function AiAdvisorSidepanel() {
 
         {/* Content */}
         <div className="flex-1 overflow-hidden">
-          {activeTab === "suggestions" ? (
-            <SuggestionsTab
-              accountId={currentAccountId}
-              pageContext={pageContext}
-            />
+          {mode === "suggestions" ? (
+            <div className="h-full flex flex-col">
+              {/* Refresh button */}
+              <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">
+                  {pageContext.charAt(0).toUpperCase() + pageContext.slice(1)} Insights
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-[10px] gap-1"
+                  onClick={() => refetchSuggestions()}
+                  disabled={suggestionsLoading}
+                >
+                  <RefreshCw className={cn("h-3 w-3", suggestionsLoading && "animate-spin")} />
+                  Refresh
+                </Button>
+              </div>
+
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-3">
+                  {suggestionsLoading ? (
+                    <>
+                      {[1, 2, 3].map((i) => (
+                        <Card key={i} className="bg-white border border-border/50">
+                          <CardContent className="p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-4 w-4 rounded bg-muted animate-pulse" />
+                              <div className="h-4 flex-1 rounded bg-muted animate-pulse" />
+                            </div>
+                            <div className="h-8 rounded bg-muted animate-pulse" />
+                            <div className="h-8 rounded bg-muted animate-pulse" />
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </>
+                  ) : suggestionsData?.suggestions?.length ? (
+                    suggestionsData.suggestions.map((suggestion: any) => (
+                      <SuggestionCard
+                        key={suggestion.id}
+                        suggestion={suggestion}
+                        onExecute={handleExecuteSuggestion}
+                      />
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <Sparkles className="h-8 w-8 mx-auto text-muted-foreground/30 mb-3" />
+                      <p className="text-sm text-muted-foreground">No suggestions right now</p>
+                      <p className="text-xs text-muted-foreground mt-1">Your account looks great!</p>
+                    </div>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
           ) : (
-            <ChatTab
-              accountId={currentAccountId}
-              pageContext={pageContext}
+            <AIChatBox
+              messages={chatMessages}
+              onSendMessage={handleSendMessage}
+              isLoading={chatMutation.isPending}
+              placeholder="Ask about your account..."
+              height="100%"
+              emptyStateMessage="Ask me anything about your CRM data"
+              suggestedPrompts={[
+                "How can I improve my connect rate?",
+                "Which leads should I prioritize?",
+                "Summarize my performance this week",
+              ]}
             />
           )}
         </div>
       </div>
-    </>
-  );
-}
 
-// ─────────────────────────────────────────────
-// SUGGESTIONS TAB
-// ─────────────────────────────────────────────
+      {/* Backdrop overlay when open */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
 
-function SuggestionsTab({
-  accountId,
-  pageContext,
-}: {
-  accountId: number;
-  pageContext: string;
-}) {
-  const { data, isLoading, refetch } = trpc.aiAdvisor.getSuggestions.useQuery(
-    { accountId, pageContext },
-    { staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false }
-  );
-
-  return (
-    <ScrollArea className="h-full">
-      <div className="p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">
-            Personalized suggestions based on your data
-          </p>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => refetch()}
-            disabled={isLoading}
-            className="h-7 text-xs"
-          >
-            {isLoading ? (
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            ) : null}
-            Refresh
-          </Button>
-        </div>
-
-        {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="rounded-lg border border-border p-3 space-y-2 animate-pulse"
-              >
-                <div className="h-4 bg-muted rounded w-3/4" />
-                <div className="h-3 bg-muted rounded w-full" />
-                <div className="h-3 bg-muted rounded w-1/2" />
-              </div>
-            ))}
-          </div>
-        ) : data?.suggestions?.length ? (
-          <div className="space-y-2.5">
-            {data.suggestions.map((s: any, i: number) => {
-              const Icon = CATEGORY_ICONS[s.category] || Lightbulb;
-              return (
-                <div
-                  key={i}
-                  className="rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors group"
-                >
-                  <div className="flex items-start gap-2.5">
-                    <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Icon className="h-3.5 w-3.5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="text-sm font-medium leading-tight">
-                          {s.title}
-                        </p>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] px-1.5 h-4 shrink-0",
-                            PRIORITY_COLORS[s.priority]
-                          )}
-                        >
-                          {s.priority}
-                        </Badge>
-                      </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {s.description}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-3">
-              <Lightbulb className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <p className="text-sm font-medium text-muted-foreground">
-              No suggestions yet
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Add more contacts and data to get personalized insights.
-            </p>
-          </div>
-        )}
-      </div>
-    </ScrollArea>
-  );
-}
-
-// ─────────────────────────────────────────────
-// CHAT TAB
-// ─────────────────────────────────────────────
-
-function ChatTab({
-  accountId,
-  pageContext,
-}: {
-  accountId: number;
-  pageContext: string;
-}) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  const chatMutation = trpc.aiAdvisor.chat.useMutation({
-    onSuccess: (data) => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.reply },
-      ]);
-    },
-    onError: () => {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "Sorry, I encountered an error. Please try again.",
-        },
-      ]);
-    },
-  });
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages, chatMutation.isPending]);
-
-  const handleSend = () => {
-    const trimmed = input.trim();
-    if (!trimmed || chatMutation.isPending) return;
-
-    const newMessages: ChatMessage[] = [
-      ...messages,
-      { role: "user", content: trimmed },
-    ];
-    setMessages(newMessages);
-    setInput("");
-
-    chatMutation.mutate({
-      accountId,
-      message: trimmed,
-      history: messages,
-      pageContext,
-    });
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-full">
-      {/* Messages area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center py-12">
-            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-              <Sparkles className="h-6 w-6 text-primary" />
-            </div>
-            <p className="text-sm font-medium">How can I help?</p>
-            <p className="text-xs text-muted-foreground mt-1 max-w-[260px]">
-              Ask me about your pipeline, contacts, follow-ups, or anything CRM-related.
-            </p>
-            <div className="mt-4 space-y-1.5 w-full max-w-[280px]">
-              {[
-                "Who should I follow up with today?",
-                "Summarize my pipeline status",
-                "Draft a follow-up email for my newest lead",
-              ].map((q) => (
-                <button
-                  key={q}
-                  onClick={() => {
-                    setInput(q);
-                  }}
-                  className="w-full text-left text-xs px-3 py-2 rounded-lg border border-border hover:bg-muted/50 transition-colors flex items-center gap-2"
-                >
-                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" />
-                  <span className="text-muted-foreground">{q}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          messages.map((msg, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex gap-2",
-                msg.role === "user" ? "justify-end" : "justify-start"
-              )}
+      {/* Confirmation Dialog */}
+      <AlertDialog
+        open={confirmDialog.open}
+        onOpenChange={(open) => {
+          if (!open) setConfirmDialog({ open: false, suggestion: null });
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              Confirm Action
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              {confirmDialog.suggestion?.confirmationMessage}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (confirmDialog.suggestion) {
+                  executeAction(confirmDialog.suggestion);
+                }
+              }}
             >
-              {msg.role === "assistant" && (
-                <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Sparkles className="h-3 w-3 text-primary" />
-                </div>
-              )}
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted"
-                )}
-              >
-                {msg.role === "assistant" ? (
-                  <div className="prose prose-sm max-w-none dark:prose-invert [&_p]:mb-1 [&_ul]:mt-1 [&_li]:text-sm">
-                    <Streamdown>{msg.content}</Streamdown>
-                  </div>
-                ) : (
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                )}
-              </div>
-              {msg.role === "user" && (
-                <div className="h-6 w-6 rounded-md bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                  <Users className="h-3 w-3 text-muted-foreground" />
-                </div>
-              )}
-            </div>
-          ))
-        )}
-
-        {chatMutation.isPending && (
-          <div className="flex gap-2 justify-start">
-            <div className="h-6 w-6 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
-              <Sparkles className="h-3 w-3 text-primary" />
-            </div>
-            <div className="bg-muted rounded-lg px-3 py-2">
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Input area */}
-      <div className="border-t border-border p-3">
-        <div className="flex gap-2">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask the AI Advisor..."
-            className="min-h-[40px] max-h-[120px] resize-none text-sm"
-            rows={1}
-          />
-          <Button
-            size="icon"
-            onClick={handleSend}
-            disabled={!input.trim() || chatMutation.isPending}
-            className="h-10 w-10 shrink-0"
-          >
-            {chatMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-    </div>
+              Confirm & Execute
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

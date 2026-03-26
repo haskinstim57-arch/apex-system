@@ -216,6 +216,24 @@ function DashboardLayoutContent({
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const { currentAccountId, isAdmin, isImpersonating, isAgencyScope } = useAccount();
+  const { setPageContext } = useAiAdvisor();
+
+  // Sync current page name to AI Advisor so it can give page-relevant suggestions
+  useEffect(() => {
+    const pageMap: Record<string, string> = {
+      "/": "dashboard",
+      "/contacts": "contacts",
+      "/inbox": "inbox",
+      "/campaigns": "campaigns",
+      "/ai-calls": "ai-calls",
+      "/automations": "automations",
+      "/pipeline": "pipeline",
+      "/calendar": "calendar",
+      "/analytics": "analytics",
+      "/power-dialer": "power-dialer",
+    };
+    setPageContext(pageMap[location] || location.replace("/", "") || "dashboard");
+  }, [location, setPageContext]);
 
   // Unread message count for inbox badge
   const { data: unreadData } = trpc.inbox.getUnreadCount.useQuery(
@@ -235,13 +253,6 @@ function DashboardLayoutContent({
   const activeMenuItem = allNavItems.find(
     (item) => item.path === location
   );
-
-  // Sync page context for AI Advisor
-  const { setPageContext } = useAiAdvisor();
-  useEffect(() => {
-    const label = activeMenuItem?.label || location.replace(/\//g, " ").trim() || "dashboard";
-    setPageContext(label);
-  }, [location, activeMenuItem, setPageContext]);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -555,7 +566,9 @@ function DashboardLayoutContent({
         </div>
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </SidebarInset>
-      <AiAdvisorSidepanel />
+
+      {/* AI Advisor — floating button + sidepanel, only when an account is selected */}
+      {currentAccountId && <AiAdvisorSidepanel />}
     </>
   );
 }

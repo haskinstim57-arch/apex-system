@@ -36,9 +36,9 @@ import PowerDialer from "./pages/PowerDialer";
 import DialerAnalytics from "./pages/DialerAnalytics";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
+import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
 import { AdminRoute } from "./components/AdminRoute";
 import { RequireAccount } from "./components/RequireAccount";
-import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
 
 function Router() {
   return (
