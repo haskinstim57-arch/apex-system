@@ -55,6 +55,8 @@ import { trpc } from "@/lib/trpc";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { useAccount } from "@/contexts/AccountContext";
 import { NotificationCenter } from "./NotificationCenter";
+import { AiAdvisorSidepanel } from "./AiAdvisorSidepanel";
+import { useAiAdvisor } from "@/contexts/AiAdvisorContext";
 
 /**
  * Sub-account pages — only shown when a specific account is selected.
@@ -233,6 +235,13 @@ function DashboardLayoutContent({
   const activeMenuItem = allNavItems.find(
     (item) => item.path === location
   );
+
+  // Sync page context for AI Advisor
+  const { setPageContext } = useAiAdvisor();
+  useEffect(() => {
+    const label = activeMenuItem?.label || location.replace(/\//g, " ").trim() || "dashboard";
+    setPageContext(label);
+  }, [location, activeMenuItem, setPageContext]);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -546,6 +555,7 @@ function DashboardLayoutContent({
         </div>
         <main className="flex-1 p-4 md:p-6">{children}</main>
       </SidebarInset>
+      <AiAdvisorSidepanel />
     </>
   );
 }

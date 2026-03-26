@@ -38,6 +38,7 @@ import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AdminRoute } from "./components/AdminRoute";
 import { RequireAccount } from "./components/RequireAccount";
+import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
 
 function Router() {
   return (
@@ -252,7 +253,9 @@ function App() {
           />
           <ImpersonationBanner />
           <AccountProvider>
-            <Router />
+            <AiAdvisorProvider>
+              <Router />
+            </AiAdvisorProvider>
           </AccountProvider>
         </TooltipProvider>
       </ThemeProvider>

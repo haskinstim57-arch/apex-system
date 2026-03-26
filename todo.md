@@ -1684,3 +1684,14 @@
 ### Rename OLS Voice Agent
 - [x] Rename OLS VAPI assistant from "Optimal Lending - Investor Calls" to "OLS - Larry's Lending Assistant"
 - [x] Update system prompt and first message to reference Larry's office
+
+### Feature: AI Advisor Copilot Integration
+- [x] Created server/routers/aiAdvisor.ts (getSuggestions + chat procedures with LLM integration)
+- [x] Created client/src/contexts/AiAdvisorContext.tsx (state management for sidepanel)
+- [x] Created client/src/components/AiAdvisorSidepanel.tsx (floating button + slide-out panel)
+- [x] Confirmed aiAdvisorRouter imported and registered in server/routers.ts
+- [x] Confirmed AiAdvisorProvider wraps the app in client/src/App.tsx
+- [x] Confirmed AiAdvisorSidepanel rendered in DashboardLayout.tsx with page context sync
+- [x] TypeScript check: 0 errors
+- [x] Floating AI Advisor button renders bottom-right on sub-account pages
+- [x] Vitest tests for AI Advisor (6 tests passing)
