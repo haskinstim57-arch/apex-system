@@ -466,6 +466,9 @@ export const workflowSteps = mysqlTable("workflow_steps", {
     "remove_tag",
     "update_contact_field",
     "create_task",
+    "add_to_campaign",
+    "assign_pipeline_stage",
+    "notify_user",
   ]),
   /** Delay type (null for action steps) */
   delayType: mysqlEnum("delayType", ["minutes", "hours", "days"]),

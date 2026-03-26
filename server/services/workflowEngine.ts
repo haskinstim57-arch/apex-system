@@ -426,6 +426,60 @@ async function executeAction(
       return { taskId: id, action: "create_task" };
     }
 
+    case "add_to_campaign": {
+      // Add the contact as a recipient to an existing campaign
+      const campaignId = config.campaignId;
+      if (!campaignId) throw new Error("No campaignId specified in step config");
+      const { addCampaignRecipients, getCampaign } = await import("../db");
+      const campaign = await getCampaign(campaignId, accountId);
+      if (!campaign) throw new Error(`Campaign ${campaignId} not found in account ${accountId}`);
+      const toAddress = campaign.type === "email" ? (contact.email || "") : (contact.phone || "");
+      if (!toAddress) throw new Error(`Contact has no ${campaign.type === "email" ? "email" : "phone"} for campaign`);
+      await addCampaignRecipients(campaignId, [{ contactId, toAddress }]);
+      await logContactActivity({
+        contactId,
+        accountId,
+        activityType: "automation_triggered",
+        description: `Enrolled in campaign "${campaign.name}"`,
+        metadata: JSON.stringify({ campaignId, campaignName: campaign.name, campaignType: campaign.type }),
+      });
+      return { action: "add_to_campaign", campaignId, campaignName: campaign.name };
+    }
+
+    case "assign_pipeline_stage": {
+      // Move the contact's deal to a specific pipeline stage
+      const { pipelineStage, pipelineId } = config;
+      if (!pipelineStage) throw new Error("No pipelineStage specified in step config");
+      await updateContact(contactId, accountId, { status: pipelineStage } as any);
+      await logContactActivity({
+        contactId,
+        accountId,
+        activityType: "pipeline_stage_changed",
+        description: `Moved to pipeline stage "${pipelineStage}"`,
+        metadata: JSON.stringify({ pipelineStage, pipelineId }),
+      });
+      return { action: "assign_pipeline_stage", pipelineStage };
+    }
+
+    case "notify_user": {
+      // Send an in-app notification to the assigned user or all account users
+      const title = interpolateTemplate(config.title || "New lead requires attention", contact);
+      const body = interpolateTemplate(
+        config.body || `Contact {{firstName}} {{lastName}} needs follow-up`,
+        contact
+      );
+      const userId = contact.assignedUserId || null;
+      await createNotification({
+        accountId,
+        userId,
+        type: config.notificationType || "lead_action_required",
+        title,
+        body,
+        link: config.link || `/contacts/${contactId}`,
+      });
+      return { action: "notify_user", userId, title };
+    }
+
     default:
       throw new Error(`Unknown action type: ${step.actionType}`);
   }

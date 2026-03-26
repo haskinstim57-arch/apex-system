@@ -1,0 +1,338 @@
+{
+  "query": "SELECT c.id, c.accountId, a.name as accountName, c.name as campaignName, c.type, c.status FROM campaigns c JOIN accounts a ON c.accountId = a.id WHERE c.accountId IN (450002, 390025, 420001) ORDER BY c.accountId, c.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT c.id, c.accountId, a.name as accountName, c.name as campaignName, c.type, c.status FROM campaigns c JOIN accounts a ON c.accountId = a.id WHERE c.accountId IN (450002, 390025, 420001) ORDER BY c.accountId, c.id;",
+  "rows": [
+    {
+      "id": "30009",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - DSCR Email (Step 1: Day 1)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30010",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - DSCR Email (Step 2: Day 3)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30011",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - DSCR Email (Step 3: Day 6)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30012",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - DSCR SMS (Step 1: Day 0)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30013",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - DSCR SMS (Step 2: Day 2)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30014",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - DSCR SMS (Step 3: Day 4)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30015",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - DSCR SMS (Step 4: Day 7)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30016",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - Fix & Flip Email (Step 1: Day 1)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30017",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - Fix & Flip Email (Step 2: Day 3)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30018",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - Fix & Flip Email (Step 3: Day 6)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30019",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - Fix & Flip SMS (Step 1: Day 0)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30020",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - Fix & Flip SMS (Step 2: Day 2)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30021",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - Fix & Flip SMS (Step 3: Day 4)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30022",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "campaignName": "Optimal Lending - Fix & Flip SMS (Step 4: Day 7)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30023",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - FTHB Email (Step 1: Day 1)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30024",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - FTHB Email (Step 2: Day 3)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30025",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - FTHB SMS (Step 1: Day 0)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30026",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - FTHB SMS (Step 2: Day 2)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30027",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - FTHB SMS (Step 3: Day 4)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30028",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - DPA Webinar Email (Step 1: Day 0)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30029",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - DPA Webinar SMS (Step 1: Day 0)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30030",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - DPA Webinar SMS (Step 2: Day webinar_day)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30031",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - DPA Webinar SMS (Step 3: Day post_webinar)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30032",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - Refinance Email (Step 1: Day 1)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30033",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - Refinance SMS (Step 1: Day 0)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30034",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - Refinance SMS (Step 2: Day 2)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30035",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - HELOC Email (Step 1: Day 1)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30036",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - HELOC SMS (Step 1: Day 0)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30037",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - HELOC SMS (Step 2: Day 2)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30038",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - RE Agent Outreach Email (Step 1: Day 1)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30039",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - RE Agent Outreach Email (Step 2: Day 4)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30040",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - RE Agent Outreach SMS (Step 1: Day 1)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30041",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "campaignName": "PMR - RE Agent Outreach SMS (Step 2: Day 3)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30001",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — Email (Step 1: Day 1)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30002",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — Email (Step 2: Day 3)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30003",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — Email (Step 3: Day 6)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30004",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — Email (Step 4: Day 10)",
+      "type": "email",
+      "status": "draft"
+    },
+    {
+      "id": "30005",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — SMS (Step 1: Day 1)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30006",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — SMS (Step 2: Day 2)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30007",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — SMS (Step 3: Day 4)",
+      "type": "sms",
+      "status": "draft"
+    },
+    {
+      "id": "30008",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "campaignName": "Apex Cold Outreach — SMS (Step 4: Day 7)",
+      "type": "sms",
+      "status": "draft"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\taccountName\tcampaignName\ttype\tstatus\n30009\t390025\tKyle\tOptimal Lending - DSCR Email (Step 1: Day 1)\temail\tdraft\n30010\t390025\tKyle\tOptimal Lending - DSCR Email (Step 2: Day 3)\temail\tdraft\n30011\t390025\tKyle\tOptimal Lending - DSCR Email (Step 3: Day 6)\temail\tdraft\n30012\t390025\tKyle\tOptimal Lending - DSCR SMS (Step 1: Day 0)\tsms\tdraft\n30013\t390025\tKyle\tOptimal Lending - DSCR SMS (Step 2: Day 2)\tsms\tdraft\n30014\t390025\tKyle\tOptimal Lending - DSCR SMS (Step 3: Day 4)\tsms\tdraft\n30015\t390025\tKyle\tOptimal Lending - DSCR SMS (Step 4: Day 7)\tsms\tdraft\n30016\t390025\tKyle\tOptimal Lending - Fix & Flip Email (Step 1: Day 1)\temail\tdraft\n30017\t390025\tKyle\tOptimal Lending - Fix & Flip Email (Step 2: Day 3)\temail\tdraft\n30018\t390025\tKyle\tOptimal Lending - Fix & Flip Email (Step 3: Day 6)\temail\tdraft\n30019\t390025\tKyle\tOptimal Lending - Fix & Flip SMS (Step 1: Day 0)\tsms\tdraft\n30020\t390025\tKyle\tOptimal Lending - Fix & Flip SMS (Step 2: Day 2)\tsms\tdraft\n30021\t390025\tKyle\tOptimal Lending - Fix & Flip SMS (Step 3: Day 4)\tsms\tdraft\n30022\t390025\tKyle\tOptimal Lending - Fix & Flip SMS (Step 4: Day 7)\tsms\tdraft\n30023\t420001\tPremier Mortgage Resources\tPMR - FTHB Email (Step 1: Day 1)\temail\tdraft\n30024\t420001\tPremier Mortgage Resources\tPMR - FTHB Email (Step 2: Day 3)\temail\tdraft\n30025\t420001\tPremier Mortgage Resources\tPMR - FTHB SMS (Step 1: Day 0)\tsms\tdraft\n30026\t420001\tPremier Mortgage Resources\tPMR - FTHB SMS (Step 2: Day 2)\tsms\tdraft\n30027\t420001\tPremier Mortgage Resources\tPMR - FTHB SMS (Step 3: Day 4)\tsms\tdraft\n30028\t420001\tPremier Mortgage Resources\tPMR - DPA Webinar Email (Step 1: Day 0)\temail\tdraft\n30029\t420001\tPremier Mortgage Resources\tPMR - DPA Webinar SMS (Step 1: Day 0)\tsms\tdraft\n30030\t420001\tPremier Mortgage Resources\tPMR - DPA Webinar SMS (Step 2: Day webinar_day)\tsms\tdraft\n30031\t420001\tPremier Mortgage Resources\tPMR - DPA Webinar SMS (Step 3: Day post_webinar)\tsms\tdraft\n30032\t420001\tPremier Mortgage Resources\tPMR - Refinance Email (Step 1: Day 1)\temail\tdraft\n30033\t420001\tPremier Mortgage Resources\tPMR - Refinance SMS (Step 1: Day 0)\tsms\tdraft\n30034\t420001\tPremier Mortgage Resources\tPMR - Refinance SMS (Step 2: Day 2)\tsms\tdraft\n30035\t420001\tPremier Mortgage Resources\tPMR - HELOC Email (Step 1: Day 1)\temail\tdraft\n30036\t420001\tPremier Mortgage Resources\tPMR - HELOC SMS (Step 1: Day 0)\tsms\tdraft\n30037\t420001\tPremier Mortgage Resources\tPMR - HELOC SMS (Step 2: Day 2)\tsms\tdraft\n30038\t420001\tPremier Mortgage Resources\tPMR - RE Agent Outreach Email (Step 1: Day 1)\temail\tdraft\n30039\t420001\tPremier Mortgage Resources\tPMR - RE Agent Outreach Email (Step 2: Day 4)\temail\tdraft\n30040\t420001\tPremier Mortgage Resources\tPMR - RE Agent Outreach SMS (Step 1: Day 1)\tsms\tdraft\n30041\t420001\tPremier Mortgage Resources\tPMR - RE Agent Outreach SMS (Step 2: Day 3)\tsms\tdraft\n30001\t450002\tApex System\tApex Cold Outreach — Email (Step 1: Day 1)\temail\tdraft\n30002\t450002\tApex System\tApex Cold Outreach — Email (Step 2: Day 3)\temail\tdraft\n30003\t450002\tApex System\tApex Cold Outreach — Email (Step 3: Day 6)\temail\tdraft\n30004\t450002\tApex System\tApex Cold Outreach — Email (Step 4: Day 10)\temail\tdraft\n30005\t450002\tApex System\tApex Cold Outreach — SMS (Step 1: Day 1)\tsms\tdraft\n30006\t450002\tApex System\tApex Cold Outreach — SMS (Step 2: Day 2)\tsms\tdraft\n30007\t450002\tApex System\tApex Cold Outreach — SMS (Step 3: Day 4)\tsms\tdraft\n30008\t450002\tApex System\tApex Cold Outreach — SMS (Step 4: Day 7)\tsms\tdraft\n",
+  "stderr": "",
+  "execution_time_ms": 345
+}

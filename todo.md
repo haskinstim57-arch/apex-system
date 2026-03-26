@@ -1577,3 +1577,30 @@
 - [x] SMS 4 (Day 7, 3:00 PM): Breakup message
 - [x] Saved as DRAFT (not activated)
 - [x] Step 4: Load Phone Script "Apex Cold Call Script" into Power Dialer (ID: 1)
+
+### Feature: 3-Account Sales Engine Setup
+#### Schema Updates
+- [x] Added actionTypes "add_to_campaign", "assign_pipeline_stage", "notify_user" to workflowSteps
+- [x] Extended workflow engine to execute new action types
+- [x] PMR uses Tariq's userId (1110566) as proxy since no member exists yet
+
+#### Account 1: Apex System (450002)
+- [x] Created workflow: "Cold Outreach Auto-Enrollment" (ID 390001) — trigger: tag_added "Cold Outreach"
+- [x] Steps: assign pipeline "Cold Outreach", add to Email (30001), add to SMS (30005), notify user (4 steps)
+
+#### Account 2: Optimal Lending (390025)
+- [x] Created DSCR Email (3 steps: 30009-30011) + SMS (4 steps: 30012-30015) with commercial disclaimer
+- [x] Created Fix & Flip Email (3 steps: 30016-30018) + SMS (4 steps: 30019-30022) with commercial disclaimer
+- [x] Loaded phone script: "Optimal Lending - Investor Call Script" (ID 2)
+- [x] Created DSCR routing workflow (ID 390002) — trigger: tag_added "DSCR" (4 steps)
+- [x] Created Fix & Flip routing workflow (ID 390003) — trigger: tag_added "Fix & Flip" (4 steps)
+
+#### Account 3: PMR (420001)
+- [x] Created FTHB Email (2 steps: 30023-30024) + SMS (3 steps: 30025-30027) with NMLS footer
+- [x] Created DPA Webinar Email (1 step: 30028) + SMS (3 steps: 30029-30031) with NMLS footer
+- [x] Created Refinance Email (1 step: 30032) + SMS (2 steps: 30033-30034) with NMLS footer
+- [x] Created HELOC Email (1 step: 30035) + SMS (2 steps: 30036-30037) with NMLS footer
+- [x] Created RE Agent Outreach Email (2 steps: 30038-30039) + SMS (2 steps: 30040-30041) with NMLS footer
+- [x] Loaded phone script: "PMR - RE Agent Call Script" (ID 3)
+- [x] Created 5 tag-based routing workflows: FTHB (390004), DPA (390005), Refinance (390006), HELOC (390007), RE Agent (390008)
+- [x] All 41 campaigns saved as DRAFT, all 8 workflows active, all 3 phone scripts loaded

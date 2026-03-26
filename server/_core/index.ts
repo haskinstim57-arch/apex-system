@@ -296,6 +296,36 @@ async function startServer() {
         return res.json({ success: true, scriptId: id });
       }
 
+      // ─── ACTION: create_workflow ───
+      if (action === "create_workflow") {
+        const { accountId, userId, name, description, triggerType, triggerConfig, isActive, steps: wfSteps } = req.body;
+        const { createWorkflow, createWorkflowStep } = await import("../db");
+        const { id: workflowId } = await createWorkflow({
+          accountId,
+          name,
+          description: description || null,
+          triggerType,
+          triggerConfig: triggerConfig ? JSON.stringify(triggerConfig) : null,
+          isActive: isActive ?? true,
+          createdById: userId,
+        });
+        const stepIds = [];
+        for (const step of wfSteps) {
+          const { id: stepId } = await createWorkflowStep({
+            workflowId,
+            stepOrder: step.stepOrder,
+            stepType: step.stepType,
+            actionType: step.actionType || null,
+            config: step.config ? JSON.stringify(step.config) : null,
+            delayType: step.delayType || null,
+            delayValue: step.delayValue || null,
+          });
+          stepIds.push(stepId);
+        }
+        console.log(`[Setup] Created workflow "${name}" (ID ${workflowId}) with ${stepIds.length} steps`);
+        return res.json({ success: true, workflowId, stepIds });
+      }
+
       return res.status(400).json({ error: `Unknown action: ${action}` });
     } catch (err: any) {
       console.error("[Setup] Error:", err.message);

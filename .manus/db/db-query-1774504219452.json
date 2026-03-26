@@ -1,0 +1,87 @@
+{
+  "query": "SELECT am.*, a.name FROM account_members am JOIN accounts a ON a.id = am.accountId ORDER BY am.accountId",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT am.*, a.name FROM account_members am JOIN accounts a ON a.id = am.accountId ORDER BY am.accountId",
+  "rows": [
+    {
+      "id": "210001",
+      "accountId": "390023",
+      "userId": "902504",
+      "role": "owner",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 18:04:26",
+      "updatedAt": "2026-03-23 18:04:26",
+      "name": "Evol Hosang"
+    },
+    {
+      "id": "210007",
+      "accountId": "390023",
+      "userId": "903188",
+      "role": "manager",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 19:54:43",
+      "updatedAt": "2026-03-23 19:54:43",
+      "name": "Evol Hosang"
+    },
+    {
+      "id": "210002",
+      "accountId": "390024",
+      "userId": "901752",
+      "role": "owner",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 18:08:42",
+      "updatedAt": "2026-03-23 18:08:42",
+      "name": "Alfonso Parra Lenis"
+    },
+    {
+      "id": "210006",
+      "accountId": "390024",
+      "userId": "903188",
+      "role": "manager",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 19:54:43",
+      "updatedAt": "2026-03-23 19:54:43",
+      "name": "Alfonso Parra Lenis"
+    },
+    {
+      "id": "210005",
+      "accountId": "390025",
+      "userId": "903188",
+      "role": "owner",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-23 18:59:36",
+      "updatedAt": "2026-03-23 18:59:36",
+      "name": "Kyle"
+    },
+    {
+      "id": "240001",
+      "accountId": "450001",
+      "userId": "1110216",
+      "role": "employee",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-25 18:21:25",
+      "updatedAt": "2026-03-25 18:21:52",
+      "name": "Belinda Osborne"
+    },
+    {
+      "id": "240002",
+      "accountId": "450002",
+      "userId": "1110566",
+      "role": "owner",
+      "isActive": "1",
+      "permissions": "NULL",
+      "joinedAt": "2026-03-25 21:35:16",
+      "updatedAt": "2026-03-25 21:35:16",
+      "name": "Apex System"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\tuserId\trole\tisActive\tpermissions\tjoinedAt\tupdatedAt\tname\n210001\t390023\t902504\towner\t1\tNULL\t2026-03-23 18:04:26\t2026-03-23 18:04:26\tEvol Hosang\n210007\t390023\t903188\tmanager\t1\tNULL\t2026-03-23 19:54:43\t2026-03-23 19:54:43\tEvol Hosang\n210002\t390024\t901752\towner\t1\tNULL\t2026-03-23 18:08:42\t2026-03-23 18:08:42\tAlfonso Parra Lenis\n210006\t390024\t903188\tmanager\t1\tNULL\t2026-03-23 19:54:43\t2026-03-23 19:54:43\tAlfonso Parra Lenis\n210005\t390025\t903188\towner\t1\tNULL\t2026-03-23 18:59:36\t2026-03-23 18:59:36\tKyle\n240001\t450001\t1110216\temployee\t1\tNULL\t2026-03-25 18:21:25\t2026-03-25 18:21:52\tBelinda Osborne\n240002\t450002\t1110566\towner\t1\tNULL\t2026-03-25 21:35:16\t2026-03-25 21:35:16\tApex System\n",
+  "stderr": "",
+  "execution_time_ms": 349
+}

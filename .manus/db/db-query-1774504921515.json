@@ -1,0 +1,82 @@
+{
+  "query": "SELECT w.id, w.accountId, a.name as accountName, w.name as workflowName, w.triggerType, w.isActive, (SELECT COUNT(*) FROM workflow_steps ws WHERE ws.workflowId = w.id) as stepCount FROM workflows w JOIN accounts a ON w.accountId = a.id WHERE w.accountId IN (450002, 390025, 420001) AND w.id >= 390001 ORDER BY w.accountId, w.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT w.id, w.accountId, a.name as accountName, w.name as workflowName, w.triggerType, w.isActive, (SELECT COUNT(*) FROM workflow_steps ws WHERE ws.workflowId = w.id) as stepCount FROM workflows w JOIN accounts a ON w.accountId = a.id WHERE w.accountId IN (450002, 390025, 420001) AND w.id >= 390001 ORDER BY w.accountId, w.id;",
+  "rows": [
+    {
+      "id": "390002",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "workflowName": "DSCR Lead Routing",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "4"
+    },
+    {
+      "id": "390003",
+      "accountId": "390025",
+      "accountName": "Kyle",
+      "workflowName": "Fix & Flip Lead Routing",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "4"
+    },
+    {
+      "id": "390004",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "workflowName": "FTHB Lead Routing",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "3"
+    },
+    {
+      "id": "390005",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "workflowName": "DPA Webinar Lead Routing",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "3"
+    },
+    {
+      "id": "390006",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "workflowName": "Refinance Lead Routing",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "3"
+    },
+    {
+      "id": "390007",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "workflowName": "HELOC Lead Routing",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "3"
+    },
+    {
+      "id": "390008",
+      "accountId": "420001",
+      "accountName": "Premier Mortgage Resources",
+      "workflowName": "RE Agent Outreach Routing",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "3"
+    },
+    {
+      "id": "390001",
+      "accountId": "450002",
+      "accountName": "Apex System",
+      "workflowName": "Cold Outreach Auto-Enrollment",
+      "triggerType": "tag_added",
+      "isActive": "1",
+      "stepCount": "4"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\taccountName\tworkflowName\ttriggerType\tisActive\tstepCount\n390002\t390025\tKyle\tDSCR Lead Routing\ttag_added\t1\t4\n390003\t390025\tKyle\tFix & Flip Lead Routing\ttag_added\t1\t4\n390004\t420001\tPremier Mortgage Resources\tFTHB Lead Routing\ttag_added\t1\t3\n390005\t420001\tPremier Mortgage Resources\tDPA Webinar Lead Routing\ttag_added\t1\t3\n390006\t420001\tPremier Mortgage Resources\tRefinance Lead Routing\ttag_added\t1\t3\n390007\t420001\tPremier Mortgage Resources\tHELOC Lead Routing\ttag_added\t1\t3\n390008\t420001\tPremier Mortgage Resources\tRE Agent Outreach Routing\ttag_added\t1\t3\n390001\t450002\tApex System\tCold Outreach Auto-Enrollment\ttag_added\t1\t4\n",
+  "stderr": "",
+  "execution_time_ms": 367
+}

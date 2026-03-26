@@ -1,0 +1,136 @@
+{
+  "query": "SELECT p.id as pipelineId, p.name as pipelineName, p.account_id, ps.id as stageId, ps.name as stageName FROM pipelines p LEFT JOIN pipeline_stages ps ON ps.pipeline_id = p.id WHERE p.account_id IN (450002, 390025, 420001) ORDER BY p.account_id, p.id, ps.sort_order",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT p.id as pipelineId, p.name as pipelineName, p.account_id, ps.id as stageId, ps.name as stageName FROM pipelines p LEFT JOIN pipeline_stages ps ON ps.pipeline_id = p.id WHERE p.account_id IN (450002, 390025, 420001) ORDER BY p.account_id, p.id, ps.sort_order",
+  "rows": [
+    {
+      "pipelineId": "300096",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "390025",
+      "stageId": "300571",
+      "stageName": "New Lead"
+    },
+    {
+      "pipelineId": "300096",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "390025",
+      "stageId": "300572",
+      "stageName": "Contacted"
+    },
+    {
+      "pipelineId": "300096",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "390025",
+      "stageId": "300573",
+      "stageName": "Qualified"
+    },
+    {
+      "pipelineId": "300096",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "390025",
+      "stageId": "300574",
+      "stageName": "Proposal"
+    },
+    {
+      "pipelineId": "300096",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "390025",
+      "stageId": "300575",
+      "stageName": "Closed Won"
+    },
+    {
+      "pipelineId": "300096",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "390025",
+      "stageId": "300576",
+      "stageName": "Closed Lost"
+    },
+    {
+      "pipelineId": "330031",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "420001",
+      "stageId": "330181",
+      "stageName": "New Lead"
+    },
+    {
+      "pipelineId": "330031",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "420001",
+      "stageId": "330182",
+      "stageName": "Contacted"
+    },
+    {
+      "pipelineId": "330031",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "420001",
+      "stageId": "330183",
+      "stageName": "Qualified"
+    },
+    {
+      "pipelineId": "330031",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "420001",
+      "stageId": "330184",
+      "stageName": "Proposal"
+    },
+    {
+      "pipelineId": "330031",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "420001",
+      "stageId": "330185",
+      "stageName": "Closed Won"
+    },
+    {
+      "pipelineId": "330031",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "420001",
+      "stageId": "330186",
+      "stageName": "Closed Lost"
+    },
+    {
+      "pipelineId": "360002",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "450002",
+      "stageId": "360007",
+      "stageName": "New Lead"
+    },
+    {
+      "pipelineId": "360002",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "450002",
+      "stageId": "360008",
+      "stageName": "Contacted"
+    },
+    {
+      "pipelineId": "360002",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "450002",
+      "stageId": "360009",
+      "stageName": "Qualified"
+    },
+    {
+      "pipelineId": "360002",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "450002",
+      "stageId": "360010",
+      "stageName": "Proposal"
+    },
+    {
+      "pipelineId": "360002",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "450002",
+      "stageId": "360011",
+      "stageName": "Closed Won"
+    },
+    {
+      "pipelineId": "360002",
+      "pipelineName": "Sales Pipeline",
+      "account_id": "450002",
+      "stageId": "360012",
+      "stageName": "Closed Lost"
+    }
+  ],
+  "messages": [],
+  "stdout": "pipelineId\tpipelineName\taccount_id\tstageId\tstageName\n300096\tSales Pipeline\t390025\t300571\tNew Lead\n300096\tSales Pipeline\t390025\t300572\tContacted\n300096\tSales Pipeline\t390025\t300573\tQualified\n300096\tSales Pipeline\t390025\t300574\tProposal\n300096\tSales Pipeline\t390025\t300575\tClosed Won\n300096\tSales Pipeline\t390025\t300576\tClosed Lost\n330031\tSales Pipeline\t420001\t330181\tNew Lead\n330031\tSales Pipeline\t420001\t330182\tContacted\n330031\tSales Pipeline\t420001\t330183\tQualified\n330031\tSales Pipeline\t420001\t330184\tProposal\n330031\tSales Pipeline\t420001\t330185\tClosed Won\n330031\tSales Pipeline\t420001\t330186\tClosed Lost\n360002\tSales Pipeline\t450002\t360007\tNew Lead\n360002\tSales Pipeline\t450002\t360008\tContacted\n360002\tSales Pipeline\t450002\t360009\tQualified\n360002\tSales Pipeline\t450002\t360010\tProposal\n360002\tSales Pipeline\t450002\t360011\tClosed Won\n360002\tSales Pipeline\t450002\t360012\tClosed Lost\n",
+  "stderr": "",
+  "execution_time_ms": 357
+}

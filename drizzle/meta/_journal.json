@@ -225,6 +225,13 @@
       "when": 1774306518136,
       "tag": "0031_brief_winter_soldier",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "5",
+      "when": 1774504320931,
+      "tag": "0032_material_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

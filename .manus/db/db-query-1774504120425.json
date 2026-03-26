@@ -1,0 +1,40 @@
+{
+  "query": "SELECT id, name, email FROM accounts ORDER BY id",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, email FROM accounts ORDER BY id",
+  "rows": [
+    {
+      "id": "390023",
+      "name": "Evol Hosang",
+      "email": "evol@optimallendingsolutions.com"
+    },
+    {
+      "id": "390024",
+      "name": "Alfonso Parra Lenis",
+      "email": "Alfonso@optimallendingsolutions.com"
+    },
+    {
+      "id": "390025",
+      "name": "Kyle",
+      "email": "info@optimallendingsolutions.com"
+    },
+    {
+      "id": "420001",
+      "name": "Premier Mortgage Resources",
+      "email": "haskinstim57@gmail.com"
+    },
+    {
+      "id": "450001",
+      "name": "Belinda Osborne",
+      "email": "belinda.osborne@pmrloans.com"
+    },
+    {
+      "id": "450002",
+      "name": "Apex System",
+      "email": "apexsystemsaii@gmail.com"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\n390023\tEvol Hosang\tevol@optimallendingsolutions.com\n390024\tAlfonso Parra Lenis\tAlfonso@optimallendingsolutions.com\n390025\tKyle\tinfo@optimallendingsolutions.com\n420001\tPremier Mortgage Resources\thaskinstim57@gmail.com\n450001\tBelinda Osborne\tbelinda.osborne@pmrloans.com\n450002\tApex System\tapexsystemsaii@gmail.com\n",
+  "stderr": "",
+  "execution_time_ms": 380
+}
