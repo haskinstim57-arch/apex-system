@@ -1644,3 +1644,13 @@
 - [x] Tested bookAppointment: creates appointment in DB + sends notification
 - [x] Passes apex_account_id in call metadata for account routing
 - [ ] Pending: publish checkpoint so production URL gets updated webhook code
+
+### Bug Fix: VAPI Voice Agent — Date Awareness, Call Tracking, Recording
+- [x] Fix: AI agent doesn't know current date/time — injected via assistantOverrides on every call
+- [x] Fix: Calls not appearing in AI Calls tab — auto-create internal record from VAPI metadata
+- [x] Fix: Recordings and transcripts not showing — webhook resolves by VAPI call ID + auto-creates
+- [x] Inject current date/time (Pacific) dynamically via assistantOverrides.model.messages
+- [x] Auto-create internal AI call record when webhook receives events for unknown calls
+- [x] Webhook end-of-call-report populates recording URL, transcript, summary, duration
+- [x] Both assistants: recordingEnabled=true, serverUrl set, 2 tools (bookAppointment + checkAvailability)
+- [ ] Pending: publish + live test to verify all 3 fixes end-to-end

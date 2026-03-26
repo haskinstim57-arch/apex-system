@@ -3,10 +3,12 @@ import {
   getAICallById,
   getAICallByExternalId,
   updateAICall,
+  createAICall,
   createNotification,
   createAppointment,
   getAvailableSlots,
   getCalendars,
+  findContactByPhone,
 } from "../db";
 import { mapVapiStatus, mapVapiEndedReason } from "../services/vapi";
 
@@ -283,9 +285,44 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
   const apexCallIdStr = message.call?.metadata?.apex_call_id;
 
   // Find our internal call record by apex_call_id or externalCallId
-  const call = await resolveCall(apexCallIdStr, vapiCallId);
+  let call = await resolveCall(apexCallIdStr, vapiCallId);
+
+  // Auto-create internal call record if none exists (e.g., direct VAPI calls, workflow-initiated calls)
+  if (!call && vapiCallId) {
+    const accountId = parseInt(message.call?.metadata?.apex_account_id || "0", 10);
+    const customerPhone = message.call?.customer?.number || "";
+    const customerName = message.call?.customer?.name || "Unknown";
+
+    if (accountId > 0) {
+      // Try to find the contact by phone number in this account
+      let contactId = 0;
+      if (customerPhone) {
+        const contact = await findContactByPhone(customerPhone, accountId);
+        if (contact) contactId = contact.id;
+      }
+
+      try {
+        const newCall = await createAICall({
+          accountId,
+          contactId: contactId || 0,
+          initiatedById: 0, // System-initiated
+          phoneNumber: customerPhone,
+          status: "calling",
+          direction: "outbound",
+          externalCallId: vapiCallId,
+          assistantId: message.call?.assistantId || null,
+          startedAt: new Date(),
+        });
+        call = (await getAICallById(newCall.id)) ?? null;
+        console.log(`[VAPI Webhook] Auto-created internal call record: id=${newCall.id} vapiId=${vapiCallId} account=${accountId} contact=${contactId}`);
+      } catch (err) {
+        console.error(`[VAPI Webhook] Failed to auto-create call record:`, err);
+      }
+    }
+  }
+
   if (!call) {
-    console.warn(`[VAPI Webhook] Could not find call: apex=${apexCallIdStr} vapi=${vapiCallId}`);
+    console.warn(`[VAPI Webhook] Could not find or create call: apex=${apexCallIdStr} vapi=${vapiCallId}`);
     return { success: false, error: "Call not found" };
   }
 

@@ -98,6 +98,20 @@ export async function createVapiCall(params: {
 }): Promise<VapiCreateCallResponse> {
   const { phoneNumber, customerName, assistantId, metadata } = params;
 
+  // Build current date/time string in Pacific Time for the AI's awareness
+  const now = new Date();
+  const ptFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Los_Angeles",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+  const currentDateTimeStr = ptFormatter.format(now);
+
   const body: Record<string, unknown> = {
     assistantId,
     phoneNumberId: VAPI_PHONE_NUMBER_ID,
@@ -111,6 +125,21 @@ export async function createVapiCall(params: {
       apex_contact_id: String(metadata.apexContactId),
       apex_call_id: String(metadata.apexCallId),
       lead_source: metadata.leadSource ?? "unknown",
+    },
+    // Override the assistant's first message context with current date/time
+    assistantOverrides: {
+      variableValues: {
+        currentDateTime: currentDateTimeStr,
+        customerName: customerName,
+      },
+      model: {
+        messages: [
+          {
+            role: "system" as const,
+            content: `IMPORTANT CONTEXT: Today's date and time is ${currentDateTimeStr} (Pacific Time). The customer's name is ${customerName}. When booking appointments or discussing dates, ALWAYS use dates relative to today. Never suggest dates in the past. Available appointment days are Monday through Friday, 9:00 AM to 5:00 PM Pacific Time.`,
+          },
+        ],
+      },
     },
   };
 
