@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COUNT(*) as total, leadSource FROM contacts WHERE accountId = 450002 GROUP BY leadSource;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT COUNT(*) as total, leadSource FROM contacts WHERE accountId = 450002 GROUP BY leadSource;",
+  "rows": [
+    {
+      "total": "100",
+      "leadSource": "csv_import"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\tleadSource\n100\tcsv_import\n",
+  "stderr": "",
+  "execution_time_ms": 367
+}

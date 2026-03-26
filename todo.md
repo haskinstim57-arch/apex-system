@@ -1559,3 +1559,21 @@
 - [x] OAuth flow already exchanges for long-lived user token → permanent page token
 - [x] Page tokens from me/accounts with long-lived user token are permanent (never expire)
 - [x] No additional refresh mechanism needed for page tokens
+
+### Feature: Outbound Sales Engine Setup (Apex System Sub-Account)
+- [x] Step 1: Import 100 leads from CSV into "Apex System" sub-account (ID: 450002)
+- [x] Map columns: first_name, last_name, phone, email, company, city, state, website, tags, notes
+- [x] Each contact has deal in pipeline + lead routing applied
+- [x] Step 2: Create Email Campaign "Apex Cold Outreach — Email" (4-step sequence, IDs: 30001-30004)
+- [x] Email 1 (Day 1): Subject "Quick question about your lead follow-up"
+- [x] Email 2 (Day 3): Subject "Missed calls = missed revenue"
+- [x] Email 3 (Day 6): Subject "We build it for you, {{first_name}}"
+- [x] Email 4 (Day 10): Subject "Closing the loop"
+- [x] Sender: Tariq / apexsystemaii@gmail.com — saved as DRAFT (not activated)
+- [x] Step 3: Create SMS Campaign "Apex Cold Outreach — SMS" (4-step sequence, IDs: 30005-30008)
+- [x] SMS 1 (Day 1, 10:00 AM): Quick question about automated lead follow-up
+- [x] SMS 2 (Day 2, 2:00 PM): $300 to $20k proof drop
+- [x] SMS 3 (Day 4, 11:30 AM): Consolidation pain point
+- [x] SMS 4 (Day 7, 3:00 PM): Breakup message
+- [x] Saved as DRAFT (not activated)
+- [x] Step 4: Load Phone Script "Apex Cold Call Script" into Power Dialer (ID: 1)

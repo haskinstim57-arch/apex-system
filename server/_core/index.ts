@@ -150,6 +150,159 @@ async function startServer() {
     }
   });
 
+  // Internal setup-outbound endpoint (localhost only, for one-time outbound sales engine setup)
+  app.post("/api/internal/setup-outbound", async (req, res) => {
+    try {
+      const ip = req.ip || req.socket.remoteAddress || "";
+      if (!ip.includes("127.0.0.1") && !ip.includes("::1") && !ip.includes("::ffff:127.0.0.1")) {
+        return res.status(403).json({ error: "Forbidden" });
+      }
+      const { action } = req.body;
+      const { getDb } = await import("../db");
+      const { sql } = await import("drizzle-orm");
+      const db = await getDb();
+      if (!db) return res.json({ error: "DB not available" });
+
+      // ─── ACTION: import_contact ───
+      if (action === "import_contact") {
+        const { accountId, userId, firstName, lastName, email, phone, company, city, state, website, leadSource, tags, notes } = req.body;
+        if (!accountId || !firstName) return res.status(400).json({ error: "Missing required fields" });
+
+        // Dedup by email
+        if (email) {
+          const emailCheck = await db.execute(sql`SELECT id FROM contacts WHERE accountId = ${accountId} AND email = ${email} LIMIT 1`);
+          const emailRows = emailCheck[0] as unknown as any[];
+          if (emailRows && emailRows.length > 0) return res.json({ skipped: true, reason: "email exists" });
+        }
+        // Dedup by phone
+        if (phone) {
+          const phoneCheck = await db.execute(sql`SELECT id FROM contacts WHERE accountId = ${accountId} AND phone = ${phone} LIMIT 1`);
+          const phoneRows = phoneCheck[0] as unknown as any[];
+          if (phoneRows && phoneRows.length > 0) return res.json({ skipped: true, reason: "phone exists" });
+        }
+
+        const { createContact, addContactTag, createContactNote, logContactActivity, getOrCreateDefaultPipeline, listPipelineStages, createDeal } = await import("../db");
+        const { routeLead } = await import("../services/leadRoutingEngine");
+
+        const { id: contactId } = await createContact({
+          accountId,
+          firstName,
+          lastName: lastName || "",
+          email: email || null,
+          phone: phone || null,
+          company: company || null,
+          city: city || null,
+          state: state || null,
+          leadSource: leadSource || "csv_import",
+          status: "new" as const,
+        });
+
+        // Add tags
+        if (tags) {
+          const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
+          for (const tag of tagList) {
+            await addContactTag(contactId, tag);
+          }
+        }
+
+        // Add notes
+        if (notes && userId) {
+          await createContactNote({ contactId, authorId: userId, content: notes });
+        }
+
+        // Log activity
+        logContactActivity({
+          contactId,
+          accountId,
+          activityType: "contact_created",
+          description: `Contact ${firstName} ${lastName} imported via CSV`,
+        });
+
+        // Create deal in pipeline
+        try {
+          const pipeline = await getOrCreateDefaultPipeline(accountId);
+          const stages = await listPipelineStages(pipeline.id, accountId);
+          const newLeadStage = stages.find((s: any) => s.name === "New Lead") || stages[0];
+          if (newLeadStage) {
+            await createDeal({ accountId, pipelineId: pipeline.id, stageId: newLeadStage.id, contactId, title: `${firstName} ${lastName}` });
+          }
+        } catch {}
+
+        // Route lead
+        routeLead({ contactId, accountId, leadSource: leadSource || "csv_import", source: "csv_import" }).catch(() => {});
+
+        return res.json({ created: true, contactId });
+      }
+
+      // ─── ACTION: create_email_campaign ───
+      if (action === "create_email_campaign") {
+        const { accountId, userId, campaignName, fromAddress, steps } = req.body;
+        const { createCampaign } = await import("../db");
+
+        const campaignIds = [];
+        for (const step of steps) {
+          const { id } = await createCampaign({
+            accountId,
+            name: `${campaignName} (Step ${step.stepNum}: Day ${step.dayOffset})`,
+            type: "email" as const,
+            status: "draft" as const,
+            subject: step.subject,
+            body: step.body,
+            fromAddress: fromAddress || null,
+            createdById: userId,
+          });
+          campaignIds.push(id);
+          console.log(`[Setup] Created email campaign step ${step.stepNum}: ID ${id}`);
+        }
+        return res.json({ success: true, campaignIds });
+      }
+
+      // ─── ACTION: create_sms_campaign ───
+      if (action === "create_sms_campaign") {
+        const { accountId, userId, campaignName, steps } = req.body;
+        const { createCampaign } = await import("../db");
+
+        const campaignIds = [];
+        for (const step of steps) {
+          const { id } = await createCampaign({
+            accountId,
+            name: `${campaignName} (Step ${step.stepNum}: Day ${step.dayOffset})`,
+            type: "sms" as const,
+            status: "draft" as const,
+            subject: null,
+            body: step.body,
+            fromAddress: null,
+            createdById: userId,
+          });
+          campaignIds.push(id);
+          console.log(`[Setup] Created SMS campaign step ${step.stepNum}: ID ${id}`);
+        }
+        return res.json({ success: true, campaignIds });
+      }
+
+      // ─── ACTION: create_dialer_script ───
+      if (action === "create_dialer_script") {
+        const { accountId, userId, name, content } = req.body;
+        const { createDialerScript } = await import("../db");
+
+        const { id } = await createDialerScript({
+          accountId,
+          name,
+          content,
+          isActive: true,
+          createdById: userId,
+        });
+        console.log(`[Setup] Created dialer script: ID ${id}`);
+        return res.json({ success: true, scriptId: id });
+      }
+
+      return res.status(400).json({ error: `Unknown action: ${action}` });
+    } catch (err: any) {
+      console.error("[Setup] Error:", err.message);
+      return res.json({ error: err.message });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

@@ -1,0 +1,17 @@
+{
+  "query": "SELECT id, name, email, parentId, status FROM accounts WHERE email = 'apexsystemaii@gmail.com' OR name LIKE '%Apex System%' LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, email, parentId, status FROM accounts WHERE email = 'apexsystemaii@gmail.com' OR name LIKE '%Apex System%' LIMIT 5;",
+  "rows": [
+    {
+      "id": "450002",
+      "name": "Apex System",
+      "email": "apexsystemsaii@gmail.com",
+      "parentId": "NULL",
+      "status": "active"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\tparentId\tstatus\n450002\tApex System\tapexsystemsaii@gmail.com\tNULL\tactive\n",
+  "stderr": "",
+  "execution_time_ms": 345
+}
