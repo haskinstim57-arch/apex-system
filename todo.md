@@ -1656,10 +1656,11 @@
 - [ ] Pending: publish + live test to verify all 3 fixes end-to-end
 
 ### Feature: AI Call Business Hours (7 Days)
-- [ ] Add business hours enforcement: 9 AM - 10 PM PT, Monday through Sunday
-- [ ] Block AI outbound calls outside business hours with clear error message
-- [ ] Queue calls outside hours for next available window (or reject with notification)
-- [ ] Live test: verify OLS call creates internal record, shows in AI Calls tab, records + transcribes
+- [x] Add business hours enforcement: 7 AM - 10 PM ET, Monday through Sunday
+- [x] Block AI outbound calls outside business hours with clear error message
+- [x] Update VAPI assistant system prompts to reflect 7 AM - 10 PM ET hours
+- [x] Write vitest tests for business hours enforcement (20 tests passing)
+- [ ] Live test: verify calls blocked outside hours, allowed within hours
 
 ### Bug Fix: VAPI Appointment Booking Not Creating Appointments
 - [x] Root cause identified: Tools were NOT saved on VAPI assistants (tools count was 0)

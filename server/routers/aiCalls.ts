@@ -21,6 +21,7 @@ import {
   mapVapiEndedReason,
   VapiApiError,
 } from "../services/vapi";
+import { isWithinBusinessHours, getBusinessHoursBlockMessage, BUSINESS_HOURS } from "../utils/businessHours";
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -50,6 +51,14 @@ export const aiCallsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+
+      // ── Business hours enforcement ──
+      if (!isWithinBusinessHours()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: getBusinessHoursBlockMessage(),
+        });
+      }
 
       // Get the contact to verify it exists and get phone number
       const contact = await getContactById(input.contactId, input.accountId);
@@ -146,6 +155,14 @@ export const aiCallsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+
+      // ── Business hours enforcement ──
+      if (!isWithinBusinessHours()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: getBusinessHoursBlockMessage(),
+        });
+      }
 
       const results: Array<{
         contactId: number;

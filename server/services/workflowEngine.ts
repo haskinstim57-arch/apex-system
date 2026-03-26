@@ -19,6 +19,7 @@ import {
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
 import { dispatchSMS, dispatchEmail } from "./messaging";
+import { isWithinBusinessHours } from "../utils/businessHours";
 import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
 
 // ─────────────────────────────────────────────
@@ -347,6 +348,11 @@ async function executeAction(
 
     case "start_ai_call": {
       if (!contact.phone) throw new Error("Contact has no phone number");
+      // Check business hours — skip call if outside 7 AM - 10 PM ET
+      if (!isWithinBusinessHours()) {
+        console.log(`[WorkflowEngine] Outside business hours (7 AM - 10 PM ET) — skipping AI call for account ${accountId}`);
+        return { action: "start_ai_call", skipped: true, reason: "outside_business_hours" };
+      }
       // Check AI kill switch — skip call if voice agent is disabled for this account
       const { getAccountById } = await import("../db");
       const account = await getAccountById(accountId);

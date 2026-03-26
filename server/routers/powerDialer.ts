@@ -27,6 +27,7 @@ import {
   mapVapiStatus,
   VapiApiError,
 } from "../services/vapi";
+import { isWithinBusinessHours, getBusinessHoursBlockMessage } from "../utils/businessHours";
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -168,6 +169,14 @@ export const powerDialerRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+
+      // ── Business hours enforcement ──
+      if (!isWithinBusinessHours()) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: getBusinessHoursBlockMessage(),
+        });
+      }
 
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
