@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE accounts ADD COLUMN elevenLabsVoiceId VARCHAR(100) NULL; ALTER TABLE accounts ADD COLUMN vapiAssistantId VARCHAR(100) NULL; ALTER TABLE accounts ADD COLUMN vapiPhoneNumber VARCHAR(30) NULL; ALTER TABLE accounts ADD COLUMN voiceAgentEnabled BOOLEAN NOT NULL DEFAULT FALSE;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute ALTER TABLE accounts ADD COLUMN elevenLabsVoiceId VARCHAR(100) NULL; ALTER TABLE accounts ADD COLUMN vapiAssistantId VARCHAR(100) NULL; ALTER TABLE accounts ADD COLUMN vapiPhoneNumber VARCHAR(30) NULL; ALTER TABLE accounts ADD COLUMN voiceAgentEnabled BOOLEAN NOT NULL DEFAULT FALSE;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2402
+}

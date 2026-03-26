@@ -347,7 +347,16 @@ async function executeAction(
 
     case "start_ai_call": {
       if (!contact.phone) throw new Error("Contact has no phone number");
-      const assistantId = resolveAssistantId(contact.leadSource);
+      // Check AI kill switch — skip call if voice agent is disabled for this account
+      const { getAccountById } = await import("../db");
+      const account = await getAccountById(accountId);
+      if (account && !(account as any).voiceAgentEnabled) {
+        console.log(`[WorkflowEngine] AI voice agent disabled for account ${accountId} — skipping call`);
+        return { action: "start_ai_call", skipped: true, reason: "voice_agent_disabled" };
+      }
+      // Use per-account VAPI assistant ID if configured, otherwise fall back to global
+      const accountAssistantId = (account as any)?.vapiAssistantId;
+      const assistantId = accountAssistantId || resolveAssistantId(contact.leadSource);
       const { id: callId } = await createAICall({
         accountId,
         contactId,

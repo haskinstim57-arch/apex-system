@@ -56,11 +56,15 @@ export const accounts = mysqlTable("accounts", {
   missedCallTextBackEnabled: boolean("missedCallTextBackEnabled").default(false).notNull(),
   missedCallTextBackMessage: text("missedCallTextBackMessage"),
   missedCallTextBackDelayMinutes: int("missedCallTextBackDelayMinutes").default(1).notNull(),
+  /** Voice Agent Configuration */
+  elevenLabsVoiceId: varchar("elevenLabsVoiceId", { length: 100 }),
+  vapiAssistantId: varchar("vapiAssistantId", { length: 100 }),
+  vapiPhoneNumber: varchar("vapiPhoneNumber", { length: 30 }),
+  voiceAgentEnabled: boolean("voiceAgentEnabled").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
-export type Account = typeof accounts.$inferSelect;
+export type Account = typeof accounts.$inferSelect;;
 export type InsertAccount = typeof accounts.$inferInsert;
 
 // ─────────────────────────────────────────────

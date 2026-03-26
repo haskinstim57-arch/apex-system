@@ -179,6 +179,182 @@ export function mapVapiStatus(
   }
 }
 
+// ─────────────────────────────────────────────
+// Assistant Management
+// ─────────────────────────────────────────────
+
+/** Response from VAPI Create Assistant endpoint */
+export interface VapiAssistantResponse {
+  id: string;
+  name: string;
+  voice?: Record<string, unknown>;
+  model?: Record<string, unknown>;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
+/** Response from VAPI Phone Number endpoint */
+export interface VapiPhoneNumberResponse {
+  id: string;
+  number?: string;
+  assistantId?: string;
+  provider?: string;
+  createdAt?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Create a new VAPI assistant with custom voice and system prompt.
+ * POST https://api.vapi.ai/assistant
+ */
+export async function createVapiAssistant(opts: {
+  name: string;
+  firstMessage: string;
+  systemPrompt: string;
+  voiceProvider?: string;
+  voiceId: string;
+  modelProvider?: string;
+  model?: string;
+  endCallMessage?: string;
+  metadata?: Record<string, string>;
+}): Promise<VapiAssistantResponse> {
+  const body: Record<string, unknown> = {
+    name: opts.name,
+    firstMessage: opts.firstMessage,
+    model: {
+      provider: opts.modelProvider || "openai",
+      model: opts.model || "gpt-4o",
+      messages: [
+        {
+          role: "system",
+          content: opts.systemPrompt,
+        },
+      ],
+    },
+    voice: {
+      provider: "11labs",
+      voiceId: opts.voiceId,
+      stability: 0.5,
+      similarityBoost: 0.75,
+    },
+    endCallMessage: opts.endCallMessage || "Thank you for your time. Have a great day!",
+    recordingEnabled: true,
+    hipaaEnabled: false,
+    silenceTimeoutSeconds: 30,
+    maxDurationSeconds: 600,
+    backgroundSound: "office",
+    metadata: opts.metadata || {},
+  };
+
+  const res = await fetch(`${VAPI_BASE_URL}/assistant`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ENV.vapiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[VAPI] Create assistant failed (${res.status}):`, text);
+    throw new VapiApiError(res.status, text);
+  }
+
+  const data = (await res.json()) as VapiAssistantResponse;
+  console.log(`[VAPI] Assistant created: ${data.id} name=${data.name}`);
+  return data;
+}
+
+/**
+ * Update an existing VAPI assistant.
+ * PATCH https://api.vapi.ai/assistant/{id}
+ */
+export async function updateVapiAssistant(
+  assistantId: string,
+  updates: Record<string, unknown>
+): Promise<VapiAssistantResponse> {
+  const res = await fetch(`${VAPI_BASE_URL}/assistant/${assistantId}`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${ENV.vapiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[VAPI] Update assistant failed (${res.status}):`, text);
+    throw new VapiApiError(res.status, text);
+  }
+
+  return (await res.json()) as VapiAssistantResponse;
+}
+
+/**
+ * Get a VAPI assistant by ID.
+ * GET https://api.vapi.ai/assistant/{id}
+ */
+export async function getVapiAssistant(assistantId: string): Promise<VapiAssistantResponse> {
+  const res = await fetch(`${VAPI_BASE_URL}/assistant/${assistantId}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${ENV.vapiApiKey}`,
+      "Content-Type": "application/json",
+    },
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[VAPI] Get assistant failed (${res.status}):`, text);
+    throw new VapiApiError(res.status, text);
+  }
+
+  return (await res.json()) as VapiAssistantResponse;
+}
+
+/**
+ * Purchase and attach a phone number to a VAPI assistant.
+ * POST https://api.vapi.ai/phone-number
+ */
+export async function provisionVapiPhoneNumber(opts: {
+  assistantId: string;
+  areaCode?: string;
+}): Promise<VapiPhoneNumberResponse> {
+  const body: Record<string, unknown> = {
+    provider: "twilio",
+    assistantId: opts.assistantId,
+  };
+  if (opts.areaCode) {
+    body.numberDesiredAreaCode = opts.areaCode;
+  }
+
+  const res = await fetch(`${VAPI_BASE_URL}/phone-number`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${ENV.vapiApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error(`[VAPI] Provision phone number failed (${res.status}):`, text);
+    throw new VapiApiError(res.status, text);
+  }
+
+  const data = (await res.json()) as VapiPhoneNumberResponse;
+  console.log(`[VAPI] Phone number provisioned: ${data.number} for assistant ${opts.assistantId}`);
+  return data;
+}
+
+// ─────────────────────────────────────────────
+// Status mapping
+// ─────────────────────────────────────────────
+
 /** Map VAPI endedReason to a more specific status when call ends */
 export function mapVapiEndedReason(
   endedReason?: string

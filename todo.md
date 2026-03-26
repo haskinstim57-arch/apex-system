@@ -1604,3 +1604,31 @@
 - [x] Loaded phone script: "PMR - RE Agent Call Script" (ID 3)
 - [x] Created 5 tag-based routing workflows: FTHB (390004), DPA (390005), Refinance (390006), HELOC (390007), RE Agent (390008)
 - [x] All 41 campaigns saved as DRAFT, all 8 workflows active, all 3 phone scripts loaded
+
+### Feature: Automated Voice Agent Creation System (10-Step)
+#### Schema & Infrastructure
+- [ ] Add custom contact fields: ai_voice_enabled, vapi_assistant_id, vapi_phone_number
+- [x] Schema: Added elevenLabsVoiceId, vapiAssistantId, vapiPhoneNumber, voiceAgentEnabled to accounts table
+- [x] Added ELEVENLABS_API_KEY to env.ts and secrets
+- [x] Built ElevenLabs voice clone service (server/services/elevenLabs.ts)
+- [x] Built VAPI assistant creation + phone provisioning functions (server/services/vapi.ts)
+
+#### Voice Samples
+- [x] Trimmed LarrDawg 30-min voice sample to 4 min (ffmpeg silence detection + best segment)
+- [x] Uploaded both voice samples to S3 CDN
+- [x] Cloned Tim Haskins voice via ElevenLabs (Voice ID: 5q6TS1ZeXhDKOywAbaO2)
+- [x] Cloned LarrDawg voice via ElevenLabs (Voice ID: TkFdvwfPXYbICEBnYvnN)
+
+#### VAPI Assistants
+- [x] Created PMR VAPI assistant (ID: 01504ee9-0d19-4e2f-97e7-6907a5ebb34c) with Tim's voice
+- [x] Created Optimal Lending VAPI assistant (ID: 6cead709-383a-4dbe-943c-6d7b485fafe6) with LarrDawg's voice
+
+#### Safety & Routing
+- [x] Added AI kill switch: workflow engine checks voiceAgentEnabled before making AI calls
+- [x] Added per-account VAPI assistant routing: uses account's vapiAssistantId instead of global
+- [x] 10 vitest tests passing for voice agent setup
+
+#### All 3 Accounts
+- [ ] Apex System: voice agent (waiting for Tariq's voice sample tomorrow)
+- [x] Optimal Lending: full setup with LarrDawg voice (account 390025, voiceAgentEnabled=true)
+- [x] PMR: full setup with Tim's voice (account 420001, voiceAgentEnabled=true)

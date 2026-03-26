@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE accounts SET elevenLabsVoiceId = '5q6TS1ZeXhDKOywAbaO2', vapiAssistantId = '01504ee9-0d19-4e2f-97e7-6907a5ebb34c', voiceAgentEnabled = TRUE WHERE id = 420001; UPDATE accounts SET elevenLabsVoiceId = 'TkFdvwfPXYbICEBnYvnN', vapiAssistantId = '6cead709-383a-4dbe-943c-6d7b485fafe6', voiceAgentEnabled = TRUE WHERE id = 390025;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute UPDATE accounts SET elevenLabsVoiceId = '5q6TS1ZeXhDKOywAbaO2', vapiAssistantId = '01504ee9-0d19-4e2f-97e7-6907a5ebb34c', voiceAgentEnabled = TRUE WHERE id = 420001; UPDATE accounts SET elevenLabsVoiceId = 'TkFdvwfPXYbICEBnYvnN', vapiAssistantId = '6cead709-383a-4dbe-943c-6d7b485fafe6', voiceAgentEnabled = TRUE WHERE id = 390025;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 407
+}

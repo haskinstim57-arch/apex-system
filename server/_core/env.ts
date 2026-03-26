@@ -18,4 +18,9 @@ export const ENV = {
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
   microsoftClientId: process.env.MICROSOFT_CLIENT_ID ?? "",
   microsoftClientSecret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
+  elevenLabsApiKey: process.env.ELEVENLABS_API_KEY ?? "",
+  sendgridApiKey: process.env.SENDGRID_API_KEY ?? "",
+  sendgridFromEmail: process.env.SENDGRID_FROM_EMAIL ?? "",
+  sendgridFromName: process.env.SENDGRID_FROM_NAME ?? "",
+  encryptionKey: process.env.ENCRYPTION_KEY ?? "",
 };
