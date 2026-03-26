@@ -1,0 +1,25 @@
+{
+  "query": "UPDATE accounts SET voiceAgentEnabled = 0 WHERE id IN (450002, 390025, 420001); SELECT id, name, voiceAgentEnabled FROM accounts WHERE id IN (450002, 390025, 420001);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute UPDATE accounts SET voiceAgentEnabled = 0 WHERE id IN (450002, 390025, 420001); SELECT id, name, voiceAgentEnabled FROM accounts WHERE id IN (450002, 390025, 420001);",
+  "rows": [
+    {
+      "id": "450002",
+      "name": "Apex System",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "390025",
+      "name": "Kyle",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "420001",
+      "name": "Premier Mortgage Resources",
+      "voiceAgentEnabled": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tvoiceAgentEnabled\n450002\tApex System\t0\n390025\tKyle\t0\n420001\tPremier Mortgage Resources\t0\n",
+  "stderr": "",
+  "execution_time_ms": 413
+}

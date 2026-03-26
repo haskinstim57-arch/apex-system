@@ -311,6 +311,11 @@ export default function SettingsPage() {
         <LeadRoutingRulesCard accountId={currentAccountId} />
       )}
 
+      {/* AI Voice Calling Kill Switch — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <AIVoiceCallingCard accountId={currentAccountId} />
+      )}
+
       {/* Admin Integrations */}
       {isAdmin && (
         <Card className="bg-white border-0 card-shadow">
@@ -3052,6 +3057,167 @@ function LeadRoutingRulesCard({ accountId }: { accountId: number }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </Card>
+  );
+}
+
+
+function AIVoiceCallingCard({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+
+  const { data: voiceStatus, isLoading } = trpc.accounts.getVoiceAgentStatus.useQuery(
+    { accountId },
+    { refetchOnWindowFocus: false }
+  );
+
+  const toggleMutation = trpc.accounts.toggleVoiceAgent.useMutation({
+    onMutate: async ({ enabled }) => {
+      await utils.accounts.getVoiceAgentStatus.cancel({ accountId });
+      const prev = utils.accounts.getVoiceAgentStatus.getData({ accountId });
+      utils.accounts.getVoiceAgentStatus.setData({ accountId }, (old: any) =>
+        old ? { ...old, voiceAgentEnabled: enabled } : old
+      );
+      return { prev };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.prev) {
+        utils.accounts.getVoiceAgentStatus.setData({ accountId }, context.prev);
+      }
+      toast.error("Failed to update AI voice calling status.");
+    },
+    onSuccess: (data) => {
+      toast.success(
+        data.enabled
+          ? "AI Voice Calling has been enabled."
+          : "AI Voice Calling has been disabled."
+      );
+    },
+    onSettled: () => {
+      utils.accounts.getVoiceAgentStatus.invalidate({ accountId });
+    },
+  });
+
+  const isEnabled = voiceStatus?.voiceAgentEnabled ?? false;
+  const hasAssistant = !!voiceStatus?.vapiAssistantId;
+
+  return (
+    <Card className="bg-white border-0 card-shadow">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <PhoneCall className="h-4 w-4 text-muted-foreground" />
+          AI Voice Calling
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Control whether the AI voice agent can make outbound calls for this account.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Loading voice agent status...</span>
+          </div>
+        ) : (
+          <>
+            {/* Main Toggle */}
+            <div className="flex items-center justify-between py-3 px-4 rounded-lg bg-muted/50 border border-border/50">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`h-10 w-10 rounded-lg flex items-center justify-center ${
+                    isEnabled
+                      ? "bg-emerald-500/10 text-emerald-600"
+                      : "bg-red-500/10 text-red-500"
+                  }`}
+                >
+                  {isEnabled ? (
+                    <PhoneCall className="h-5 w-5" />
+                  ) : (
+                    <Ban className="h-5 w-5" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">
+                    AI Voice Agent is{" "}
+                    <span
+                      className={
+                        isEnabled ? "text-emerald-600" : "text-red-500"
+                      }
+                    >
+                      {isEnabled ? "Active" : "Disabled"}
+                    </span>
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {isEnabled
+                      ? "The AI can make outbound calls to contacts during business hours (7 AM – 10 PM ET)."
+                      : "All AI outbound calls are blocked. Workflows and manual triggers will not initiate calls."}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={isEnabled ? "destructive" : "default"}
+                size="sm"
+                onClick={() =>
+                  toggleMutation.mutate({
+                    accountId,
+                    enabled: !isEnabled,
+                  })
+                }
+                disabled={toggleMutation.isPending}
+                className="min-w-[100px]"
+              >
+                {toggleMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : isEnabled ? (
+                  <Ban className="h-4 w-4 mr-1" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                )}
+                {isEnabled ? "Disable" : "Enable"}
+              </Button>
+            </div>
+
+            {/* Status Details */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-xs text-muted-foreground">Voice Agent Configured</span>
+                {hasAssistant ? (
+                  <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-200 bg-emerald-50">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Yes
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="text-xs text-amber-600 border-amber-200 bg-amber-50">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Not Set Up
+                  </Badge>
+                )}
+              </div>
+              <Separator className="bg-border/50" />
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-xs text-muted-foreground">Business Hours</span>
+                <span className="text-xs font-medium">7:00 AM – 10:00 PM ET, 7 days/week</span>
+              </div>
+              <Separator className="bg-border/50" />
+              <div className="flex items-center justify-between py-1.5">
+                <span className="text-xs text-muted-foreground">Phone Number</span>
+                <span className="text-xs font-medium">
+                  {voiceStatus?.vapiPhoneNumber || "Not assigned"}
+                </span>
+              </div>
+            </div>
+
+            {/* Warning when disabled */}
+            {!isEnabled && (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertCircle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-xs text-amber-800">
+                  While disabled, all AI voice calls from workflows, power dialer, and manual triggers will be blocked for this account.
+                </AlertDescription>
+              </Alert>
+            )}
+          </>
+        )}
+      </CardContent>
     </Card>
   );
 }

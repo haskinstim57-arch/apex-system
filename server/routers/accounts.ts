@@ -345,4 +345,52 @@ export const accountsRouter = router({
 
       return { success: true };
     }),
+
+  /** Get voice agent status for an account */
+  getVoiceAgentStatus: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager"]);
+      }
+      const account = await db.getAccountById(input.accountId);
+      if (!account) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found." });
+      }
+      return {
+        voiceAgentEnabled: (account as any).voiceAgentEnabled ?? false,
+        vapiAssistantId: (account as any).vapiAssistantId ?? null,
+        vapiPhoneNumber: (account as any).vapiPhoneNumber ?? null,
+        elevenLabsVoiceId: (account as any).elevenLabsVoiceId ?? null,
+      };
+    }),
+
+  /** Toggle AI voice calling on/off for an account */
+  toggleVoiceAgent: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        enabled: z.boolean(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Only account owners and platform admins can toggle
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+
+      await db.updateAccount(input.accountId, {
+        voiceAgentEnabled: input.enabled,
+      } as any);
+
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: input.enabled ? "voice_agent.enabled" : "voice_agent.disabled",
+        resourceType: "account",
+        resourceId: input.accountId,
+      });
+
+      return { success: true, enabled: input.enabled };
+    }),
 });

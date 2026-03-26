@@ -1672,3 +1672,11 @@
 - [x] Tested webhook end-to-end: checkAvailability returns slots, bookAppointment creates appointment in DB
 - [x] Verified both assistants: 2 tools each, serverUrl set, tool-calls in serverMessages
 - [ ] Pending: live test call to verify AI actually invokes the bookAppointment tool during conversation
+
+### Changes: Voice Agent Name, Kill All AI Calling, UI Kill Switch
+- [x] Rename PMR voice agent from "Tim Haskins" to "PMR - Mortgage Consultation Assistant"
+- [x] Update PMR VAPI assistant system prompt to remove "You are Tim Haskins" identity
+- [x] Disable AI voice calling for ALL accounts (set voiceAgentEnabled=false for all 3 accounts)
+- [x] Build AI Calling kill switch toggle in Settings UI so account owners can enable/disable
+- [x] Add tRPC procedures: getVoiceAgentStatus + toggleVoiceAgent with RBAC
+- [x] Verify toggle works end-to-end (10 tests passing, 0 TS errors)
