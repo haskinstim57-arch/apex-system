@@ -4,60 +4,57 @@ import {
   getAICallByExternalId,
   updateAICall,
   createNotification,
+  createAppointment,
+  getAvailableSlots,
+  getCalendars,
 } from "../db";
 import { mapVapiStatus, mapVapiEndedReason } from "../services/vapi";
 
 // ─────────────────────────────────────────────
-// Public REST webhook endpoint for VAPI via n8n
+// Public REST webhook endpoint for VAPI
 // POST /api/webhooks/vapi
 //
-// n8n forwards VAPI webhook payloads to this endpoint.
-// Accepts both VAPI's native format and a simplified format.
+// Handles VAPI's native format, simplified format, and tool-calls.
 // ─────────────────────────────────────────────
 
 export const vapiWebhookRouter = Router();
 
-/**
- * Accepted payload formats:
- *
- * 1. VAPI native format (forwarded as-is from n8n):
- * {
- *   "message": {
- *     "type": "end-of-call-report" | "status-update" | "transcript",
- *     "call": { "id": "vapi-call-id", "status": "ended", "endedReason": "...", "metadata": { "apex_call_id": "123" } },
- *     "artifact": { "transcript": "...", "recordingUrl": "..." },
- *     "analysis": { "summary": "..." }
- *   }
- * }
- *
- * 2. Simplified/flat format (n8n can reshape before forwarding):
- * {
- *   "callId": "vapi-call-id",           // VAPI external call ID
- *   "apexCallId": 123,                   // OR our internal call ID
- *   "status": "ended",
- *   "endedReason": "assistant-ended",
- *   "transcript": "...",
- *   "recordingUrl": "...",
- *   "summary": "...",
- *   "startedAt": "2026-03-16T...",
- *   "endedAt": "2026-03-16T...",
- *   "durationSeconds": 120
- * }
- */
+// Account → Calendar mapping (loaded lazily)
+const accountCalendarCache = new Map<number, number>();
+
+async function getCalendarForAccount(accountId: number): Promise<number | null> {
+  if (accountCalendarCache.has(accountId)) {
+    return accountCalendarCache.get(accountId)!;
+  }
+  const cals = await getCalendars(accountId);
+  if (cals.length > 0) {
+    accountCalendarCache.set(accountId, cals[0].id);
+    return cals[0].id;
+  }
+  return null;
+}
 
 vapiWebhookRouter.post("/api/webhooks/vapi", async (req: Request, res: Response) => {
   try {
     const body = req.body;
 
     if (!body || typeof body !== "object") {
-      console.warn("[VAPI Webhook REST] Empty or invalid body");
+      console.warn("[VAPI Webhook] Empty or invalid body");
       return res.status(400).json({ success: false, error: "Invalid payload" });
     }
 
     // Detect format: VAPI native (has "message" wrapper) vs simplified/flat
     if (body.message && typeof body.message === "object") {
-      // ─── VAPI native format ───
-      const result = await handleNativeVapiPayload(body.message);
+      const message = body.message;
+
+      // ─── tool-calls require a special response format ───
+      if (message.type === "tool-calls") {
+        const result = await handleToolCalls(message);
+        return res.json(result);
+      }
+
+      // ─── All other VAPI native messages ───
+      const result = await handleNativeVapiPayload(message);
       return res.json(result);
     } else {
       // ─── Simplified/flat format ───
@@ -65,13 +62,221 @@ vapiWebhookRouter.post("/api/webhooks/vapi", async (req: Request, res: Response)
       return res.json(result);
     }
   } catch (err) {
-    console.error("[VAPI Webhook REST] Error processing webhook:", err);
+    console.error("[VAPI Webhook] Error processing webhook:", err);
     return res.status(500).json({ success: false, error: "Internal server error" });
   }
 });
 
 // ─────────────────────────────────────────────
-// Handle VAPI native payload (forwarded from n8n as-is)
+// Handle VAPI tool-calls (function calling)
+// ─────────────────────────────────────────────
+async function handleToolCalls(message: any): Promise<any> {
+  const toolCallList = message.toolCallList || [];
+  const callMetadata = message.call?.metadata || {};
+  const accountId = parseInt(callMetadata.apex_account_id || "0", 10);
+  const vapiCallId = message.call?.id;
+
+  console.log(`[VAPI Webhook] tool-calls received: ${toolCallList.length} calls, account=${accountId}, vapiCall=${vapiCallId}`);
+
+  const results: any[] = [];
+
+  for (const toolCall of toolCallList) {
+    const fnName = toolCall.function?.name;
+    let args: any = {};
+    try {
+      args = typeof toolCall.function?.arguments === "string"
+        ? JSON.parse(toolCall.function.arguments)
+        : toolCall.function?.arguments || {};
+    } catch {
+      args = {};
+    }
+
+    console.log(`[VAPI Webhook] Tool call: ${fnName}(${JSON.stringify(args)})`);
+
+    try {
+      if (fnName === "bookAppointment") {
+        const result = await handleBookAppointment(accountId, args, vapiCallId);
+        results.push({ toolCallId: toolCall.id, result });
+      } else if (fnName === "checkAvailability") {
+        const result = await handleCheckAvailability(accountId, args);
+        results.push({ toolCallId: toolCall.id, result });
+      } else {
+        console.warn(`[VAPI Webhook] Unknown tool: ${fnName}`);
+        results.push({
+          toolCallId: toolCall.id,
+          result: `Unknown function: ${fnName}`,
+        });
+      }
+    } catch (err: any) {
+      console.error(`[VAPI Webhook] Tool call error for ${fnName}:`, err);
+      results.push({
+        toolCallId: toolCall.id,
+        result: `Error executing ${fnName}: ${err.message}`,
+      });
+    }
+  }
+
+  return { results };
+}
+
+// ─────────────────────────────────────────────
+// bookAppointment tool handler
+// ─────────────────────────────────────────────
+async function handleBookAppointment(
+  accountId: number,
+  args: {
+    guestName: string;
+    guestEmail?: string;
+    guestPhone: string;
+    date: string;
+    time: string;
+    notes?: string;
+  },
+  vapiCallId?: string
+): Promise<string> {
+  const { guestName, guestEmail, guestPhone, date, time, notes } = args;
+
+  if (!guestName || !date || !time) {
+    return "I need the guest's name, date, and time to book an appointment. Could you provide those?";
+  }
+
+  // Get the calendar for this account
+  const calendarId = await getCalendarForAccount(accountId);
+  if (!calendarId) {
+    console.error(`[VAPI Webhook] No calendar found for account ${accountId}`);
+    return "I'm sorry, I'm having trouble accessing the scheduling system right now. Let me have someone call you back to schedule.";
+  }
+
+  // Parse date and time into UTC timestamps
+  // Assume Pacific Time for now (most accounts are PT-based)
+  const startTime = new Date(`${date}T${time}:00-07:00`); // PDT offset
+  const endTime = new Date(startTime.getTime() + 30 * 60 * 1000); // 30-min slot
+
+  if (isNaN(startTime.getTime())) {
+    return `I couldn't understand the date and time "${date} ${time}". Could you give me a specific date like March 28th at 2 PM?`;
+  }
+
+  // Check if the slot is in the past
+  if (startTime.getTime() < Date.now()) {
+    return "That time has already passed. Could you suggest a future date and time?";
+  }
+
+  // Try to find the contact from the call
+  let contactId: number | undefined;
+  if (vapiCallId) {
+    const call = await getAICallByExternalId(vapiCallId);
+    if (call?.contactId) {
+      contactId = call.contactId;
+    }
+  }
+
+  // Create the appointment
+  const appointment = await createAppointment({
+    calendarId,
+    accountId,
+    contactId: contactId || null,
+    guestName,
+    guestEmail: guestEmail || "not-provided@placeholder.com",
+    guestPhone: guestPhone || "",
+    startTime,
+    endTime,
+    status: "confirmed",
+    notes: notes || `Booked via AI voice agent. VAPI Call: ${vapiCallId || "unknown"}`,
+  });
+
+  console.log(`[VAPI Webhook] ✅ Appointment created: ID=${appointment.id}, account=${accountId}, guest=${guestName}, ${date} ${time}`);
+
+  // Create notification for the account owner
+  createNotification({
+    accountId,
+    userId: null,
+    type: "appointment_booked",
+    title: "New appointment booked via AI",
+    body: `${guestName} booked for ${formatDateForHuman(date, time)}`,
+    link: "/calendar",
+  }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
+
+  return `Appointment confirmed for ${guestName} on ${formatDateForHuman(date, time)}. They will receive a confirmation shortly.`;
+}
+
+// ─────────────────────────────────────────────
+// checkAvailability tool handler
+// ─────────────────────────────────────────────
+async function handleCheckAvailability(
+  accountId: number,
+  args: { date: string }
+): Promise<string> {
+  const { date } = args;
+
+  if (!date) {
+    return "I need a date to check availability. What date were you thinking?";
+  }
+
+  const calendarId = await getCalendarForAccount(accountId);
+  if (!calendarId) {
+    return "I'm having trouble accessing the schedule. Let me suggest some general availability — we're typically available Monday through Friday, 9 AM to 5 PM Pacific Time.";
+  }
+
+  const slots = await getAvailableSlots(calendarId, date);
+
+  if (!slots || slots.length === 0) {
+    // Check if it's a weekend
+    const dateObj = new Date(date + "T12:00:00Z");
+    const day = dateObj.getUTCDay();
+    if (day === 0 || day === 6) {
+      return `We don't have availability on weekends. Would you like to check a weekday instead?`;
+    }
+    return `There are no available slots on ${formatDateOnly(date)}. Would you like to try a different date?`;
+  }
+
+  // Format slots for the AI to read
+  const slotStrings = slots.map((s: { start: string; end: string }) => {
+    const h = parseInt(s.start.split(":")[0]);
+    const m = s.start.split(":")[1];
+    const ampm = h >= 12 ? "PM" : "AM";
+    const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+    return `${h12}:${m} ${ampm}`;
+  });
+
+  // Limit to first 6 slots to keep it concise for the AI
+  const displaySlots = slotStrings.slice(0, 6);
+  const moreCount = slotStrings.length - displaySlots.length;
+
+  let response = `Available times on ${formatDateOnly(date)}: ${displaySlots.join(", ")}`;
+  if (moreCount > 0) {
+    response += ` and ${moreCount} more slots`;
+  }
+  return response;
+}
+
+// ─────────────────────────────────────────────
+// Date formatting helpers
+// ─────────────────────────────────────────────
+function formatDateForHuman(date: string, time: string): string {
+  const dateObj = new Date(`${date}T${time}:00`);
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  const dayName = days[dateObj.getDay()];
+  const monthName = months[dateObj.getMonth()];
+  const dayNum = dateObj.getDate();
+
+  const h = parseInt(time.split(":")[0]);
+  const m = time.split(":")[1];
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+
+  return `${dayName}, ${monthName} ${dayNum} at ${h12}:${m} ${ampm}`;
+}
+
+function formatDateOnly(date: string): string {
+  const dateObj = new Date(date + "T12:00:00Z");
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${days[dateObj.getUTCDay()]}, ${months[dateObj.getUTCMonth()]} ${dateObj.getUTCDate()}`;
+}
+
+// ─────────────────────────────────────────────
+// Handle VAPI native payload (non-tool-calls)
 // ─────────────────────────────────────────────
 async function handleNativeVapiPayload(message: any): Promise<{ success: boolean; error?: string }> {
   const vapiCallId = message.call?.id;
@@ -80,7 +285,7 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
   // Find our internal call record by apex_call_id or externalCallId
   const call = await resolveCall(apexCallIdStr, vapiCallId);
   if (!call) {
-    console.warn(`[VAPI Webhook REST] Could not find call: apex=${apexCallIdStr} vapi=${vapiCallId}`);
+    console.warn(`[VAPI Webhook] Could not find call: apex=${apexCallIdStr} vapi=${vapiCallId}`);
     return { success: false, error: "Call not found" };
   }
 
@@ -136,12 +341,12 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
       break;
     }
     default:
-      console.log(`[VAPI Webhook REST] Unhandled type: ${message.type}`);
+      console.log(`[VAPI Webhook] Unhandled type: ${message.type}`);
   }
 
   if (Object.keys(updateData).length > 0) {
     await updateAICall(call.id, updateData);
-    console.log(`[VAPI Webhook REST] Updated call ${call.id}: type=${message.type}`);
+    console.log(`[VAPI Webhook] Updated call ${call.id}: type=${message.type}`);
   }
 
   // Fire call_completed automation trigger when call ends
@@ -174,7 +379,7 @@ async function handleSimplifiedPayload(body: any): Promise<{ success: boolean; e
 
   const call = await resolveCall(apexCallId, vapiCallId);
   if (!call) {
-    console.warn(`[VAPI Webhook REST] Could not find call: apex=${apexCallId} vapi=${vapiCallId}`);
+    console.warn(`[VAPI Webhook] Could not find call: apex=${apexCallId} vapi=${vapiCallId}`);
     return { success: false, error: "Call not found" };
   }
 
@@ -216,7 +421,7 @@ async function handleSimplifiedPayload(body: any): Promise<{ success: boolean; e
   if (Object.keys(updateData).length > 1) {
     // > 1 because metadata is always added
     await updateAICall(call.id, updateData);
-    console.log(`[VAPI Webhook REST] Updated call ${call.id} (simplified format)`);
+    console.log(`[VAPI Webhook] Updated call ${call.id} (simplified format)`);
   }
 
   // Fire call_completed trigger when status is ended/completed
@@ -248,7 +453,7 @@ function fireCallCompletedTrigger(accountId: number, contactId: number) {
   import("../services/workflowTriggers")
     .then(({ onCallCompleted }) => onCallCompleted(accountId, contactId))
     .catch((err) =>
-      console.error(`[VAPI Webhook REST] Error firing call_completed trigger:`, err)
+      console.error(`[VAPI Webhook] Error firing call_completed trigger:`, err)
     );
 }
 

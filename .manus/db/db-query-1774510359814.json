@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, accountId, calendarId, guestName, guestEmail, guestPhone, startTime, endTime, status, notes FROM appointments WHERE accountId = 420001 ORDER BY id DESC LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, accountId, calendarId, guestName, guestEmail, guestPhone, startTime, endTime, status, notes FROM appointments WHERE accountId = 420001 ORDER BY id DESC LIMIT 3;",
+  "rows": [
+    {
+      "id": "1",
+      "accountId": "420001",
+      "calendarId": "30001",
+      "guestName": "Test User",
+      "guestEmail": "test@example.com",
+      "guestPhone": "6262316410",
+      "startTime": "2026-03-27 17:00:00",
+      "endTime": "2026-03-27 17:30:00",
+      "status": "confirmed",
+      "notes": "Test booking via AI voice agent"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\tcalendarId\tguestName\tguestEmail\tguestPhone\tstartTime\tendTime\tstatus\tnotes\n1\t420001\t30001\tTest User\ttest@example.com\t6262316410\t2026-03-27 17:00:00\t2026-03-27 17:30:00\tconfirmed\tTest booking via AI voice agent\n",
+  "stderr": "",
+  "execution_time_ms": 345
+}

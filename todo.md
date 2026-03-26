@@ -1632,3 +1632,15 @@
 - [ ] Apex System: voice agent (waiting for Tariq's voice sample tomorrow)
 - [x] Optimal Lending: full setup with LarrDawg voice (account 390025, voiceAgentEnabled=true)
 - [x] PMR: full setup with Tim's voice (account 420001, voiceAgentEnabled=true)
+
+### Bug Fix: VAPI Calendar Booking Integration
+- [x] Tested PMR + OLS voice agents live call to Tariq — both sounded great
+- [x] Root cause: VAPI assistants had no tools defined and no serverUrl for callbacks
+- [x] Created calendars for PMR (ID: 30001, M-F 9-5 PT) and OLS (ID: 30002, M-F 9-5 PT)
+- [x] Added bookAppointment + checkAvailability function tools to both VAPI assistants
+- [x] Set serverUrl on both assistants to production webhook endpoint
+- [x] Built tool-calls handler in VAPI webhook (server/webhooks/vapi.ts)
+- [x] Tested checkAvailability: returns available slots from calendar correctly
+- [x] Tested bookAppointment: creates appointment in DB + sends notification
+- [x] Passes apex_account_id in call metadata for account routing
+- [ ] Pending: publish checkpoint so production URL gets updated webhook code

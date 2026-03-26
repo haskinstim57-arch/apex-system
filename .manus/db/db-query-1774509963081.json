@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, accountId, name, slug, isActive FROM calendars WHERE accountId IN (420001, 390025, 450002);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, accountId, name, slug, isActive FROM calendars WHERE accountId IN (420001, 390025, 450002);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 361
+}
