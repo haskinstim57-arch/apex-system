@@ -1654,3 +1654,20 @@
 - [x] Webhook end-of-call-report populates recording URL, transcript, summary, duration
 - [x] Both assistants: recordingEnabled=true, serverUrl set, 2 tools (bookAppointment + checkAvailability)
 - [ ] Pending: publish + live test to verify all 3 fixes end-to-end
+
+### Feature: AI Call Business Hours (7 Days)
+- [ ] Add business hours enforcement: 9 AM - 10 PM PT, Monday through Sunday
+- [ ] Block AI outbound calls outside business hours with clear error message
+- [ ] Queue calls outside hours for next available window (or reject with notification)
+- [ ] Live test: verify OLS call creates internal record, shows in AI Calls tab, records + transcribes
+
+### Bug Fix: VAPI Appointment Booking Not Creating Appointments
+- [x] Root cause identified: Tools were NOT saved on VAPI assistants (tools count was 0)
+- [x] Original setup script created assistants but never attached bookAppointment/checkAvailability tools
+- [x] Re-added both tools to PMR assistant (01504ee9) with server URL pointing to production webhook
+- [x] Re-added both tools to OLS assistant (6cead709) with server URL pointing to production webhook
+- [x] Updated system prompts with CRITICAL section instructing AI to MUST call bookAppointment function
+- [x] Fixed timezone handling in webhook: dynamic PDT/PST offset instead of hardcoded -07:00
+- [x] Tested webhook end-to-end: checkAvailability returns slots, bookAppointment creates appointment in DB
+- [x] Verified both assistants: 2 tools each, serverUrl set, tool-calls in serverMessages
+- [ ] Pending: live test call to verify AI actually invokes the bookAppointment tool during conversation

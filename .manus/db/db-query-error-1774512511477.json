@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, account_id, guest_name, guest_phone, start_time, status, notes FROM appointments WHERE guest_name = 'Test User' ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, account_id, guest_name, guest_phone, start_time, status, notes FROM appointments WHERE guest_name = 'Test User' ORDER BY id DESC LIMIT 5;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'guest_name' in 'where clause'"
+  ]
+}

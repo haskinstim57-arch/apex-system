@@ -150,8 +150,17 @@ async function handleBookAppointment(
   }
 
   // Parse date and time into UTC timestamps
-  // Assume Pacific Time for now (most accounts are PT-based)
-  const startTime = new Date(`${date}T${time}:00-07:00`); // PDT offset
+  // Determine correct Pacific Time offset (PDT = -07:00, PST = -08:00)
+  // Use a temp date to check if the target date is in DST
+  const tempDate = new Date(`${date}T12:00:00Z`);
+  const janOffset = new Date(tempDate.getFullYear(), 0, 1).getTimezoneOffset();
+  const julOffset = new Date(tempDate.getFullYear(), 6, 1).getTimezoneOffset();
+  // Pacific Time: PST = UTC-8, PDT = UTC-7
+  // DST in US: second Sunday of March to first Sunday of November
+  const month = tempDate.getUTCMonth(); // 0-indexed
+  const isPDT = month >= 2 && month <= 9; // Rough: March-October
+  const ptOffset = isPDT ? "-07:00" : "-08:00";
+  const startTime = new Date(`${date}T${time}:00${ptOffset}`);
   const endTime = new Date(startTime.getTime() + 30 * 60 * 1000); // 30-min slot
 
   if (isNaN(startTime.getTime())) {
