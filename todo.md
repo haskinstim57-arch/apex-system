@@ -1680,3 +1680,7 @@
 - [x] Build AI Calling kill switch toggle in Settings UI so account owners can enable/disable
 - [x] Add tRPC procedures: getVoiceAgentStatus + toggleVoiceAgent with RBAC
 - [x] Verify toggle works end-to-end (10 tests passing, 0 TS errors)
+
+### Rename OLS Voice Agent
+- [x] Rename OLS VAPI assistant from "Optimal Lending - Investor Calls" to "OLS - Larry's Lending Assistant"
+- [x] Update system prompt and first message to reference Larry's office
