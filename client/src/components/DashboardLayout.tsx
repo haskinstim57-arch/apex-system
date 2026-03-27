@@ -57,6 +57,7 @@ import { useAccount } from "@/contexts/AccountContext";
 import { NotificationCenter } from "./NotificationCenter";
 import { useAiAdvisor } from "@/contexts/AiAdvisorContext";
 import { AiAdvisorCard } from "./AiAdvisorCard";
+import { AiAdvisorMobileDrawer } from "./AiAdvisorMobileDrawer";
 
 /**
  * Sub-account pages — only shown when a specific account is selected.
@@ -557,6 +558,7 @@ function DashboardLayoutContent({
           </main>
         </div>
       </SidebarInset>
+      <AiAdvisorMobileDrawer />
     </>
   );
 }

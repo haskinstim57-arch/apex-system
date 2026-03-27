@@ -1712,3 +1712,9 @@
 - [x] Restart dev server — running clean
 - [x] 6 vitest tests passing
 - [x] Compact card layout and page-specific suggestions verified
+
+### Feature: AI Advisor One-Click Actions + Mobile Drawer
+- [x] Wire one-click actions on suggestion cards (already wired in v7 patch — navigate, launch_campaign, start_ai_calls, create_workflow, assign_contacts, move_pipeline_stage, schedule_appointments)
+- [x] Add mobile slide-up drawer with floating button for AI Advisor on smaller screens (AiAdvisorMobileDrawer.tsx)
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Run vitest tests — 6 passing
