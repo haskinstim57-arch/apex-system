@@ -346,16 +346,23 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar collapsible="icon">
           <SidebarHeader className="border-b border-sidebar-border">
-            <div className="flex items-center gap-2 px-2 py-1">
+            {/* Logo row — always visible, collapses to icon when sidebar is collapsed */}
+            <div className="flex items-center gap-2 px-3 py-2">
+              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+                <span className="text-sm font-bold text-primary-foreground">A</span>
+              </div>
               {!isCollapsed && (
-                <AccountSwitcher />
-              )}
-              {isCollapsed && (
-                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
-                  <span className="text-sm font-bold text-primary-foreground">A</span>
-                </div>
+                <span className="text-[15px] font-bold tracking-tight text-foreground">
+                  Apex<span className="font-extrabold">System</span>
+                </span>
               )}
             </div>
+            {/* Account switcher below logo */}
+            {!isCollapsed && (
+              <div className="px-2 pb-2">
+                <AccountSwitcher />
+              </div>
+            )}
           </SidebarHeader>
 
           <SidebarContent>
@@ -532,9 +539,9 @@ function DashboardLayoutContent({
         </div>
         <div className="flex flex-1 min-h-0">
           <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">{children}</main>
-          {/* AI Advisor — right column on all sub-account pages except settings */}
+          {/* AI Advisor — inline right column, part of the page flow */}
           {currentAccountId && !location.startsWith("/settings") && (
-            <div className="hidden xl:block w-64 shrink-0 border-l border-border bg-background p-3 overflow-y-auto">
+            <div className="hidden xl:block w-72 shrink-0 p-4 overflow-y-auto">
               <AiAdvisorCard pageContext={pageContext} title="AI Advisor" />
             </div>
           )}

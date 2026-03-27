@@ -1698,3 +1698,10 @@
 - [x] Applied user-provided AI Advisor patch (6 files replaced, 1 TS error fixed)
 - [x] Applied AI Advisor patch v2 (Inline Panel): 8 files copied, new AiAdvisorInlinePanel.tsx + AiAdvisorCard.tsx, 1 TS error fixed
 - [x] Applied AI Advisor patch v3 (Inline Panel update): 3 files replaced, 0 TS errors, 6 tests passing
+
+### AI Advisor Patch v5
+- [x] Extract and copy 4 files: aiAdvisor.ts, DashboardLayout.tsx, AiAdvisorInlinePanel.tsx, AiAdvisorCard.tsx
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Restart dev server and verify inline right column layout
+- [x] Verify sidebar logo is visible
+- [x] Verify AI advisor suggestions change per page context (6 tests passing)
