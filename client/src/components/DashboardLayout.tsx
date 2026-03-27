@@ -538,13 +538,23 @@ function DashboardLayoutContent({
           </div>
         </div>
         <div className="flex flex-1 min-h-0">
-          <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">{children}</main>
-          {/* AI Advisor — inline right column, part of the page flow */}
-          {currentAccountId && !location.startsWith("/settings") && (
-            <div className="hidden xl:block w-72 shrink-0 p-4 overflow-y-auto">
-              <AiAdvisorCard pageContext={pageContext} title="AI Advisor" />
-            </div>
-          )}
+          <main className="flex-1 min-w-0 overflow-y-auto">
+            {/* Wrap page content + advisor card side-by-side at the top */}
+            {currentAccountId && !location.startsWith("/settings") ? (
+              <div className="p-4 md:p-6">
+                <div className="flex items-start gap-4">
+                  {/* Page content takes all remaining space */}
+                  <div className="flex-1 min-w-0">{children}</div>
+                  {/* AI Advisor — small card, top-aligned, does not stretch */}
+                  <div className="hidden xl:block w-48 shrink-0 self-start">
+                    <AiAdvisorCard pageContext={pageContext} title="AI Advisor" />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 md:p-6">{children}</div>
+            )}
+          </main>
         </div>
       </SidebarInset>
     </>

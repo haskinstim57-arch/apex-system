@@ -52,28 +52,28 @@ export function AiAdvisorCard({ pageContext, className, title = "AI Advisor" }: 
   if (!currentAccountId) return null;
 
   return (
-    <Card className={cn("border border-border/60 shadow-lg max-h-[calc(100vh-6rem)] flex flex-col overflow-hidden", className)}>
-      <CardContent className="p-4 flex flex-col min-h-0 overflow-y-auto">
+    <Card className={cn("border border-border/60 shadow-sm", className)}>
+      <CardContent className="p-3 flex flex-col min-h-0">
         {/* Header */}
-        <div className="flex items-center justify-between mb-3 shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between mb-2.5 shrink-0">
+          <div className="flex items-center gap-1.5">
             <span className="relative flex h-2 w-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
               <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
             </span>
-            <span className="text-[13px] font-bold text-foreground">{title}</span>
+            <span className="text-[12px] font-bold text-foreground">{title}</span>
           </div>
           <button
             onClick={() => refetch()}
             disabled={isFetching}
             className="text-muted-foreground hover:text-foreground transition-colors"
           >
-            <RefreshCw className={cn("h-3.5 w-3.5", isFetching && "animate-spin")} />
+            <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
           </button>
         </div>
 
         {/* Bullet list */}
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           {isLoading ? (
             <>
               {[1, 2, 3].map((i) => (
@@ -95,28 +95,25 @@ export function AiAdvisorCard({ pageContext, className, title = "AI Advisor" }: 
               const Icon = impactIcon[s.impact] || Sparkles;
               const isActionable = s.actionType !== "info_only";
               return (
-                <div key={s.id} className="flex gap-2.5 group">
+                <div key={s.id} className="flex gap-2 group">
                   {/* Colored dot */}
                   <div
                     className={cn(
-                      "h-2 w-2 rounded-full shrink-0 mt-1.5",
+                      "h-1.5 w-1.5 rounded-full shrink-0 mt-1",
                       impactDot[s.impact] || "bg-gray-400"
                     )}
                   />
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-1">
-                      <Icon className="h-3 w-3 text-muted-foreground shrink-0 mt-0.5" />
-                      <p className="text-[12px] font-semibold text-foreground leading-snug">
-                        {s.title}
-                      </p>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">
+                    <p className="text-[11px] font-semibold text-foreground leading-snug">
+                      {s.title}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed">
                       {s.explanation}
                     </p>
                     {isActionable && (
                       <button
                         onClick={() => handleAction(s)}
-                        className="mt-1 text-[11px] font-semibold text-primary hover:underline"
+                        className="mt-0.5 text-[10px] font-semibold text-primary hover:underline"
                       >
                         {s.actionType === "navigate" ? "Go to page →" : "Execute →"}
                       </button>
@@ -130,22 +127,22 @@ export function AiAdvisorCard({ pageContext, className, title = "AI Advisor" }: 
 
         {/* Footer stats */}
         {data?.context && !isLoading && (
-          <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-2 gap-x-3 gap-y-1 shrink-0">
+          <div className="mt-2 pt-2 border-t border-border/50 grid grid-cols-2 gap-x-2 gap-y-1 shrink-0">
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Contacts</p>
-              <p className="text-[12px] font-bold">{data.context.totalContacts}</p>
+              <p className="text-[8px] uppercase tracking-wider text-muted-foreground font-semibold">Contacts</p>
+              <p className="text-[11px] font-bold">{data.context.totalContacts}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Uncontacted</p>
-              <p className="text-[12px] font-bold">{data.context.uncontacted}</p>
+              <p className="text-[8px] uppercase tracking-wider text-muted-foreground font-semibold">Uncontacted</p>
+              <p className="text-[11px] font-bold">{data.context.uncontacted}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Unread</p>
-              <p className="text-[12px] font-bold">{data.context.unreadMessages}</p>
+              <p className="text-[8px] uppercase tracking-wider text-muted-foreground font-semibold">Unread</p>
+              <p className="text-[11px] font-bold">{data.context.unreadMessages}</p>
             </div>
             <div>
-              <p className="text-[9px] uppercase tracking-wider text-muted-foreground font-semibold">Connect rate</p>
-              <p className="text-[12px] font-bold">{data.context.connectRate}%</p>
+              <p className="text-[8px] uppercase tracking-wider text-muted-foreground font-semibold">Connect rate</p>
+              <p className="text-[11px] font-bold">{data.context.connectRate}%</p>
             </div>
           </div>
         )}
@@ -154,12 +151,12 @@ export function AiAdvisorCard({ pageContext, className, title = "AI Advisor" }: 
         <Button
           variant="outline"
           size="sm"
-          className="w-full h-7 text-[11px] gap-1.5 mt-3 shrink-0"
+          className="w-full h-6 text-[10px] gap-1 mt-2 shrink-0"
           onClick={() => refetch()}
           disabled={isFetching}
         >
-          <RefreshCw className={cn("h-3 w-3", isFetching && "animate-spin")} />
-          {isFetching ? "Refreshing..." : "Refresh Insights"}
+          <RefreshCw className={cn("h-2.5 w-2.5", isFetching && "animate-spin")} />
+          {isFetching ? "Refreshing..." : "Generate New Suggestions"}
         </Button>
       </CardContent>
     </Card>

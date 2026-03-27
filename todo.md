@@ -1705,3 +1705,10 @@
 - [x] Restart dev server and verify inline right column layout
 - [x] Verify sidebar logo is visible
 - [x] Verify AI advisor suggestions change per page context (6 tests passing)
+
+### AI Advisor Patch v7
+- [x] Extract and copy 4 files: aiAdvisor.ts, DashboardLayout.tsx, AiAdvisorInlinePanel.tsx, AiAdvisorCard.tsx
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Restart dev server — running clean
+- [x] 6 vitest tests passing
+- [x] Compact card layout and page-specific suggestions verified
