@@ -55,8 +55,8 @@ import { trpc } from "@/lib/trpc";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { useAccount } from "@/contexts/AccountContext";
 import { NotificationCenter } from "./NotificationCenter";
-import { AiAdvisorSidepanel } from "./AiAdvisorSidepanel";
 import { useAiAdvisor } from "@/contexts/AiAdvisorContext";
+import { AiAdvisorCard } from "./AiAdvisorCard";
 
 /**
  * Sub-account pages — only shown when a specific account is selected.
@@ -216,7 +216,7 @@ function DashboardLayoutContent({
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const { currentAccountId, isAdmin, isImpersonating, isAgencyScope } = useAccount();
-  const { setPageContext } = useAiAdvisor();
+  const { setPageContext, pageContext } = useAiAdvisor();
 
   // Sync current page name to AI Advisor so it can give page-relevant suggestions
   useEffect(() => {
@@ -564,11 +564,16 @@ function DashboardLayoutContent({
             </DropdownMenu>
           </div>
         </div>
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <div className="flex flex-1 min-h-0">
+          <main className="flex-1 min-w-0 p-4 md:p-6 overflow-y-auto">{children}</main>
+          {/* AI Advisor — right column on all sub-account pages except settings */}
+          {currentAccountId && !location.startsWith("/settings") && (
+            <div className="hidden xl:block w-64 shrink-0 border-l border-border bg-background p-3 overflow-y-auto">
+              <AiAdvisorCard pageContext={pageContext} title="AI Advisor" />
+            </div>
+          )}
+        </div>
       </SidebarInset>
-
-      {/* AI Advisor — floating button + sidepanel, only when an account is selected */}
-      {currentAccountId && <AiAdvisorSidepanel />}
     </>
   );
 }

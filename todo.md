@@ -1696,3 +1696,4 @@
 - [x] Floating AI Advisor button renders bottom-right on sub-account pages
 - [x] Vitest tests for AI Advisor (6 tests passing)
 - [x] Applied user-provided AI Advisor patch (6 files replaced, 1 TS error fixed)
+- [x] Applied AI Advisor patch v2 (Inline Panel): 8 files copied, new AiAdvisorInlinePanel.tsx + AiAdvisorCard.tsx, 1 TS error fixed
