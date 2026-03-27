@@ -218,12 +218,15 @@ function DashboardLayoutContent({
   const { currentAccountId, isAdmin, isImpersonating, isAgencyScope } = useAccount();
   const { setPageContext, pageContext } = useAiAdvisor();
 
-  // Sync current page name to AI Advisor so it can give page-relevant suggestions
+  // Sync current route to AI Advisor so it can give page-relevant suggestions.
+  // Each entry maps an exact route path to a stable context key that the server
+  // uses to focus its system prompt on the right page.
   useEffect(() => {
-    const pageMap: Record<string, string> = {
+    const exactPageMap: Record<string, string> = {
       "/": "dashboard",
       "/contacts": "contacts",
       "/inbox": "inbox",
+      "/messages": "messages",
       "/campaigns": "campaigns",
       "/ai-calls": "ai-calls",
       "/automations": "automations",
@@ -231,8 +234,39 @@ function DashboardLayoutContent({
       "/calendar": "calendar",
       "/analytics": "analytics",
       "/power-dialer": "power-dialer",
+      "/dialer-analytics": "dialer-analytics",
+      "/email-templates": "email-templates",
+      "/settings": "settings",
+      "/settings/messaging": "settings",
+      "/settings/facebook-pages": "settings",
+      "/accounts": "accounts",
     };
-    setPageContext(pageMap[location] || location.replace("/", "") || "dashboard");
+
+    if (exactPageMap[location]) {
+      setPageContext(exactPageMap[location]);
+      return;
+    }
+
+    // Handle dynamic sub-paths (e.g. /campaigns/123, /contacts/456)
+    const prefixMap: Array<[string, string]> = [
+      ["/campaigns/", "campaigns"],
+      ["/contacts/", "contacts"],
+      ["/automations/", "automations"],
+      ["/settings/", "settings"],
+      ["/ai-calls/", "ai-calls"],
+      ["/pipeline/", "pipeline"],
+    ];
+
+    for (const [prefix, ctx] of prefixMap) {
+      if (location.startsWith(prefix)) {
+        setPageContext(ctx);
+        return;
+      }
+    }
+
+    // Final fallback: strip leading slash and use as-is
+    const fallback = location.replace(/^\//, "") || "dashboard";
+    setPageContext(fallback);
   }, [location, setPageContext]);
 
   // Unread message count for inbox badge
@@ -310,194 +344,126 @@ function DashboardLayoutContent({
   return (
     <>
       <div className="relative" ref={sidebarRef}>
-        <Sidebar
-          collapsible="icon"
-          className="border-r border-border bg-white"
-          disableTransition={isResizing}
-        >
-          {/* Logo area */}
-          <SidebarHeader className="h-16 justify-center border-b border-border">
-            <div className="flex items-center gap-3 px-2 transition-all w-full">
-              <button
-                onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
-                aria-label="Toggle navigation"
-              >
-                {isCollapsed ? (
-                  <PanelLeft className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center shrink-0">
-                    <span className="text-sm font-bold text-primary-foreground">A</span>
-                  </div>
-                )}
-              </button>
-              {!isCollapsed ? (
-                <span className="font-semibold tracking-tight text-foreground text-sm">
-                  Apex<span className="font-extrabold">System</span>
-                </span>
-              ) : null}
+        <Sidebar collapsible="icon">
+          <SidebarHeader className="border-b border-sidebar-border">
+            <div className="flex items-center gap-2 px-2 py-1">
+              {!isCollapsed && (
+                <AccountSwitcher />
+              )}
+              {isCollapsed && (
+                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center mx-auto">
+                  <span className="text-sm font-bold text-primary-foreground">A</span>
+                </div>
+              )}
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0">
-            {/* Account Switcher — admin only */}
-            <AccountSwitcher collapsed={isCollapsed} />
-
-            {/* Main navigation section */}
-            <SidebarMenu className="px-2 py-2">
+          <SidebarContent>
+            {/* Main nav section */}
+            <div className="px-2 py-2">
               {!isCollapsed && (
-                <div className="px-3 py-1.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                    {sectionLabel}
-                  </span>
-                </div>
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 mb-1">
+                  {sectionLabel}
+                </p>
               )}
-              {mainMenuItems.map((item) => {
-                const isActive = location === item.path;
-                const showBadge = item.path === "/inbox" && unreadCount > 0;
-                return (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      onClick={() => handleNavClick(item)}
-                      tooltip={item.label}
-                      className={`h-9 transition-all font-normal text-[13px] relative ${
-                        isActive
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "text-foreground hover:bg-accent"
-                      }`}
-                    >
-                      {/* Gold left border for active item */}
-                      {isActive && !isCollapsed && (
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
-                      )}
-                      <div className="relative">
-                        <item.icon
-                          className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
-                        />
-                        {showBadge && isCollapsed && (
-                          <div className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-red-500" />
-                        )}
-                      </div>
-                      <span className="flex-1">{item.label}</span>
-                      {showBadge && !isCollapsed && (
-                        <span className="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold rounded-full bg-red-500 text-white ml-auto">
-                          {unreadCount > 99 ? "99+" : unreadCount}
-                        </span>
-                      )}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-
-            {/* Admin section — only when admin has a sub-account selected */}
-            {showAdminSection && (
-              <SidebarMenu className="px-2 py-1">
-                {!isCollapsed && (
-                  <div className="px-3 py-1.5 mt-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Admin
-                    </span>
-                  </div>
-                )}
-                {adminMenuItems.map((item) => {
-                  const isActive = location === item.path;
+              <SidebarMenu>
+                {mainMenuItems.map((item) => {
+                  const isActive = item.path === location;
+                  const showBadge = item.path === "/inbox" && unreadCount > 0;
                   return (
                     <SidebarMenuItem key={item.path}>
                       <SidebarMenuButton
                         isActive={isActive}
-                        onClick={() => { setLocation(item.path); if (isMobile) setOpenMobile(false); }}
+                        onClick={() => handleNavClick(item)}
                         tooltip={item.label}
-                        className={`h-9 transition-all font-normal text-[13px] relative ${
-                          isActive
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-foreground hover:bg-accent"
-                        }`}
+                        className="cursor-pointer"
                       >
-                        {isActive && !isCollapsed && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
-                        )}
-                        <item.icon
-                          className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
-                        />
+                        <item.icon className="h-4 w-4 shrink-0" />
                         <span>{item.label}</span>
+                        {showBadge && (
+                          <Badge
+                            variant="destructive"
+                            className="ml-auto h-5 min-w-5 px-1 text-[10px] font-bold"
+                          >
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </Badge>
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   );
                 })}
-              </SidebarMenu>
-            )}
-
-            {/* SETTINGS section */}
-            <div className="mt-auto">
-              <SidebarMenu className="px-2 py-2">
-                {!isCollapsed && (
-                  <div className="px-3 py-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Settings
-                    </span>
-                  </div>
-                )}
-                {settingsMenuItems.map((item) => {
-                  const isActive = location === item.path;
-                  return (
-                    <SidebarMenuItem key={item.path}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        onClick={() => { setLocation(item.path); if (isMobile) setOpenMobile(false); }}
-                        tooltip={item.label}
-                        className={`h-9 transition-all font-normal text-[13px] relative ${
-                          isActive
-                            ? "bg-primary/10 text-primary font-medium"
-                            : "text-foreground hover:bg-accent"
-                        }`}
-                      >
-                        {isActive && !isCollapsed && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-primary" />
-                        )}
-                        <item.icon
-                          className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
-                        />
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-                {/* Log Out */}
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={logout}
-                    tooltip="Log Out"
-                    className="h-9 transition-all font-normal text-[13px] text-muted-foreground hover:text-destructive hover:bg-destructive/5"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span>Log Out</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
               </SidebarMenu>
             </div>
+
+            {/* Admin shortcut section */}
+            {showAdminSection && (
+              <div className="px-2 py-2 border-t border-sidebar-border">
+                {!isCollapsed && (
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 mb-1">
+                    Admin
+                  </p>
+                )}
+                <SidebarMenu>
+                  {adminMenuItems.map((item) => (
+                    <SidebarMenuItem key={item.path}>
+                      <SidebarMenuButton
+                        isActive={item.path === location}
+                        onClick={() => handleNavClick(item)}
+                        tooltip={item.label}
+                        className="cursor-pointer"
+                      >
+                        <item.icon className="h-4 w-4 shrink-0" />
+                        <span>{item.label}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </div>
+            )}
           </SidebarContent>
 
-          <SidebarFooter className="p-3 border-t border-border" />
+          <SidebarFooter className="border-t border-sidebar-border">
+            <div className="px-2 py-2">
+              <SidebarMenu>
+                {settingsMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      isActive={location.startsWith("/settings")}
+                      onClick={() => handleNavClick(item)}
+                      tooltip={item.label}
+                      className="cursor-pointer"
+                    >
+                      <item.icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </div>
+          </SidebarFooter>
         </Sidebar>
-        <div
-          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
-          onMouseDown={() => {
-            if (isCollapsed) return;
-            setIsResizing(true);
-          }}
-          style={{ zIndex: 50 }}
-        />
+
+        {/* Resize handle */}
+        {!isCollapsed && (
+          <div
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/20 transition-colors z-10"
+            onMouseDown={() => setIsResizing(true)}
+          />
+        )}
       </div>
 
-      <SidebarInset className={isImpersonating ? "pt-10" : ""}>
-        {/* Top navigation bar — white bg, search, notification bell, user avatar */}
-        <div className="flex border-b border-border h-16 items-center justify-between bg-white px-4 md:px-6 sticky top-0 z-40">
+      <SidebarInset>
+        {/* Top bar */}
+        <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 gap-3">
           <div className="flex items-center gap-3">
-            {isMobile && (
-              <SidebarTrigger className="h-9 w-9 rounded-lg" />
-            )}
+            <SidebarTrigger className="-ml-1" />
+            {/* Breadcrumb / page title */}
+            <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {activeMenuItem?.label || "Dashboard"}
+              </span>
+            </div>
+
             {/* Global search bar */}
             <div className="relative hidden md:flex items-center">
               <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />

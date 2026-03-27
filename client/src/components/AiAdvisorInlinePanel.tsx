@@ -13,7 +13,7 @@ import {
   Zap,
   MessageSquare,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AIChatBox, type Message } from "@/components/AIChatBox";
 
@@ -29,6 +29,91 @@ const impactIcon: Record<string, typeof Zap> = {
   medium: TrendingUp,
   low: Sparkles,
 };
+
+// ─── Page-specific suggested chat prompts ───
+// These change based on the current page so the user gets relevant quick-start questions.
+const pageSuggestedPrompts: Record<string, string[]> = {
+  dashboard: [
+    "What's the most important thing I should do today?",
+    "How is my account performing this week?",
+    "What's my biggest growth opportunity right now?",
+  ],
+  contacts: [
+    "Which contacts should I prioritize for outreach?",
+    "How many leads have never been contacted?",
+    "What's the best way to segment my contact list?",
+  ],
+  inbox: [
+    "Which conversations need my attention most?",
+    "How can I improve my response time?",
+    "Should I set up an auto-reply workflow?",
+  ],
+  messages: [
+    "Which conversations need my attention most?",
+    "How can I improve my response time?",
+    "Should I set up an auto-reply workflow?",
+  ],
+  "ai-calls": [
+    "Why is my connect rate low and how do I fix it?",
+    "What's the best time to run AI calls?",
+    "How should I follow up on no-answer calls?",
+  ],
+  "power-dialer": [
+    "Which contacts should I dial first?",
+    "What's the best time to run a dialing session?",
+    "How can I improve my connect rate today?",
+  ],
+  "dialer-analytics": [
+    "What does my connect rate tell me?",
+    "How do I improve my call performance metrics?",
+    "What's a good benchmark for connect rate?",
+  ],
+  campaigns: [
+    "What campaign should I run next?",
+    "Which contacts haven't received any campaign yet?",
+    "Should I use SMS or email for my next outreach?",
+  ],
+  automations: [
+    "What automations am I missing?",
+    "Why are my workflows failing?",
+    "What's the most impactful workflow I could build?",
+  ],
+  pipeline: [
+    "Which deals are most at risk of going cold?",
+    "How do I move more deals to the next stage?",
+    "What's my total pipeline value?",
+  ],
+  calendar: [
+    "How do I fill my calendar faster?",
+    "What's the best way to reduce appointment no-shows?",
+    "How many appointments should I be booking per week?",
+  ],
+  analytics: [
+    "What's my most important KPI to improve?",
+    "How is my performance trending this month?",
+    "What actions would move the needle most?",
+  ],
+  settings: [
+    "What settings should I configure first?",
+    "How do I set up missed-call text-back?",
+    "What integrations would help my workflow?",
+  ],
+};
+
+const defaultSuggestedPrompts = [
+  "What should I focus on today?",
+  "How's my pipeline looking?",
+  "What's my best performing campaign?",
+];
+
+function getPageSuggestedPrompts(pageContext: string): string[] {
+  if (pageSuggestedPrompts[pageContext]) {
+    return pageSuggestedPrompts[pageContext];
+  }
+  // Handle sub-paths
+  const base = pageContext.split("/")[0];
+  return pageSuggestedPrompts[base] || defaultSuggestedPrompts;
+}
 
 // ─── Single insight row ───
 function InsightRow({
@@ -102,6 +187,17 @@ export function AiAdvisorInlinePanel() {
     },
   ]);
 
+  // Reset chat when page changes so context stays relevant
+  useEffect(() => {
+    setChatMessages([
+      {
+        role: "system",
+        content:
+          "You are the AI Advisor for Apex System CRM. Help the user understand their data and take action.",
+      },
+    ]);
+  }, [pageContext]);
+
   const {
     data,
     isLoading,
@@ -158,6 +254,7 @@ export function AiAdvisorInlinePanel() {
     pageContext.charAt(0).toUpperCase() + pageContext.slice(1).replace(/-/g, " ");
 
   const suggestions = data?.suggestions ?? [];
+  const suggestedPrompts = getPageSuggestedPrompts(pageContext);
 
   return (
     <div className="h-full flex flex-col bg-card border-l">
@@ -287,19 +384,15 @@ export function AiAdvisorInlinePanel() {
           </div>
         </>
       ) : (
-        /* Chat mode */
+        /* Chat mode — suggested prompts are page-specific */
         <AIChatBox
           messages={chatMessages}
           onSendMessage={handleSendMessage}
           isLoading={chatMutation.isPending}
-          placeholder="Ask about your account..."
+          placeholder={`Ask about ${pageLabel.toLowerCase()}...`}
           height="100%"
-          emptyStateMessage="Ask me anything about your CRM"
-          suggestedPrompts={[
-            "Who should I follow up with today?",
-            "How's my pipeline looking?",
-            "What's my best performing campaign?",
-          ]}
+          emptyStateMessage={`Ask me anything about your ${pageLabel.toLowerCase()}`}
+          suggestedPrompts={suggestedPrompts}
         />
       )}
     </div>

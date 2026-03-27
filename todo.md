@@ -1697,3 +1697,4 @@
 - [x] Vitest tests for AI Advisor (6 tests passing)
 - [x] Applied user-provided AI Advisor patch (6 files replaced, 1 TS error fixed)
 - [x] Applied AI Advisor patch v2 (Inline Panel): 8 files copied, new AiAdvisorInlinePanel.tsx + AiAdvisorCard.tsx, 1 TS error fixed
+- [x] Applied AI Advisor patch v3 (Inline Panel update): 3 files replaced, 0 TS errors, 6 tests passing
