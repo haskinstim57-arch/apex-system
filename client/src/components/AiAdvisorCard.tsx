@@ -5,6 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { RefreshCw, AlertTriangle, TrendingUp, Sparkles } from "lucide-react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
+
+const actionLabels: Record<string, string> = {
+  launch_campaign: "Opening Campaigns...",
+  start_ai_calls: "Opening AI Calls...",
+  create_workflow: "Opening Automations...",
+  assign_contacts: "Opening Contacts...",
+  move_pipeline_stage: "Opening Pipeline...",
+  schedule_appointments: "Opening Calendar...",
+  navigate: "Navigating...",
+};
 
 // ─── Impact styling ───
 const impactDot: Record<string, string> = {
@@ -36,7 +47,7 @@ export function AiAdvisorCard({ pageContext, className, title = "AI Advisor" }: 
 
   const suggestions = data?.suggestions ?? [];
 
-  const handleAction = (suggestion: { actionType: string; actionParams: Record<string, unknown> }) => {
+  const handleAction = (suggestion: { actionType: string; actionParams: Record<string, unknown>; title?: string }) => {
     const pathMap: Record<string, string> = {
       navigate: suggestion.actionParams.path as string,
       launch_campaign: "/campaigns",
@@ -46,6 +57,14 @@ export function AiAdvisorCard({ pageContext, className, title = "AI Advisor" }: 
       move_pipeline_stage: "/pipeline",
       schedule_appointments: "/calendar",
     };
+
+    // Show toast confirmation
+    const toastLabel = actionLabels[suggestion.actionType] || "Executing action...";
+    toast.success(toastLabel, {
+      description: suggestion.title || "AI Advisor suggestion executed",
+      duration: 3000,
+    });
+
     navigate(pathMap[suggestion.actionType] || "/");
   };
 
@@ -76,12 +95,18 @@ export function AiAdvisorCard({ pageContext, className, title = "AI Advisor" }: 
         <div className="space-y-2.5">
           {isLoading ? (
             <>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Sparkles className="h-3 w-3 text-primary animate-pulse" />
+                <span className="text-[10px] text-muted-foreground animate-pulse">Analyzing...</span>
+              </div>
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-2.5">
-                  <div className="h-2 w-2 rounded-full bg-muted animate-pulse mt-1.5 shrink-0" />
-                  <div className="flex-1 space-y-1.5">
-                    <div className="h-3 bg-muted rounded animate-pulse w-4/5" />
-                    <div className="h-3 bg-muted rounded animate-pulse w-full" />
+                <div key={i} className="rounded-md border border-border/40 bg-muted/20 p-2 space-y-1.5" style={{ animationDelay: `${i * 120}ms` }}>
+                  <div className="flex gap-2">
+                    <div className="h-1.5 w-1.5 rounded-full bg-muted animate-pulse mt-1 shrink-0" />
+                    <div className="flex-1 space-y-1">
+                      <div className="h-3 bg-muted rounded animate-pulse" style={{ width: `${80 - i * 10}%` }} />
+                      <div className="h-2.5 bg-muted rounded animate-pulse w-full" />
+                    </div>
                   </div>
                 </div>
               ))}

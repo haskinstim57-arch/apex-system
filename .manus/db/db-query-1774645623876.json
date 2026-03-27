@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `ai_advisor_messages` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `accountId` int NOT NULL,\n  `userId` int NOT NULL,\n  `role` enum('user','assistant') NOT NULL,\n  `content` text NOT NULL,\n  `pageContext` varchar(100),\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `ai_advisor_messages_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute CREATE TABLE IF NOT EXISTS `ai_advisor_messages` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `accountId` int NOT NULL,\n  `userId` int NOT NULL,\n  `role` enum('user','assistant') NOT NULL,\n  `content` text NOT NULL,\n  `pageContext` varchar(100),\n  `createdAt` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `ai_advisor_messages_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 558
+}

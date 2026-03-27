@@ -14,8 +14,9 @@ import {
   campaignRecipients,
   workflows,
   workflowExecutions,
+  aiAdvisorMessages,
 } from "../../drizzle/schema";
-import { and, eq, gte, lte, sql, count } from "drizzle-orm";
+import { and, eq, gte, lte, sql, count, desc } from "drizzle-orm";
 
 // ─── Helpers ───
 
@@ -523,7 +524,81 @@ Answer questions about the account data, suggest improvements, and help the user
       const content = result.choices?.[0]?.message?.content;
       const text = typeof content === "string" ? content : Array.isArray(content) ? content.map((c) => ("text" in c ? c.text : "")).join("") : "";
 
+      // Persist both user and assistant messages
+      const db = (await getDb())!;
+      const lastUserMsg = input.messages[input.messages.length - 1];
+      if (lastUserMsg && lastUserMsg.role === "user") {
+        await db.insert(aiAdvisorMessages).values({
+          accountId: input.accountId,
+          userId: ctx.user.id,
+          role: "user",
+          content: lastUserMsg.content,
+          pageContext: input.pageContext || "dashboard",
+        });
+      }
+      if (text) {
+        await db.insert(aiAdvisorMessages).values({
+          accountId: input.accountId,
+          userId: ctx.user.id,
+          role: "assistant",
+          content: text,
+          pageContext: input.pageContext || "dashboard",
+        });
+      }
+
       return { response: text };
+    }),
+
+  /** Load persisted chat history for the current user + account */
+  getChatHistory: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        limit: z.number().min(1).max(200).optional().default(50),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+
+      const rows = await db
+        .select()
+        .from(aiAdvisorMessages)
+        .where(
+          and(
+            eq(aiAdvisorMessages.accountId, input.accountId),
+            eq(aiAdvisorMessages.userId, ctx.user.id)
+          )
+        )
+        .orderBy(desc(aiAdvisorMessages.createdAt))
+        .limit(input.limit);
+
+      // Return in chronological order (oldest first)
+      return rows.reverse().map((r) => ({
+        role: r.role as "user" | "assistant",
+        content: r.content,
+        pageContext: r.pageContext,
+        createdAt: r.createdAt,
+      }));
+    }),
+
+  /** Clear chat history for the current user + account */
+  clearChatHistory: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+
+      await db
+        .delete(aiAdvisorMessages)
+        .where(
+          and(
+            eq(aiAdvisorMessages.accountId, input.accountId),
+            eq(aiAdvisorMessages.userId, ctx.user.id)
+          )
+        );
+
+      return { success: true };
     }),
 });
 

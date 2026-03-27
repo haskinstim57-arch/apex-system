@@ -1718,3 +1718,12 @@
 - [x] Add mobile slide-up drawer with floating button for AI Advisor on smaller screens (AiAdvisorMobileDrawer.tsx)
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Run vitest tests — 6 passing
+
+### Feature: AI Advisor Enhancements (Toast + Chat History + Loading Skeleton)
+- [x] Add toast confirmations when clicking Execute on AI Advisor suggestions (AiAdvisorCard + AiAdvisorInlinePanel)
+- [x] Create ai_advisor_messages table in schema for chat history persistence
+- [x] Add server procedures: getChatHistory + clearChatHistory + auto-persist in chat mutation
+- [x] Update client to load/restore chat history on mount, clear history button in chat mode
+- [x] Add enhanced loading skeleton with shimmer animation and "Analyzing..." text
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Run vitest tests — 6 passing

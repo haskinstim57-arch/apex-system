@@ -61,6 +61,8 @@ vi.mock("./db", () => ({
     return {
       select: () => chainable([{ count: 0 }]),
       execute: () => Promise.resolve([[{ cnt: 0 }]]),
+      insert: () => ({ values: () => Promise.resolve() }),
+      delete: () => ({ where: () => Promise.resolve() }),
     };
   })()),
   getContactStats: vi.fn().mockResolvedValue({

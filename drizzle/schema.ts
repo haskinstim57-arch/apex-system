@@ -1156,3 +1156,20 @@ export const leadRoutingRules = mysqlTable("lead_routing_rules", {
 
 export type LeadRoutingRule = typeof leadRoutingRules.$inferSelect;
 export type InsertLeadRoutingRule = typeof leadRoutingRules.$inferInsert;
+
+// ─────────────────────────────────────────────
+// AI ADVISOR CHAT HISTORY
+// Persists chat conversations per user+account so
+// they survive page refreshes and session changes.
+// ─────────────────────────────────────────────
+export const aiAdvisorMessages = mysqlTable("ai_advisor_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("accountId").notNull(),
+  userId: int("userId").notNull(),
+  role: mysqlEnum("role", ["user", "assistant"]).notNull(),
+  content: text("content").notNull(),
+  pageContext: varchar("pageContext", { length: 100 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AiAdvisorMessage = typeof aiAdvisorMessages.$inferSelect;
+export type InsertAiAdvisorMessage = typeof aiAdvisorMessages.$inferInsert;
