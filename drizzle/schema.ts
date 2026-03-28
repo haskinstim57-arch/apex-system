@@ -467,8 +467,8 @@ export const workflowSteps = mysqlTable("workflow_steps", {
   workflowId: int("workflowId").notNull(),
   /** Step order (1-based) */
   stepOrder: int("stepOrder").notNull(),
-  /** Step type: action or delay */
-  stepType: mysqlEnum("stepType", ["action", "delay"]).notNull(),
+  /** Step type: action, delay, or condition (if/else branch) */
+  stepType: mysqlEnum("stepType", ["action", "delay", "condition"]).notNull(),
   /** Action type (null for delay steps) */
   actionType: mysqlEnum("actionType", [
     "send_sms",
@@ -488,6 +488,8 @@ export const workflowSteps = mysqlTable("workflow_steps", {
   delayValue: int("delayValue"),
   /** JSON config for the step (template, field values, tag name, etc.) */
   config: text("config"),
+  /** JSON config for condition steps: { field, operator, value, trueBranchStepOrder, falseBranchStepOrder } */
+  conditionConfig: text("conditionConfig"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -541,7 +543,7 @@ export const workflowExecutionSteps = mysqlTable("workflow_execution_steps", {
   /** Step order at time of execution */
   stepOrder: int("stepOrder").notNull(),
   /** Step type snapshot */
-  stepType: mysqlEnum("stepType", ["action", "delay"]).notNull(),
+  stepType: mysqlEnum("stepType", ["action", "delay", "condition"]).notNull(),
   /** Action type snapshot */
   actionType: varchar("actionType", { length: 50 }),
   /** Step execution status */

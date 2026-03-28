@@ -1759,3 +1759,13 @@
 - [x] Test Pacific DST — PDT (Apr 7 → UTC-7), PST (Nov 2 → UTC-8), transition day (Mar 8) all correct
 - [x] Verify DB records: 3 appointments created with correct UTC times, then cleaned up
 - [x] Documented in docs/vapi-booking-e2e-test-results.md — 14/14 tests passed, 0 issues
+
+### Feature: Conditional Branching for Workflow Automations
+- [x] Add 'condition' to stepType enum in workflowSteps schema
+- [x] Add conditionConfig JSON field (field, operator, value, trueBranchStepOrder, falseBranchStepOrder)
+- [x] Push schema migration to database
+- [x] Update workflowEngine.ts to evaluate conditions and route to true/false branches
+- [x] Update automations router to support condition step CRUD
+- [x] Update frontend builder with visual if/else split UI
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Run vitest tests — 31 condition branching tests passing (1132 total)

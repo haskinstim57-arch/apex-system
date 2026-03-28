@@ -15,6 +15,7 @@ import {
   logContactActivity,
   getEmailTemplate,
   createNotification,
+  getContactTags,
 } from "../db";
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
@@ -204,6 +205,65 @@ async function processExecution(executionId: number) {
       console.log(
         `[WorkflowEngine] Execution ${executionId}: delay step completed, next at ${nextStepAt.toISOString()}`
       );
+    } else if (step.stepType === "condition") {
+      // Evaluate the condition and route to the appropriate branch
+      const condResult = await evaluateCondition(step, execution.contactId, execution.accountId);
+
+      await updateWorkflowExecutionStep(execStep.id, {
+        status: "completed",
+        completedAt: new Date(),
+        result: JSON.stringify(condResult),
+      });
+
+      // Determine next step based on condition result
+      const condConfig = step.conditionConfig ? JSON.parse(step.conditionConfig) : {};
+      const branchStepOrder = condResult.result
+        ? condConfig.trueBranchStepOrder
+        : condConfig.falseBranchStepOrder;
+
+      if (branchStepOrder) {
+        // Jump to the specified branch step
+        const branchStep = steps.find((s) => s.stepOrder === branchStepOrder);
+        if (branchStep) {
+          await updateWorkflowExecution(executionId, {
+            currentStep: branchStepOrder,
+            nextStepAt: null,
+          });
+          console.log(
+            `[WorkflowEngine] Execution ${executionId}: condition ${condResult.result ? 'TRUE' : 'FALSE'}, jumping to step ${branchStepOrder}`
+          );
+          await processExecution(executionId);
+        } else {
+          // Branch step not found — complete the workflow
+          await updateWorkflowExecution(executionId, {
+            currentStep: steps.length + 1,
+            status: "completed",
+            completedAt: new Date(),
+            nextStepAt: null,
+          });
+          console.log(
+            `[WorkflowEngine] Execution ${executionId}: condition branch step ${branchStepOrder} not found, completing`
+          );
+        }
+      } else {
+        // No branch configured for this result — move to next sequential step
+        const nextStep = execution.currentStep + 1;
+        if (nextStep > steps.length) {
+          await updateWorkflowExecution(executionId, {
+            currentStep: nextStep,
+            status: "completed",
+            completedAt: new Date(),
+            nextStepAt: null,
+          });
+          console.log(`[WorkflowEngine] Execution ${executionId}: condition with no branch, completed`);
+        } else {
+          await updateWorkflowExecution(executionId, {
+            currentStep: nextStep,
+            nextStepAt: null,
+          });
+          await processExecution(executionId);
+        }
+      }
     } else if (step.stepType === "action") {
       // Execute the action
       const result = await executeAction(step, execution.contactId, execution.accountId);
@@ -499,6 +559,115 @@ async function executeAction(
     default:
       throw new Error(`Unknown action type: ${step.actionType}`);
   }
+}
+
+// ─────────────────────────────────────────────
+// Condition Evaluation
+// ─────────────────────────────────────────────
+
+export interface ConditionConfig {
+  field: string;
+  operator: string;
+  value?: string;
+  trueBranchStepOrder?: number;
+  falseBranchStepOrder?: number;
+}
+
+/** Evaluate a condition operator against a field value (exported for testing) */
+export function evaluateConditionOperator(
+  fieldValue: string,
+  operator: string,
+  compareValue: string
+): boolean {
+  const fv = fieldValue ?? "";
+  const cv = compareValue ?? "";
+
+  switch (operator) {
+    case "equals":
+      return fv.toLowerCase() === cv.toLowerCase();
+    case "not_equals":
+      return fv.toLowerCase() !== cv.toLowerCase();
+    case "contains":
+      return fv.toLowerCase().includes(cv.toLowerCase());
+    case "not_contains":
+      return !fv.toLowerCase().includes(cv.toLowerCase());
+    case "greater_than": {
+      const numA = parseFloat(fv);
+      const numB = parseFloat(cv);
+      if (isNaN(numA) || isNaN(numB)) return fv > cv; // lexicographic fallback
+      return numA > numB;
+    }
+    case "less_than": {
+      const numA = parseFloat(fv);
+      const numB = parseFloat(cv);
+      if (isNaN(numA) || isNaN(numB)) return fv < cv;
+      return numA < numB;
+    }
+    case "is_empty":
+      return fv.trim() === "";
+    case "is_not_empty":
+      return fv.trim() !== "";
+    case "starts_with":
+      return fv.toLowerCase().startsWith(cv.toLowerCase());
+    case "ends_with":
+      return fv.toLowerCase().endsWith(cv.toLowerCase());
+    default:
+      console.warn(`[WorkflowEngine] Unknown condition operator: ${operator}`);
+      return false;
+  }
+}
+
+/** Resolve the field value from a contact record (supports tags via "has_tag" field) */
+async function resolveContactFieldValue(
+  contact: Record<string, unknown>,
+  field: string,
+  contactId: number
+): Promise<string> {
+  // Special field: check if contact has a specific tag
+  if (field === "has_tag") {
+    const tags = await getContactTags(contactId);
+    return tags.map((t) => t.tag).join(",");
+  }
+
+  // Standard contact fields
+  const value = contact[field];
+  if (value === null || value === undefined) return "";
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+}
+
+/** Evaluate a condition step against a contact's data */
+async function evaluateCondition(
+  step: WorkflowStep,
+  contactId: number,
+  accountId: number
+): Promise<{ result: boolean; field: string; operator: string; fieldValue: string; compareValue: string }> {
+  const condConfig: ConditionConfig = step.conditionConfig
+    ? JSON.parse(step.conditionConfig)
+    : { field: "", operator: "equals", value: "" };
+
+  const contact = await getContactById(contactId, accountId);
+  if (!contact) {
+    throw new Error(`Contact ${contactId} not found in account ${accountId}`);
+  }
+
+  const fieldValue = await resolveContactFieldValue(contact as Record<string, unknown>, condConfig.field, contactId);
+  const compareValue = condConfig.value ?? "";
+
+  // For "has_tag" field with contains operator, check if the tag list includes the value
+  const result = evaluateConditionOperator(fieldValue, condConfig.operator, compareValue);
+
+  console.log(
+    `[WorkflowEngine] Condition: ${condConfig.field} ${condConfig.operator} "${compareValue}" → fieldValue="${fieldValue}" → ${result}`
+  );
+
+  return {
+    result,
+    field: condConfig.field,
+    operator: condConfig.operator,
+    fieldValue,
+    compareValue,
+  };
 }
 
 /** Replace {{firstName}}, {{lastName}}, {{email}}, {{phone}} placeholders */

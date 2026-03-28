@@ -253,6 +253,13 @@
       "when": 1774706811358,
       "tag": "0035_flawless_cloak",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "5",
+      "when": 1774715966573,
+      "tag": "0036_lazy_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

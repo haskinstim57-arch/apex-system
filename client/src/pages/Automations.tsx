@@ -64,7 +64,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Palette } from "lucide-react";
+import { FileText, Palette, GitBranch } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── Constants ───
@@ -103,6 +103,33 @@ const CONTACT_FIELDS = [
   { value: "title", label: "Title" },
   { value: "city", label: "City" },
   { value: "state", label: "State" },
+] as const;
+
+const CONDITION_FIELDS = [
+  { value: "status", label: "Pipeline Status" },
+  { value: "leadSource", label: "Lead Source" },
+  { value: "email", label: "Email" },
+  { value: "phone", label: "Phone" },
+  { value: "company", label: "Company" },
+  { value: "title", label: "Title" },
+  { value: "city", label: "City" },
+  { value: "state", label: "State" },
+  { value: "firstName", label: "First Name" },
+  { value: "lastName", label: "Last Name" },
+  { value: "has_tag", label: "Has Tag (comma-separated)" },
+] as const;
+
+const CONDITION_OPERATORS = [
+  { value: "equals", label: "Equals" },
+  { value: "not_equals", label: "Does Not Equal" },
+  { value: "contains", label: "Contains" },
+  { value: "not_contains", label: "Does Not Contain" },
+  { value: "starts_with", label: "Starts With" },
+  { value: "ends_with", label: "Ends With" },
+  { value: "is_empty", label: "Is Empty" },
+  { value: "is_not_empty", label: "Is Not Empty" },
+  { value: "greater_than", label: "Greater Than" },
+  { value: "less_than", label: "Less Than" },
 ] as const;
 
 // ─── Main Component ───
@@ -726,6 +753,17 @@ function StepCard({
         bg: "bg-amber-500/10",
       };
     }
+    if (step.stepType === "condition") {
+      const condConfig = step.conditionConfig ? JSON.parse(step.conditionConfig) : {};
+      const fieldLabel = CONDITION_FIELDS.find((f) => f.value === condConfig.field)?.label ?? condConfig.field;
+      const opLabel = CONDITION_OPERATORS.find((o) => o.value === condConfig.operator)?.label ?? condConfig.operator;
+      return {
+        label: `If ${fieldLabel} ${opLabel}${condConfig.value ? ` "${condConfig.value}"` : ""}`,
+        icon: GitBranch,
+        color: "text-purple-600",
+        bg: "bg-purple-500/10",
+      };
+    }
     const action = ACTION_TYPES.find((a) => a.value === step.actionType);
     return {
       label: action?.label ?? step.actionType,
@@ -759,6 +797,11 @@ function StepCard({
                   {formatConfig(step.actionType, config)}
                 </p>
               )}
+              {step.stepType === "condition" && step.conditionConfig && (
+                <p className="text-xs text-muted-foreground mt-0.5 max-w-[400px] truncate">
+                  {formatConditionConfig(JSON.parse(step.conditionConfig))}
+                </p>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -778,6 +821,16 @@ function StepCard({
       </CardContent>
     </Card>
   );
+}
+
+function formatConditionConfig(conditionConfig: Record<string, unknown>): string {
+  const field = CONDITION_FIELDS.find((f) => f.value === conditionConfig.field)?.label ?? String(conditionConfig.field);
+  const op = CONDITION_OPERATORS.find((o) => o.value === conditionConfig.operator)?.label ?? String(conditionConfig.operator);
+  const val = conditionConfig.value ? ` "${conditionConfig.value}"` : "";
+  const branches: string[] = [];
+  if (conditionConfig.trueBranchStepOrder) branches.push(`True→Step ${conditionConfig.trueBranchStepOrder}`);
+  if (conditionConfig.falseBranchStepOrder) branches.push(`False→Step ${conditionConfig.falseBranchStepOrder}`);
+  return `${field} ${op}${val}${branches.length ? " | " + branches.join(", ") : ""}`;
 }
 
 function formatConfig(actionType: string, config: Record<string, unknown>): string {
@@ -816,7 +869,7 @@ function AddStepDialog({
   workflowId: number;
   onAdded: () => void;
 }) {
-  const [stepType, setStepType] = useState<"action" | "delay">("action");
+  const [stepType, setStepType] = useState<"action" | "delay" | "condition">("action");
   const [actionType, setActionType] = useState("send_sms");
   const [delayType, setDelayType] = useState("minutes");
   const [delayValue, setDelayValue] = useState("5");
@@ -833,6 +886,13 @@ function AddStepDialog({
   const [taskDescription, setTaskDescription] = useState("");
   const [taskPriority, setTaskPriority] = useState("medium");
   const [taskDueInDays, setTaskDueInDays] = useState("1");
+
+  // Condition configs
+  const [condField, setCondField] = useState("status");
+  const [condOperator, setCondOperator] = useState("equals");
+  const [condValue, setCondValue] = useState("");
+  const [condTrueBranch, setCondTrueBranch] = useState("");
+  const [condFalseBranch, setCondFalseBranch] = useState("");
 
   const addStepMutation = trpc.automations.addStep.useMutation({
     onSuccess: () => {
@@ -860,10 +920,25 @@ function AddStepDialog({
     setTaskDescription("");
     setTaskPriority("medium");
     setTaskDueInDays("1");
+    setCondField("status");
+    setCondOperator("equals");
+    setCondValue("");
+    setCondTrueBranch("");
+    setCondFalseBranch("");
+  };
+
+  const buildConditionConfig = () => {
+    return JSON.stringify({
+      field: condField,
+      operator: condOperator,
+      value: condValue,
+      ...(condTrueBranch ? { trueBranchStepOrder: parseInt(condTrueBranch) } : {}),
+      ...(condFalseBranch ? { falseBranchStepOrder: parseInt(condFalseBranch) } : {}),
+    });
   };
 
   const buildConfig = () => {
-    if (stepType === "delay") return undefined;
+    if (stepType === "delay" || stepType === "condition") return undefined;
     switch (actionType) {
       case "send_sms":
         return JSON.stringify({ message: smsMessage });
@@ -917,6 +992,13 @@ function AddStepDialog({
                 onClick={() => setStepType("delay")}
               >
                 <Clock className="h-4 w-4 mr-1" /> Delay
+              </Button>
+              <Button
+                variant={stepType === "condition" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setStepType("condition")}
+              >
+                <GitBranch className="h-4 w-4 mr-1" /> Condition
               </Button>
             </div>
           </div>
@@ -1101,7 +1183,7 @@ function AddStepDialog({
                 </div>
               )}
             </>
-          ) : (
+          ) : stepType === "delay" ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <Label>Wait</Label>
@@ -1128,6 +1210,97 @@ function AddStepDialog({
                 </Select>
               </div>
             </div>
+          ) : (
+            /* Condition step config */
+            <div className="space-y-4">
+              <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <GitBranch className="h-4 w-4 text-purple-500" />
+                  <span className="text-sm font-medium text-purple-400">If / Else Condition</span>
+                </div>
+                <div>
+                  <Label>Contact Field</Label>
+                  <Select value={condField} onValueChange={setCondField}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONDITION_FIELDS.map((f) => (
+                        <SelectItem key={f.value} value={f.value}>
+                          {f.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Operator</Label>
+                  <Select value={condOperator} onValueChange={setCondOperator}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONDITION_OPERATORS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {condOperator !== "is_empty" && condOperator !== "is_not_empty" && (
+                  <div>
+                    <Label>Value</Label>
+                    {condField === "status" ? (
+                      <Select value={condValue} onValueChange={setCondValue}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PIPELINE_STAGES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s.charAt(0).toUpperCase() + s.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        value={condValue}
+                        onChange={(e) => setCondValue(e.target.value)}
+                        placeholder={condField === "has_tag" ? "e.g., hot-lead" : "Compare value"}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-3">
+                  <Label className="text-green-400 text-xs font-medium">TRUE Branch → Go to Step #</Label>
+                  <Input
+                    type="number"
+                    value={condTrueBranch}
+                    onChange={(e) => setCondTrueBranch(e.target.value)}
+                    placeholder="Step order (optional)"
+                    min="1"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Leave empty to continue to next step</p>
+                </div>
+                <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+                  <Label className="text-red-400 text-xs font-medium">FALSE Branch → Go to Step #</Label>
+                  <Input
+                    type="number"
+                    value={condFalseBranch}
+                    onChange={(e) => setCondFalseBranch(e.target.value)}
+                    placeholder="Step order (optional)"
+                    min="1"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Leave empty to continue to next step</p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
         <DialogFooter>
@@ -1144,6 +1317,7 @@ function AddStepDialog({
                 delayType: stepType === "delay" ? (delayType as any) : undefined,
                 delayValue: stepType === "delay" ? parseInt(delayValue) : undefined,
                 config: buildConfig(),
+                conditionConfig: stepType === "condition" ? buildConditionConfig() : undefined,
               })
             }
             disabled={addStepMutation.isPending}
@@ -1178,6 +1352,7 @@ function EditStepDialog({
   onUpdated: () => void;
 }) {
   const config = step?.config ? JSON.parse(step.config) : {};
+  const condConfig = step?.conditionConfig ? JSON.parse(step.conditionConfig) : {};
 
   const [smsMessage, setSmsMessage] = useState(config.message ?? "");
   const [emailSubject, setEmailSubject] = useState(config.subject ?? "");
@@ -1193,6 +1368,13 @@ function EditStepDialog({
   const [delayValue, setDelayValue] = useState(String(step?.delayValue ?? 5));
   const [delayType, setDelayType] = useState(step?.delayType ?? "minutes");
 
+  // Condition edit state
+  const [condField, setCondField] = useState(condConfig.field ?? "status");
+  const [condOperator, setCondOperator] = useState(condConfig.operator ?? "equals");
+  const [condValue, setCondValue] = useState(condConfig.value ?? "");
+  const [condTrueBranch, setCondTrueBranch] = useState(String(condConfig.trueBranchStepOrder ?? ""));
+  const [condFalseBranch, setCondFalseBranch] = useState(String(condConfig.falseBranchStepOrder ?? ""));
+
   const updateMutation = trpc.automations.updateStep.useMutation({
     onSuccess: () => {
       toast.success("Step updated");
@@ -1201,8 +1383,18 @@ function EditStepDialog({
     onError: (err) => toast.error(err.message),
   });
 
+  const buildConditionConfig = () => {
+    return JSON.stringify({
+      field: condField,
+      operator: condOperator,
+      value: condValue,
+      ...(condTrueBranch ? { trueBranchStepOrder: parseInt(condTrueBranch) } : {}),
+      ...(condFalseBranch ? { falseBranchStepOrder: parseInt(condFalseBranch) } : {}),
+    });
+  };
+
   const buildConfig = () => {
-    if (step?.stepType === "delay") return undefined;
+    if (step?.stepType === "delay" || step?.stepType === "condition") return undefined;
     switch (step?.actionType) {
       case "send_sms":
         return JSON.stringify({ message: smsMessage });
@@ -1263,6 +1455,96 @@ function EditStepDialog({
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+          ) : step.stepType === "condition" ? (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-purple-500/30 bg-purple-500/5 p-4 space-y-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <GitBranch className="h-4 w-4 text-purple-500" />
+                  <span className="text-sm font-medium text-purple-400">If / Else Condition</span>
+                </div>
+                <div>
+                  <Label>Contact Field</Label>
+                  <Select value={condField} onValueChange={setCondField}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONDITION_FIELDS.map((f) => (
+                        <SelectItem key={f.value} value={f.value}>
+                          {f.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Operator</Label>
+                  <Select value={condOperator} onValueChange={setCondOperator}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CONDITION_OPERATORS.map((o) => (
+                        <SelectItem key={o.value} value={o.value}>
+                          {o.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {condOperator !== "is_empty" && condOperator !== "is_not_empty" && (
+                  <div>
+                    <Label>Value</Label>
+                    {condField === "status" ? (
+                      <Select value={condValue} onValueChange={setCondValue}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PIPELINE_STAGES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s.charAt(0).toUpperCase() + s.slice(1)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        value={condValue}
+                        onChange={(e) => setCondValue(e.target.value)}
+                        placeholder={condField === "has_tag" ? "e.g., hot-lead" : "Compare value"}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="rounded-lg border border-green-500/30 bg-green-500/5 p-3">
+                  <Label className="text-green-400 text-xs font-medium">TRUE Branch → Go to Step #</Label>
+                  <Input
+                    type="number"
+                    value={condTrueBranch}
+                    onChange={(e) => setCondTrueBranch(e.target.value)}
+                    placeholder="Step order (optional)"
+                    min="1"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Leave empty to continue to next step</p>
+                </div>
+                <div className="rounded-lg border border-red-500/30 bg-red-500/5 p-3">
+                  <Label className="text-red-400 text-xs font-medium">FALSE Branch → Go to Step #</Label>
+                  <Input
+                    type="number"
+                    value={condFalseBranch}
+                    onChange={(e) => setCondFalseBranch(e.target.value)}
+                    placeholder="Step order (optional)"
+                    min="1"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Leave empty to continue to next step</p>
+                </div>
               </div>
             </div>
           ) : (
@@ -1383,6 +1665,8 @@ function EditStepDialog({
               if (step.stepType === "delay") {
                 updateData.delayType = delayType;
                 updateData.delayValue = parseInt(delayValue);
+              } else if (step.stepType === "condition") {
+                updateData.conditionConfig = buildConditionConfig();
               } else {
                 updateData.config = buildConfig();
               }

@@ -1899,6 +1899,7 @@ export async function updateWorkflowStep(
     delayType: string | null;
     delayValue: number | null;
     config: string | null;
+    conditionConfig: string | null;
   }>
 ) {
   const db = await getDb();

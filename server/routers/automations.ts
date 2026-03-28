@@ -60,6 +60,27 @@ const actionTypeEnum = z.enum([
 
 const delayTypeEnum = z.enum(["minutes", "hours", "days"]);
 
+const conditionOperatorEnum = z.enum([
+  "equals",
+  "not_equals",
+  "contains",
+  "not_contains",
+  "greater_than",
+  "less_than",
+  "is_empty",
+  "is_not_empty",
+  "starts_with",
+  "ends_with",
+]);
+
+const conditionConfigSchema = z.object({
+  field: z.string().min(1),
+  operator: conditionOperatorEnum,
+  value: z.string().optional().default(""),
+  trueBranchStepOrder: z.number().int().positive().optional(),
+  falseBranchStepOrder: z.number().int().positive().optional(),
+});
+
 export const automationsRouter = router({
   // ─── Create workflow ───
   create: protectedProcedure
@@ -218,11 +239,12 @@ export const automationsRouter = router({
       z.object({
         accountId: z.number().int().positive(),
         workflowId: z.number().int().positive(),
-        stepType: z.enum(["action", "delay"]),
+        stepType: z.enum(["action", "delay", "condition"]),
         actionType: actionTypeEnum.optional(),
         delayType: delayTypeEnum.optional(),
         delayValue: z.number().int().positive().optional(),
         config: z.string().optional(),
+        conditionConfig: z.string().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -245,6 +267,23 @@ export const automationsRouter = router({
           message: "Delay type and value are required for delay steps",
         });
       }
+      if (input.stepType === "condition") {
+        if (!input.conditionConfig) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Condition config is required for condition steps",
+          });
+        }
+        try {
+          const parsed = JSON.parse(input.conditionConfig);
+          conditionConfigSchema.parse(parsed);
+        } catch (e) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Invalid condition config: must include field and operator",
+          });
+        }
+      }
 
       // Get next step order
       const existingSteps = await listWorkflowSteps(input.workflowId);
@@ -258,6 +297,7 @@ export const automationsRouter = router({
         delayType: input.stepType === "delay" ? input.delayType! : null,
         delayValue: input.stepType === "delay" ? input.delayValue! : null,
         config: input.config ?? null,
+        conditionConfig: input.stepType === "condition" ? (input.conditionConfig ?? null) : null,
       });
 
       return { id, stepOrder: nextOrder };
@@ -270,11 +310,12 @@ export const automationsRouter = router({
         accountId: z.number().int().positive(),
         workflowId: z.number().int().positive(),
         stepId: z.number().int().positive(),
-        stepType: z.enum(["action", "delay"]).optional(),
+        stepType: z.enum(["action", "delay", "condition"]).optional(),
         actionType: actionTypeEnum.optional().nullable(),
         delayType: delayTypeEnum.optional().nullable(),
         delayValue: z.number().int().positive().optional().nullable(),
         config: z.string().optional().nullable(),
+        conditionConfig: z.string().optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
