@@ -15,6 +15,12 @@ import { onFormSubmitted } from "../services/workflowTriggers";
 import { notifyOwner } from "../_core/notification";
 
 // ─── Zod schemas for form fields ───
+const conditionRuleSchema = z.object({
+  fieldId: z.string(),
+  operator: z.enum(["equals", "not_equals", "contains", "is_empty", "is_not_empty"]),
+  value: z.string().optional(),
+});
+
 const formFieldSchema = z.object({
   id: z.string(),
   type: z.enum(["text", "email", "phone", "dropdown", "checkbox", "date"]),
@@ -23,6 +29,7 @@ const formFieldSchema = z.object({
   placeholder: z.string().optional(),
   options: z.array(z.string()).optional(),
   contactFieldMapping: z.string().optional(),
+  conditionRules: z.array(conditionRuleSchema).optional(),
 });
 
 const formSettingsSchema = z
@@ -446,6 +453,17 @@ export const formsRouter = router({
           )
         );
 
+      const [withContactRow] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(formSubmissions)
+        .where(
+          and(
+            eq(formSubmissions.formId, input.formId),
+            eq(formSubmissions.accountId, input.accountId),
+            sql`${formSubmissions.contactId} IS NOT NULL`
+          )
+        );
+
       const [last7Row] = await db
         .select({ count: sql<number>`count(*)` })
         .from(formSubmissions)
@@ -468,10 +486,88 @@ export const formsRouter = router({
           )
         );
 
+      // Daily submissions for last 30 days
+      const dailyRows = await db
+        .select({
+          day: sql<string>`DATE(${formSubmissions.createdAt})`.as("day"),
+          count: sql<number>`count(*)`.as("count"),
+        })
+        .from(formSubmissions)
+        .where(
+          and(
+            eq(formSubmissions.formId, input.formId),
+            eq(formSubmissions.accountId, input.accountId),
+            sql`${formSubmissions.createdAt} >= ${thirtyDaysAgo}`
+          )
+        )
+        .groupBy(sql`DATE(${formSubmissions.createdAt})`)
+        .orderBy(sql`DATE(${formSubmissions.createdAt})`);
+
+      const total = totalRow?.count ?? 0;
+      const withContact = withContactRow?.count ?? 0;
+      const conversionRate = total > 0 ? Math.round((withContact / total) * 100) : 0;
+
       return {
-        total: totalRow?.count ?? 0,
+        total,
+        withContact,
+        conversionRate,
         last7Days: last7Row?.count ?? 0,
         last30Days: last30Row?.count ?? 0,
+        daily: dailyRows.map((r) => ({ day: r.day, count: r.count })),
       };
+    }),
+
+  // ─── List submissions with contact names ───
+  listSubmissionsWithContacts: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        formId: z.number().int().positive(),
+        limit: z.number().int().min(1).max(100).default(50),
+        offset: z.number().int().min(0).default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      const [submissions, [countRow]] = await Promise.all([
+        db
+          .select({
+            id: formSubmissions.id,
+            formId: formSubmissions.formId,
+            contactId: formSubmissions.contactId,
+            data: formSubmissions.data,
+            ipAddress: formSubmissions.ipAddress,
+            userAgent: formSubmissions.userAgent,
+            createdAt: formSubmissions.createdAt,
+            contactFirstName: contacts.firstName,
+            contactLastName: contacts.lastName,
+            contactEmail: contacts.email,
+          })
+          .from(formSubmissions)
+          .leftJoin(contacts, eq(formSubmissions.contactId, contacts.id))
+          .where(
+            and(
+              eq(formSubmissions.formId, input.formId),
+              eq(formSubmissions.accountId, input.accountId)
+            )
+          )
+          .orderBy(desc(formSubmissions.createdAt))
+          .limit(input.limit)
+          .offset(input.offset),
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(formSubmissions)
+          .where(
+            and(
+              eq(formSubmissions.formId, input.formId),
+              eq(formSubmissions.accountId, input.accountId)
+            )
+          ),
+      ]);
+
+      return { submissions, total: countRow?.count ?? 0 };
     }),
 });

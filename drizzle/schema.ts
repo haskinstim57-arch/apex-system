@@ -1222,6 +1222,13 @@ export type Form = typeof forms.$inferSelect;
 export type InsertForm = typeof forms.$inferInsert;
 
 /** Field definition for form builder */
+/** Condition rule for conditional field visibility */
+export interface ConditionRule {
+  fieldId: string;
+  operator: "equals" | "not_equals" | "contains" | "is_empty" | "is_not_empty";
+  value?: string;
+}
+
 export interface FormField {
   id: string;
   type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date";
@@ -1232,6 +1239,8 @@ export interface FormField {
   options?: string[];
   /** Map to contact field for auto-population */
   contactFieldMapping?: string;
+  /** Conditional visibility: field is shown only when ALL rules pass */
+  conditionRules?: ConditionRule[];
 }
 
 /** Form settings */

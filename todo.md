@@ -1819,3 +1819,24 @@
 - [x] Add form routes to App.tsx and DashboardLayout sidebar navigation
 - [x] Write vitest tests for form operations (19 tests passing)
 - [x] Run pnpm check — 0 TypeScript errors
+
+### Feature: Form Submission Analytics
+- [x] Add submissionStats procedure (total, last7/30 days, withContact, conversionRate, daily chart data)
+- [x] Add listSubmissionsWithContacts procedure (joined contact firstName/lastName)
+- [x] Build enhanced Submissions tab with 4 stats cards, daily bar chart, and submissions table
+- [x] Link submission rows to contact detail pages with name display
+
+### Feature: Embed Code Generator
+- [x] Add "Embed" button in FormBuilder header
+- [x] Generate iframe snippet and JavaScript embed code with copy-to-clipboard
+- [x] Include direct link option with copy button
+
+### Feature: Conditional Field Visibility
+- [x] Add ConditionRule interface and conditionRules field to FormField type in schema.ts
+- [x] Add conditionRules to Zod schema in forms router
+- [x] Build condition rules UI in FormBuilder (field selector, operator, value, add/remove rules)
+- [x] Add "Conditional" badge indicator on field cards
+- [x] Update PublicForm.tsx with evaluateRule/isFieldVisible logic (AND logic, 5 operators)
+- [x] Hidden fields excluded from submission payload and validation
+- [x] Write 22 vitest tests for conditional visibility, embed code, and stats shape
+- [x] Run pnpm check — 0 TypeScript errors

@@ -22,7 +22,13 @@ import {
   ClipboardList,
   MoveUp,
   MoveDown,
+  Code,
+  BarChart3,
+  Users,
+  TrendingUp,
+  Link as LinkIcon,
 } from "lucide-react";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -62,6 +68,12 @@ import {
 import { toast } from "sonner";
 
 // ─── Types ───
+interface ConditionRule {
+  fieldId: string;
+  operator: "equals" | "not_equals" | "contains" | "is_empty" | "is_not_empty";
+  value?: string;
+}
+
 interface FormField {
   id: string;
   type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date";
@@ -70,7 +82,16 @@ interface FormField {
   placeholder?: string;
   options?: string[];
   contactFieldMapping?: string;
+  conditionRules?: ConditionRule[];
 }
+
+const CONDITION_OPERATORS = [
+  { value: "equals", label: "Equals" },
+  { value: "not_equals", label: "Does not equal" },
+  { value: "contains", label: "Contains" },
+  { value: "is_empty", label: "Is empty" },
+  { value: "is_not_empty", label: "Is not empty" },
+];
 
 interface FormSettings {
   submitButtonText?: string;
@@ -128,10 +149,11 @@ export default function FormBuilder({ id }: { id: number }) {
     { enabled: accountId > 0 && id > 0 }
   );
 
-  const { data: submissions } = trpc.forms.listSubmissions.useQuery(
+  const { data: submissions } = trpc.forms.listSubmissionsWithContacts.useQuery(
     { accountId, formId: id, limit: 50, offset: 0 },
     { enabled: accountId > 0 && id > 0 && activeTab === "submissions" }
   );
+  const [showEmbedDialog, setShowEmbedDialog] = useState(false);
 
   const { data: stats } = trpc.forms.submissionStats.useQuery(
     { accountId, formId: id },
@@ -295,6 +317,10 @@ export default function FormBuilder({ id }: { id: number }) {
             <Copy className="h-3.5 w-3.5 mr-1.5" />
             Copy URL
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setShowEmbedDialog(true)}>
+            <Code className="h-3.5 w-3.5 mr-1.5" />
+            Embed
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -423,6 +449,14 @@ export default function FormBuilder({ id }: { id: number }) {
                               className="text-[10px] text-blue-600 shrink-0"
                             >
                               → {field.contactFieldMapping}
+                            </Badge>
+                          )}
+                          {field.conditionRules && field.conditionRules.length > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="text-[10px] text-amber-600 shrink-0"
+                            >
+                              Conditional
                             </Badge>
                           )}
                           <div className="flex items-center gap-1 shrink-0">
@@ -570,6 +604,163 @@ export default function FormBuilder({ id }: { id: number }) {
                       <p className="text-[10px] text-muted-foreground">
                         Maps this field's value to a contact property on
                         submission.
+                      </p>
+                    </div>
+
+                    {/* Conditional Visibility Rules */}
+                    <div className="space-y-2 border-t pt-3">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Show When</Label>
+                        {(!selectedField.conditionRules || selectedField.conditionRules.length === 0) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-6 text-[10px]"
+                            onClick={() => {
+                              const otherFields = fields.filter((f) => f.id !== selectedField.id);
+                              if (otherFields.length === 0) {
+                                toast.error("Add more fields first");
+                                return;
+                              }
+                              updateField(selectedField.id, {
+                                conditionRules: [
+                                  {
+                                    fieldId: otherFields[0].id,
+                                    operator: "is_not_empty" as const,
+                                  },
+                                ],
+                              });
+                            }}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Condition
+                          </Button>
+                        )}
+                      </div>
+                      {selectedField.conditionRules && selectedField.conditionRules.length > 0 && (
+                        <div className="space-y-2">
+                          {selectedField.conditionRules.map((rule, ruleIdx) => {
+                            const otherFields = fields.filter((f) => f.id !== selectedField.id);
+                            const needsValue = rule.operator !== "is_empty" && rule.operator !== "is_not_empty";
+                            const sourceField = fields.find((f) => f.id === rule.fieldId);
+                            return (
+                              <div key={ruleIdx} className="bg-muted/50 rounded-md p-2 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-muted-foreground">Rule {ruleIdx + 1}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 w-5 p-0"
+                                    onClick={() => {
+                                      const newRules = (selectedField.conditionRules || []).filter((_, i) => i !== ruleIdx);
+                                      updateField(selectedField.id, {
+                                        conditionRules: newRules.length > 0 ? newRules : undefined,
+                                      });
+                                    }}
+                                  >
+                                    <Trash2 className="h-3 w-3 text-red-500" />
+                                  </Button>
+                                </div>
+                                <Select
+                                  value={rule.fieldId}
+                                  onValueChange={(v) => {
+                                    const newRules = [...(selectedField.conditionRules || [])];
+                                    newRules[ruleIdx] = { ...newRules[ruleIdx], fieldId: v };
+                                    updateField(selectedField.id, { conditionRules: newRules });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-7 text-xs">
+                                    <SelectValue placeholder="Select field" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {otherFields.map((f) => (
+                                      <SelectItem key={f.id} value={f.id}>
+                                        {f.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Select
+                                  value={rule.operator}
+                                  onValueChange={(v) => {
+                                    const newRules = [...(selectedField.conditionRules || [])];
+                                    newRules[ruleIdx] = { ...newRules[ruleIdx], operator: v as ConditionRule["operator"] };
+                                    updateField(selectedField.id, { conditionRules: newRules });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-7 text-xs">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {CONDITION_OPERATORS.map((op) => (
+                                      <SelectItem key={op.value} value={op.value}>
+                                        {op.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                {needsValue && (
+                                  sourceField?.type === "dropdown" ? (
+                                    <Select
+                                      value={rule.value || ""}
+                                      onValueChange={(v) => {
+                                        const newRules = [...(selectedField.conditionRules || [])];
+                                        newRules[ruleIdx] = { ...newRules[ruleIdx], value: v };
+                                        updateField(selectedField.id, { conditionRules: newRules });
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-7 text-xs">
+                                        <SelectValue placeholder="Select value" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {(sourceField.options || []).map((opt) => (
+                                          <SelectItem key={opt} value={opt}>
+                                            {opt}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  ) : (
+                                    <Input
+                                      value={rule.value || ""}
+                                      onChange={(e) => {
+                                        const newRules = [...(selectedField.conditionRules || [])];
+                                        newRules[ruleIdx] = { ...newRules[ruleIdx], value: e.target.value };
+                                        updateField(selectedField.id, { conditionRules: newRules });
+                                      }}
+                                      placeholder="Value..."
+                                      className="h-7 text-xs"
+                                    />
+                                  )
+                                )}
+                              </div>
+                            );
+                          })}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs h-7"
+                            onClick={() => {
+                              const otherFields = fields.filter((f) => f.id !== selectedField.id);
+                              if (otherFields.length === 0) return;
+                              updateField(selectedField.id, {
+                                conditionRules: [
+                                  ...(selectedField.conditionRules || []),
+                                  {
+                                    fieldId: otherFields[0].id,
+                                    operator: "is_not_empty" as const,
+                                  },
+                                ],
+                              });
+                            }}
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            Add Rule (AND)
+                          </Button>
+                        </div>
+                      )}
+                      <p className="text-[10px] text-muted-foreground">
+                        Field is hidden until all conditions are met.
                       </p>
                     </div>
 
@@ -832,21 +1023,82 @@ export default function FormBuilder({ id }: { id: number }) {
         </TabsContent>
 
         {/* ─── Submissions Tab ─── */}
-        <TabsContent value="submissions" className="mt-4">
+        <TabsContent value="submissions" className="mt-4 space-y-4">
+          {/* Stats Cards */}
+          {stats && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card>
+                <CardContent className="pt-4 pb-3 px-4">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <BarChart3 className="h-3.5 w-3.5" />
+                    <span className="text-[10px] uppercase tracking-wider">Total</span>
+                  </div>
+                  <p className="text-2xl font-bold">{stats.total}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3 px-4">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <Users className="h-3.5 w-3.5" />
+                    <span className="text-[10px] uppercase tracking-wider">Conversion</span>
+                  </div>
+                  <p className="text-2xl font-bold">{stats.conversionRate}%</p>
+                  <p className="text-[10px] text-muted-foreground">{stats.withContact} contacts created</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3 px-4">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    <span className="text-[10px] uppercase tracking-wider">Last 7 Days</span>
+                  </div>
+                  <p className="text-2xl font-bold">{stats.last7Days}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-4 pb-3 px-4">
+                  <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                    <TrendingUp className="h-3.5 w-3.5" />
+                    <span className="text-[10px] uppercase tracking-wider">Last 30 Days</span>
+                  </div>
+                  <p className="text-2xl font-bold">{stats.last30Days}</p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Daily Chart (simple bar visualization) */}
+          {stats && stats.daily && stats.daily.length > 0 && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Daily Submissions (Last 30 Days)</CardTitle>
+              </CardHeader>
+              <CardContent className="pb-4">
+                <div className="flex items-end gap-[2px] h-24">
+                  {(() => {
+                    const maxCount = Math.max(...stats.daily.map((d: { day: string; count: number }) => d.count), 1);
+                    return stats.daily.map((d: { day: string; count: number }) => (
+                      <div
+                        key={d.day}
+                        className="flex-1 bg-primary/80 rounded-t-sm hover:bg-primary transition-colors cursor-pointer relative group"
+                        style={{ height: `${Math.max((d.count / maxCount) * 100, 4)}%` }}
+                        title={`${d.day}: ${d.count} submissions`}
+                      >
+                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-[10px] px-1.5 py-0.5 rounded shadow-md hidden group-hover:block whitespace-nowrap z-10">
+                          {d.day}: {d.count}
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Submissions Table */}
           <Card>
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium">
-                  Submissions
-                </CardTitle>
-                {stats && (
-                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>Total: {stats.total}</span>
-                    <span>7d: {stats.last7Days}</span>
-                    <span>30d: {stats.last30Days}</span>
-                  </div>
-                )}
-              </div>
+              <CardTitle className="text-sm font-medium">Recent Submissions</CardTitle>
             </CardHeader>
             <CardContent className="pb-4">
               {!submissions?.submissions.length ? (
@@ -859,7 +1111,7 @@ export default function FormBuilder({ id }: { id: number }) {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[50px]">#</TableHead>
-                        {fields.slice(0, 5).map((f) => (
+                        {fields.slice(0, 4).map((f) => (
                           <TableHead key={f.id} className="text-xs">
                             {f.label}
                           </TableHead>
@@ -871,25 +1123,30 @@ export default function FormBuilder({ id }: { id: number }) {
                     <TableBody>
                       {submissions.submissions.map((sub, idx) => {
                         const data = sub.data as Record<string, unknown>;
+                        const contactName = sub.contactFirstName
+                          ? `${sub.contactFirstName} ${sub.contactLastName || ""}`.trim()
+                          : null;
                         return (
                           <TableRow key={sub.id}>
                             <TableCell className="text-xs text-muted-foreground">
                               {idx + 1}
                             </TableCell>
-                            {fields.slice(0, 5).map((f) => (
+                            {fields.slice(0, 4).map((f) => (
                               <TableCell key={f.id} className="text-xs max-w-[150px] truncate">
                                 {data[f.id] !== undefined
                                   ? String(data[f.id])
-                                  : "—"}
+                                  : "\u2014"}
                               </TableCell>
                             ))}
                             <TableCell className="text-xs">
                               {sub.contactId ? (
-                                <Badge variant="outline" className="text-[10px]">
-                                  #{sub.contactId}
-                                </Badge>
+                                <Link href={`/contacts/${sub.contactId}`}>
+                                  <Badge variant="outline" className="text-[10px] cursor-pointer hover:bg-accent">
+                                    {contactName || `#${sub.contactId}`}
+                                  </Badge>
+                                </Link>
                               ) : (
-                                "—"
+                                <span className="text-muted-foreground">\u2014</span>
                               )}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
@@ -906,6 +1163,115 @@ export default function FormBuilder({ id }: { id: number }) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ─── Embed Code Dialog ─── */}
+      <Dialog open={showEmbedDialog} onOpenChange={setShowEmbedDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Embed Form</DialogTitle>
+            <DialogDescription>
+              Copy one of the embed options below to add this form to your website.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* iFrame embed */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">iFrame Embed</Label>
+              <div className="relative">
+                <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all font-mono">
+{`<iframe
+  src="${window.location.origin}/f/${form?.slug}"
+  width="100%"
+  height="600"
+  frameborder="0"
+  style="border: none; border-radius: 8px;"
+></iframe>`}
+                </pre>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-7"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `<iframe src="${window.location.origin}/f/${form?.slug}" width="100%" height="600" frameborder="0" style="border: none; border-radius: 8px;"></iframe>`
+                    );
+                    toast.success("iFrame code copied");
+                  }}
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+
+            {/* JavaScript embed */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">JavaScript Embed</Label>
+              <div className="relative">
+                <pre className="bg-muted rounded-md p-3 text-xs overflow-x-auto whitespace-pre-wrap break-all font-mono">
+{`<div id="apex-form-${form?.id}"></div>
+<script>
+(function() {
+  var d = document.getElementById('apex-form-${form?.id}');
+  var f = document.createElement('iframe');
+  f.src = '${window.location.origin}/f/${form?.slug}';
+  f.width = '100%';
+  f.height = '600';
+  f.frameBorder = '0';
+  f.style.border = 'none';
+  f.style.borderRadius = '8px';
+  d.appendChild(f);
+})();
+</script>`}
+                </pre>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="absolute top-2 right-2 h-7"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `<div id="apex-form-${form?.id}"></div>\n<script>\n(function() {\n  var d = document.getElementById('apex-form-${form?.id}');\n  var f = document.createElement('iframe');\n  f.src = '${window.location.origin}/f/${form?.slug}';\n  f.width = '100%';\n  f.height = '600';\n  f.frameBorder = '0';\n  f.style.border = 'none';\n  f.style.borderRadius = '8px';\n  d.appendChild(f);\n})();\n</script>`
+                    );
+                    toast.success("JavaScript code copied");
+                  }}
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  Copy
+                </Button>
+              </div>
+            </div>
+
+            {/* Direct link */}
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">Direct Link</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={`${window.location.origin}/f/${form?.slug}`}
+                  className="text-xs font-mono"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(
+                      `${window.location.origin}/f/${form?.slug}`
+                    );
+                    toast.success("Link copied");
+                  }}
+                >
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEmbedDialog(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
