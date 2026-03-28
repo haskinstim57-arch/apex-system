@@ -27,6 +27,7 @@ import {
   Users,
   TrendingUp,
   Link as LinkIcon,
+  Upload,
 } from "lucide-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -76,13 +77,15 @@ interface ConditionRule {
 
 interface FormField {
   id: string;
-  type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date";
+  type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date" | "file";
   label: string;
   required: boolean;
   placeholder?: string;
   options?: string[];
   contactFieldMapping?: string;
   conditionRules?: ConditionRule[];
+  acceptedFileTypes?: string;
+  maxFileSizeMB?: number;
 }
 
 const CONDITION_OPERATORS = [
@@ -113,6 +116,16 @@ const FIELD_TYPES = [
   { type: "dropdown" as const, label: "Dropdown", icon: ChevronDown },
   { type: "checkbox" as const, label: "Checkbox", icon: CheckSquare },
   { type: "date" as const, label: "Date", icon: CalendarDays },
+  { type: "file" as const, label: "File Upload", icon: Upload },
+];
+
+const FILE_TYPE_PRESETS = [
+  { value: "", label: "Any file" },
+  { value: "image/*", label: "Images only" },
+  { value: ".pdf", label: "PDF only" },
+  { value: "image/*,.pdf", label: "Images & PDFs" },
+  { value: ".pdf,.doc,.docx", label: "Documents" },
+  { value: ".pdf,.doc,.docx,.xls,.xlsx", label: "Documents & Spreadsheets" },
 ];
 
 const CONTACT_FIELD_OPTIONS = [
@@ -606,6 +619,57 @@ export default function FormBuilder({ id }: { id: number }) {
                         submission.
                       </p>
                     </div>
+
+                    {/* File Upload Settings */}
+                    {selectedField.type === "file" && (
+                      <div className="space-y-3 border-t pt-3">
+                        <Label className="text-xs font-medium">File Upload Settings</Label>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Accepted File Types</Label>
+                          <Select
+                            value={selectedField.acceptedFileTypes || ""}
+                            onValueChange={(v) =>
+                              updateField(selectedField.id, {
+                                acceptedFileTypes: v || undefined,
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Any file" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FILE_TYPE_PRESETS.map((preset) => (
+                                <SelectItem key={preset.value || "any"} value={preset.value || "any_file"}>
+                                  {preset.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs">Max File Size (MB)</Label>
+                          <Select
+                            value={String(selectedField.maxFileSizeMB || 10)}
+                            onValueChange={(v) =>
+                              updateField(selectedField.id, {
+                                maxFileSizeMB: parseInt(v),
+                              })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="2">2 MB</SelectItem>
+                              <SelectItem value="5">5 MB</SelectItem>
+                              <SelectItem value="10">10 MB</SelectItem>
+                              <SelectItem value="25">25 MB</SelectItem>
+                              <SelectItem value="50">50 MB</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Conditional Visibility Rules */}
                     <div className="space-y-2 border-t pt-3">

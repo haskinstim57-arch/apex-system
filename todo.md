@@ -1840,3 +1840,25 @@
 - [x] Hidden fields excluded from submission payload and validation
 - [x] Write 22 vitest tests for conditional visibility, embed code, and stats shape
 - [x] Run pnpm check — 0 TypeScript errors
+
+### Feature: Form Templates Library
+- [x] Create 5 pre-built templates (Mortgage Inquiry, Contact Us, Refinance Application, Home Buyer Consultation, Insurance Quote)
+- [x] Add "Templates" tab in Forms page with template cards showing category, field count, and preview
+- [x] Add listTemplates and createFromTemplate tRPC procedures
+- [x] Wire template cloning to create new form with pre-populated fields, settings, and unique slug
+
+### Feature: Form A/B Testing
+- [x] Add "Create A/B Variant" menu item in form actions dropdown
+- [x] Add duplicateForm tRPC procedure that clones fields, settings, and generates variant slug
+- [x] Add A/B variant dialog with tips for testing different headlines, button text, and field order
+- [x] Variant forms appear in the same list for side-by-side comparison
+
+### Feature: File Upload Field Type
+- [x] Add "file" to FormField type union in schema.ts with acceptedFileTypes and maxFileSizeMB
+- [x] Add "file" to Zod formFieldSchema in forms router
+- [x] Add uploadFormFile tRPC procedure using S3 storagePut with sanitized file keys
+- [x] Update FormBuilder with file field type, accepted types selector, and max size config
+- [x] Update PublicForm with drag-and-drop file upload, progress state, file preview, and remove button
+- [x] File type validation (extension, MIME, wildcard), size validation, and upload-in-progress blocking
+- [x] Write 26 vitest tests for templates, A/B testing, and file upload (all passing)
+- [x] Run pnpm check — 0 TypeScript errors

@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, Upload, X, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "sonner";
 
 interface ConditionRule {
   fieldId: string;
@@ -21,12 +22,14 @@ interface ConditionRule {
 
 interface FormField {
   id: string;
-  type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date";
+  type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date" | "file";
   label: string;
   required: boolean;
   placeholder?: string;
   options?: string[];
   conditionRules?: ConditionRule[];
+  acceptedFileTypes?: string;
+  maxFileSizeMB?: number;
 }
 
 interface FormSettings {
@@ -75,10 +78,25 @@ function isFieldVisible(
   return field.conditionRules.every((rule) => evaluateRule(rule, formData));
 }
 
+/** Format file size for display */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface UploadedFile {
+  url: string;
+  fileName: string;
+  size: number;
+}
+
 export default function PublicForm({ slug }: { slug: string }) {
   const [formData, setFormData] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [uploadingFields, setUploadingFields] = useState<Set<string>>(new Set());
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: form, isLoading, error } = trpc.forms.getPublicForm.useQuery(
     { slug },
@@ -95,6 +113,8 @@ export default function PublicForm({ slug }: { slug: string }) {
       }
     },
   });
+
+  const uploadFileMutation = trpc.forms.uploadFormFile.useMutation();
 
   const fields = useMemo(() => (form?.fields ?? []) as FormField[], [form]);
   const settings = useMemo(() => (form?.settings ?? {}) as FormSettings, [form]);
@@ -113,7 +133,12 @@ export default function PublicForm({ slug }: { slug: string }) {
     // Only validate visible fields
     for (const field of visibleFields) {
       const val = formData[field.id];
-      if (field.required && (val === undefined || val === "" || val === null)) {
+      if (field.type === "file") {
+        // For file fields, check if an uploaded file URL exists
+        if (field.required && (!val || !(val as UploadedFile).url)) {
+          newErrors[field.id] = `${field.label} is required`;
+        }
+      } else if (field.required && (val === undefined || val === "" || val === null)) {
         newErrors[field.id] = `${field.label} is required`;
       }
       if (field.type === "email" && val && typeof val === "string") {
@@ -128,12 +153,24 @@ export default function PublicForm({ slug }: { slug: string }) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (uploadingFields.size > 0) {
+      toast.error("Please wait for file uploads to complete");
+      return;
+    }
     if (!validate()) return;
     // Only submit data for visible fields
     const visibleData: Record<string, unknown> = {};
     for (const field of visibleFields) {
       if (formData[field.id] !== undefined) {
-        visibleData[field.id] = formData[field.id];
+        if (field.type === "file") {
+          // For file fields, submit the URL and fileName
+          const fileData = formData[field.id] as UploadedFile;
+          if (fileData?.url) {
+            visibleData[field.id] = { url: fileData.url, fileName: fileData.fileName };
+          }
+        } else {
+          visibleData[field.id] = formData[field.id];
+        }
       }
     }
     submitMutation.mutate({ slug, data: visibleData });
@@ -147,6 +184,87 @@ export default function PublicForm({ slug }: { slug: string }) {
         delete next[fieldId];
         return next;
       });
+    }
+  };
+
+  const handleFileSelect = async (field: FormField, file: File) => {
+    const maxSizeMB = field.maxFileSizeMB || 10;
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      setErrors((prev) => ({
+        ...prev,
+        [field.id]: `File exceeds maximum size of ${maxSizeMB}MB`,
+      }));
+      return;
+    }
+
+    // Check accepted file types
+    if (field.acceptedFileTypes && field.acceptedFileTypes !== "any_file") {
+      const acceptedTypes = field.acceptedFileTypes.split(",").map((t) => t.trim());
+      const fileExt = "." + file.name.split(".").pop()?.toLowerCase();
+      const fileMime = file.type;
+      const isAccepted = acceptedTypes.some((type) => {
+        if (type.endsWith("/*")) {
+          return fileMime.startsWith(type.replace("/*", "/"));
+        }
+        if (type.startsWith(".")) {
+          return fileExt === type.toLowerCase();
+        }
+        return fileMime === type;
+      });
+      if (!isAccepted) {
+        setErrors((prev) => ({
+          ...prev,
+          [field.id]: `File type not accepted. Accepted: ${field.acceptedFileTypes}`,
+        }));
+        return;
+      }
+    }
+
+    // Upload the file
+    setUploadingFields((prev) => new Set(prev).add(field.id));
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const result = reader.result as string;
+          // Remove the data:...;base64, prefix
+          const base64Data = result.split(",")[1];
+          resolve(base64Data);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const result = await uploadFileMutation.mutateAsync({
+        slug,
+        fieldId: field.id,
+        fileName: file.name,
+        fileBase64: base64,
+        contentType: file.type || "application/octet-stream",
+      });
+
+      updateField(field.id, {
+        url: result.url,
+        fileName: result.fileName,
+        size: file.size,
+      } as UploadedFile);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      setErrors((prev) => ({ ...prev, [field.id]: message }));
+    } finally {
+      setUploadingFields((prev) => {
+        const next = new Set(prev);
+        next.delete(field.id);
+        return next;
+      });
+    }
+  };
+
+  const removeFile = (fieldId: string) => {
+    updateField(fieldId, undefined);
+    // Reset the file input
+    if (fileInputRefs.current[fieldId]) {
+      fileInputRefs.current[fieldId]!.value = "";
     }
   };
 
@@ -305,6 +423,68 @@ export default function PublicForm({ slug }: { slug: string }) {
                     </div>
                   )}
 
+                  {field.type === "file" && (
+                    <div>
+                      {formData[field.id] && (formData[field.id] as UploadedFile).url ? (
+                        <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                          <FileText className="h-5 w-5 text-green-600 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-green-800 truncate">
+                              {(formData[field.id] as UploadedFile).fileName}
+                            </p>
+                            <p className="text-xs text-green-600">
+                              {formatFileSize((formData[field.id] as UploadedFile).size)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(field.id)}
+                            className="p-1 hover:bg-green-100 rounded"
+                          >
+                            <X className="h-4 w-4 text-green-600" />
+                          </button>
+                        </div>
+                      ) : uploadingFields.has(field.id) ? (
+                        <div className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                          <p className="text-sm text-blue-700">Uploading...</p>
+                        </div>
+                      ) : (
+                        <div
+                          className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-gray-400 transition-colors ${
+                            errors[field.id] ? "border-red-300 bg-red-50" : "border-gray-300"
+                          }`}
+                          onClick={() => fileInputRefs.current[field.id]?.click()}
+                        >
+                          <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
+                          <p className="text-sm text-gray-600">
+                            Click to upload or drag and drop
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            Max {field.maxFileSizeMB || 10}MB
+                            {field.acceptedFileTypes && field.acceptedFileTypes !== "any_file"
+                              ? ` · ${field.acceptedFileTypes}`
+                              : ""}
+                          </p>
+                          <input
+                            ref={(el) => { fileInputRefs.current[field.id] = el; }}
+                            type="file"
+                            className="hidden"
+                            accept={
+                              field.acceptedFileTypes && field.acceptedFileTypes !== "any_file"
+                                ? field.acceptedFileTypes
+                                : undefined
+                            }
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleFileSelect(field, file);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {errors[field.id] && (
                     <p className="text-xs text-red-500">{errors[field.id]}</p>
                   )}
@@ -316,7 +496,7 @@ export default function PublicForm({ slug }: { slug: string }) {
               type="submit"
               className="w-full mt-4"
               style={{ backgroundColor: primaryColor }}
-              disabled={submitMutation.isPending}
+              disabled={submitMutation.isPending || uploadingFields.size > 0}
             >
               {submitMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />

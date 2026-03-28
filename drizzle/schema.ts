@@ -1231,7 +1231,7 @@ export interface ConditionRule {
 
 export interface FormField {
   id: string;
-  type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date";
+  type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date" | "file";
   label: string;
   required: boolean;
   placeholder?: string;
@@ -1241,6 +1241,10 @@ export interface FormField {
   contactFieldMapping?: string;
   /** Conditional visibility: field is shown only when ALL rules pass */
   conditionRules?: ConditionRule[];
+  /** For file fields: accepted MIME types (e.g., "image/*,.pdf") */
+  acceptedFileTypes?: string;
+  /** For file fields: max file size in MB (default 10) */
+  maxFileSizeMB?: number;
 }
 
 /** Form settings */
