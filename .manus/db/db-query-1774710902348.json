@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM appointments WHERE guestName IN ('E2E Test User', 'DST Spring Test', 'DST Fall Test', 'DST Boundary Test');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute DELETE FROM appointments WHERE guestName IN ('E2E Test User', 'DST Spring Test', 'DST Fall Test', 'DST Boundary Test');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 357
+}

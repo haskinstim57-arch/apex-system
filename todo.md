@@ -1751,3 +1751,11 @@
 - [x] Update all call initiation points (aiCalls.ts, powerDialer.ts, workflowEngine.ts) to fetch account config and pass it
 - [x] Update server/businessHours.test.ts — 46 tests passing (up from 20)
 - [x] Run pnpm check — 0 TypeScript errors
+
+### Test: VAPI Appointment Booking End-to-End
+- [x] Read and review webhook handler for bookAppointment and checkAvailability
+- [x] Test checkAvailability — 4 scenarios: weekday, weekend, missing date, no calendar (all pass)
+- [x] Test bookAppointment — 5 scenarios: valid booking, missing fields, past date, no calendar, unknown tool (all pass)
+- [x] Test Pacific DST — PDT (Apr 7 → UTC-7), PST (Nov 2 → UTC-8), transition day (Mar 8) all correct
+- [x] Verify DB records: 3 appointments created with correct UTC times, then cleaned up
+- [x] Documented in docs/vapi-booking-e2e-test-results.md — 14/14 tests passed, 0 issues

@@ -1,0 +1,28 @@
+{
+  "query": "SELECT id, calendarId, accountId, guestName, startTime, endTime, status FROM appointments ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, calendarId, accountId, guestName, startTime, endTime, status FROM appointments ORDER BY id;",
+  "rows": [
+    {
+      "id": "2",
+      "calendarId": "30002",
+      "accountId": "390025",
+      "guestName": "Tyreke Haskins",
+      "startTime": "2026-03-27 16:00:00",
+      "endTime": "2026-03-27 16:30:00",
+      "status": "cancelled"
+    },
+    {
+      "id": "3",
+      "calendarId": "30002",
+      "accountId": "390025",
+      "guestName": "Tyreke Hanson",
+      "startTime": "2026-03-27 21:00:00",
+      "endTime": "2026-03-27 21:30:00",
+      "status": "cancelled"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcalendarId\taccountId\tguestName\tstartTime\tendTime\tstatus\n2\t30002\t390025\tTyreke Haskins\t2026-03-27 16:00:00\t2026-03-27 16:30:00\tcancelled\n3\t30002\t390025\tTyreke Hanson\t2026-03-27 21:00:00\t2026-03-27 21:30:00\tcancelled\n",
+  "stderr": "",
+  "execution_time_ms": 351
+}

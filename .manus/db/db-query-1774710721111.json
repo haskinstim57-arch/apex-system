@@ -1,0 +1,85 @@
+{
+  "query": "SELECT id, name, voiceAgentEnabled FROM accounts ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name, voiceAgentEnabled FROM accounts ORDER BY id;",
+  "rows": [
+    {
+      "id": "390023",
+      "name": "Evol Hosang",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "390024",
+      "name": "Alfonso Parra Lenis",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "390025",
+      "name": "Kyle",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "420001",
+      "name": "Premier Mortgage Resources",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "450001",
+      "name": "Belinda Osborne",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "450002",
+      "name": "Apex System",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480001",
+      "name": "Test Account Active",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480002",
+      "name": "Test Account Suspended",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480003",
+      "name": "Test Account Industry",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480004",
+      "name": "Test Account Active",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480005",
+      "name": "Test Account Suspended",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480006",
+      "name": "Test Account Industry",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480007",
+      "name": "Test Account Active",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480008",
+      "name": "Test Account Suspended",
+      "voiceAgentEnabled": "0"
+    },
+    {
+      "id": "480009",
+      "name": "Test Account Industry",
+      "voiceAgentEnabled": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tvoiceAgentEnabled\n390023\tEvol Hosang\t0\n390024\tAlfonso Parra Lenis\t0\n390025\tKyle\t0\n420001\tPremier Mortgage Resources\t0\n450001\tBelinda Osborne\t0\n450002\tApex System\t0\n480001\tTest Account Active\t0\n480002\tTest Account Suspended\t0\n480003\tTest Account Industry\t0\n480004\tTest Account Active\t0\n480005\tTest Account Suspended\t0\n480006\tTest Account Industry\t0\n480007\tTest Account Active\t0\n480008\tTest Account Suspended\t0\n480009\tTest Account Industry\t0\n",
+  "stderr": "",
+  "execution_time_ms": 347
+}

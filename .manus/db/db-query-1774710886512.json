@@ -1,0 +1,46 @@
+{
+  "query": "SELECT id, calendarId, accountId, guestName, guestEmail, guestPhone, startTime, endTime, status, notes FROM appointments WHERE guestName LIKE '%Test%' OR guestName LIKE '%DST%' ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, calendarId, accountId, guestName, guestEmail, guestPhone, startTime, endTime, status, notes FROM appointments WHERE guestName LIKE '%Test%' OR guestName LIKE '%DST%' ORDER BY id;",
+  "rows": [
+    {
+      "id": "30001",
+      "calendarId": "30001",
+      "accountId": "420001",
+      "guestName": "E2E Test User",
+      "guestEmail": "e2etest@example.com",
+      "guestPhone": "+15551234567",
+      "startTime": "2026-04-06 17:00:00",
+      "endTime": "2026-04-06 17:30:00",
+      "status": "confirmed",
+      "notes": "E2E test booking — safe to delete"
+    },
+    {
+      "id": "30002",
+      "calendarId": "30001",
+      "accountId": "420001",
+      "guestName": "DST Spring Test",
+      "guestEmail": "not-provided@placeholder.com",
+      "guestPhone": "+15551234567",
+      "startTime": "2026-04-07 21:00:00",
+      "endTime": "2026-04-07 21:30:00",
+      "status": "confirmed",
+      "notes": "DST spring forward test — April 7 is in PDT"
+    },
+    {
+      "id": "30003",
+      "calendarId": "30001",
+      "accountId": "420001",
+      "guestName": "DST Fall Test",
+      "guestEmail": "not-provided@placeholder.com",
+      "guestPhone": "+15551234567",
+      "startTime": "2026-11-02 18:00:00",
+      "endTime": "2026-11-02 18:30:00",
+      "status": "confirmed",
+      "notes": "DST fall back test — November 2 is in PST"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tcalendarId\taccountId\tguestName\tguestEmail\tguestPhone\tstartTime\tendTime\tstatus\tnotes\n30001\t30001\t420001\tE2E Test User\te2etest@example.com\t+15551234567\t2026-04-06 17:00:00\t2026-04-06 17:30:00\tconfirmed\tE2E test booking — safe to delete\n30002\t30001\t420001\tDST Spring Test\tnot-provided@placeholder.com\t+15551234567\t2026-04-07 21:00:00\t2026-04-07 21:30:00\tconfirmed\tDST spring forward test — April 7 is in PDT\n30003\t30001\t420001\tDST Fall Test\tnot-provided@placeholder.com\t+15551234567\t2026-11-02 18:00:00\t2026-11-02 18:30:00\tconfirmed\tDST fall back test — November 2 is in PST\n",
+  "stderr": "",
+  "execution_time_ms": 348
+}

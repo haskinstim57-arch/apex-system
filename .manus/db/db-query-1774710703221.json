@@ -1,0 +1,9 @@
+{
+  "query": "SELECT a.id, a.name, c.id as calendar_id, c.name as calendar_name FROM accounts a LEFT JOIN calendars c ON c.accountId = a.id WHERE a.id = 430001;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT a.id, a.name, c.id as calendar_id, c.name as calendar_name FROM accounts a LEFT JOIN calendars c ON c.accountId = a.id WHERE a.id = 430001;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 355
+}

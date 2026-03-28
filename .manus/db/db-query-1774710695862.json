@@ -1,0 +1,22 @@
+{
+  "query": "SELECT a.id, a.name, c.id as calendar_id, c.name as calendar_name FROM accounts a LEFT JOIN calendars c ON c.accountId = a.id WHERE a.id IN (420001, 430001, 450002) ORDER BY a.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT a.id, a.name, c.id as calendar_id, c.name as calendar_name FROM accounts a LEFT JOIN calendars c ON c.accountId = a.id WHERE a.id IN (420001, 430001, 450002) ORDER BY a.id;",
+  "rows": [
+    {
+      "id": "420001",
+      "name": "Premier Mortgage Resources",
+      "calendar_id": "30001",
+      "calendar_name": "Tim Haskins - Mortgage Consultation"
+    },
+    {
+      "id": "450002",
+      "name": "Apex System",
+      "calendar_id": "NULL",
+      "calendar_name": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tcalendar_id\tcalendar_name\n420001\tPremier Mortgage Resources\t30001\tTim Haskins - Mortgage Consultation\n450002\tApex System\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 373
+}

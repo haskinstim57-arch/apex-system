@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, name FROM accounts WHERE name LIKE '%Optimal%' OR name LIKE '%OLS%' OR id BETWEEN 430000 AND 440000;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, name FROM accounts WHERE name LIKE '%Optimal%' OR name LIKE '%OLS%' OR id BETWEEN 430000 AND 440000;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 362
+}

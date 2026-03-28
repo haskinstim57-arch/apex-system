@@ -1,0 +1,20 @@
+{
+  "query": "SELECT id, accountId, name FROM calendars ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SELECT id, accountId, name FROM calendars ORDER BY id;",
+  "rows": [
+    {
+      "id": "30001",
+      "accountId": "420001",
+      "name": "Tim Haskins - Mortgage Consultation"
+    },
+    {
+      "id": "30002",
+      "accountId": "390025",
+      "name": "Kyle - Investor Consultation"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\taccountId\tname\n30001\t420001\tTim Haskins - Mortgage Consultation\n30002\t390025\tKyle - Investor Consultation\n",
+  "stderr": "",
+  "execution_time_ms": 358
+}
