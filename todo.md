@@ -1902,3 +1902,15 @@
 - [x] Write 23 vitest tests for all 3 reputation enhancement features (all passing)
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Checkpoint saved
+
+### Feature: Outbound Webhooks (Zapier/Make/n8n Integration)
+- [x] Add outboundWebhooks table to schema (accountId, triggerEvent, url, secret, isActive, description, lastTriggeredAt, failCount)
+- [x] Push schema migration to database
+- [x] Create server/services/webhookDispatcher.ts with HMAC-SHA256 signature, retry logic, and async dispatch
+- [x] Create server/routers/webhooks.ts with CRUD procedures (list, create, update, delete, test)
+- [x] Register webhooks router in main routers.ts
+- [x] Wire dispatcher into existing event sources (workflowTriggers.ts 10 events + reputation addReview)
+- [x] Build OutboundWebhooksCard in Settings.tsx with webhook management UI (add/edit/delete/test/toggle)
+- [x] Write vitest tests for outbound webhooks — 26 tests passing (HMAC, secrets, schema, validation, imports)
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Checkpoint saved

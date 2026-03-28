@@ -18,6 +18,7 @@ import { createMessage } from "../db";
 import { gmbConnections, reviews, reputationAlertSettings } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
+import { dispatchWebhookEvent } from "../services/webhookDispatcher";
 
 const platformEnum = z.enum(["google", "facebook", "yelp", "zillow"]);
 const channelEnum = z.enum(["sms", "email"]);
@@ -155,6 +156,15 @@ export const reputationRouter = router({
       } catch {
         // Don't fail the review creation if alert fails
       }
+
+      // Dispatch outbound webhook
+      dispatchWebhookEvent(input.accountId, "review_received", {
+        reviewId: result.id,
+        platform: input.platform,
+        rating: input.rating,
+        reviewerName: input.reviewerName || null,
+        body: input.body || null,
+      }).catch(() => {});
 
       return result;
     }),

@@ -90,6 +90,13 @@ import {
   Plus,
   Edit3,
   Copy,
+  Webhook,
+  Zap,
+  Eye,
+  EyeOff,
+  RotateCw,
+  Activity,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -314,6 +321,11 @@ export default function SettingsPage() {
       {/* AI Voice Calling Kill Switch — visible to anyone with an account selected */}
       {currentAccountId && (
         <AIVoiceCallingCard accountId={currentAccountId} />
+      )}
+
+      {/* Outbound Webhooks — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <OutboundWebhooksCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}
@@ -3219,5 +3231,486 @@ function AIVoiceCallingCard({ accountId }: { accountId: number }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+
+// ─── Outbound Webhooks Card ──────────────────────────────────
+const TRIGGER_EVENTS = [
+  { value: "contact_created", label: "Contact Created" },
+  { value: "contact_updated", label: "Contact Updated" },
+  { value: "tag_added", label: "Tag Added" },
+  { value: "pipeline_stage_changed", label: "Pipeline Stage Changed" },
+  { value: "facebook_lead_received", label: "Facebook Lead Received" },
+  { value: "inbound_message_received", label: "Inbound Message Received" },
+  { value: "appointment_booked", label: "Appointment Booked" },
+  { value: "appointment_cancelled", label: "Appointment Cancelled" },
+  { value: "call_completed", label: "Call Completed" },
+  { value: "missed_call", label: "Missed Call" },
+  { value: "form_submitted", label: "Form Submitted" },
+  { value: "review_received", label: "Review Received" },
+  { value: "workflow_completed", label: "Workflow Completed" },
+] as const;
+
+function OutboundWebhooksCard({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+  const webhooksList = trpc.webhooks.list.useQuery({ accountId });
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [revealedSecrets, setRevealedSecrets] = useState<Set<number>>(new Set());
+
+  // Create form state
+  const [name, setName] = useState("");
+  const [triggerEvent, setTriggerEvent] = useState<string>("");
+  const [url, setUrl] = useState("");
+  const [description, setDescription] = useState("");
+
+  // Edit form state
+  const [editName, setEditName] = useState("");
+  const [editTriggerEvent, setEditTriggerEvent] = useState<string>("");
+  const [editUrl, setEditUrl] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+
+  const createWebhook = trpc.webhooks.create.useMutation({
+    onSuccess: (data) => {
+      toast.success("Webhook created! Signing secret: " + data.secret.slice(0, 8) + "...");
+      utils.webhooks.list.invalidate({ accountId });
+      resetCreateForm();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateWebhook = trpc.webhooks.update.useMutation({
+    onSuccess: () => {
+      toast.success("Webhook updated");
+      utils.webhooks.list.invalidate({ accountId });
+      setEditingId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteWebhook = trpc.webhooks.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Webhook deleted");
+      utils.webhooks.list.invalidate({ accountId });
+      setDeleteId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const testWebhook = trpc.webhooks.test.useMutation({
+    onSuccess: (result) => {
+      if (result.success) {
+        toast.success(`Test successful! Status: ${result.statusCode}`);
+      } else {
+        toast.error(`Test failed: ${result.error || `Status ${result.statusCode}`}`);
+      }
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const regenerateSecret = trpc.webhooks.regenerateSecret.useMutation({
+    onSuccess: (data) => {
+      toast.success("New secret: " + data.secret.slice(0, 8) + "...");
+      utils.webhooks.list.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function resetCreateForm() {
+    setShowCreate(false);
+    setName("");
+    setTriggerEvent("");
+    setUrl("");
+    setDescription("");
+  }
+
+  function startEdit(wh: any) {
+    setEditingId(wh.id);
+    setEditName(wh.name);
+    setEditTriggerEvent(wh.triggerEvent);
+    setEditUrl(wh.url);
+    setEditDescription(wh.description || "");
+  }
+
+  function toggleSecretVisibility(id: number) {
+    setRevealedSecrets((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  const webhooks = webhooksList.data || [];
+
+  return (
+    <>
+      <Card className="bg-white border-0 card-shadow">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Webhook className="h-4 w-4 text-muted-foreground" />
+                Outbound Webhooks
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
+                Send CRM events to Zapier, Make, n8n, or any HTTP endpoint. Payloads are signed with HMAC-SHA256.
+              </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowCreate(true)}
+              disabled={showCreate}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" /> Add Webhook
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Create Form */}
+          {showCreate && (
+            <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
+              <p className="text-sm font-medium">New Webhook</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">Name</Label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. Zapier New Lead"
+                    className="h-8 text-sm"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Trigger Event</Label>
+                  <Select value={triggerEvent} onValueChange={setTriggerEvent}>
+                    <SelectTrigger className="h-8 text-sm">
+                      <SelectValue placeholder="Select event..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TRIGGER_EVENTS.map((e) => (
+                        <SelectItem key={e.value} value={e.value}>
+                          {e.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Webhook URL</Label>
+                <Input
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://hooks.zapier.com/hooks/catch/..."
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Description (optional)</Label>
+                <Input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Sends new leads to our Zapier automation"
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button size="sm" variant="ghost" onClick={resetCreateForm}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() =>
+                    createWebhook.mutate({
+                      accountId,
+                      name,
+                      triggerEvent: triggerEvent as any,
+                      url,
+                      description: description || undefined,
+                    })
+                  }
+                  disabled={createWebhook.isPending || !name || !triggerEvent || !url}
+                >
+                  {createWebhook.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+                  Create Webhook
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Webhook List */}
+          {webhooksList.isLoading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : webhooks.length === 0 && !showCreate ? (
+            <div className="text-center py-6">
+              <Zap className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No webhooks configured</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add a webhook to send CRM events to external services like Zapier, Make, or n8n.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {webhooks.map((wh) => (
+                <div
+                  key={wh.id}
+                  className={`p-3 border rounded-lg transition-colors ${
+                    wh.isActive ? "bg-white" : "bg-muted/30 opacity-70"
+                  }`}
+                >
+                  {editingId === wh.id ? (
+                    /* Edit Mode */
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Name</Label>
+                          <Input
+                            value={editName}
+                            onChange={(e) => setEditName(e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Trigger Event</Label>
+                          <Select value={editTriggerEvent} onValueChange={setEditTriggerEvent}>
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {TRIGGER_EVENTS.map((e) => (
+                                <SelectItem key={e.value} value={e.value}>
+                                  {e.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-xs">URL</Label>
+                        <Input
+                          value={editUrl}
+                          onChange={(e) => setEditUrl(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Description</Label>
+                        <Input
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+                          Cancel
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            updateWebhook.mutate({
+                              accountId,
+                              webhookId: wh.id,
+                              name: editName,
+                              triggerEvent: editTriggerEvent as any,
+                              url: editUrl,
+                              description: editDescription || undefined,
+                            })
+                          }
+                          disabled={updateWebhook.isPending}
+                        >
+                          {updateWebhook.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Display Mode */
+                    <>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium">{wh.name}</span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] ${
+                                wh.isActive
+                                  ? "bg-green-500/10 text-green-600 border-green-500/20"
+                                  : "bg-gray-500/10 text-gray-500 border-gray-500/20"
+                              }`}
+                            >
+                              {wh.isActive ? "Active" : "Paused"}
+                            </Badge>
+                            <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-600 border-blue-500/20">
+                              {TRIGGER_EVENTS.find((e) => e.value === wh.triggerEvent)?.label || wh.triggerEvent}
+                            </Badge>
+                            {wh.failCount > 0 && (
+                              <Badge variant="outline" className="text-[10px] bg-red-500/10 text-red-600 border-red-500/20">
+                                <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+                                {wh.failCount} fail{wh.failCount > 1 ? "s" : ""}
+                              </Badge>
+                            )}
+                          </div>
+                          {wh.description && (
+                            <p className="text-xs text-muted-foreground mt-0.5">{wh.description}</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1 font-mono truncate">
+                            {wh.url}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            title={wh.isActive ? "Pause" : "Enable"}
+                            onClick={() =>
+                              updateWebhook.mutate({
+                                accountId,
+                                webhookId: wh.id,
+                                isActive: !wh.isActive,
+                              })
+                            }
+                          >
+                            {wh.isActive ? (
+                              <Activity className="h-3.5 w-3.5 text-green-600" />
+                            ) : (
+                              <Activity className="h-3.5 w-3.5 text-muted-foreground" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            title="Send test"
+                            onClick={() => testWebhook.mutate({ accountId, webhookId: wh.id })}
+                            disabled={testWebhook.isPending}
+                          >
+                            {testWebhook.isPending ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Zap className="h-3.5 w-3.5 text-yellow-600" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            title="Edit"
+                            onClick={() => startEdit(wh)}
+                          >
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-red-500 hover:text-red-600"
+                            title="Delete"
+                            onClick={() => setDeleteId(wh.id)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Secret + Meta Row */}
+                      <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-1">
+                          <span className="font-medium">Secret:</span>
+                          <code className="bg-muted px-1.5 py-0.5 rounded text-[10px] font-mono">
+                            {revealedSecrets.has(wh.id)
+                              ? wh.secret
+                              : wh.secret.slice(0, 8) + "••••••••"}
+                          </code>
+                          <button
+                            onClick={() => toggleSecretVisibility(wh.id)}
+                            className="hover:text-foreground transition-colors"
+                            title={revealedSecrets.has(wh.id) ? "Hide" : "Reveal"}
+                          >
+                            {revealedSecrets.has(wh.id) ? (
+                              <EyeOff className="h-3 w-3" />
+                            ) : (
+                              <Eye className="h-3 w-3" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(wh.secret);
+                              toast.success("Secret copied");
+                            }}
+                            className="hover:text-foreground transition-colors"
+                            title="Copy secret"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                          <button
+                            onClick={() =>
+                              regenerateSecret.mutate({ accountId, webhookId: wh.id })
+                            }
+                            className="hover:text-foreground transition-colors"
+                            title="Regenerate secret"
+                            disabled={regenerateSecret.isPending}
+                          >
+                            <RotateCw className={`h-3 w-3 ${regenerateSecret.isPending ? "animate-spin" : ""}`} />
+                          </button>
+                        </div>
+                        {wh.lastTriggeredAt && (
+                          <span>
+                            Last fired: {new Date(wh.lastTriggeredAt).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Verification Guide */}
+          {webhooks.length > 0 && (
+            <div className="p-3 bg-blue-500/5 border border-blue-500/20 rounded-lg">
+              <p className="text-xs font-medium text-blue-600 mb-1">Verifying Webhook Signatures</p>
+              <p className="text-xs text-muted-foreground">
+                Each payload includes an <code className="bg-muted px-1 rounded">X-Webhook-Signature</code> header.
+                Verify by computing <code className="bg-muted px-1 rounded">HMAC-SHA256(secret, rawBody)</code> and comparing
+                it to the header value. The <code className="bg-muted px-1 rounded">X-Webhook-Event</code> header contains the event type.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Webhook</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this webhook. Events will no longer be sent to the configured URL.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={() => {
+                if (deleteId) deleteWebhook.mutate({ accountId, webhookId: deleteId });
+              }}
+            >
+              {deleteWebhook.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

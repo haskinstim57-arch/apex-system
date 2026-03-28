@@ -1,5 +1,6 @@
 import { getActiveWorkflowsByTrigger } from "../db";
 import { triggerWorkflow } from "./workflowEngine";
+import { dispatchWebhookEvent } from "./webhookDispatcher";
 
 // ─────────────────────────────────────────────
 // Workflow Trigger Service
@@ -21,6 +22,8 @@ export async function onContactCreated(accountId: number, contactId: number) {
         `[Triggers] contact_created: fired ${workflows.length} workflow(s) for contact ${contactId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "contact_created", { contactId }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onContactCreated error:", err);
   }
@@ -35,11 +38,12 @@ export async function onTagAdded(accountId: number, contactId: number, tag: stri
   try {
     const workflows = await getActiveWorkflowsByTrigger(accountId, "tag_added");
     for (const wf of workflows) {
-      // Check if the trigger config matches the tag
       const config = wf.triggerConfig ? JSON.parse(wf.triggerConfig) : {};
-      if (config.tag && config.tag !== tag) continue; // Skip if tag doesn't match
+      if (config.tag && config.tag !== tag) continue;
       await triggerWorkflow(wf, contactId, accountId, `tag_added:${tag}`);
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "tag_added", { contactId, tag }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onTagAdded error:", err);
   }
@@ -71,6 +75,8 @@ export async function onPipelineStageChanged(
         `pipeline_stage_changed:${fromStatus}->${toStatus}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "pipeline_stage_changed", { contactId, fromStatus, toStatus }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onPipelineStageChanged error:", err);
   }
@@ -91,6 +97,8 @@ export async function onFacebookLeadReceived(accountId: number, contactId: numbe
         `[Triggers] facebook_lead_received: fired ${workflows.length} workflow(s) for contact ${contactId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "facebook_lead_received", { contactId }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onFacebookLeadReceived error:", err);
   }
@@ -111,6 +119,8 @@ export async function onCallCompleted(accountId: number, contactId: number) {
         `[Triggers] call_completed: fired ${workflows.length} workflow(s) for contact ${contactId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "call_completed", { contactId }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onCallCompleted error:", err);
   }
@@ -138,6 +148,8 @@ export async function onInboundMessageReceived(
         `[Triggers] inbound_message_received(${channel}): fired ${workflows.length} workflow(s) for contact ${contactId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "inbound_message_received", { contactId, channel }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onInboundMessageReceived error:", err);
   }
@@ -166,6 +178,8 @@ export async function onAppointmentBooked(
         `[Triggers] appointment_booked: fired ${workflows.length} workflow(s) for contact ${contactId}, appt ${appointmentId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "appointment_booked", { contactId, appointmentId, calendarId }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onAppointmentBooked error:", err);
   }
@@ -190,6 +204,8 @@ export async function onAppointmentCancelled(
         `[Triggers] appointment_cancelled: fired ${workflows.length} workflow(s) for contact ${contactId}, appt ${appointmentId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "appointment_cancelled", { contactId, appointmentId }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onAppointmentCancelled error:", err);
   }
@@ -210,6 +226,8 @@ export async function onMissedCall(accountId: number, contactId: number) {
         `[Triggers] missed_call: fired ${workflows.length} workflow(s) for contact ${contactId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "missed_call", { contactId }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onMissedCall error:", err);
   }
@@ -237,6 +255,8 @@ export async function onFormSubmitted(
         `[Triggers] form_submitted: fired ${workflows.length} workflow(s) for contact ${contactId}`
       );
     }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "form_submitted", { contactId, formId: formId || null }).catch(() => {});
   } catch (err) {
     console.error("[Triggers] onFormSubmitted error:", err);
   }

@@ -1395,3 +1395,46 @@ export const reputationAlertSettings = mysqlTable("reputation_alert_settings", {
 });
 export type ReputationAlertSetting = typeof reputationAlertSettings.$inferSelect;
 export type InsertReputationAlertSetting = typeof reputationAlertSettings.$inferInsert;
+
+// ─────────────────────────────────────────────
+// OUTBOUND WEBHOOKS — Zapier / Make / n8n integration
+// Dispatches CRM events to external URLs with HMAC-SHA256 signatures
+// ─────────────────────────────────────────────
+export const outboundWebhooks = mysqlTable("outbound_webhooks", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** Human-readable label for the webhook */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** The CRM event that triggers this webhook */
+  triggerEvent: mysqlEnum("trigger_event", [
+    "contact_created",
+    "contact_updated",
+    "tag_added",
+    "pipeline_stage_changed",
+    "facebook_lead_received",
+    "inbound_message_received",
+    "appointment_booked",
+    "appointment_cancelled",
+    "call_completed",
+    "missed_call",
+    "form_submitted",
+    "review_received",
+    "workflow_completed",
+  ]).notNull(),
+  /** The destination URL to POST event payloads to */
+  url: text("url").notNull(),
+  /** HMAC-SHA256 signing secret (generated on creation, used to verify payloads) */
+  secret: varchar("secret", { length: 128 }).notNull(),
+  /** Whether this webhook is currently active */
+  isActive: boolean("is_active").default(true).notNull(),
+  /** Optional description */
+  description: text("description"),
+  /** Timestamp of last successful dispatch */
+  lastTriggeredAt: timestamp("last_triggered_at"),
+  /** Consecutive failure count (resets on success) */
+  failCount: int("fail_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type OutboundWebhook = typeof outboundWebhooks.$inferSelect;
+export type InsertOutboundWebhook = typeof outboundWebhooks.$inferInsert;

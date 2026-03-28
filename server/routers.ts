@@ -29,6 +29,7 @@ import { leadRoutingRouter } from "./routers/leadRouting";
 import { aiAdvisorRouter } from "./routers/aiAdvisor";
 import { formsRouter } from "./routers/forms";
 import { reputationRouter } from "./routers/reputation";
+import { webhooksRouter } from "./routers/webhooks";
 
 export const appRouter = router({
   system: systemRouter,
@@ -69,6 +70,7 @@ export const appRouter = router({
   aiAdvisor: aiAdvisorRouter,
   forms: formsRouter,
   reputation: reputationRouter,
+  webhooks: webhooksRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -295,6 +295,13 @@
       "when": 1774737649626,
       "tag": "0041_left_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "5",
+      "when": 1774738791190,
+      "tag": "0042_ambiguous_darkhawk",
+      "breakpoints": true
     }
   ]
 }
