@@ -1769,3 +1769,19 @@
 - [x] Update frontend builder with visual if/else split UI
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Run vitest tests — 31 condition branching tests passing (1132 total)
+
+### Feature: Missing Workflow Triggers
+- [x] Add inbound_message_received, appointment_booked, appointment_cancelled, call_completed, missed_call, form_submitted, date_trigger to triggerType enum in schema
+- [x] Push schema migration to database
+- [x] Add trigger fire functions for each new trigger type in workflowTriggers.ts
+- [x] Wire inbound_message_received from inboundMessages.ts (Twilio SMS + SendGrid email)
+- [x] Wire appointment_booked from calendar router (public booking + VAPI booking)
+- [x] Wire appointment_cancelled from calendar router (cancelAppointment procedure)
+- [x] Wire missed_call from twilioVoiceStatus.ts (no-answer/busy/failed)
+- [x] Wire form_submitted from facebookLeads.ts (Facebook lead forms)
+- [x] Confirm call_completed already wired in VAPI webhook
+- [x] Update automations router triggerType enum to include all new types
+- [x] Update frontend TRIGGER_TYPES constant with new trigger options + icons
+- [x] Add trigger config UI for inbound_message_received (channel filter) and date_trigger (field/operator/value)
+- [x] Write vitest tests for new trigger functions (16 tests passing)
+- [x] Run pnpm check — 0 TypeScript errors

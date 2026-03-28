@@ -440,6 +440,13 @@ export const workflows = mysqlTable("workflows", {
     "pipeline_stage_changed",
     "facebook_lead_received",
     "manual",
+    "inbound_message_received",
+    "appointment_booked",
+    "appointment_cancelled",
+    "call_completed",
+    "missed_call",
+    "form_submitted",
+    "date_trigger",
   ]).notNull(),
   /** JSON config for trigger (e.g., which tag, which stage) */
   triggerConfig: text("triggerConfig"),

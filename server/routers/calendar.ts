@@ -618,6 +618,17 @@ export const calendarRouter = router({
         link: `/calendar`,
       }).catch((err) => console.error("[Calendar] Cancel notification error:", err));
 
+      // Fire appointment_cancelled automation trigger (non-blocking)
+      if (appt.contactId) {
+        import("../services/workflowTriggers")
+          .then(({ onAppointmentCancelled }) =>
+            onAppointmentCancelled(input.accountId, appt.contactId!, input.id)
+          )
+          .catch((err) =>
+            console.error("[Calendar] appointment_cancelled trigger error:", err)
+          );
+      }
+
       return { success: true };
     }),
 
@@ -911,6 +922,16 @@ export const calendarRouter = router({
         body: `${input.guestName} booked on ${calendar.name} for ${dateStr} at ${timeStr}`,
         link: `/calendar`,
       }).catch((err) => console.error("[Calendar] Booking notification error:", err));
+
+      // Fire appointment_booked automation trigger (non-blocking)
+      // Try to find a matching contact by email for the trigger
+      import("../db").then(async ({ findContactByEmail }) => {
+        const contact = await findContactByEmail(input.guestEmail, calendar.accountId);
+        if (contact) {
+          const { onAppointmentBooked } = await import("../services/workflowTriggers");
+          await onAppointmentBooked(calendar.accountId, contact.id, result.id, calendar.id);
+        }
+      }).catch((err) => console.error("[Calendar] appointment_booked trigger error:", err));
 
       return {
         id: result.id,

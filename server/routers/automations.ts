@@ -46,6 +46,13 @@ const triggerTypeEnum = z.enum([
   "pipeline_stage_changed",
   "facebook_lead_received",
   "manual",
+  "inbound_message_received",
+  "appointment_booked",
+  "appointment_cancelled",
+  "call_completed",
+  "missed_call",
+  "form_submitted",
+  "date_trigger",
 ]);
 
 const actionTypeEnum = z.enum([

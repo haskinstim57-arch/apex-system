@@ -64,7 +64,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Palette, GitBranch } from "lucide-react";
+import { FileText, Palette, GitBranch, PhoneMissed, CalendarX, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── Constants ───
@@ -74,6 +74,13 @@ const TRIGGER_TYPES = [
   { value: "pipeline_stage_changed", label: "Pipeline Stage Changed", icon: ArrowRight },
   { value: "facebook_lead_received", label: "Facebook Lead Received", icon: Zap },
   { value: "manual", label: "Manual Trigger", icon: Play },
+  { value: "inbound_message_received", label: "Inbound Message Received", icon: MessageSquare },
+  { value: "appointment_booked", label: "Appointment Booked", icon: Calendar },
+  { value: "appointment_cancelled", label: "Appointment Cancelled", icon: CalendarX },
+  { value: "call_completed", label: "Call Completed", icon: Phone },
+  { value: "missed_call", label: "Missed Call", icon: PhoneMissed },
+  { value: "form_submitted", label: "Form Submitted", icon: FileText },
+  { value: "date_trigger", label: "Date Trigger", icon: Clock },
 ] as const;
 
 const ACTION_TYPES = [
@@ -376,6 +383,10 @@ function CreateWorkflowDialog({
   const [triggerType, setTriggerType] = useState("contact_created");
   const [triggerTag, setTriggerTag] = useState("");
   const [triggerToStatus, setTriggerToStatus] = useState("");
+  const [triggerChannel, setTriggerChannel] = useState("");
+  const [triggerDateField, setTriggerDateField] = useState("");
+  const [triggerDateOperator, setTriggerDateOperator] = useState("is_today");
+  const [triggerDateValue, setTriggerDateValue] = useState("");
 
   const createMutation = trpc.automations.create.useMutation({
     onSuccess: (data) => {
@@ -388,6 +399,10 @@ function CreateWorkflowDialog({
       setTriggerType("contact_created");
       setTriggerTag("");
       setTriggerToStatus("");
+      setTriggerChannel("");
+      setTriggerDateField("");
+      setTriggerDateOperator("is_today");
+      setTriggerDateValue("");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -398,6 +413,16 @@ function CreateWorkflowDialog({
     }
     if (triggerType === "pipeline_stage_changed" && triggerToStatus) {
       return JSON.stringify({ toStatus: triggerToStatus });
+    }
+    if (triggerType === "inbound_message_received" && triggerChannel) {
+      return JSON.stringify({ channel: triggerChannel });
+    }
+    if (triggerType === "date_trigger" && triggerDateField) {
+      const config: Record<string, string> = { field: triggerDateField, operator: triggerDateOperator };
+      if (triggerDateOperator !== "is_today" && triggerDateValue) {
+        config.value = triggerDateValue;
+      }
+      return JSON.stringify(config);
     }
     return undefined;
   };
@@ -469,6 +494,62 @@ function CreateWorkflowDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+          {triggerType === "inbound_message_received" && (
+            <div>
+              <Label>Channel (leave empty for any)</Label>
+              <Select value={triggerChannel} onValueChange={setTriggerChannel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Any channel" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sms">SMS</SelectItem>
+                  <SelectItem value="email">Email</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {triggerType === "date_trigger" && (
+            <div className="space-y-3">
+              <div>
+                <Label>Date Field</Label>
+                <Select value={triggerDateField} onValueChange={setTriggerDateField}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select field" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="createdAt">Created At</SelectItem>
+                    <SelectItem value="lastContactedAt">Last Contacted At</SelectItem>
+                    <SelectItem value="updatedAt">Updated At</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Operator</Label>
+                <Select value={triggerDateOperator} onValueChange={setTriggerDateOperator}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="is_today">Is Today</SelectItem>
+                    <SelectItem value="days_before">Days Before</SelectItem>
+                    <SelectItem value="days_after">Days After</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {triggerDateOperator !== "is_today" && (
+                <div>
+                  <Label>Number of Days</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={triggerDateValue}
+                    onChange={(e) => setTriggerDateValue(e.target.value)}
+                    placeholder="e.g., 7"
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -110,6 +110,15 @@ inboundMessageRouter.post(
         link: `/inbox`,
       }).catch((err) => console.error("[Twilio Inbound] Notification error:", err));
 
+      // Fire inbound_message_received automation trigger (non-blocking)
+      import("../services/workflowTriggers")
+        .then(({ onInboundMessageReceived }) =>
+          onInboundMessageReceived(accountId, contact.id, "sms")
+        )
+        .catch((err) =>
+          console.error("[Twilio Inbound] Trigger error:", err)
+        );
+
       // Return TwiML empty response (no auto-reply)
       res.type("text/xml").status(200).send("<Response></Response>");
     } catch (err: any) {
@@ -211,6 +220,15 @@ inboundMessageRouter.post(
         body: subject ? subject.substring(0, 200) : messageBody.substring(0, 200),
         link: `/inbox`,
       }).catch((err) => console.error("[SendGrid Inbound] Notification error:", err));
+
+      // Fire inbound_message_received automation trigger (non-blocking)
+      import("../services/workflowTriggers")
+        .then(({ onInboundMessageReceived }) =>
+          onInboundMessageReceived(accountId, contact.id, "email")
+        )
+        .catch((err) =>
+          console.error("[SendGrid Inbound] Trigger error:", err)
+        );
 
       res.status(200).json({ received: true, matched: true, messageId: id });
     } catch (err: any) {

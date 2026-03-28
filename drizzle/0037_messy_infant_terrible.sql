@@ -1,0 +1,1 @@
+ALTER TABLE `workflows` MODIFY COLUMN `triggerType` enum('contact_created','tag_added','pipeline_stage_changed','facebook_lead_received','manual','inbound_message_received','appointment_booked','appointment_cancelled','call_completed','missed_call','form_submitted','date_trigger') NOT NULL;

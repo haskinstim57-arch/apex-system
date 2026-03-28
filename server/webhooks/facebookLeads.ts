@@ -428,13 +428,15 @@ async function processLead(
 // Fire automation triggers (non-blocking)
 // ─────────────────────────────────────────────
 async function fireTriggers(accountId: number, contactId: number) {
-  const { onContactCreated, onFacebookLeadReceived } = await import(
+  const { onContactCreated, onFacebookLeadReceived, onFormSubmitted } = await import(
     "../services/workflowTriggers"
   );
 
-  // Fire both triggers
+  // Fire all applicable triggers
   await onContactCreated(accountId, contactId);
   await onFacebookLeadReceived(accountId, contactId);
+  // Facebook lead forms count as form submissions
+  await onFormSubmitted(accountId, contactId, "facebook_lead_form");
 }
 
 // ─────────────────────────────────────────────

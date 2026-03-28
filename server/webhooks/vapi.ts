@@ -207,6 +207,17 @@ async function handleBookAppointment(
     link: "/calendar",
   }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
 
+  // Fire appointment_booked automation trigger (non-blocking)
+  if (contactId) {
+    import("../services/workflowTriggers")
+      .then(({ onAppointmentBooked }) =>
+        onAppointmentBooked(accountId, contactId!, appointment.id, calendarId!)
+      )
+      .catch((err) =>
+        console.error("[VAPI Webhook] appointment_booked trigger error:", err)
+      );
+  }
+
   return `Appointment confirmed for ${guestName} on ${formatDateForHuman(date, time)}. They will receive a confirmation shortly.`;
 }
 

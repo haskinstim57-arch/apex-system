@@ -94,6 +94,18 @@ twilioVoiceStatusRouter.post(
         link: `/inbox`,
       }).catch((err) => console.error("[Twilio Voice Status] Notification error:", err));
 
+      // Fire missed_call automation trigger if we have a matching contact
+      const missedCallContact = await findContactByPhone(callerPhone, accountId);
+      if (missedCallContact) {
+        import("../services/workflowTriggers")
+          .then(({ onMissedCall }) =>
+            onMissedCall(accountId, missedCallContact.id)
+          )
+          .catch((err) =>
+            console.error("[Twilio Voice Status] Trigger error:", err)
+          );
+      }
+
       // Schedule the text-back (fire-and-forget with delay)
       setTimeout(async () => {
         try {
