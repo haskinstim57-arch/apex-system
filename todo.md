@@ -1914,3 +1914,38 @@
 - [x] Write vitest tests for outbound webhooks — 26 tests passing (HMAC, secrets, schema, validation, imports)
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Checkpoint saved
+
+### Feature: Webhook Delivery Logs
+- [x] Add webhook_delivery_logs table to schema (webhookId, accountId, event, requestUrl, requestHeaders, requestBody, responseStatus, responseBody, latencyMs, success, errorMessage, createdAt)
+- [x] Push schema migration
+- [x] Log every dispatch attempt in webhookDispatcher.ts (success and failure)
+- [x] Add tRPC routes: deliveryLogs (paginated, filterable by success/failure), retryDelivery
+- [x] Build WebhookDeliveryLogs dialog component with table (timestamp, event, status, latency, success badge)
+- [x] Add detail view dialog for full request/response bodies
+- [x] Add Retry button on failed deliveries
+
+### Feature: Inbound Webhooks / API Keys
+- [x] Add api_keys table to schema (accountId, name, keyHash, keyPrefix, permissions JSON, lastUsedAt, createdAt, revokedAt)
+- [x] Add inbound_request_logs table for debugging
+- [x] Push schema migration
+- [x] Create tRPC routes for API key management (create, list, revoke, inboundLogs)
+- [x] Create REST endpoints at /api/inbound/contacts and /api/inbound/events
+- [x] Implement X-API-Key auth middleware (hash lookup, active check, permission check, rate limiting)
+- [x] /api/inbound/contacts creates contact in account + triggers onContactCreated
+- [x] /api/inbound/events logs custom events for contact
+- [x] Log all inbound requests for debugging
+- [x] Build ApiKeysCard UI in Settings (create, revoke, reveal once, permissions, inbound logs)
+- [x] Show inbound webhook endpoint documentation with cURL examples
+
+### Feature: Webhook Event Filtering / Conditions
+- [x] Add conditions JSON column to outbound_webhooks table
+- [x] Push schema migration
+- [x] Build condition evaluation engine (field, operator, value matching) with resolveField for nested paths
+- [x] Support fields: contact.*, tag, stage.name, review.rating, review.platform, form.name, message.channel + custom fields
+- [x] Support operators: equals, not_equals, contains, not_contains, greater_than, less_than, in, not_in, is_empty, is_not_empty
+- [x] Integrate condition evaluation into webhookDispatcher before dispatch (evaluateAllConditions with AND logic)
+- [x] Build WebhookConditionsEditor UI component (dynamic form builder with field selector, operator, value)
+- [x] Show WebhookConditionsBadges on webhook card display
+- [x] Write 30 vitest tests for all 3 features (all passing)
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Checkpoint saved

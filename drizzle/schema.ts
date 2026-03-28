@@ -1433,8 +1433,97 @@ export const outboundWebhooks = mysqlTable("outbound_webhooks", {
   lastTriggeredAt: timestamp("last_triggered_at"),
   /** Consecutive failure count (resets on success) */
   failCount: int("fail_count").default(0).notNull(),
+  /** JSON array of conditions that must ALL pass before dispatching (AND logic) */
+  conditions: json("conditions").$type<WebhookCondition[]>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
+
+/** A single condition rule for webhook event filtering */
+export interface WebhookCondition {
+  field: string;   // e.g. "contact.source", "contact.tags", "deal.value"
+  operator: "equals" | "not_equals" | "contains" | "not_contains" | "greater_than" | "less_than" | "in" | "not_in" | "is_empty" | "is_not_empty";
+  value: string;   // stringified value (parsed at evaluation time)
+}
+
 export type OutboundWebhook = typeof outboundWebhooks.$inferSelect;
 export type InsertOutboundWebhook = typeof outboundWebhooks.$inferInsert;
+
+// ─────────────────────────────────────────────
+// WEBHOOK DELIVERY LOGS — Track every outbound webhook dispatch attempt
+// ─────────────────────────────────────────────
+export const webhookDeliveryLogs = mysqlTable("webhook_delivery_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  webhookId: int("webhook_id").notNull(),
+  accountId: int("account_id").notNull(),
+  /** The event that triggered this delivery */
+  event: varchar("event", { length: 100 }).notNull(),
+  /** The endpoint URL we POSTed to */
+  requestUrl: text("request_url").notNull(),
+  /** Request headers sent (JSON) */
+  requestHeaders: json("request_headers"),
+  /** Request body / payload sent (JSON) */
+  requestBody: json("request_body"),
+  /** HTTP response status code */
+  responseStatus: int("response_status"),
+  /** Truncated response body */
+  responseBody: text("response_body"),
+  /** Round-trip latency in milliseconds */
+  latencyMs: int("latency_ms"),
+  /** Whether the delivery was successful (2xx) */
+  success: boolean("success").default(false).notNull(),
+  /** Error message for network errors, timeouts, etc. */
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type WebhookDeliveryLog = typeof webhookDeliveryLogs.$inferSelect;
+export type InsertWebhookDeliveryLog = typeof webhookDeliveryLogs.$inferInsert;
+
+// ─────────────────────────────────────────────
+// API KEYS — For inbound webhook authentication
+// External services use these to push data INTO Apex System
+// ─────────────────────────────────────────────
+export const apiKeys = mysqlTable("api_keys", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** User-friendly label */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** SHA-256 hash of the full API key (for lookup/verification) */
+  keyHash: varchar("key_hash", { length: 128 }).notNull(),
+  /** First 8 chars of the key for display (e.g. "ak_1a2b3c4d...") */
+  keyPrefix: varchar("key_prefix", { length: 20 }).notNull(),
+  /** JSON array of allowed actions, e.g. ["contacts:create","events:create"] */
+  permissions: json("permissions").$type<string[]>().notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  /** Null = active; set timestamp = revoked */
+  revokedAt: timestamp("revoked_at"),
+});
+export type ApiKey = typeof apiKeys.$inferSelect;
+export type InsertApiKey = typeof apiKeys.$inferInsert;
+
+// ─────────────────────────────────────────────
+// INBOUND REQUEST LOGS — Debug log for all inbound API requests
+// ─────────────────────────────────────────────
+export const inboundRequestLogs = mysqlTable("inbound_request_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id"),
+  apiKeyId: int("api_key_id"),
+  /** The endpoint path hit */
+  endpoint: varchar("endpoint", { length: 255 }).notNull(),
+  /** HTTP method */
+  method: varchar("method", { length: 10 }).notNull(),
+  /** Request body (JSON) */
+  requestBody: json("request_body"),
+  /** Response status code */
+  responseStatus: int("response_status"),
+  /** Whether the request was successful */
+  success: boolean("success").default(false).notNull(),
+  /** Error message if failed */
+  errorMessage: text("error_message"),
+  /** IP address of the requester */
+  ipAddress: varchar("ip_address", { length: 45 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type InboundRequestLog = typeof inboundRequestLogs.$inferSelect;
+export type InsertInboundRequestLog = typeof inboundRequestLogs.$inferInsert;

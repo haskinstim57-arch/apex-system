@@ -302,6 +302,13 @@
       "when": 1774738791190,
       "tag": "0042_ambiguous_darkhawk",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1774741127556,
+      "tag": "0043_giant_shadow_king",
+      "breakpoints": true
     }
   ]
 }

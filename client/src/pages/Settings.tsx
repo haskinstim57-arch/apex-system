@@ -97,9 +97,15 @@ import {
   RotateCw,
   Activity,
   AlertTriangle,
+  History,
+  Filter,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { WebhookDeliveryLogs } from "@/components/WebhookDeliveryLogs";
+import { WebhookConditionsEditor, WebhookConditionsBadges } from "@/components/WebhookConditionsEditor";
+import type { WebhookCondition } from "@/components/WebhookConditionsEditor";
+import { ApiKeysCard } from "@/components/ApiKeysCard";
 import { useAccount } from "@/contexts/AccountContext";
 
 function IntegrationLink({
@@ -326,6 +332,11 @@ export default function SettingsPage() {
       {/* Outbound Webhooks — visible to anyone with an account selected */}
       {currentAccountId && (
         <OutboundWebhooksCard accountId={currentAccountId} />
+      )}
+
+      {/* API Keys — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <ApiKeysCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}
@@ -3259,18 +3270,21 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [revealedSecrets, setRevealedSecrets] = useState<Set<number>>(new Set());
+  const [logsWebhook, setLogsWebhook] = useState<{ id: number; name: string } | null>(null);
 
   // Create form state
   const [name, setName] = useState("");
   const [triggerEvent, setTriggerEvent] = useState<string>("");
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [conditions, setConditions] = useState<WebhookCondition[]>([]);
 
   // Edit form state
   const [editName, setEditName] = useState("");
   const [editTriggerEvent, setEditTriggerEvent] = useState<string>("");
   const [editUrl, setEditUrl] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editConditions, setEditConditions] = useState<WebhookCondition[]>([]);
 
   const createWebhook = trpc.webhooks.create.useMutation({
     onSuccess: (data) => {
@@ -3324,6 +3338,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
     setTriggerEvent("");
     setUrl("");
     setDescription("");
+    setConditions([]);
   }
 
   function startEdit(wh: any) {
@@ -3332,6 +3347,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
     setEditTriggerEvent(wh.triggerEvent);
     setEditUrl(wh.url);
     setEditDescription(wh.description || "");
+    setEditConditions(wh.conditions || []);
   }
 
   function toggleSecretVisibility(id: number) {
@@ -3418,6 +3434,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                   className="h-8 text-sm"
                 />
               </div>
+              <WebhookConditionsEditor conditions={conditions} onChange={setConditions} />
               <div className="flex gap-2 justify-end">
                 <Button size="sm" variant="ghost" onClick={resetCreateForm}>
                   Cancel
@@ -3431,6 +3448,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                       triggerEvent: triggerEvent as any,
                       url,
                       description: description || undefined,
+                      conditions: conditions.length > 0 ? conditions as any : undefined,
                     })
                   }
                   disabled={createWebhook.isPending || !name || !triggerEvent || !url}
@@ -3508,6 +3526,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                           className="h-8 text-sm"
                         />
                       </div>
+                      <WebhookConditionsEditor conditions={editConditions} onChange={setEditConditions} />
                       <div className="flex gap-2 justify-end">
                         <Button size="sm" variant="ghost" onClick={() => setEditingId(null)}>
                           Cancel
@@ -3522,6 +3541,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                               triggerEvent: editTriggerEvent as any,
                               url: editUrl,
                               description: editDescription || undefined,
+                              conditions: editConditions as any,
                             })
                           }
                           disabled={updateWebhook.isPending}
@@ -3561,6 +3581,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                           {wh.description && (
                             <p className="text-xs text-muted-foreground mt-0.5">{wh.description}</p>
                           )}
+                          <WebhookConditionsBadges conditions={wh.conditions as any} />
                           <p className="text-xs text-muted-foreground mt-1 font-mono truncate">
                             {wh.url}
                           </p>
@@ -3598,6 +3619,15 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                             ) : (
                               <Zap className="h-3.5 w-3.5 text-yellow-600" />
                             )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0"
+                            title="Delivery logs"
+                            onClick={() => setLogsWebhook({ id: wh.id, name: wh.name })}
+                          >
+                            <History className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
@@ -3687,6 +3717,17 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Delivery Logs Dialog */}
+      {logsWebhook && (
+        <WebhookDeliveryLogs
+          accountId={accountId}
+          webhookId={logsWebhook.id}
+          webhookName={logsWebhook.name}
+          open={!!logsWebhook}
+          onClose={() => setLogsWebhook(null)}
+        />
+      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>

@@ -7,7 +7,10 @@ import { eq, and, desc } from "drizzle-orm";
 import {
   generateWebhookSecret,
   testWebhook,
+  retryDelivery,
 } from "../services/webhookDispatcher";
+import { webhookDeliveryLogs } from "../../drizzle/schema";
+import type { WebhookCondition } from "../../drizzle/schema";
 
 const triggerEventEnum = z.enum([
   "contact_created",
@@ -45,6 +48,7 @@ export const webhooksRouter = router({
           description: outboundWebhooks.description,
           lastTriggeredAt: outboundWebhooks.lastTriggeredAt,
           failCount: outboundWebhooks.failCount,
+          conditions: outboundWebhooks.conditions,
           createdAt: outboundWebhooks.createdAt,
           updatedAt: outboundWebhooks.updatedAt,
         })
@@ -63,6 +67,11 @@ export const webhooksRouter = router({
         triggerEvent: triggerEventEnum,
         url: z.string().url(),
         description: z.string().max(500).optional(),
+        conditions: z.array(z.object({
+          field: z.string(),
+          operator: z.enum(["equals", "not_equals", "contains", "not_contains", "greater_than", "less_than", "in", "not_in", "is_empty", "is_not_empty"]),
+          value: z.string(),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -77,6 +86,7 @@ export const webhooksRouter = router({
         url: input.url,
         secret,
         description: input.description || null,
+        conditions: input.conditions && input.conditions.length > 0 ? input.conditions : null,
         isActive: true,
         failCount: 0,
       });
@@ -94,6 +104,11 @@ export const webhooksRouter = router({
         url: z.string().url().optional(),
         description: z.string().max(500).optional(),
         isActive: z.boolean().optional(),
+        conditions: z.array(z.object({
+          field: z.string(),
+          operator: z.enum(["equals", "not_equals", "contains", "not_contains", "greater_than", "less_than", "in", "not_in", "is_empty", "is_not_empty"]),
+          value: z.string(),
+        })).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -106,6 +121,7 @@ export const webhooksRouter = router({
       if (input.triggerEvent !== undefined) updates.triggerEvent = input.triggerEvent;
       if (input.url !== undefined) updates.url = input.url;
       if (input.description !== undefined) updates.description = input.description;
+      if (input.conditions !== undefined) updates.conditions = input.conditions.length > 0 ? input.conditions : null;
       if (input.isActive !== undefined) {
         updates.isActive = input.isActive;
         // Reset fail count when re-enabling
@@ -198,5 +214,65 @@ export const webhooksRouter = router({
       if (!webhook) throw new Error("Webhook not found");
       const result = await testWebhook(webhook.url, webhook.secret);
       return result;
+    }),
+
+  // ─── List delivery logs for a webhook ──────────────────────
+  deliveryLogs: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        webhookId: z.number(),
+        page: z.number().min(1).default(1),
+        limit: z.number().min(1).max(100).default(20),
+        successFilter: z.boolean().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = await getDb();
+      if (!db) return { logs: [], total: 0 };
+
+      const conditions = [
+        eq(webhookDeliveryLogs.webhookId, input.webhookId),
+        eq(webhookDeliveryLogs.accountId, input.accountId),
+      ];
+      if (input.successFilter !== undefined) {
+        conditions.push(eq(webhookDeliveryLogs.success, input.successFilter));
+      }
+
+      const [countResult] = await db
+        .select({ count: webhookDeliveryLogs.id })
+        .from(webhookDeliveryLogs)
+        .where(and(...conditions));
+
+      // Use a simple count approach
+      const allLogs = await db
+        .select()
+        .from(webhookDeliveryLogs)
+        .where(and(...conditions))
+        .orderBy(desc(webhookDeliveryLogs.createdAt))
+        .limit(input.limit)
+        .offset((input.page - 1) * input.limit);
+
+      // Get total count
+      const allForCount = await db
+        .select({ id: webhookDeliveryLogs.id })
+        .from(webhookDeliveryLogs)
+        .where(and(...conditions));
+
+      return { logs: allLogs, total: allForCount.length };
+    }),
+
+  // ─── Retry a failed delivery ───────────────────────────────
+  retryDelivery: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        logId: z.number(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      return retryDelivery(input.logId, input.accountId);
     }),
 });
