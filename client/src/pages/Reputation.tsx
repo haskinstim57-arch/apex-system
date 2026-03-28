@@ -18,6 +18,13 @@ import {
   MousePointerClick,
   CheckCircle2,
   XCircle,
+  Settings,
+  Bell,
+  Link2,
+  Shield,
+  RefreshCw,
+  Reply,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +62,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 // ─── Star Rating Component ────────────────────────────────────
@@ -406,17 +414,22 @@ function SendRequestDialog({
   );
 }
 
-// ─── AI Reply Dialog ──────────────────────────────────────────
+// ─── AI Reply Dialog (with Post Reply support) ──────────────
 function AIReplyDialog({
   accountId,
   review,
+  onReplyPosted,
 }: {
   accountId: number;
   review: {
+    id: number;
     body: string | null;
     rating: number;
     reviewerName: string | null;
+    platform: string;
+    replyBody: string | null;
   };
+  onReplyPosted?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [businessName, setBusinessName] = useState("");
@@ -426,82 +439,523 @@ function AIReplyDialog({
     onSuccess: (data) => setReply(data.reply),
     onError: (err) => toast.error(err.message),
   });
+  const postReply = trpc.reputation.postReply.useMutation({
+    onSuccess: () => {
+      toast.success("Reply posted successfully!");
+      setOpen(false);
+      setReply("");
+      onReplyPosted?.();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm" variant="ghost" className="h-7 text-xs">
-          <Sparkles className="h-3 w-3 mr-1" /> AI Reply
+          {review.replyBody ? (
+            <><Reply className="h-3 w-3 mr-1" /> View Reply</>
+          ) : (
+            <><Sparkles className="h-3 w-3 mr-1" /> AI Reply</>
+          )}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Generate AI Reply</DialogTitle>
+          <DialogTitle>{review.replyBody ? "Review Reply" : "Generate & Post Reply"}</DialogTitle>
           <DialogDescription>
-            Generate a professional reply suggestion for this review.
+            {review.replyBody
+              ? "Your reply to this review."
+              : "Generate an AI reply and post it to the platform."}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
+          {/* Original Review */}
           <div className="p-3 bg-muted rounded-lg">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-medium text-sm">{review.reviewerName || "Anonymous"}</span>
               <StarRating rating={review.rating} size={12} />
+              <PlatformBadge platform={review.platform} />
             </div>
             <p className="text-sm text-muted-foreground">{review.body || "No review text"}</p>
           </div>
 
-          <div>
-            <Label>Your Business Name</Label>
-            <Input
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              placeholder="Premier Mortgage Resources"
-            />
-          </div>
-
-          <Button
-            className="w-full"
-            onClick={() =>
-              generateReply.mutate({
-                accountId,
-                reviewBody: review.body || "",
-                rating: review.rating,
-                reviewerName: review.reviewerName || "Customer",
-                businessName: businessName || "Our Company",
-              })
-            }
-            disabled={generateReply.isPending}
-          >
-            {generateReply.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-1" />
-            ) : (
-              <Sparkles className="h-4 w-4 mr-1" />
-            )}
-            Generate Reply
-          </Button>
-
-          {reply && (
-            <div className="space-y-2">
-              <Label>Suggested Reply</Label>
-              <div className="p-3 bg-muted rounded-lg text-sm">{reply}</div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  navigator.clipboard.writeText(reply);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-              >
-                {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
-                {copied ? "Copied!" : "Copy Reply"}
-              </Button>
+          {/* Existing Reply */}
+          {review.replyBody && (
+            <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
+              <div className="flex items-center gap-1 mb-1">
+                <Reply className="h-3 w-3 text-green-600" />
+                <span className="text-xs font-medium text-green-600">Your Reply</span>
+              </div>
+              <p className="text-sm">{review.replyBody}</p>
             </div>
+          )}
+
+          {/* Generate New Reply */}
+          {!review.replyBody && (
+            <>
+              <div>
+                <Label>Your Business Name</Label>
+                <Input
+                  value={businessName}
+                  onChange={(e) => setBusinessName(e.target.value)}
+                  placeholder="Premier Mortgage Resources"
+                />
+              </div>
+
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() =>
+                  generateReply.mutate({
+                    accountId,
+                    reviewBody: review.body || "",
+                    rating: review.rating,
+                    reviewerName: review.reviewerName || "Customer",
+                    businessName: businessName || "Our Company",
+                  })
+                }
+                disabled={generateReply.isPending}
+              >
+                {generateReply.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-1" />
+                )}
+                Generate AI Reply
+              </Button>
+
+              {reply && (
+                <div className="space-y-2">
+                  <Label>Suggested Reply</Label>
+                  <Textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    rows={4}
+                    className="text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        navigator.clipboard.writeText(reply);
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2000);
+                      }}
+                    >
+                      {copied ? <Check className="h-4 w-4 mr-1" /> : <Copy className="h-4 w-4 mr-1" />}
+                      {copied ? "Copied!" : "Copy"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() =>
+                        postReply.mutate({
+                          accountId,
+                          reviewId: review.id,
+                          replyBody: reply,
+                        })
+                      }
+                      disabled={postReply.isPending}
+                    >
+                      {postReply.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Reply className="h-4 w-4 mr-1" />
+                      )}
+                      Post Reply
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ─── GMB Connection Card ───────────────────────────────────
+function GMBConnectionCard({ accountId }: { accountId: number }) {
+  const connection = trpc.reputation.getGmbConnection.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+  const utils = trpc.useUtils();
+
+  const [googleEmail, setGoogleEmail] = useState("");
+  const [accessToken, setAccessToken] = useState("");
+  const [refreshToken, setRefreshToken] = useState("");
+  const [locationId, setLocationId] = useState("");
+  const [locationName, setLocationName] = useState("");
+  const [placeId, setPlaceId] = useState("");
+
+  const saveConnection = trpc.reputation.saveGmbConnection.useMutation({
+    onSuccess: () => {
+      toast.success("Connection saved!");
+      utils.reputation.getGmbConnection.invalidate({ accountId });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const syncReviews = trpc.reputation.syncGmbReviews.useMutation({
+    onSuccess: (data: any) => {
+      toast.success(`Synced ${data.synced} new reviews`);
+      utils.reputation.getStats.invalidate({ accountId });
+      utils.reputation.listReviews.invalidate({ accountId });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const disconnectGMB = trpc.reputation.disconnectGmb.useMutation({
+    onSuccess: () => {
+      toast.success("Disconnected successfully");
+      utils.reputation.getGmbConnection.invalidate({ accountId });
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const conn = connection.data;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Link2 className="h-4 w-4" /> Platform Connections
+        </CardTitle>
+        <CardDescription>
+          Connect your Google My Business and Facebook accounts to sync reviews automatically.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {conn ? (
+          <>
+            {/* Connected State */}
+            <div className="p-3 bg-green-500/5 border border-green-500/20 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-medium text-green-600">Connected</span>
+                </div>
+                <Badge variant="outline" className="text-xs">
+                  {conn.locationName || conn.googleEmail || "Business"}
+                </Badge>
+              </div>
+              {conn.lastSyncAt && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Last synced: {new Date(conn.lastSyncAt).toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="flex-1"
+                onClick={() => syncReviews.mutate({ accountId })}
+                disabled={syncReviews.isPending}
+              >
+                {syncReviews.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <RefreshCw className="h-4 w-4 mr-1" />
+                )}
+                Sync Reviews
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-red-600 hover:text-red-700"
+                onClick={() => disconnectGMB.mutate({ accountId })}
+                disabled={disconnectGMB.isPending}
+              >
+                Disconnect
+              </Button>
+            </div>
+
+            {conn.placeId && (
+              <div className="text-xs text-muted-foreground">
+                <span className="font-medium">Google Place ID:</span> {conn.placeId}
+              </div>
+            )}
+            {conn.locationName && (
+              <div className="text-xs text-muted-foreground">
+                <span className="font-medium">Location:</span> {conn.locationName}
+              </div>
+            )}
+            <div className="text-xs text-muted-foreground">
+              <span className="font-medium">Account:</span> {conn.googleEmail}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* Setup Form */}
+            <div>
+              <Label>Google Account Email</Label>
+              <Input
+                value={googleEmail}
+                onChange={(e) => setGoogleEmail(e.target.value)}
+                placeholder="your@gmail.com"
+              />
+            </div>
+
+            <div>
+              <Label>Access Token</Label>
+              <Input
+                value={accessToken}
+                onChange={(e) => setAccessToken(e.target.value)}
+                placeholder="ya29..."
+                type="password"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                OAuth access token from Google My Business API
+              </p>
+            </div>
+
+            <div>
+              <Label>Refresh Token (optional)</Label>
+              <Input
+                value={refreshToken}
+                onChange={(e) => setRefreshToken(e.target.value)}
+                placeholder="1//..."
+                type="password"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Location Name (optional)</Label>
+                <Input
+                  value={locationName}
+                  onChange={(e) => setLocationName(e.target.value)}
+                  placeholder="My Business"
+                />
+              </div>
+              <div>
+                <Label>Location ID (optional)</Label>
+                <Input
+                  value={locationId}
+                  onChange={(e) => setLocationId(e.target.value)}
+                  placeholder="locations/123"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Google Place ID (optional)</Label>
+              <Input
+                value={placeId}
+                onChange={(e) => setPlaceId(e.target.value)}
+                placeholder="ChIJ..."
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Find at Google Place ID Finder
+              </p>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={() =>
+                saveConnection.mutate({
+                  accountId,
+                  googleEmail,
+                  accessToken,
+                  refreshToken: refreshToken || undefined,
+                  locationId: locationId || undefined,
+                  locationName: locationName || undefined,
+                  placeId: placeId || undefined,
+                })
+              }
+              disabled={saveConnection.isPending || !googleEmail || !accessToken}
+            >
+              {saveConnection.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Link2 className="h-4 w-4 mr-1" />
+              )}
+              Connect Platforms
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Alert Settings Card ───────────────────────────────────
+function AlertSettingsCard({ accountId }: { accountId: number }) {
+  const settings = trpc.reputation.getAlertSettings.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+  const utils = trpc.useUtils();
+
+  const [enabled, setEnabled] = useState(true);
+  const [ratingThreshold, setRatingThreshold] = useState(2);
+  const [notifyInApp, setNotifyInApp] = useState(true);
+  const [notifyEmail, setNotifyEmail] = useState(true);
+  const [notifySms, setNotifySms] = useState(false);
+  const [emailRecipients, setEmailRecipients] = useState("");
+  const [smsRecipients, setSmsRecipients] = useState("");
+  const [initialized, setInitialized] = useState(false);
+
+  // Populate form when settings load
+  if (settings.data && !initialized) {
+    setEnabled(settings.data.enabled);
+    setRatingThreshold(settings.data.ratingThreshold);
+    setNotifyInApp(settings.data.notifyInApp);
+    setNotifyEmail(settings.data.notifyEmail);
+    setNotifySms(settings.data.notifySms);
+    setEmailRecipients(settings.data.emailRecipients || "");
+    setSmsRecipients(settings.data.smsRecipients || "");
+    setInitialized(true);
+  }
+
+  const saveSettings = trpc.reputation.saveAlertSettings.useMutation({
+    onSuccess: () => {
+      toast.success("Alert settings saved!");
+      utils.reputation.getAlertSettings.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base flex items-center gap-2">
+          <Bell className="h-4 w-4" /> Reputation Alerts
+        </CardTitle>
+        <CardDescription>
+          Get notified when negative reviews are posted so you can respond quickly.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Enable/Disable */}
+        <div className="flex items-center justify-between">
+          <div>
+            <Label>Enable Alerts</Label>
+            <p className="text-xs text-muted-foreground">Receive notifications for low-rated reviews</p>
+          </div>
+          <Switch checked={enabled} onCheckedChange={setEnabled} />
+        </div>
+
+        {enabled && (
+          <>
+            {/* Rating Threshold */}
+            <div>
+              <Label>Rating Threshold</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Alert when a review is at or below this rating
+              </p>
+              <div className="flex items-center gap-2">
+                {[1, 2, 3].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => setRatingThreshold(r)}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-md border text-sm transition-colors ${
+                      ratingThreshold === r
+                        ? "border-yellow-400 bg-yellow-400/10 text-yellow-600"
+                        : "border-border hover:border-yellow-400/50"
+                    }`}
+                  >
+                    {r} <Star size={12} className="fill-yellow-400 text-yellow-400" />
+                    {r === 1 ? " & below" : " & below"}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Notification Channels */}
+            <div className="space-y-3">
+              <Label>Notification Channels</Label>
+
+              <div className="flex items-center justify-between p-3 border rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm">In-App Notification</span>
+                </div>
+                <Switch checked={notifyInApp} onCheckedChange={setNotifyInApp} />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Send className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Email Notification</span>
+                  </div>
+                  <Switch checked={notifyEmail} onCheckedChange={setNotifyEmail} />
+                </div>
+                {notifyEmail && (
+                  <Input
+                    value={emailRecipients}
+                    onChange={(e) => setEmailRecipients(e.target.value)}
+                    placeholder="email1@example.com, email2@example.com"
+                    className="text-sm"
+                  />
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">SMS Notification</span>
+                  </div>
+                  <Switch checked={notifySms} onCheckedChange={setNotifySms} />
+                </div>
+                {notifySms && (
+                  <Input
+                    value={smsRecipients}
+                    onChange={(e) => setSmsRecipients(e.target.value)}
+                    placeholder="+1234567890, +0987654321"
+                    className="text-sm"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Warning for negative reviews */}
+            <div className="p-3 bg-yellow-500/5 border border-yellow-500/20 rounded-lg">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <span className="text-sm text-yellow-600 font-medium">Quick Response Matters</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Responding to negative reviews within 24 hours can improve customer perception by up to 33%.
+              </p>
+            </div>
+          </>
+        )}
+
+        <Button
+          className="w-full"
+          onClick={() =>
+            saveSettings.mutate({
+              accountId,
+              enabled,
+              ratingThreshold,
+              notifyInApp,
+              notifyEmail,
+              notifySms,
+              emailRecipients: emailRecipients || undefined,
+              smsRecipients: smsRecipients || undefined,
+            })
+          }
+          disabled={saveSettings.isPending}
+        >
+          {saveSettings.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+          ) : (
+            <Check className="h-4 w-4 mr-1" />
+          )}
+          Save Alert Settings
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -731,7 +1185,7 @@ export default function Reputation() {
         </Card>
       )}
 
-      {/* Tabs: Reviews & Requests */}
+      {/* Tabs: Reviews, Requests, Settings */}
       <Tabs defaultValue="reviews">
         <TabsList>
           <TabsTrigger value="reviews">
@@ -739,6 +1193,9 @@ export default function Reputation() {
           </TabsTrigger>
           <TabsTrigger value="requests">
             <Send className="h-4 w-4 mr-1" /> Requests
+          </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="h-4 w-4 mr-1" /> Settings
           </TabsTrigger>
         </TabsList>
 
@@ -784,16 +1241,23 @@ export default function Reputation() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
-                            {review.body && (
-                              <AIReplyDialog
-                                accountId={accountId}
-                                review={{
-                                  body: review.body,
-                                  rating: review.rating,
-                                  reviewerName: review.reviewerName,
-                                }}
-                              />
-                            )}
+                            {(review as any).replyBody ? (
+                              <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20 text-xs">
+                                <Reply className="h-3 w-3 mr-1" /> Replied
+                              </Badge>
+                            ) : null}
+                            <AIReplyDialog
+                              accountId={accountId}
+                              review={{
+                                id: review.id,
+                                body: review.body,
+                                rating: review.rating,
+                                reviewerName: review.reviewerName,
+                                platform: review.platform,
+                                replyBody: (review as any).replyBody || null,
+                              }}
+                              onReplyPosted={handleRefresh}
+                            />
                             {review.reviewUrl && (
                               <Button
                                 size="sm"
@@ -890,6 +1354,16 @@ export default function Reputation() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        {/* Settings Tab */}
+        <TabsContent value="settings">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* GMB Connection */}
+            <GMBConnectionCard accountId={accountId} />
+
+            {/* Alert Settings */}
+            <AlertSettingsCard accountId={accountId} />
+          </div>
         </TabsContent>
       </Tabs>
     </div>

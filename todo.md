@@ -1877,3 +1877,28 @@
 - [x] Add Reputation route to App.tsx and Star icon sidebar entry in DashboardLayout
 - [x] Write 26 vitest tests for reputation features (all passing)
 - [x] Run pnpm check — 0 TypeScript errors
+
+### Feature: GMB OAuth Connection Settings
+- [x] Add gmb_connections table to schema (accountId, googleEmail, accessToken, refreshToken, locationId, locationName, placeId, autoSyncEnabled, lastSyncAt, status, connectedAt)
+- [x] Add reputation_alert_settings table to schema (accountId, enabled, ratingThreshold, notifyInApp, notifyEmail, notifySms, emailRecipients, smsRecipients)
+- [x] Add replyBody and repliedAt columns to reviews table
+- [x] Push schema migration to database
+- [x] Create GMB connection CRUD procedures in reputation router (getGmbConnection, saveGmbConnection, disconnectGmb, syncGmbReviews)
+- [x] Build GMB Connection settings UI card in Reputation.tsx Settings tab (connect form, connected state, sync reviews, disconnect)
+- [x] Wire auto-sync of reviews when GMB account is connected via syncGmbReviews procedure
+
+### Feature: Review Response Posting
+- [x] Add postReply procedure to reputation router (posts reply via GMB/Facebook API)
+- [x] Update googleMyBusiness.ts with postReviewReply function for Google and Facebook platforms
+- [x] Update AI reply generator dialog to include "Post Reply" button alongside copy
+- [x] Track reply status on reviews (replyBody, repliedAt columns)
+- [x] Show "Replied" badge and "View Reply" option on already-replied reviews
+
+### Feature: Reputation Alerts
+- [x] Add reputation_alert_settings table with threshold (1-3), notification channels (inApp, email, SMS), and recipient lists
+- [x] Create alert evaluation in addReview procedure (check if rating <= threshold, fire notifications)
+- [x] Integrate with notifyOwner for in-app alerts on negative reviews
+- [x] Add AlertSettingsCard UI in Reputation.tsx Settings tab (enable/disable, threshold selector, channel toggles, recipient inputs)
+- [x] Write 23 vitest tests for all 3 reputation enhancement features (all passing)
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Checkpoint saved

@@ -288,6 +288,13 @@
       "when": 1774736429477,
       "tag": "0040_true_cable",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "5",
+      "when": 1774737649626,
+      "tag": "0041_left_deathstrike",
+      "breakpoints": true
     }
   ]
 }

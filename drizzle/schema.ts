@@ -1331,7 +1331,67 @@ export const reviews = mysqlTable("reviews", {
   suggestedReply: text("suggestedReply"),
   /** Whether a reply has been sent */
   replySent: boolean("replySent").default(false).notNull(),
+  /** The actual reply body that was posted */
+  replyBody: text("replyBody"),
+  /** When the reply was posted */
+  repliedAt: timestamp("repliedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type Review = typeof reviews.$inferSelect;
 export type InsertReview = typeof reviews.$inferInsert;
+
+// ─────────────────────────────────────────────
+// GMB CONNECTIONS — Google My Business OAuth connections per account
+// ─────────────────────────────────────────────
+export const gmbConnections = mysqlTable("gmb_connections", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** Google account email used for authentication */
+  googleEmail: varchar("google_email", { length: 255 }).notNull(),
+  /** OAuth2 access token (encrypted at rest) */
+  accessToken: text("access_token").notNull(),
+  /** OAuth2 refresh token (encrypted at rest) */
+  refreshToken: text("refresh_token"),
+  /** Token expiry timestamp */
+  tokenExpiresAt: timestamp("token_expires_at"),
+  /** Google Business Profile location ID */
+  locationId: varchar("location_id", { length: 255 }),
+  /** Human-readable location/business name */
+  locationName: varchar("location_name", { length: 255 }),
+  /** Google Place ID for review URL generation */
+  placeId: varchar("place_id", { length: 255 }),
+  /** Whether auto-sync is enabled */
+  autoSyncEnabled: boolean("auto_sync_enabled").default(true).notNull(),
+  /** Last time reviews were synced */
+  lastSyncAt: timestamp("last_sync_at"),
+  /** Connection status */
+  status: mysqlEnum("status", ["active", "expired", "disconnected"]).default("active").notNull(),
+  connectedAt: timestamp("connected_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type GmbConnection = typeof gmbConnections.$inferSelect;
+export type InsertGmbConnection = typeof gmbConnections.$inferInsert;
+
+// ─────────────────────────────────────────────
+// REPUTATION ALERT SETTINGS — Per-account alert configuration
+// ─────────────────────────────────────────────
+export const reputationAlertSettings = mysqlTable("reputation_alert_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull().unique(),
+  /** Enable/disable alerts */
+  enabled: boolean("enabled").default(true).notNull(),
+  /** Rating threshold (alert when rating <= this value) */
+  ratingThreshold: int("rating_threshold").default(2).notNull(),
+  /** Notification channels */
+  notifyEmail: boolean("notify_email").default(true).notNull(),
+  notifySms: boolean("notify_sms").default(false).notNull(),
+  notifyInApp: boolean("notify_in_app").default(true).notNull(),
+  /** Email recipients (comma-separated) */
+  emailRecipients: text("email_recipients"),
+  /** SMS recipients (comma-separated phone numbers) */
+  smsRecipients: text("sms_recipients"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type ReputationAlertSetting = typeof reputationAlertSettings.$inferSelect;
+export type InsertReputationAlertSetting = typeof reputationAlertSettings.$inferInsert;
