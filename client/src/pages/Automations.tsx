@@ -55,7 +55,8 @@ import {
   Pause,
   RotateCcw,
 } from "lucide-react";
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { BarChart3, TrendingUp, Activity } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
 import {
@@ -146,7 +147,7 @@ export default function Automations() {
   const { currentAccountId: accountId, isLoading: accountsLoading } = useAccount();
 
   // View state
-  const [view, setView] = useState<"list" | "builder" | "logs">("list");
+  const [view, setView] = useState<"list" | "builder" | "logs" | "dashboard">("list");
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<number | null>(null);
 
   // Workflows list
@@ -194,6 +195,14 @@ export default function Automations() {
             >
               Execution Logs
             </button>
+            <button
+              onClick={() => setView("dashboard")}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                view === "dashboard" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Dashboard
+            </button>
           </div>
 
           {view === "list" && (
@@ -228,6 +237,8 @@ export default function Automations() {
         />
       ) : view === "logs" ? (
         <ExecutionLogs accountId={accountId} />
+      ) : view === "dashboard" ? (
+        <ExecutionDashboard accountId={accountId} />
       ) : null}
 
       {/* Create dialog */}
@@ -387,6 +398,13 @@ function CreateWorkflowDialog({
   const [triggerDateField, setTriggerDateField] = useState("");
   const [triggerDateOperator, setTriggerDateOperator] = useState("is_today");
   const [triggerDateValue, setTriggerDateValue] = useState("");
+  const [triggerCalendarId, setTriggerCalendarId] = useState("");
+
+  // Fetch calendars for appointment_booked filter
+  const calendarsQuery = trpc.calendar.list.useQuery(
+    { accountId },
+    { enabled: triggerType === "appointment_booked" }
+  );
 
   const createMutation = trpc.automations.create.useMutation({
     onSuccess: (data) => {
@@ -403,6 +421,7 @@ function CreateWorkflowDialog({
       setTriggerDateField("");
       setTriggerDateOperator("is_today");
       setTriggerDateValue("");
+      setTriggerCalendarId("");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -416,6 +435,9 @@ function CreateWorkflowDialog({
     }
     if (triggerType === "inbound_message_received" && triggerChannel) {
       return JSON.stringify({ channel: triggerChannel });
+    }
+    if (triggerType === "appointment_booked" && triggerCalendarId) {
+      return JSON.stringify({ calendarId: parseInt(triggerCalendarId, 10) });
     }
     if (triggerType === "date_trigger" && triggerDateField) {
       const config: Record<string, string> = { field: triggerDateField, operator: triggerDateOperator };
@@ -490,6 +512,23 @@ function CreateWorkflowDialog({
                   {PIPELINE_STAGES.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {triggerType === "appointment_booked" && (
+            <div>
+              <Label>Calendar (leave empty for any)</Label>
+              <Select value={triggerCalendarId} onValueChange={setTriggerCalendarId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Any calendar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(calendarsQuery.data ?? []).map((cal: any) => (
+                    <SelectItem key={cal.id} value={String(cal.id)}>
+                      {cal.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1941,6 +1980,324 @@ function ExecutionDetail({
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// EXECUTION DASHBOARD
+// ═══════════════════════════════════════════
+function ExecutionDashboard({ accountId }: { accountId: number }) {
+  const [statusFilter, setStatusFilter] = useState("");
+  const [workflowFilter, setWorkflowFilter] = useState("");
+  const [page, setPage] = useState(0);
+  const pageSize = 25;
+
+  // Fetch stats
+  const { data: stats, isLoading: statsLoading } = trpc.automations.executionStats.useQuery(
+    { accountId },
+    { refetchInterval: 30000 }
+  );
+
+  // Fetch execution history with workflow names
+  const { data: history, isLoading: historyLoading } = trpc.automations.executionHistory.useQuery({
+    accountId,
+    status: statusFilter || undefined,
+    workflowId: workflowFilter ? parseInt(workflowFilter, 10) : undefined,
+    limit: pageSize,
+    offset: page * pageSize,
+  });
+
+  // Fetch workflows for filter dropdown
+  const { data: workflows } = trpc.automations.list.useQuery({ accountId });
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [statusFilter, workflowFilter]);
+
+  const statusIcon = (status: string) => {
+    switch (status) {
+      case "completed": return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case "running": return <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />;
+      case "failed": return <XCircle className="h-4 w-4 text-red-500" />;
+      case "paused": return <Pause className="h-4 w-4 text-amber-600" />;
+      case "cancelled": return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+      default: return <Clock className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
+
+  if (statsLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const totalPages = Math.ceil((history?.total ?? 0) / pageSize);
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Total Executions</p>
+                <p className="text-2xl font-bold">{stats?.total ?? 0}</p>
+              </div>
+              <Activity className="h-5 w-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Success Rate</p>
+                <p className="text-2xl font-bold">
+                  {stats?.successRate ?? 0}%
+                </p>
+              </div>
+              <TrendingUp className="h-5 w-5 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Last 7 Days</p>
+                <p className="text-2xl font-bold">{stats?.last7Days ?? 0}</p>
+              </div>
+              <BarChart3 className="h-5 w-5 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-3 px-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground font-medium">Last 30 Days</p>
+                <p className="text-2xl font-bold">{stats?.last30Days ?? 0}</p>
+              </div>
+              <BarChart3 className="h-5 w-5 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Status Breakdown */}
+      {stats && Object.keys(stats.byStatus).length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">By Status</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="space-y-2">
+                {Object.entries(stats.byStatus).map(([status, count]) => (
+                  <div key={status} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {statusIcon(status)}
+                      <span className="text-sm capitalize">{status}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            status === "completed" ? "bg-green-500" :
+                            status === "failed" ? "bg-red-500" :
+                            status === "running" ? "bg-blue-500" :
+                            "bg-muted-foreground"
+                          }`}
+                          style={{ width: `${stats.total > 0 ? (count / stats.total) * 100 : 0}%` }}
+                        />
+                      </div>
+                      <span className="text-sm font-medium w-8 text-right">{count}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium">By Trigger</CardTitle>
+            </CardHeader>
+            <CardContent className="pb-4">
+              <div className="space-y-2">
+                {Object.entries(stats.byTrigger)
+                  .sort(([, a], [, b]) => b - a)
+                  .slice(0, 8)
+                  .map(([trigger, count]) => {
+                    const triggerLabel = trigger.replace(/_/g, " ").replace(/:/g, " ");
+                    return (
+                      <div key={trigger} className="flex items-center justify-between">
+                        <span className="text-sm capitalize truncate max-w-[180px]">{triggerLabel}</span>
+                        <div className="flex items-center gap-2">
+                          <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-primary"
+                              style={{ width: `${stats.total > 0 ? (count / stats.total) * 100 : 0}%` }}
+                            />
+                          </div>
+                          <span className="text-sm font-medium w-8 text-right">{count}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Execution History Table */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <CardTitle className="text-sm font-medium">Execution History</CardTitle>
+            <div className="flex items-center gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Statuses</SelectItem>
+                  <SelectItem value="running">Running</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={workflowFilter} onValueChange={setWorkflowFilter}>
+                <SelectTrigger className="w-[180px] h-8 text-xs">
+                  <SelectValue placeholder="All workflows" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Workflows</SelectItem>
+                  {(workflows ?? []).map((wf) => (
+                    <SelectItem key={wf.id} value={String(wf.id)}>
+                      {wf.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pb-4">
+          {historyLoading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (history?.executions.length ?? 0) === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No executions found.
+            </div>
+          ) : (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">Status</TableHead>
+                    <TableHead>Workflow</TableHead>
+                    <TableHead className="hidden md:table-cell">Trigger</TableHead>
+                    <TableHead className="hidden sm:table-cell">Progress</TableHead>
+                    <TableHead>Started</TableHead>
+                    <TableHead className="hidden lg:table-cell">Duration</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {history?.executions.map((exec) => {
+                    const duration = exec.completedAt && exec.startedAt
+                      ? Math.round((new Date(exec.completedAt).getTime() - new Date(exec.startedAt).getTime()) / 1000)
+                      : null;
+                    const durationStr = duration !== null
+                      ? duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m ${duration % 60}s`
+                      : exec.status === "running" ? "In progress" : "—";
+                    return (
+                      <TableRow key={exec.id}>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5">
+                            {statusIcon(exec.status)}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <p className="text-sm font-medium">
+                              {exec.workflowName ?? `Workflow #${exec.workflowId}`}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Contact #{exec.contactId}
+                            </p>
+                          </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                          <Badge variant="outline" className="text-[10px] capitalize">
+                            {(exec.triggeredBy ?? "unknown").replace(/_/g, " ")}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="hidden sm:table-cell">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  exec.status === "completed" ? "bg-green-500" :
+                                  exec.status === "failed" ? "bg-red-500" : "bg-blue-500"
+                                }`}
+                                style={{ width: `${exec.totalSteps > 0 ? (exec.currentStep / exec.totalSteps) * 100 : 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-muted-foreground">
+                              {exec.currentStep}/{exec.totalSteps}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(exec.startedAt).toLocaleString()}
+                          </span>
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell">
+                          <span className="text-xs text-muted-foreground">{durationStr}</span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                  <span className="text-xs text-muted-foreground">
+                    Page {page + 1} of {totalPages} ({history?.total} total)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(Math.max(0, page - 1))}
+                      disabled={page === 0}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(Math.min(totalPages - 1, page + 1))}
+                      disabled={page >= totalPages - 1}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1785,3 +1785,22 @@
 - [x] Add trigger config UI for inbound_message_received (channel filter) and date_trigger (field/operator/value)
 - [x] Write vitest tests for new trigger functions (16 tests passing)
 - [x] Run pnpm check — 0 TypeScript errors
+
+### Feature: Date Trigger Cron Job
+- [x] Create dateTriggerCron.ts service with evaluateDateCondition function
+- [x] Query all active date_trigger workflows, evaluate contacts against date conditions
+- [x] Register cron job in server startup (runs hourly, processes once per day)
+- [x] Write vitest tests for date trigger evaluation logic (20 tests passing)
+
+### Feature: Appointment Booked Calendar Filter UI
+- [x] Add calendar selector in CreateWorkflowDialog when trigger is appointment_booked
+- [x] Fetch calendars list from existing calendar.list procedure
+- [x] Pass calendarId in triggerConfig JSON
+
+### Feature: Workflow Execution History Dashboard
+- [x] Add getExecutionStats db helper (total, byStatus, byTrigger, successRate, last7/30 days)
+- [x] Add getExecutionHistoryWithWorkflow db helper (joined workflow names, pagination, filters)
+- [x] Add executionStats and executionHistory tRPC procedures in automations router
+- [x] Create ExecutionDashboard component with stats cards, status/trigger breakdowns, and history table
+- [x] Add Dashboard tab in Automations view navigation
+- [x] 0 TypeScript errors, 20 date trigger tests passing

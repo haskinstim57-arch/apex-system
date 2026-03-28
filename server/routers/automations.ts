@@ -20,6 +20,8 @@ import {
   getMember,
   createAuditLog,
   logContactActivity,
+  getExecutionStats,
+  getExecutionHistoryWithWorkflow,
 } from "../db";
 
 // ─── Tenant guard ───
@@ -571,6 +573,39 @@ export const automationsRouter = router({
       throw new TRPCError({
         code: "NOT_FOUND",
         message: `Unknown template: ${input.templateId}`,
+      });
+    }),
+
+  // ═══════════════════════════════════════════
+  // EXECUTION HISTORY DASHBOARD
+  // ═══════════════════════════════════════════
+
+  // ─── Get execution stats (aggregated counts, success rate, by trigger) ───
+  executionStats: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      return getExecutionStats(input.accountId);
+    }),
+
+  // ─── Get execution history with workflow names (for dashboard table) ───
+  executionHistory: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        status: z.string().optional(),
+        workflowId: z.number().int().positive().optional(),
+        limit: z.number().int().min(1).max(100).optional().default(50),
+        offset: z.number().int().min(0).optional().default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      return getExecutionHistoryWithWorkflow(input.accountId, {
+        limit: input.limit,
+        offset: input.offset,
+        status: input.status,
+        workflowId: input.workflowId,
       });
     }),
 });

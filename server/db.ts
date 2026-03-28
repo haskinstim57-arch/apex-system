@@ -4103,3 +4103,147 @@ export async function findExistingPhones(phones: string[], accountId: number): P
   }
   return result;
 }
+
+
+// ─────────────────────────────────────────────
+// Workflow Execution History Stats
+// ─────────────────────────────────────────────
+
+/**
+ * Get aggregated execution stats for an account:
+ * - Total executions
+ * - Per-status counts (running, completed, failed, paused, cancelled)
+ * - Per-trigger counts (which trigger types fire most)
+ * - Success rate
+ */
+export async function getExecutionStats(accountId: number) {
+  const db = await getDb();
+  if (!db)
+    return {
+      total: 0,
+      byStatus: {} as Record<string, number>,
+      byTrigger: {} as Record<string, number>,
+      successRate: 0,
+      last7Days: 0,
+      last30Days: 0,
+    };
+
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const [statusRows, triggerRows, last7dRows, last30dRows] = await Promise.all([
+    db
+      .select({
+        status: workflowExecutions.status,
+        count: count(),
+      })
+      .from(workflowExecutions)
+      .where(eq(workflowExecutions.accountId, accountId))
+      .groupBy(workflowExecutions.status),
+    db
+      .select({
+        triggeredBy: workflowExecutions.triggeredBy,
+        count: count(),
+      })
+      .from(workflowExecutions)
+      .where(eq(workflowExecutions.accountId, accountId))
+      .groupBy(workflowExecutions.triggeredBy),
+    db
+      .select({ count: count() })
+      .from(workflowExecutions)
+      .where(
+        and(
+          eq(workflowExecutions.accountId, accountId),
+          gte(workflowExecutions.createdAt, sevenDaysAgo)
+        )
+      ),
+    db
+      .select({ count: count() })
+      .from(workflowExecutions)
+      .where(
+        and(
+          eq(workflowExecutions.accountId, accountId),
+          gte(workflowExecutions.createdAt, thirtyDaysAgo)
+        )
+      ),
+  ]);
+
+  const byStatus: Record<string, number> = {};
+  let total = 0;
+  for (const row of statusRows) {
+    byStatus[row.status] = row.count;
+    total += row.count;
+  }
+
+  const byTrigger: Record<string, number> = {};
+  for (const row of triggerRows) {
+    const key = row.triggeredBy || "unknown";
+    byTrigger[key] = row.count;
+  }
+
+  const completed = byStatus["completed"] ?? 0;
+  const failed = byStatus["failed"] ?? 0;
+  const successRate =
+    completed + failed > 0 ? Math.round((completed / (completed + failed)) * 100) : 0;
+
+  return {
+    total,
+    byStatus,
+    byTrigger,
+    successRate,
+    last7Days: last7dRows[0]?.count ?? 0,
+    last30Days: last30dRows[0]?.count ?? 0,
+  };
+}
+
+/**
+ * Get execution history with workflow name joined, for the dashboard table.
+ */
+export async function getExecutionHistoryWithWorkflow(
+  accountId: number,
+  opts?: { limit?: number; offset?: number; status?: string; workflowId?: number }
+) {
+  const db = await getDb();
+  if (!db) return { executions: [], total: 0 };
+  const limit = opts?.limit ?? 50;
+  const offset = opts?.offset ?? 0;
+
+  const conditions: any[] = [eq(workflowExecutions.accountId, accountId)];
+  if (opts?.status) {
+    conditions.push(eq(workflowExecutions.status, opts.status as any));
+  }
+  if (opts?.workflowId) {
+    conditions.push(eq(workflowExecutions.workflowId, opts.workflowId));
+  }
+
+  const [rows, countResult] = await Promise.all([
+    db
+      .select({
+        id: workflowExecutions.id,
+        workflowId: workflowExecutions.workflowId,
+        workflowName: workflows.name,
+        contactId: workflowExecutions.contactId,
+        status: workflowExecutions.status,
+        currentStep: workflowExecutions.currentStep,
+        totalSteps: workflowExecutions.totalSteps,
+        triggeredBy: workflowExecutions.triggeredBy,
+        errorMessage: workflowExecutions.errorMessage,
+        startedAt: workflowExecutions.startedAt,
+        completedAt: workflowExecutions.completedAt,
+        createdAt: workflowExecutions.createdAt,
+      })
+      .from(workflowExecutions)
+      .leftJoin(workflows, eq(workflowExecutions.workflowId, workflows.id))
+      .where(and(...conditions))
+      .orderBy(desc(workflowExecutions.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: count() })
+      .from(workflowExecutions)
+      .where(and(...conditions)),
+  ]);
+
+  return { executions: rows, total: countResult[0]?.total ?? 0 };
+}
