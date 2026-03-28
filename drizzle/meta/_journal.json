@@ -274,6 +274,20 @@
       "when": 1774727520500,
       "tag": "0038_colossal_kitty_pryde",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "5",
+      "when": 1774736102415,
+      "tag": "0039_youthful_captain_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1774736429477,
+      "tag": "0040_true_cable",
+      "breakpoints": true
     }
   ]
 }

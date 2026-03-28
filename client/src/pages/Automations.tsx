@@ -48,6 +48,7 @@ import {
   XCircle,
   Zap,
   ClipboardList,
+  Star,
   AlertCircle,
   ChevronDown,
   ChevronRight as ChevronRightIcon,
@@ -92,6 +93,10 @@ const ACTION_TYPES = [
   { value: "remove_tag", label: "Remove Tag", icon: Tag },
   { value: "update_contact_field", label: "Update Contact Field", icon: UserCog },
   { value: "create_task", label: "Create Task", icon: ClipboardList },
+  { value: "add_to_campaign", label: "Add to Campaign", icon: Zap },
+  { value: "assign_pipeline_stage", label: "Assign Pipeline Stage", icon: ArrowRight },
+  { value: "notify_user", label: "Notify User", icon: AlertCircle },
+  { value: "send_review_request", label: "Send Review Request", icon: Star },
 ] as const;
 
 const DELAY_TYPES = [

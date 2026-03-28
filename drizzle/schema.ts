@@ -488,6 +488,7 @@ export const workflowSteps = mysqlTable("workflow_steps", {
     "add_to_campaign",
     "assign_pipeline_stage",
     "notify_user",
+    "send_review_request",
   ]),
   /** Delay type (null for action steps) */
   delayType: mysqlEnum("delayType", ["minutes", "hours", "days"]),
@@ -1280,3 +1281,57 @@ export const formSubmissions = mysqlTable("form_submissions", {
 });
 export type FormSubmission = typeof formSubmissions.$inferSelect;
 export type InsertFormSubmission = typeof formSubmissions.$inferInsert;
+
+// ─────────────────────────────────────────────
+// REVIEW REQUESTS — Outbound review solicitations
+// ─────────────────────────────────────────────
+export const reviewRequests = mysqlTable("review_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("accountId").notNull(),
+  contactId: int("contactId").notNull(),
+  /** Platform the review was requested on */
+  platform: mysqlEnum("platform", ["google", "facebook", "yelp", "zillow"]).notNull(),
+  /** How the request was sent */
+  channel: mysqlEnum("channel", ["sms", "email"]).default("sms").notNull(),
+  /** Direct URL to the review page */
+  reviewUrl: text("reviewUrl"),
+  /** Current status of the request */
+  status: mysqlEnum("status", ["pending", "sent", "clicked", "completed", "failed"]).default("pending").notNull(),
+  sentAt: timestamp("sentAt"),
+  clickedAt: timestamp("clickedAt"),
+  completedAt: timestamp("completedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ReviewRequest = typeof reviewRequests.$inferSelect;
+export type InsertReviewRequest = typeof reviewRequests.$inferInsert;
+
+// ─────────────────────────────────────────────
+// REVIEWS — Collected reviews from external platforms
+// ─────────────────────────────────────────────
+export const reviews = mysqlTable("reviews", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("accountId").notNull(),
+  /** Platform the review was posted on */
+  platform: mysqlEnum("platform", ["google", "facebook", "yelp", "zillow"]).notNull(),
+  /** Star rating (1-5) */
+  rating: int("rating").notNull(),
+  /** Review body text */
+  body: text("body"),
+  /** Name of the reviewer */
+  reviewerName: varchar("reviewerName", { length: 255 }),
+  /** URL to the reviewer's profile or the review itself */
+  reviewUrl: text("reviewUrl"),
+  /** External platform ID to prevent duplicates */
+  externalId: varchar("externalId", { length: 255 }),
+  /** When the review was originally posted */
+  postedAt: timestamp("postedAt"),
+  /** Optional link to a contact in the system */
+  contactId: int("contactId"),
+  /** AI-generated reply suggestion */
+  suggestedReply: text("suggestedReply"),
+  /** Whether a reply has been sent */
+  replySent: boolean("replySent").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Review = typeof reviews.$inferSelect;
+export type InsertReview = typeof reviews.$inferInsert;

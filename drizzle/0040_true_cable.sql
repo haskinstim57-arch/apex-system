@@ -1,0 +1,1 @@
+ALTER TABLE `workflow_steps` MODIFY COLUMN `actionType` enum('send_sms','send_email','start_ai_call','add_tag','remove_tag','update_contact_field','create_task','add_to_campaign','assign_pipeline_stage','notify_user','send_review_request');

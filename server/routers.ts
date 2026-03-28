@@ -28,6 +28,7 @@ import { powerDialerRouter } from "./routers/powerDialer";
 import { leadRoutingRouter } from "./routers/leadRouting";
 import { aiAdvisorRouter } from "./routers/aiAdvisor";
 import { formsRouter } from "./routers/forms";
+import { reputationRouter } from "./routers/reputation";
 
 export const appRouter = router({
   system: systemRouter,
@@ -67,6 +68,7 @@ export const appRouter = router({
   leadRouting: leadRoutingRouter,
   aiAdvisor: aiAdvisorRouter,
   forms: formsRouter,
+  reputation: reputationRouter,
 });
 
 export type AppRouter = typeof appRouter;

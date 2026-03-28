@@ -65,6 +65,10 @@ const actionTypeEnum = z.enum([
   "remove_tag",
   "update_contact_field",
   "create_task",
+  "add_to_campaign",
+  "assign_pipeline_stage",
+  "notify_user",
+  "send_review_request",
 ]);
 
 const delayTypeEnum = z.enum(["minutes", "hours", "days"]);

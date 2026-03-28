@@ -556,6 +556,60 @@ async function executeAction(
       return { action: "notify_user", userId, title };
     }
 
+    case "send_review_request": {
+      // Send a review request to the contact via SMS or email
+      const platform = config.platform || "google";
+      const channel = config.channel || "sms";
+      const businessId = config.businessId || "";
+      const { getReviewUrl, createReviewRequest } = await import("./googleMyBusiness");
+      const reviewUrl = getReviewUrl(platform, businessId);
+      const defaultMsg = `Hi ${contact.firstName}, we'd love to hear about your experience! Please leave us a review: ${reviewUrl}`;
+      const message = config.messageTemplate
+        ? interpolateTemplate(config.messageTemplate.replace(/\{\{reviewUrl\}\}/g, reviewUrl), contact)
+        : defaultMsg;
+
+      const { id: requestId } = await createReviewRequest({
+        accountId,
+        contactId,
+        platform: platform as "google" | "facebook" | "yelp" | "zillow",
+        channel: channel as "sms" | "email",
+        reviewUrl,
+        status: "pending",
+      });
+
+      try {
+        if (channel === "sms" && contact.phone) {
+          const { dispatchSMS } = await import("./messaging");
+          await dispatchSMS({ to: contact.phone, body: message, accountId });
+        } else if (channel === "email" && contact.email) {
+          const { dispatchEmail } = await import("./messaging");
+          await dispatchEmail({
+            to: contact.email,
+            subject: "We'd love your feedback!",
+            body: message,
+            accountId,
+          });
+        } else {
+          throw new Error(`Contact has no ${channel} address for review request`);
+        }
+        const { updateReviewRequestStatus } = await import("./googleMyBusiness");
+        await updateReviewRequestStatus(requestId, "sent", { sentAt: new Date() });
+      } catch (err) {
+        const { updateReviewRequestStatus } = await import("./googleMyBusiness");
+        await updateReviewRequestStatus(requestId, "failed");
+        throw err;
+      }
+
+      await logContactActivity({
+        contactId,
+        accountId,
+        activityType: "automation_triggered",
+        description: `Review request sent via ${channel} for ${platform}`,
+        metadata: JSON.stringify({ platform, channel, reviewUrl, requestId }),
+      });
+      return { action: "send_review_request", platform, channel, requestId };
+    }
+
     default:
       throw new Error(`Unknown action type: ${step.actionType}`);
   }

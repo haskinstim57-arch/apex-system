@@ -34,6 +34,7 @@ import {
   Inbox,
   Kanban,
   ClipboardList,
+  Star,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -77,6 +78,7 @@ const subAccountMenuItems = [
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: ClipboardList, label: "Forms", path: "/forms" },
+  { icon: Star, label: "Reputation", path: "/reputation" },
 ];
 
 /**

@@ -1862,3 +1862,18 @@
 - [x] File type validation (extension, MIME, wildcard), size validation, and upload-in-progress blocking
 - [x] Write 26 vitest tests for templates, A/B testing, and file upload (all passing)
 - [x] Run pnpm check — 0 TypeScript errors
+
+### Feature: Reputation Management (Google My Business + Facebook Reviews)
+- [x] Add reviewRequests table to schema (accountId, contactId, platform, channel, status, reviewUrl, messageTemplate, sentAt)
+- [x] Add reviews table to schema (accountId, platform, rating, body, reviewerName, reviewUrl, externalId, postedAt)
+- [x] Push schema migration to database
+- [x] Create server/services/googleMyBusiness.ts (fetchGMBReviews, sendReviewRequest, getReviewRequestStats, generateReviewReply)
+- [x] Create server/routers/reputation.ts with getStats, listReviews, addReview, sendRequest, getRequests, generateReply procedures
+- [x] Register reputation router in main routers.ts
+- [x] Add send_review_request to workflow step action enum in schema
+- [x] Wire send_review_request action in workflowEngine.ts (creates review request + fires trigger)
+- [x] Update automations router and frontend ACTION_TYPES to support send_review_request
+- [x] Build Reputation.tsx dashboard with stats cards, star ratings, review list, platform filter, add review dialog, send request dialog, AI reply generator
+- [x] Add Reputation route to App.tsx and Star icon sidebar entry in DashboardLayout
+- [x] Write 26 vitest tests for reputation features (all passing)
+- [x] Run pnpm check — 0 TypeScript errors

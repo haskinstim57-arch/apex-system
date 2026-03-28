@@ -37,6 +37,7 @@ import DialerAnalytics from "./pages/DialerAnalytics";
 import Forms from "./pages/Forms";
 import FormBuilder from "./pages/FormBuilder";
 import PublicForm from "./pages/PublicForm";
+import Reputation from "./pages/Reputation";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
@@ -230,6 +231,14 @@ function Router() {
             </RequireAccount>
           </DashboardLayout>
         )}
+      </Route>
+
+      <Route path="/reputation">
+        <DashboardLayout>
+          <RequireAccount>
+            <Reputation />
+          </RequireAccount>
+        </DashboardLayout>
       </Route>
 
       {/* Settings — accessible to all authenticated users */}
