@@ -20,6 +20,7 @@ import {
   getMember,
   listContacts,
   getDialerAnalytics,
+  getAccountById,
 } from "../db";
 import {
   createVapiCall,
@@ -27,7 +28,7 @@ import {
   mapVapiStatus,
   VapiApiError,
 } from "../services/vapi";
-import { isWithinBusinessHours, getBusinessHoursBlockMessage } from "../utils/businessHours";
+import { isWithinBusinessHours, getBusinessHoursBlockMessage, type BusinessHoursConfig } from "../utils/businessHours";
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -170,11 +171,18 @@ export const powerDialerRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
 
+      // ── Fetch account for per-account business hours ──
+      const account = await getAccountById(input.accountId);
+      if (!account) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found." });
+      }
+      const bhConfig = account.businessHoursConfig as BusinessHoursConfig | null;
+
       // ── Business hours enforcement ──
-      if (!isWithinBusinessHours()) {
+      if (!isWithinBusinessHours(bhConfig)) {
         throw new TRPCError({
           code: "PRECONDITION_FAILED",
-          message: getBusinessHoursBlockMessage(),
+          message: getBusinessHoursBlockMessage(bhConfig),
         });
       }
 

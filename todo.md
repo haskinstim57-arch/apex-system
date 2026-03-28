@@ -1743,3 +1743,11 @@
 - [x] Create sendOnboardingProgressEmail server procedure with audit logging
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Run onboarding tests — 30 tests passing (14 + 16)
+
+### Feature: Configurable Per-Account AI Business Hours
+- [x] Add businessHoursConfig JSON column to accounts schema
+- [x] Push migration to database (ai_advisor_messages + businessHoursConfig)
+- [x] Refactor server/utils/businessHours.ts to accept per-account config with fallback to defaults
+- [x] Update all call initiation points (aiCalls.ts, powerDialer.ts, workflowEngine.ts) to fetch account config and pass it
+- [x] Update server/businessHours.test.ts — 46 tests passing (up from 20)
+- [x] Run pnpm check — 0 TypeScript errors

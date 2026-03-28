@@ -1,6 +1,7 @@
 import {
   boolean,
   int,
+  json,
   mysqlEnum,
   mysqlTable,
   text,
@@ -61,6 +62,13 @@ export const accounts = mysqlTable("accounts", {
   vapiAssistantId: varchar("vapiAssistantId", { length: 100 }),
   vapiPhoneNumber: varchar("vapiPhoneNumber", { length: 30 }),
   voiceAgentEnabled: boolean("voiceAgentEnabled").default(false).notNull(),
+  /** Per-account AI calling business hours (JSON). null = use system defaults (7 AM - 10 PM ET, 7 days) */
+  businessHoursConfig: json("businessHoursConfig").$type<{
+    timezone: string;
+    startHour: number;
+    endHour: number;
+    daysOfWeek: number[];
+  }>(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
