@@ -1804,3 +1804,18 @@
 - [x] Create ExecutionDashboard component with stats cards, status/trigger breakdowns, and history table
 - [x] Add Dashboard tab in Automations view navigation
 - [x] 0 TypeScript errors, 20 date trigger tests passing
+
+### Feature: Drag-and-Drop Form Builder
+- [x] Add forms table to drizzle/schema.ts (accountId, name, slug, fields JSON, settings JSON, submitAction, isActive, createdAt, updatedAt)
+- [x] Add form_submissions table to drizzle/schema.ts (formId, contactId, data JSON, createdAt)
+- [x] Push schema migration to database
+- [x] Create server/routers/forms.ts with CRUD procedures (create, update, delete, list, getById, getBySlug)
+- [x] Add public tRPC procedures getPublicForm and submitPublicForm + frontend route /f/:slug
+- [x] Wire form submissions to fire form_submitted workflow trigger via onFormSubmitted
+- [x] Register forms router in main routers.ts
+- [x] Build client/src/pages/Forms.tsx list page with form management
+- [x] Build client/src/pages/FormBuilder.tsx with drag-and-drop field builder
+- [x] Support field types: text, email, phone, dropdown, checkbox, date
+- [x] Add form routes to App.tsx and DashboardLayout sidebar navigation
+- [x] Write vitest tests for form operations (19 tests passing)
+- [x] Run pnpm check — 0 TypeScript errors

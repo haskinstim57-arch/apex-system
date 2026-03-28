@@ -34,6 +34,9 @@ import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 import Analytics from "./pages/Analytics";
 import PowerDialer from "./pages/PowerDialer";
 import DialerAnalytics from "./pages/DialerAnalytics";
+import Forms from "./pages/Forms";
+import FormBuilder from "./pages/FormBuilder";
+import PublicForm from "./pages/PublicForm";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
@@ -56,6 +59,9 @@ function Router() {
             <BookingPage slug={params.slug} />
           </div>
         )}
+      </Route>
+      <Route path="/f/:slug">
+        {(params) => <PublicForm slug={params.slug} />}
       </Route>
 
       {/* Onboarding wizard (full-screen, no sidebar) */}
@@ -208,6 +214,22 @@ function Router() {
             <DialerAnalytics />
           </RequireAccount>
         </DashboardLayout>
+      </Route>
+      <Route path="/forms">
+        <DashboardLayout>
+          <RequireAccount>
+            <Forms />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/forms/:id">
+        {(params) => (
+          <DashboardLayout>
+            <RequireAccount>
+              <FormBuilder id={parseInt(params.id)} />
+            </RequireAccount>
+          </DashboardLayout>
+        )}
       </Route>
 
       {/* Settings — accessible to all authenticated users */}

@@ -1190,3 +1190,80 @@ export const aiAdvisorMessages = mysqlTable("ai_advisor_messages", {
 });
 export type AiAdvisorMessage = typeof aiAdvisorMessages.$inferSelect;
 export type InsertAiAdvisorMessage = typeof aiAdvisorMessages.$inferInsert;
+
+// ─────────────────────────────────────────────
+// FORMS — Drag-and-drop form builder
+// Each form belongs to an account and has a unique slug
+// for public access at /f/:slug
+// ─────────────────────────────────────────────
+export const forms = mysqlTable("forms", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("accountId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  slug: varchar("slug", { length: 100 }).notNull().unique(),
+  /** JSON array of field definitions: [{id, type, label, required, placeholder, options}] */
+  fields: json("fields").$type<FormField[]>().notNull(),
+  /** JSON settings: {submitButtonText, successMessage, redirectUrl, headerText, description, styling} */
+  settings: json("settings").$type<FormSettings>(),
+  /** What happens on submit: create_contact, update_contact, notify_only */
+  submitAction: mysqlEnum("submitAction", [
+    "create_contact",
+    "update_contact",
+    "notify_only",
+  ])
+    .default("create_contact")
+    .notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdById: int("createdById").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Form = typeof forms.$inferSelect;
+export type InsertForm = typeof forms.$inferInsert;
+
+/** Field definition for form builder */
+export interface FormField {
+  id: string;
+  type: "text" | "email" | "phone" | "dropdown" | "checkbox" | "date";
+  label: string;
+  required: boolean;
+  placeholder?: string;
+  /** For dropdown: array of option strings */
+  options?: string[];
+  /** Map to contact field for auto-population */
+  contactFieldMapping?: string;
+}
+
+/** Form settings */
+export interface FormSettings {
+  submitButtonText?: string;
+  successMessage?: string;
+  redirectUrl?: string;
+  headerText?: string;
+  description?: string;
+  styling?: {
+    primaryColor?: string;
+    backgroundColor?: string;
+    fontFamily?: string;
+  };
+}
+
+// ─────────────────────────────────────────────
+// FORM SUBMISSIONS — Captured form data
+// ─────────────────────────────────────────────
+export const formSubmissions = mysqlTable("form_submissions", {
+  id: int("id").autoincrement().primaryKey(),
+  formId: int("formId").notNull(),
+  accountId: int("accountId").notNull(),
+  /** Contact created/matched from this submission (nullable if notify_only) */
+  contactId: int("contactId"),
+  /** Raw submitted data as JSON */
+  data: json("data").$type<Record<string, unknown>>().notNull(),
+  /** IP address of submitter */
+  ipAddress: varchar("ipAddress", { length: 45 }),
+  /** User agent string */
+  userAgent: text("userAgent"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type FormSubmission = typeof formSubmissions.$inferSelect;
+export type InsertFormSubmission = typeof formSubmissions.$inferInsert;

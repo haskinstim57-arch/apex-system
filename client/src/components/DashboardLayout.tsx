@@ -33,6 +33,7 @@ import {
   Globe,
   Inbox,
   Kanban,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   MessageSquare,
@@ -75,6 +76,7 @@ const subAccountMenuItems = [
   { icon: Zap, label: "Automations", path: "/automations" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
+  { icon: ClipboardList, label: "Forms", path: "/forms" },
 ];
 
 /**
