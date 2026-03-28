@@ -1733,3 +1733,13 @@
 - [x] No mismatches found — backend queries and frontend completedKey mappings are aligned
 - [x] Run server/onboarding.test.ts — 14 tests passing
 - [x] Run server/onboarding-completion.test.ts — 16 tests passing
+
+### Feature: Onboarding Checklist Enhancements
+- [x] Add 8th onboarding step: "Set Up AI Voice Agent" (checks voiceAgentEnabled)
+- [x] Update backend getOnboardingStatus to return hasVoiceAgent boolean
+- [x] Update frontend OnboardingChecklist with 8th step UI (Bot icon, links to /settings#voice)
+- [x] Auto-dismiss checklist on 100% completion: fires completeOnboarding + congratulations card with PartyPopper animation
+- [x] Add progress email notifications at 50% and 100% milestones (styled HTML emails)
+- [x] Create sendOnboardingProgressEmail server procedure with audit logging
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Run onboarding tests — 30 tests passing (14 + 16)

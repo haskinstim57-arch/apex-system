@@ -277,6 +277,7 @@ export const accountsRouter = router({
         .select({
           phone: accounts.phone,
           missedCallTextBackEnabled: accounts.missedCallTextBackEnabled,
+          voiceAgentEnabled: accounts.voiceAgentEnabled,
         })
         .from(accounts)
         .where(eq(accounts.id, input.accountId))
@@ -321,6 +322,7 @@ export const accountsRouter = router({
         hasMissedCallTextBack: !!account?.missedCallTextBackEnabled,
         hasCampaign: (campaignCount?.cnt ?? 0) > 0,
         hasWorkflow: (workflowCount?.cnt ?? 0) > 0,
+        hasVoiceAgent: !!account?.voiceAgentEnabled,
       };
     }),
 
@@ -344,6 +346,92 @@ export const accountsRouter = router({
       });
 
       return { success: true };
+    }),
+
+  /** Send onboarding progress email at 50% and 100% milestones */
+  sendOnboardingProgressEmail: protectedProcedure
+    .input(z.object({
+      accountId: z.number().int().positive(),
+      milestone: z.enum(["halfway", "complete"]),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager", "employee"]);
+      }
+
+      const account = await db.getAccountById(input.accountId);
+      if (!account) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      }
+
+      const ownerEmail = ctx.user.email;
+      if (!ownerEmail) return { success: false, reason: "No email on file" };
+
+      const accountName = (account as any).name || "your account";
+
+      const isHalfway = input.milestone === "halfway";
+      const subject = isHalfway
+        ? `You're halfway there! - ${accountName} Onboarding`
+        : `Congratulations! Onboarding Complete - ${accountName}`;
+
+      const body = isHalfway
+        ? `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">🎯 Halfway There!</h1>
+            </div>
+            <div style="background: #fff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+              <p style="color: #374151; font-size: 16px;">Great progress on <strong>${accountName}</strong>!</p>
+              <p style="color: #6b7280; font-size: 14px;">You've completed 50% of your onboarding checklist. Here's what you've unlocked so far, and there's even more to set up to get the full power of Apex System.</p>
+              <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; margin: 16px 0;">
+                <p style="color: #92400e; margin: 0; font-size: 14px;"><strong>Remaining steps:</strong> Complete the rest of your checklist to unlock AI calling, campaigns, automations, and more.</p>
+              </div>
+              <p style="color: #6b7280; font-size: 14px;">Keep going — you're building something great.</p>
+              <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">— The Apex System Team</p>
+            </div>
+          </div>`
+        : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #10b981, #059669); padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">🎉 Onboarding Complete!</h1>
+            </div>
+            <div style="background: #fff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+              <p style="color: #374151; font-size: 16px;">Congratulations! <strong>${accountName}</strong> is fully set up.</p>
+              <p style="color: #6b7280; font-size: 14px;">You've completed every step in the onboarding checklist. Your account now has:</p>
+              <ul style="color: #6b7280; font-size: 14px; padding-left: 20px;">
+                <li>Phone number for SMS & AI calls</li>
+                <li>Email configured for campaigns</li>
+                <li>Contacts imported</li>
+                <li>Calendar & booking set up</li>
+                <li>Missed call text-back enabled</li>
+                <li>Campaign launched</li>
+                <li>Automation workflow built</li>
+                <li>AI Voice Agent configured</li>
+              </ul>
+              <p style="color: #374151; font-size: 14px; font-weight: 600;">Time to start closing deals. 🚀</p>
+              <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">— The Apex System Team</p>
+            </div>
+          </div>`;
+
+      try {
+        await dispatchEmail({
+          to: ownerEmail,
+          subject,
+          body,
+          accountId: input.accountId,
+        });
+
+        await db.createAuditLog({
+          accountId: input.accountId,
+          userId: ctx.user.id,
+          action: `account.onboarding_${input.milestone}_email`,
+          resourceType: "account",
+          resourceId: input.accountId,
+        });
+
+        return { success: true };
+      } catch (err) {
+        console.error(`[Onboarding] Failed to send ${input.milestone} email:`, err);
+        return { success: false, reason: "Email send failed" };
+      }
     }),
 
   /** Get voice agent status for an account */
