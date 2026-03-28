@@ -1727,3 +1727,9 @@
 - [x] Add enhanced loading skeleton with shimmer animation and "Analyzing..." text
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Run vitest tests — 6 passing
+
+### Review: Onboarding Checklist Backend/Frontend Alignment
+- [x] Verified getOnboardingStatus returns 7 booleans matching frontend OnboardingStatus interface exactly
+- [x] No mismatches found — backend queries and frontend completedKey mappings are aligned
+- [x] Run server/onboarding.test.ts — 14 tests passing
+- [x] Run server/onboarding-completion.test.ts — 16 tests passing
