@@ -20,6 +20,12 @@ const FIELD_TYPES = [
   "phone",
 ] as const;
 
+const visibilityRuleSchema = z.object({
+  dependsOnSlug: z.string().min(1),
+  operator: z.enum(["equals", "not_equals", "contains", "not_empty", "is_empty", "in"]),
+  value: z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]).optional(),
+});
+
 const fieldDefInput = z.object({
   name: z.string().min(1).max(100),
   slug: z
@@ -34,6 +40,7 @@ const fieldDefInput = z.object({
   options: z.array(z.string().min(1).max(200)).optional(),
   required: z.boolean().optional().default(false),
   sortOrder: z.number().int().min(0).optional().default(0),
+  visibilityRules: z.array(visibilityRuleSchema).optional(),
 });
 
 // ─── Validation helper (exported for use in contacts router) ───
@@ -270,6 +277,10 @@ export const customFieldsRouter = router({
             : null,
         required: input.required,
         sortOrder: input.sortOrder,
+        visibilityRules:
+          input.visibilityRules && input.visibilityRules.length > 0
+            ? JSON.stringify(input.visibilityRules)
+            : null,
       });
 
       return { id: result[0].insertId };
@@ -287,6 +298,7 @@ export const customFieldsRouter = router({
         required: z.boolean().optional(),
         sortOrder: z.number().int().min(0).optional(),
         isActive: z.boolean().optional(),
+        visibilityRules: z.array(visibilityRuleSchema).nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -320,6 +332,12 @@ export const customFieldsRouter = router({
       if (input.required !== undefined) updateData.required = input.required;
       if (input.sortOrder !== undefined) updateData.sortOrder = input.sortOrder;
       if (input.isActive !== undefined) updateData.isActive = input.isActive;
+      if (input.visibilityRules !== undefined) {
+        updateData.visibilityRules =
+          input.visibilityRules && input.visibilityRules.length > 0
+            ? JSON.stringify(input.visibilityRules)
+            : null;
+      }
 
       await db
         .update(customFieldDefs)

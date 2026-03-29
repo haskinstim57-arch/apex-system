@@ -68,6 +68,7 @@ import {
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { isFieldVisibleClient } from "@/components/VisibilityRulesEditor";
 
 const STATUSES = [
   "new",
@@ -365,7 +366,17 @@ export default function ContactDetail({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {activeFieldDefs.map((def: any) => {
+                {activeFieldDefs.filter((def: any) => {
+                  const cfData = contact.customFields
+                    ? (typeof contact.customFields === "string"
+                        ? JSON.parse(contact.customFields)
+                        : contact.customFields)
+                    : {};
+                  const vr = def.visibilityRules
+                    ? (typeof def.visibilityRules === "string" ? JSON.parse(def.visibilityRules) : def.visibilityRules)
+                    : [];
+                  return isFieldVisibleClient(vr, cfData);
+                }).map((def: any) => {
                   const cf = contact.customFields
                     ? (typeof contact.customFields === "string"
                         ? JSON.parse(contact.customFields)
@@ -868,7 +879,12 @@ function EditContactDialog({
             <div className="space-y-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Custom Fields</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {customFieldDefs.map((def: any) => {
+                {customFieldDefs.filter((def: any) => {
+                  const vr = def.visibilityRules
+                    ? (typeof def.visibilityRules === "string" ? JSON.parse(def.visibilityRules) : def.visibilityRules)
+                    : [];
+                  return isFieldVisibleClient(vr, customFieldValues);
+                }).map((def: any) => {
                   const val = customFieldValues[def.slug];
                   return (
                     <div key={def.id} className={def.type === "textarea" ? "col-span-1 sm:col-span-2 space-y-1.5" : "space-y-1.5"}>

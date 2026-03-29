@@ -1560,6 +1560,8 @@ export const customFieldDefs = mysqlTable("custom_field_defs", {
   sortOrder: int("sort_order").default(0).notNull(),
   /** Soft-disable without deleting */
   isActive: boolean("is_active").default(true).notNull(),
+  /** JSON: visibility rules [{dependsOnSlug, operator, value}] — field is visible only when ALL rules pass */
+  visibilityRules: text("visibility_rules"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -1600,3 +1602,31 @@ export const userColumnPreferences = mysqlTable("user_column_preferences", {
 });
 export type UserColumnPreference = typeof userColumnPreferences.$inferSelect;
 export type InsertUserColumnPreference = typeof userColumnPreferences.$inferInsert;
+
+// ─── Saved Views (Smart Views / Saved Filters) ───
+
+export const savedViews = mysqlTable("saved_views", {
+  id: int("id").autoincrement().primaryKey(),
+  /** User who created this view */
+  userId: int("user_id").notNull(),
+  /** Sub-account this view belongs to */
+  accountId: int("account_id").notNull(),
+  /** Display name, e.g. "Hot FHA Leads" */
+  name: varchar("name", { length: 100 }).notNull(),
+  /** Optional icon identifier */
+  icon: varchar("icon", { length: 50 }),
+  /** JSON: { search, status, source, customFieldFilters: [{slug, operator, value}] } */
+  filters: text("filters"),
+  /** JSON: array of visible column keys (including cf_ prefixed) */
+  columns: text("columns"),
+  /** Sort field */
+  sortBy: varchar("sort_by", { length: 100 }),
+  /** Sort direction */
+  sortDir: mysqlEnum("sort_dir", ["asc", "desc"]).default("desc"),
+  /** Whether this is the default view for this user+account */
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type SavedView = typeof savedViews.$inferSelect;
+export type InsertSavedView = typeof savedViews.$inferInsert;

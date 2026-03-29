@@ -35,6 +35,7 @@ import { customFieldsRouter } from "./routers/customFields";
 import { customFieldTemplatesRouter } from "./routers/customFieldTemplates";
 import { columnPreferencesRouter } from "./routers/columnPreferences";
 import { customFieldAnalyticsRouter } from "./routers/customFieldAnalytics";
+import { savedViewsRouter } from "./routers/savedViews";
 
 export const appRouter = router({
   system: systemRouter,
@@ -81,6 +82,7 @@ export const appRouter = router({
   customFieldTemplates: customFieldTemplatesRouter,
   columnPreferences: columnPreferencesRouter,
   customFieldAnalytics: customFieldAnalyticsRouter,
+  savedViews: savedViewsRouter,
 });
 
 export type AppRouter = typeof appRouter;

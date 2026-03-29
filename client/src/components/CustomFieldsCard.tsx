@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { VisibilityRulesEditor, type VisibilityRule } from "./VisibilityRulesEditor";
 import {
   Database,
   Plus,
@@ -73,6 +74,7 @@ interface FieldFormData {
   options: string[];
   required: boolean;
   sortOrder: number;
+  visibilityRules: VisibilityRule[];
 }
 
 const defaultFormData: FieldFormData = {
@@ -82,6 +84,7 @@ const defaultFormData: FieldFormData = {
   options: [],
   required: false,
   sortOrder: 0,
+  visibilityRules: [],
 };
 
 function slugify(name: string): string {
@@ -172,6 +175,7 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
   function openEdit(field: (typeof fields)[number]) {
     setEditingId(field.id);
     setAutoSlug(false);
+    const vr = (field as any).visibilityRules;
     setFormData({
       name: field.name,
       slug: field.slug,
@@ -179,6 +183,7 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
       options: field.options ? JSON.parse(field.options) : [],
       required: field.required,
       sortOrder: field.sortOrder,
+      visibilityRules: vr ? (typeof vr === "string" ? JSON.parse(vr) : vr) : [],
     });
     setDialogOpen(true);
   }
@@ -193,6 +198,7 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
       return;
     }
 
+    const vrPayload = formData.visibilityRules.length > 0 ? formData.visibilityRules : undefined;
     if (editingId) {
       updateMut.mutate({
         id: editingId,
@@ -202,6 +208,7 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
         options: formData.type === "dropdown" ? formData.options : undefined,
         required: formData.required,
         sortOrder: formData.sortOrder,
+        visibilityRules: vrPayload as any,
       });
     } else {
       createMut.mutate({
@@ -212,6 +219,7 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
         options: formData.type === "dropdown" ? formData.options : undefined,
         required: formData.required,
         sortOrder: formData.sortOrder,
+        visibilityRules: vrPayload as any,
       });
     }
   }
@@ -298,6 +306,20 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
                           Required
                         </Badge>
                       )}
+                      {(() => {
+                        const vr = (field as any).visibilityRules;
+                        const rules = vr ? (typeof vr === "string" ? JSON.parse(vr) : vr) : [];
+                        if (rules.length === 0) return null;
+                        const depNames = rules.map((r: any) => {
+                          const dep = fields.find((f) => f.slug === r.dependsOnSlug);
+                          return dep?.name || r.dependsOnSlug;
+                        });
+                        return (
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 border-blue-300 text-blue-600">
+                            Conditional ({depNames.join(", ")})
+                          </Badge>
+                        );
+                      })()}
                     </div>
                     <div className="text-[10px] text-muted-foreground mt-0.5">
                       {typeLabel(field.type)}
@@ -390,7 +412,7 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) { setDialogOpen(false); resetForm(); } }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingId ? "Edit Custom Field" : "Create Custom Field"}</DialogTitle>
             <DialogDescription>
@@ -499,6 +521,21 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
                 onCheckedChange={(checked) => setFormData({ ...formData, required: checked })}
               />
               <Label className="text-xs">Required field</Label>
+            </div>
+
+            {/* Visibility Rules */}
+            <div className="border-t border-border/50 pt-3">
+              <VisibilityRulesEditor
+                rules={formData.visibilityRules}
+                onChange={(rules) => setFormData({ ...formData, visibilityRules: rules })}
+                allFieldDefs={fields.map((f) => ({
+                  slug: f.slug,
+                  name: f.name,
+                  type: f.type,
+                  options: f.options,
+                }))}
+                currentSlug={formData.slug}
+              />
             </div>
           </div>
 

@@ -58,6 +58,8 @@ import {
   ArrowDown,
   Download,
   SlidersHorizontal,
+  Bookmark,
+  BookmarkCheck,
 } from "lucide-react";
 import {
   Popover,
@@ -131,6 +133,17 @@ export default function Contacts() {
   const [distributeOpen, setDistributeOpen] = useState(false);
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [bulkAssignUserId, setBulkAssignUserId] = useState<string>("");
+
+  // Bulk edit custom field
+  const [bulkEditCfOpen, setBulkEditCfOpen] = useState(false);
+  const [bulkEditSlug, setBulkEditSlug] = useState("");
+  const [bulkEditValue, setBulkEditValue] = useState<string>("");
+
+  // Smart Views
+  const [saveViewOpen, setSaveViewOpen] = useState(false);
+  const [saveViewName, setSaveViewName] = useState("");
+  const [activeViewId, setActiveViewId] = useState<number | null>(null);
+  const [viewsOpen, setViewsOpen] = useState(false);
 
   // Column customization
   const [sortBy, setSortBy] = useState<string>("");
@@ -301,6 +314,66 @@ export default function Contacts() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Smart Views queries
+  const { data: savedViews = [] } = trpc.savedViews.list.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId }
+  );
+  const saveViewMut = trpc.savedViews.create.useMutation({
+    onSuccess: (data) => {
+      toast.success(`View "${saveViewName}" saved`);
+      utils.savedViews.list.invalidate();
+      setSaveViewOpen(false);
+      setSaveViewName("");
+      setActiveViewId(data.id);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const deleteViewMut = trpc.savedViews.delete.useMutation({
+    onSuccess: () => {
+      toast.success("View deleted");
+      utils.savedViews.list.invalidate();
+      setActiveViewId(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function applyView(view: typeof savedViews[0]) {
+    const filters = view.filters as any;
+    setSearch(filters?.search || "");
+    setStatusFilter(filters?.status || "");
+    setSourceFilter(filters?.source || "");
+    setCfFilters(filters?.customFieldFilters || []);
+    setSortBy(view.sortBy || "");
+    setSortDir((view.sortDir as "asc" | "desc") || "desc");
+    setActiveViewId(view.id);
+    setPage(0);
+  }
+
+  function clearView() {
+    setSearch("");
+    setStatusFilter("");
+    setSourceFilter("");
+    setCfFilters([]);
+    setSortBy("");
+    setSortDir("desc");
+    setActiveViewId(null);
+    setPage(0);
+  }
+
+  // Bulk edit custom field mutation
+  const bulkEditCfMutation = trpc.contacts.bulkUpdateCustomField.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Updated ${data.updatedCount} contacts`);
+      utils.contacts.list.invalidate();
+      setBulkEditCfOpen(false);
+      setBulkEditSlug("");
+      setBulkEditValue("");
+      setSelectedIds(new Set());
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   // Bulk assign mutation
   const bulkAssignMutation = trpc.contacts.bulkAssign.useMutation({
     onSuccess: (data) => {
@@ -449,6 +522,17 @@ export default function Contacts() {
               <Share2 className="h-3.5 w-3.5" />
               Distribute
             </Button>
+            {activeFieldDefs.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => setBulkEditCfOpen(true)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+                Edit Field
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"
@@ -458,6 +542,43 @@ export default function Contacts() {
               Clear
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Smart Views Bar */}
+      {savedViews.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium text-muted-foreground">Views:</span>
+          {savedViews.map((v) => (
+            <div key={v.id} className="flex items-center gap-0.5">
+              <Button
+                variant={activeViewId === v.id ? "secondary" : "ghost"}
+                size="sm"
+                className={`h-7 text-xs gap-1 ${activeViewId === v.id ? "bg-primary/10 text-primary" : ""}`}
+                onClick={() => applyView(v)}
+              >
+                {activeViewId === v.id ? <BookmarkCheck className="h-3 w-3" /> : <Bookmark className="h-3 w-3" />}
+                {v.name}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  if (confirm(`Delete view "${v.name}"?`)) {
+                    deleteViewMut.mutate({ id: v.id, accountId: accountId! });
+                  }
+                }}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </div>
+          ))}
+          {activeViewId && (
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearView}>
+              Clear View
+            </Button>
+          )}
         </div>
       )}
 
@@ -500,6 +621,71 @@ export default function Contacts() {
             </Badge>
           )}
         </Button>
+
+        {/* Save View */}
+        <Popover open={saveViewOpen} onOpenChange={setSaveViewOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 border-border/50">
+              <Bookmark className="h-3.5 w-3.5" />
+              Save View
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3" align="end">
+            <div className="space-y-2">
+              <Label className="text-xs font-medium">View Name</Label>
+              <Input
+                placeholder="e.g. Hot FHA Leads"
+                value={saveViewName}
+                onChange={(e) => setSaveViewName(e.target.value)}
+                className="h-8 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && saveViewName.trim()) {
+                    saveViewMut.mutate({
+                      accountId: accountId!,
+                      name: saveViewName.trim(),
+                      filters: {
+                        search: search || undefined,
+                        status: statusFilter || undefined,
+                        source: sourceFilter || undefined,
+                        customFieldFilters: cfFilters.length > 0
+                          ? cfFilters.map((f) => ({ slug: f.slug, operator: f.operator as any, value: f.value }))
+                          : undefined,
+                      },
+                      sortBy: sortBy || undefined,
+                      sortDir: sortBy ? sortDir : undefined,
+                      columns: visibleCfColumns,
+                    });
+                  }
+                }}
+              />
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs"
+                disabled={!saveViewName.trim() || saveViewMut.isPending}
+                onClick={() => {
+                  saveViewMut.mutate({
+                    accountId: accountId!,
+                    name: saveViewName.trim(),
+                    filters: {
+                      search: search || undefined,
+                      status: statusFilter || undefined,
+                      source: sourceFilter || undefined,
+                      customFieldFilters: cfFilters.length > 0
+                        ? cfFilters.map((f) => ({ slug: f.slug, operator: f.operator as any, value: f.value }))
+                        : undefined,
+                    },
+                    sortBy: sortBy || undefined,
+                    sortDir: sortBy ? sortDir : undefined,
+                    columns: visibleCfColumns,
+                  });
+                }}
+              >
+                {saveViewMut.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                Save Current View
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         {/* Column Picker */}
         {activeFieldDefs.length > 0 && (
@@ -1064,6 +1250,96 @@ export default function Contacts() {
         }}
         loading={distributeMutation.isPending}
       />
+
+      {/* Bulk Edit Custom Field Dialog */}
+      <Dialog open={bulkEditCfOpen} onOpenChange={setBulkEditCfOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Bulk Edit Custom Field</DialogTitle>
+            <DialogDescription>
+              Update a custom field value for {selectedIds.size} selected contacts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Field</Label>
+              <Select value={bulkEditSlug} onValueChange={(v) => { setBulkEditSlug(v); setBulkEditValue(""); }}>
+                <SelectTrigger><SelectValue placeholder="Select a field" /></SelectTrigger>
+                <SelectContent>
+                  {activeFieldDefs.map((f) => (
+                    <SelectItem key={f.slug} value={f.slug}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {bulkEditSlug && (() => {
+              const def = activeFieldDefs.find((f) => f.slug === bulkEditSlug);
+              if (!def) return null;
+              if (def.type === "checkbox") {
+                return (
+                  <div className="space-y-2">
+                    <Label>Value</Label>
+                    <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                      <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">Yes</SelectItem>
+                        <SelectItem value="false">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              }
+              if (def.type === "dropdown") {
+                const opts: string[] = def.options ? (typeof def.options === "string" ? JSON.parse(def.options) : def.options) : [];
+                return (
+                  <div className="space-y-2">
+                    <Label>Value</Label>
+                    <Select value={bulkEditValue} onValueChange={setBulkEditValue}>
+                      <SelectTrigger><SelectValue placeholder="Select option" /></SelectTrigger>
+                      <SelectContent>
+                        {opts.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-2">
+                  <Label>Value</Label>
+                  <Input
+                    type={def.type === "number" ? "number" : def.type === "date" ? "date" : "text"}
+                    value={bulkEditValue}
+                    onChange={(e) => setBulkEditValue(e.target.value)}
+                    placeholder={`Enter ${def.name.toLowerCase()}`}
+                  />
+                </div>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkEditCfOpen(false)}>Cancel</Button>
+            <Button
+              disabled={!bulkEditSlug || bulkEditCfMutation.isPending}
+              onClick={() => {
+                const def = activeFieldDefs.find((f) => f.slug === bulkEditSlug);
+                let val: string | number | boolean | null = bulkEditValue;
+                if (def?.type === "checkbox") val = bulkEditValue === "true";
+                else if (def?.type === "number" && bulkEditValue) val = Number(bulkEditValue);
+                else if (!bulkEditValue) val = null;
+                bulkEditCfMutation.mutate({
+                  accountId: accountId!,
+                  contactIds: Array.from(selectedIds),
+                  fieldSlug: bulkEditSlug,
+                  value: val,
+                });
+              }}
+            >
+              {bulkEditCfMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Update {selectedIds.size} Contacts
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

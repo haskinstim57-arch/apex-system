@@ -1099,4 +1099,83 @@ export const contactsRouter = router({
 
       return { headers, rows, fieldDefs: fieldDefs.map((d) => ({ slug: d.slug, name: d.name, type: d.type })) };
     }),
+
+  // ─── Bulk Update Custom Field ───
+  bulkUpdateCustomField: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        contactIds: z.array(z.number().int().positive()).min(1).max(5000),
+        fieldSlug: z.string().min(1),
+        value: z.union([z.string(), z.number(), z.boolean(), z.null()]),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.user.id;
+      await requireAccountMember(userId, input.accountId, ctx.user.role);
+
+      // Validate the field slug exists for this account
+      const fieldDefs = await getAccountCustomFieldDefs(input.accountId);
+      const fieldDef = fieldDefs.find((d) => d.slug === input.fieldSlug);
+      if (!fieldDef) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: `Custom field "${input.fieldSlug}" does not exist for this account.` });
+      }
+
+      // Validate value against field type (validateCustomFields throws TRPCError on invalid)
+      if (input.value !== null) {
+        const testObj: Record<string, unknown> = { [input.fieldSlug]: input.value };
+        validateCustomFields(testObj, fieldDefs);
+      }
+
+      // Perform bulk update — merge into each contact's customFields JSON
+      const { getDb: getBulkDb } = await import("../db");
+      const bulkDb = await getBulkDb();
+      if (!bulkDb) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      const { contacts: contactsTable } = await import("../../drizzle/schema");
+      const { eq, and, inArray } = await import("drizzle-orm");
+
+      // Fetch all target contacts in this account
+      const targetContacts = await bulkDb
+        .select({ id: contactsTable.id, customFields: contactsTable.customFields })
+        .from(contactsTable)
+        .where(
+          and(
+            eq(contactsTable.accountId, input.accountId),
+            inArray(contactsTable.id, input.contactIds)
+          )
+        );
+
+      let updatedCount = 0;
+      for (const contact of targetContacts) {
+        const existing: Record<string, unknown> = contact.customFields
+          ? JSON.parse(contact.customFields as string)
+          : {};
+
+        if (input.value === null) {
+          delete existing[input.fieldSlug];
+        } else {
+          existing[input.fieldSlug] = input.value;
+        }
+
+        await bulkDb
+          .update(contactsTable)
+          .set({ customFields: JSON.stringify(existing) })
+          .where(eq(contactsTable.id, contact.id));
+        updatedCount++;
+      }
+
+      await createAuditLog({
+        accountId: input.accountId,
+        userId,
+        action: "contacts.bulk_update_custom_field",
+        resourceType: "contact",
+        metadata: JSON.stringify({
+          fieldSlug: input.fieldSlug,
+          value: input.value,
+          contactCount: updatedCount,
+        }),
+      });
+
+      return { updatedCount };
+    }),
 });

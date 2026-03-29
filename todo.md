@@ -1997,3 +1997,33 @@
 - [x] Write 26 vitest tests for all 3 features (all passing)
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Checkpoint saved
+
+### Feature: Custom Field Bulk Edit
+- [x] Add bulkUpdateCustomField procedure to contacts router (contactIds[], slug, value, accountId)
+- [x] Validate value against field definition type before bulk update
+- [x] Update customFields JSON for each contact (merge, not replace)
+- [x] Build bulk edit UI in Contacts table (bulk action dropdown with "Update Custom Field" option)
+- [x] Build BulkEditDialog (field picker, value input matching field type, confirmation with count)
+
+### Feature: Smart Views / Saved Filters
+- [x] Add saved_views table to schema (userId, accountId, name, icon, filters JSON, columns JSON, sortBy, sortDir, isDefault, createdAt, updatedAt)
+- [x] Push schema migration
+- [x] Create savedViews tRPC router (list, create, update, delete, setDefault)
+- [x] Build Smart Views UI in Contacts page (save current view, view switcher tabs/dropdown, load view, delete view)
+- [x] Auto-apply default view on page load if set
+- [x] Include customFieldFilters, search, status, source, sortBy, sortDir, and visible columns in saved view
+- [x] Highlight active view with BookmarkCheck icon
+
+### Feature: Custom Field Conditional Logic
+- [x] Add visibilityRules JSON column to custom_field_defs table (array of {dependsOnSlug, operator, value})
+- [x] Push schema migration
+- [x] Create isFieldVisible, getVisibleFields, parseVisibilityRules helpers in server/services/visibilityRules.ts
+- [x] Create isFieldVisibleClient helper for frontend evaluation in VisibilityRulesEditor.tsx
+- [x] Update customFields router to accept visibilityRules on create/update
+- [x] Build VisibilityRulesEditor UI component (add/remove rules per field with operator + value)
+- [x] Show "Conditional" badge on fields with visibility rules in CustomFieldsCard
+- [x] Update ContactDetail display to filter fields by visibility rules
+- [x] Update ContactDetail EditContactDialog to conditionally show/hide fields based on current values (reactive)
+- [x] Write 31 vitest tests for all 3 features (all passing)
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Checkpoint saved
