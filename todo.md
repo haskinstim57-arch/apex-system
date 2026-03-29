@@ -2103,3 +2103,22 @@
 - [x] Wire score filter state into the list query and Smart List save
 - [x] TypeScript check — 0 errors
 - [x] Checkpoint saved
+
+## Email/SMS Drip Sequence Module
+- [x] Schema: Add `sequences` table (accountId, name, status, triggerType)
+- [x] Schema: Add `sequence_steps` table (sequenceId, position, delayDays, delayHours, messageType, subject, content, templateId)
+- [x] Schema: Add `sequence_enrollments` table (contactId, sequenceId, currentStep, status, enrolledAt, nextStepAt, completedAt)
+- [x] Push schema migration
+- [x] Backend: Sequence CRUD helpers in server/db.ts
+- [x] Backend: tRPC router — sequences (create, list, get, update, delete, steps CRUD, enrollment management)
+- [x] Backend: Drip engine service (processNextSteps — evaluate due enrollments, send messages, advance steps)
+- [x] Backend: Integrate sequence enrollment as a workflow action type in workflowEngine.ts
+- [x] Frontend: Sequence list page with create/edit/delete/toggle
+- [x] Frontend: Sequence builder UI with step editor and reorder
+- [x] Frontend: Step editor dialog (message type, delay, content, subject)
+- [x] Frontend: Enrollment stats and contact enrollment view
+- [x] Frontend: Add sequence enrollment option in Campaign Builder
+- [x] Register route in App.tsx and add sidebar navigation link
+- [x] Write vitest tests for sequence CRUD and drip engine
+- [x] TypeScript check — 0 errors
+- [x] Checkpoint saved

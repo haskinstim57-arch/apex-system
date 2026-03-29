@@ -85,6 +85,12 @@ import {
   type InsertLeadScoreHistoryEntry,
   contactSegments,
   type InsertContactSegment,
+  sequences,
+  sequenceSteps,
+  sequenceEnrollments,
+  type InsertSequence,
+  type InsertSequenceStep,
+  type InsertSequenceEnrollment,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -4729,4 +4735,297 @@ export async function contactMatchesSegment(
     .limit(1);
 
   return (result?.count ?? 0) > 0;
+}
+
+
+// ─────────────────────────────────────────────
+// SEQUENCES — Drip Sequence CRUD
+// ─────────────────────────────────────────────
+
+export async function createSequence(data: InsertSequence) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(sequences).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function listSequences(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(sequences)
+    .where(eq(sequences.accountId, accountId))
+    .orderBy(desc(sequences.createdAt));
+}
+
+export async function getSequenceById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(sequences)
+    .where(and(eq(sequences.id, id), eq(sequences.accountId, accountId)))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateSequence(id: number, accountId: number, data: Partial<InsertSequence>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(sequences)
+    .set(data)
+    .where(and(eq(sequences.id, id), eq(sequences.accountId, accountId)));
+}
+
+export async function deleteSequence(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete enrollments, steps, then the sequence
+  await db.delete(sequenceEnrollments).where(and(eq(sequenceEnrollments.sequenceId, id), eq(sequenceEnrollments.accountId, accountId)));
+  await db.delete(sequenceSteps).where(eq(sequenceSteps.sequenceId, id));
+  await db.delete(sequences).where(and(eq(sequences.id, id), eq(sequences.accountId, accountId)));
+}
+
+// ─── Sequence Steps ───
+
+export async function listSequenceSteps(sequenceId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(sequenceSteps)
+    .where(eq(sequenceSteps.sequenceId, sequenceId))
+    .orderBy(asc(sequenceSteps.position));
+}
+
+export async function createSequenceStep(data: InsertSequenceStep) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(sequenceSteps).values(data);
+  // Update step count
+  await db
+    .update(sequences)
+    .set({ stepCount: sql`(SELECT COUNT(*) FROM sequence_steps WHERE sequence_id = ${data.sequenceId})` })
+    .where(eq(sequences.id, data.sequenceId));
+  return { id: result[0].insertId };
+}
+
+export async function updateSequenceStep(id: number, sequenceId: number, data: Partial<InsertSequenceStep>) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(sequenceSteps)
+    .set(data)
+    .where(and(eq(sequenceSteps.id, id), eq(sequenceSteps.sequenceId, sequenceId)));
+}
+
+export async function deleteSequenceStep(id: number, sequenceId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Get the position of the step being deleted
+  const [step] = await db
+    .select({ position: sequenceSteps.position })
+    .from(sequenceSteps)
+    .where(and(eq(sequenceSteps.id, id), eq(sequenceSteps.sequenceId, sequenceId)))
+    .limit(1);
+  if (!step) return;
+  await db.delete(sequenceSteps).where(and(eq(sequenceSteps.id, id), eq(sequenceSteps.sequenceId, sequenceId)));
+  // Reorder remaining steps
+  await db
+    .update(sequenceSteps)
+    .set({ position: sql`position - 1` })
+    .where(and(eq(sequenceSteps.sequenceId, sequenceId), sql`position > ${step.position}`));
+  // Update step count
+  await db
+    .update(sequences)
+    .set({ stepCount: sql`(SELECT COUNT(*) FROM sequence_steps WHERE sequence_id = ${sequenceId})` })
+    .where(eq(sequences.id, sequenceId));
+}
+
+export async function reorderSequenceSteps(sequenceId: number, stepIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  for (let i = 0; i < stepIds.length; i++) {
+    await db
+      .update(sequenceSteps)
+      .set({ position: i + 1 })
+      .where(and(eq(sequenceSteps.id, stepIds[i]), eq(sequenceSteps.sequenceId, sequenceId)));
+  }
+}
+
+// ─── Sequence Enrollments ───
+
+export async function enrollContactInSequence(data: InsertSequenceEnrollment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Check if already enrolled and active
+  const existing = await db
+    .select({ id: sequenceEnrollments.id })
+    .from(sequenceEnrollments)
+    .where(
+      and(
+        eq(sequenceEnrollments.sequenceId, data.sequenceId),
+        eq(sequenceEnrollments.contactId, data.contactId),
+        eq(sequenceEnrollments.status, "active")
+      )
+    )
+    .limit(1);
+  if (existing.length > 0) {
+    return { id: existing[0].id, alreadyEnrolled: true };
+  }
+  const result = await db.insert(sequenceEnrollments).values(data);
+  // Increment active enrollments count
+  await db
+    .update(sequences)
+    .set({ activeEnrollments: sql`active_enrollments + 1` })
+    .where(eq(sequences.id, data.sequenceId));
+  return { id: result[0].insertId, alreadyEnrolled: false };
+}
+
+export async function unenrollContact(enrollmentId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [enrollment] = await db
+    .select()
+    .from(sequenceEnrollments)
+    .where(and(eq(sequenceEnrollments.id, enrollmentId), eq(sequenceEnrollments.accountId, accountId)))
+    .limit(1);
+  if (!enrollment || enrollment.status !== "active") return;
+  await db
+    .update(sequenceEnrollments)
+    .set({ status: "unenrolled" })
+    .where(eq(sequenceEnrollments.id, enrollmentId));
+  await db
+    .update(sequences)
+    .set({ activeEnrollments: sql`GREATEST(active_enrollments - 1, 0)` })
+    .where(eq(sequences.id, enrollment.sequenceId));
+}
+
+export async function listSequenceEnrollments(sequenceId: number, accountId: number, status?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    eq(sequenceEnrollments.sequenceId, sequenceId),
+    eq(sequenceEnrollments.accountId, accountId),
+  ];
+  if (status) {
+    conditions.push(eq(sequenceEnrollments.status, status as any));
+  }
+  return db
+    .select()
+    .from(sequenceEnrollments)
+    .where(and(...conditions))
+    .orderBy(desc(sequenceEnrollments.enrolledAt));
+}
+
+export async function getContactEnrollments(contactId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      enrollment: sequenceEnrollments,
+      sequenceName: sequences.name,
+    })
+    .from(sequenceEnrollments)
+    .innerJoin(sequences, eq(sequenceEnrollments.sequenceId, sequences.id))
+    .where(
+      and(
+        eq(sequenceEnrollments.contactId, contactId),
+        eq(sequenceEnrollments.accountId, accountId)
+      )
+    )
+    .orderBy(desc(sequenceEnrollments.enrolledAt));
+}
+
+export async function getDueEnrollments(limit: number = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      enrollment: sequenceEnrollments,
+      step: sequenceSteps,
+      sequence: sequences,
+    })
+    .from(sequenceEnrollments)
+    .innerJoin(sequences, eq(sequenceEnrollments.sequenceId, sequences.id))
+    .innerJoin(
+      sequenceSteps,
+      and(
+        eq(sequenceSteps.sequenceId, sequenceEnrollments.sequenceId),
+        eq(sequenceSteps.position, sql`${sequenceEnrollments.currentStep} + 1`)
+      )
+    )
+    .where(
+      and(
+        eq(sequenceEnrollments.status, "active"),
+        eq(sequences.status, "active"),
+        sql`${sequenceEnrollments.nextStepAt} <= NOW()`
+      )
+    )
+    .limit(limit);
+}
+
+export async function advanceEnrollment(enrollmentId: number, newStep: number, totalSteps: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (newStep >= totalSteps) {
+    // Sequence completed
+    await db
+      .update(sequenceEnrollments)
+      .set({
+        currentStep: newStep,
+        status: "completed",
+        completedAt: new Date(),
+        lastStepAt: new Date(),
+        nextStepAt: null,
+      })
+      .where(eq(sequenceEnrollments.id, enrollmentId));
+    // Get the sequenceId to update counts
+    const [enrollment] = await db
+      .select({ sequenceId: sequenceEnrollments.sequenceId })
+      .from(sequenceEnrollments)
+      .where(eq(sequenceEnrollments.id, enrollmentId))
+      .limit(1);
+    if (enrollment) {
+      await db
+        .update(sequences)
+        .set({
+          activeEnrollments: sql`GREATEST(active_enrollments - 1, 0)`,
+          completedCount: sql`completed_count + 1`,
+        })
+        .where(eq(sequences.id, enrollment.sequenceId));
+    }
+  } else {
+    // Advance to next step — compute next step delay
+    const [enrollment] = await db
+      .select({ sequenceId: sequenceEnrollments.sequenceId })
+      .from(sequenceEnrollments)
+      .where(eq(sequenceEnrollments.id, enrollmentId))
+      .limit(1);
+    if (!enrollment) return;
+    const [nextStep] = await db
+      .select()
+      .from(sequenceSteps)
+      .where(
+        and(
+          eq(sequenceSteps.sequenceId, enrollment.sequenceId),
+          eq(sequenceSteps.position, newStep + 1)
+        )
+      )
+      .limit(1);
+    const delayMs = nextStep
+      ? ((nextStep.delayDays || 0) * 86400000 + (nextStep.delayHours || 0) * 3600000)
+      : 0;
+    const nextStepAt = new Date(Date.now() + delayMs);
+    await db
+      .update(sequenceEnrollments)
+      .set({
+        currentStep: newStep,
+        lastStepAt: new Date(),
+        nextStepAt,
+      })
+      .where(eq(sequenceEnrollments.id, enrollmentId));
+  }
 }

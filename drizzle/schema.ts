@@ -492,6 +492,7 @@ export const workflowSteps = mysqlTable("workflow_steps", {
     "assign_pipeline_stage",
     "notify_user",
     "send_review_request",
+    "enroll_in_sequence",
   ]),
   /** Delay type (null for action steps) */
   delayType: mysqlEnum("delayType", ["minutes", "hours", "days"]),
@@ -1763,3 +1764,80 @@ export const contactSegments = mysqlTable("contact_segments", {
 });
 export type ContactSegment = typeof contactSegments.$inferSelect;
 export type InsertContactSegment = typeof contactSegments.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// SEQUENCES — Email/SMS Drip Sequences
+// ─────────────────────────────────────────────
+export const sequences = mysqlTable("sequences", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  /** active | paused | draft | archived */
+  status: mysqlEnum("status", ["active", "paused", "draft", "archived"]).default("draft").notNull(),
+  /** Total number of steps in this sequence (denormalized for quick display) */
+  stepCount: int("step_count").default(0).notNull(),
+  /** Total number of currently active enrollments */
+  activeEnrollments: int("active_enrollments").default(0).notNull(),
+  /** Total number of contacts that completed the full sequence */
+  completedCount: int("completed_count").default(0).notNull(),
+  createdById: int("created_by_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type Sequence = typeof sequences.$inferSelect;
+export type InsertSequence = typeof sequences.$inferInsert;
+
+// ─────────────────────────────────────────────
+// SEQUENCE STEPS — Individual drip steps
+// ─────────────────────────────────────────────
+export const sequenceSteps = mysqlTable("sequence_steps", {
+  id: int("id").autoincrement().primaryKey(),
+  sequenceId: int("sequence_id").notNull(),
+  /** 1-based position within the sequence */
+  position: int("position").notNull(),
+  /** Delay before this step fires (from previous step or enrollment) */
+  delayDays: int("delay_days").default(0).notNull(),
+  delayHours: int("delay_hours").default(0).notNull(),
+  /** sms | email */
+  messageType: mysqlEnum("message_type", ["sms", "email"]).notNull(),
+  /** Email subject line (null for SMS) */
+  subject: varchar("subject", { length: 500 }),
+  /** Message body — supports {{firstName}}, {{lastName}}, etc. merge tags */
+  content: text("content").notNull(),
+  /** Optional reference to an email template */
+  templateId: int("template_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type SequenceStep = typeof sequenceSteps.$inferSelect;
+export type InsertSequenceStep = typeof sequenceSteps.$inferInsert;
+
+// ─────────────────────────────────────────────
+// SEQUENCE ENROLLMENTS — Contact enrollment tracking
+// ─────────────────────────────────────────────
+export const sequenceEnrollments = mysqlTable("sequence_enrollments", {
+  id: int("id").autoincrement().primaryKey(),
+  sequenceId: int("sequence_id").notNull(),
+  contactId: int("contact_id").notNull(),
+  accountId: int("account_id").notNull(),
+  /** Current step position (0 = enrolled but hasn't started, 1+ = on that step) */
+  currentStep: int("current_step").default(0).notNull(),
+  /** active | completed | paused | failed | unenrolled */
+  status: mysqlEnum("status", ["active", "completed", "paused", "failed", "unenrolled"]).default("active").notNull(),
+  /** When the next step should fire */
+  nextStepAt: timestamp("next_step_at"),
+  /** Last step that was successfully executed */
+  lastStepAt: timestamp("last_step_at"),
+  enrolledAt: timestamp("enrolled_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+  /** Source of enrollment: manual | workflow | campaign | api */
+  enrollmentSource: varchar("enrollment_source", { length: 50 }).default("manual"),
+  /** Optional reference to the workflow/campaign that enrolled this contact */
+  sourceId: int("source_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type SequenceEnrollment = typeof sequenceEnrollments.$inferSelect;
+export type InsertSequenceEnrollment = typeof sequenceEnrollments.$inferInsert;

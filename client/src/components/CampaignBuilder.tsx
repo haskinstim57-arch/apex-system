@@ -37,7 +37,9 @@ import {
   Users,
   X,
   Palette,
+  ListOrdered,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -112,6 +114,10 @@ export default function CampaignBuilder({
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
 
+  // Sequence enrollment after campaign
+  const [enrollInSequence, setEnrollInSequence] = useState(false);
+  const [selectedSequenceId, setSelectedSequenceId] = useState<number | null>(null);
+
   // ─── State for email template selection ───
   const [useEmailTemplate, setUseEmailTemplate] = useState(false);
   const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<number | null>(null);
@@ -149,6 +155,13 @@ export default function CampaignBuilder({
     { enabled: !!accountId && step === 3 }
   );
   const addFromSegmentMut = trpc.campaigns.addRecipientsFromSegment.useMutation();
+
+  // Sequences for enrollment option
+  const { data: sequencesList = [] } = trpc.sequences.list.useQuery(
+    { accountId },
+    { enabled: !!accountId && step === 5 }
+  );
+  const bulkEnrollMut = trpc.sequences.bulkEnroll.useMutation();
 
   // ─── Mutations ───
   const createMutation = trpc.campaigns.create.useMutation();
@@ -333,7 +346,24 @@ export default function CampaignBuilder({
         );
       }
 
-      // 4. Invalidate and close
+      // 4. Enroll in sequence if selected
+      if (enrollInSequence && selectedSequenceId && selectedContacts.length > 0) {
+        try {
+          const result = await bulkEnrollMut.mutateAsync({
+            sequenceId: selectedSequenceId,
+            contactIds: selectedContacts.map((c) => c.id),
+            accountId,
+            source: "campaign",
+          });
+          toast.success(
+            `Enrolled ${result.enrolled} contacts in drip sequence (${result.skipped} already enrolled)`
+          );
+        } catch {
+          toast.error("Campaign sent but failed to enroll contacts in sequence");
+        }
+      }
+
+      // 5. Invalidate and close
       utils.campaigns.list.invalidate();
       utils.campaigns.stats.invalidate();
       resetForm();
@@ -1143,6 +1173,61 @@ export default function CampaignBuilder({
                   </CardContent>
                 </Card>
               )}
+
+              {/* Sequence Enrollment Option */}
+              <Card className="border-border/50">
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ListOrdered className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Enroll in Drip Sequence</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Automatically enroll recipients into a drip sequence after campaign sends
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={enrollInSequence}
+                      onCheckedChange={(checked) => {
+                        setEnrollInSequence(checked);
+                        if (!checked) setSelectedSequenceId(null);
+                      }}
+                    />
+                  </div>
+                  {enrollInSequence && (
+                    <div className="mt-3">
+                      <Select
+                        value={selectedSequenceId?.toString() || ""}
+                        onValueChange={(v) => setSelectedSequenceId(parseInt(v))}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select a sequence..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sequencesList
+                            .filter((s: any) => s.status === "active" || s.status === "draft")
+                            .map((s: any) => (
+                              <SelectItem key={s.id} value={s.id.toString()}>
+                                <div className="flex items-center gap-2">
+                                  <span>{s.name}</span>
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {s.stepCount} steps
+                                  </Badge>
+                                </div>
+                              </SelectItem>
+                            ))}
+                          {sequencesList.filter((s: any) => s.status === "active" || s.status === "draft").length === 0 && (
+                            <div className="px-2 py-3 text-xs text-muted-foreground text-center">
+                              No active sequences. Create one in the Sequences page first.
+                            </div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Final summary */}
               <Card className="border-amber-500/20 bg-amber-500/5">

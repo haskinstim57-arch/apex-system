@@ -39,6 +39,7 @@ import { savedViewsRouter } from "./routers/savedViews";
 import { contactMergeRouter } from "./routers/contactMerge";
 import { leadScoringRouter } from "./routers/leadScoring";
 import { segmentsRouter } from "./routers/segments";
+import { sequencesRouter } from "./routers/sequences";
 
 export const appRouter = router({
   system: systemRouter,
@@ -89,6 +90,7 @@ export const appRouter = router({
   contactMerge: contactMergeRouter,
   leadScoring: leadScoringRouter,
   segments: segmentsRouter,
+  sequences: sequencesRouter,
 });
 
 export type AppRouter = typeof appRouter;

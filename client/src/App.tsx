@@ -40,6 +40,7 @@ import FormBuilder from "./pages/FormBuilder";
 import PublicForm from "./pages/PublicForm";
 import Reputation from "./pages/Reputation";
 import ContactMerge from "./pages/ContactMerge";
+import Sequences from "./pages/Sequences";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
@@ -151,6 +152,13 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <Automations />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/sequences">
+        <DashboardLayout>
+          <RequireAccount>
+            <Sequences />
           </RequireAccount>
         </DashboardLayout>
       </Route>

@@ -613,6 +613,39 @@ async function executeAction(
       return { action: "send_review_request", platform, channel, requestId };
     }
 
+    case "enroll_in_sequence": {
+      const seqId = config.sequenceId;
+      if (!seqId) throw new Error("No sequenceId specified in step config");
+      const { getSequenceById, enrollContactInSequence, listSequenceSteps } = await import("../db");
+      const { computeFirstStepAt } = await import("./dripEngine");
+      const seq = await getSequenceById(seqId, accountId);
+      if (!seq) throw new Error(`Sequence ${seqId} not found in account ${accountId}`);
+      const steps = await listSequenceSteps(seqId);
+      const firstStep = steps[0];
+      const nextStepAt = firstStep
+        ? computeFirstStepAt(firstStep.delayDays, firstStep.delayHours)
+        : new Date(Date.now() + 60000);
+      const { id: enrollId, alreadyEnrolled } = await enrollContactInSequence({
+        sequenceId: seqId,
+        contactId,
+        accountId,
+        currentStep: 0,
+        status: "active",
+        nextStepAt,
+        enrollmentSource: "workflow",
+      });
+      if (!alreadyEnrolled) {
+        await logContactActivity({
+          contactId,
+          accountId,
+          activityType: "automation_triggered",
+          description: `Enrolled in sequence "${seq.name}" via workflow`,
+          metadata: JSON.stringify({ sequenceId: seqId, sequenceName: seq.name, source: "workflow" }),
+        });
+      }
+      return { action: "enroll_in_sequence", sequenceId: seqId, sequenceName: seq.name, enrollmentId: enrollId, alreadyEnrolled };
+    }
+
     default:
       throw new Error(`Unknown action type: ${step.actionType}`);
   }

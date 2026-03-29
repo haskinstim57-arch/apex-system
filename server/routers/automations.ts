@@ -70,6 +70,7 @@ const actionTypeEnum = z.enum([
   "assign_pipeline_stage",
   "notify_user",
   "send_review_request",
+  "enroll_in_sequence",
 ]);
 
 const delayTypeEnum = z.enum(["minutes", "hours", "days"]);
