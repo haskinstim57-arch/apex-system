@@ -1,5 +1,6 @@
 import { sendSMS, isTwilioConfigured } from "./twilio";
 import { sendEmail, isSendGridConfigured } from "./sendgrid";
+import { isPhoneOptedOut, logMessageBlocked } from "./smsCompliance";
 
 // ─────────────────────────────────────────────
 // Unified Messaging Dispatcher
@@ -24,7 +25,38 @@ export async function dispatchSMS(params: {
   body: string;
   from?: string;
   accountId?: number;
+  contactId?: number;
+  /** Set to true to bypass DND check (e.g. for compliance auto-replies) */
+  skipDndCheck?: boolean;
 }): Promise<MessageSendResult> {
+  // ─── DND / Opt-Out Enforcement ───
+  if (!params.skipDndCheck && params.accountId) {
+    try {
+      const optedOut = await isPhoneOptedOut(params.to, params.accountId);
+      if (optedOut) {
+        console.warn(
+          `[Messaging] SMS blocked by DND/opt-out: to=${params.to} account=${params.accountId}`
+        );
+        if (params.contactId) {
+          logMessageBlocked({
+            accountId: params.accountId,
+            contactId: params.contactId,
+            phone: params.to,
+            reason: "Phone number is on the opt-out list (DND)",
+          }).catch((err) => console.error("[Messaging] Failed to log blocked message:", err));
+        }
+        return {
+          success: false,
+          error: "Message blocked: recipient has opted out of SMS (DND)",
+          provider: "twilio",
+        };
+      }
+    } catch (err) {
+      // Don't block sending if the DND check itself fails
+      console.error("[Messaging] DND check error (allowing send):", err);
+    }
+  }
+
   // Always attempt sendSMS — it handles per-account → global fallback internally
   const result = await sendSMS(params.to, params.body, params.from, params.accountId);
   if (result.success || result.error !== "Twilio not configured") {

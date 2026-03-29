@@ -2325,4 +2325,41 @@
 ### Testing
 - [x] 29 vitest tests passing (input validation, report types, frequencies, DB helpers, email generation, SendGrid, notification types)
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: a93f8db6)
+
+## SMS Compliance Module
+
+### Schema
+- [x] Add dndStatus field to contacts table (varchar: active, sms_only, email_only, all_channels)
+- [x] Create smsOptOuts table (id, accountId, contactId, phone, keyword, source, isActive, optedOutAt, optedInAt, createdAt)
+- [x] Create smsComplianceLogs table (id, accountId, contactId, phone, eventType, keyword, source, description, metadata, createdAt)
+- [x] Add sms_opt_out, sms_opt_in to activityType enum
+- [x] Push migration with pnpm db:push
+
+### Backend
+- [x] SMS compliance service (server/services/smsCompliance.ts) with keyword detection, auto-reply, opt-out/opt-in processing, DND management, compliance logging
+- [x] STOP keywords: STOP, STOPALL, UNSUBSCRIBE, CANCEL, END, QUIT
+- [x] START keywords: START, UNSTOP, SUBSCRIBE, YES
+- [x] HELP keywords: HELP, INFO
+- [x] Auto-reply with TCPA-compliant confirmation messages
+- [x] Auto-set DND sms_only on contact when STOP received
+- [x] Auto-clear DND on contact when START/UNSTOP received
+- [x] Record all opt-out/opt-in events in smsOptOuts table
+- [x] Log all compliance events in smsComplianceLogs table
+- [x] DND enforcement in dispatchSMS — blocks SMS to contacts with sms_only or all_channels DND, logs blocked message
+- [x] Updated inboundMessages webhook to call handleInboundCompliance before normal processing
+- [x] smsCompliance tRPC router (10 procedures: listOptOuts, stats, auditLog, manualOptOut, manualOptIn, updateDnd, exportOptOuts, eventTypes, checkPhone, bulkOptOut)
+- [x] Audit logging for all manual operations
+
+### Frontend
+- [x] SMS Compliance page at /sms-compliance with sidebar nav link (ShieldCheck icon)
+- [x] 3-tab layout: Dashboard, Opt-Out List, Audit Log
+- [x] Dashboard: 4 KPI cards (active opt-outs, messages blocked, auto-replies sent, compliance rate), event breakdown, DND status overview with progress bars, TCPA keyword reference
+- [x] Opt-Out List: searchable/filterable table with pagination, manual add opt-out dialog, re-subscribe dialog, CSV export button
+- [x] Audit Log: searchable/filterable table with event type badges, pagination
+- [x] Period selector (7d, 30d, 90d, 365d)
+
+### Testing
+- [x] 25 vitest tests passing (keyword detection, DND status blocking, schema contracts, auto-reply messages, source validation, phone normalization, CSV export, stats aggregation, activity types)
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved

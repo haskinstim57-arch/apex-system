@@ -25,6 +25,7 @@ import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   BarChart3,
+  ShieldCheck,
   Activity,
   Building2,
   CalendarDays,
@@ -80,6 +81,7 @@ const subAccountMenuItems = [
   { icon: ListOrdered, label: "Sequences", path: "/sequences" },
   { icon: FileText, label: "Pages & Funnels", path: "/pages" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
+  { icon: ShieldCheck, label: "SMS Compliance", path: "/sms-compliance" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: ClipboardList, label: "Forms", path: "/forms" },
   { icon: Star, label: "Reputation", path: "/reputation" },
@@ -242,6 +244,7 @@ function DashboardLayoutContent({
       "/pipeline": "pipeline",
       "/calendar": "calendar",
       "/analytics": "analytics",
+      "/sms-compliance": "sms-compliance",
       "/power-dialer": "power-dialer",
       "/dialer-analytics": "dialer-analytics",
       "/email-templates": "email-templates",

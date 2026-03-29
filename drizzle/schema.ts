@@ -196,6 +196,8 @@ export const contacts = mysqlTable("contacts", {
   dateOfBirth: timestamp("dateOfBirth"),
   /** Lead score (0-100+, higher = hotter lead) */
   leadScore: int("leadScore").default(0).notNull(),
+  /** Do Not Disturb status: controls which channels are blocked */
+  dndStatus: mysqlEnum("dnd_status", ["active", "dnd_sms", "dnd_email", "dnd_all"]).default("active").notNull(),
   /** Custom fields JSON */
   customFields: text("customFields"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -945,6 +947,8 @@ export const contactActivities = mysqlTable("contact_activities", {
     "webchat_started",
     "webchat_handoff",
     "webchat_message",
+    "sms_opt_out",
+    "sms_opt_in",
   ]).notNull(),
   /** Human-readable description of the activity */
   description: text("description").notNull(),
@@ -2138,3 +2142,58 @@ export const scheduledReports = mysqlTable("scheduled_reports", {
 });
 export type ScheduledReport = typeof scheduledReports.$inferSelect;
 export type InsertScheduledReport = typeof scheduledReports.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// SMS OPT-OUTS — Tracks STOP/unsubscribe events per phone
+// ─────────────────────────────────────────────
+export const smsOptOuts = mysqlTable("sms_opt_outs", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** Linked contact (if resolved) */
+  contactId: int("contact_id"),
+  /** Phone number in E.164 format */
+  phone: varchar("phone", { length: 30 }).notNull(),
+  /** The keyword that triggered the opt-out (STOP, CANCEL, etc.) */
+  keyword: varchar("keyword", { length: 50 }).notNull(),
+  /** Source of the opt-out event */
+  source: mysqlEnum("source", ["inbound_sms", "manual", "import", "api"]).default("inbound_sms").notNull(),
+  /** Whether this opt-out is currently active (false = re-opted-in via START/UNSTOP) */
+  isActive: boolean("is_active").default(true).notNull(),
+  /** When the contact opted back in (null if still opted out) */
+  optedInAt: timestamp("opted_in_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type SmsOptOut = typeof smsOptOuts.$inferSelect;
+export type InsertSmsOptOut = typeof smsOptOuts.$inferInsert;
+
+// ─────────────────────────────────────────────
+// SMS COMPLIANCE LOGS — Audit trail for all compliance events
+// ─────────────────────────────────────────────
+export const smsComplianceLogs = mysqlTable("sms_compliance_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  contactId: int("contact_id"),
+  phone: varchar("phone", { length: 30 }).notNull(),
+  /** Event type */
+  eventType: mysqlEnum("event_type", [
+    "opt_out",
+    "opt_in",
+    "help_request",
+    "dnd_set",
+    "dnd_cleared",
+    "message_blocked",
+    "auto_reply_sent",
+    "manual_opt_out",
+    "manual_opt_in",
+  ]).notNull(),
+  /** The keyword or action that triggered this event */
+  keyword: varchar("keyword", { length: 50 }),
+  /** Human-readable description */
+  description: text("description"),
+  /** Additional metadata (JSON) */
+  metadata: text("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type SmsComplianceLog = typeof smsComplianceLogs.$inferSelect;
+export type InsertSmsComplianceLog = typeof smsComplianceLogs.$inferInsert;

@@ -44,6 +44,7 @@ import Sequences from "./pages/Sequences";
 import LandingPages from "./pages/LandingPages";
 import PageEditor from "./pages/PageEditor";
 import FunnelsPage from "./pages/Funnels";
+import SmsCompliance from "./pages/SmsCompliance";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
@@ -236,6 +237,14 @@ function Router() {
           </DashboardLayout>
         )}
       </Route>
+      <Route path="/sms-compliance">
+        <DashboardLayout>
+          <RequireAccount>
+            <SmsCompliance />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+
       <Route path="/analytics">
         <DashboardLayout>
           <RequireAccount>

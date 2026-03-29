@@ -10,6 +10,14 @@ import {
 import { getDb } from "../db";
 import { accountMessagingSettings } from "../../drizzle/schema";
 import { eq, isNotNull } from "drizzle-orm";
+import {
+  detectComplianceKeyword,
+  processOptOut,
+  processOptIn,
+  processHelpRequest,
+  logAutoReplySent,
+} from "../services/smsCompliance";
+import { dispatchSMS } from "../services/messaging";
 
 // ─────────────────────────────────────────────
 // Inbound Message Webhooks
@@ -45,27 +53,130 @@ inboundMessageRouter.post(
       );
 
       // Find which account this message belongs to by matching the "To" number
-      // against per-account Twilio settings
       const accountId = await resolveAccountByTwilioNumber(To);
 
       if (!accountId) {
         console.warn(
           `[Twilio Inbound] No account found for Twilio number ${To}`
         );
-        // Still return 200 to prevent Twilio from retrying
         res.status(200).json({ received: true, matched: false });
         return;
       }
 
-      // Find the contact by phone number
       const normalizedPhone = normalizePhone(From);
       const contact = await findContactByPhone(normalizedPhone, accountId);
+
+      // ─── SMS Compliance Keyword Detection ───
+      const compliance = detectComplianceKeyword(Body);
+
+      if (compliance.action !== "none") {
+        console.log(
+          `[Twilio Inbound] Compliance keyword detected: ${compliance.keyword} action=${compliance.action} phone=${normalizedPhone}`
+        );
+
+        // Process the compliance action
+        if (compliance.action === "opt_out") {
+          await processOptOut({
+            accountId,
+            contactId: contact?.id || null,
+            phone: normalizedPhone,
+            keyword: compliance.keyword!,
+            source: "inbound_sms",
+          });
+        } else if (compliance.action === "opt_in") {
+          await processOptIn({
+            accountId,
+            contactId: contact?.id || null,
+            phone: normalizedPhone,
+            keyword: compliance.keyword!,
+            source: "inbound_sms",
+          });
+        } else if (compliance.action === "help_request") {
+          await processHelpRequest({
+            accountId,
+            contactId: contact?.id || null,
+            phone: normalizedPhone,
+          });
+        }
+
+        // Send auto-reply via Twilio
+        if (compliance.autoReply) {
+          try {
+            await dispatchSMS({
+              to: From,
+              body: compliance.autoReply,
+              accountId,
+            });
+            await logAutoReplySent({
+              accountId,
+              contactId: contact?.id || null,
+              phone: normalizedPhone,
+              replyType: compliance.action,
+            });
+            console.log(
+              `[Twilio Inbound] Auto-reply sent for ${compliance.action} to ${From}`
+            );
+          } catch (replyErr) {
+            console.error("[Twilio Inbound] Failed to send auto-reply:", replyErr);
+          }
+        }
+
+        // Log the compliance keyword as an inbound message for audit
+        if (contact) {
+          await createMessage({
+            accountId,
+            contactId: contact.id,
+            userId: contact.assignedUserId || 0,
+            type: "sms",
+            direction: "inbound",
+            status: "delivered",
+            subject: null,
+            body: Body,
+            toAddress: To || "",
+            fromAddress: From,
+            externalId: MessageSid || null,
+            isRead: false,
+            deliveredAt: new Date(),
+          });
+
+          logContactActivity({
+            contactId: contact.id,
+            accountId,
+            activityType: compliance.action === "opt_out" ? "sms_opt_out" : compliance.action === "opt_in" ? "sms_opt_in" : "message_received",
+            description: `SMS compliance: ${compliance.keyword} keyword received from ${From}`,
+            metadata: JSON.stringify({
+              channel: "sms",
+              keyword: compliance.keyword,
+              action: compliance.action,
+            }),
+          });
+        }
+
+        // If this is a STOP/opt-out or opt-in, don't continue normal processing
+        if (!compliance.continueProcessing) {
+          // Create notification for the assigned agent
+          if (contact) {
+            createNotification({
+              accountId,
+              userId: contact.assignedUserId || null,
+              type: "inbound_message",
+              title: `SMS ${compliance.action === "opt_out" ? "Opt-Out" : "Opt-In"}: ${contact.firstName || From}`,
+              body: `${contact.firstName || "Contact"} sent "${Body}" — ${compliance.action === "opt_out" ? "DND enabled" : "DND cleared"}`,
+              link: `/contacts/${contact.id}`,
+            }).catch((err) => console.error("[Twilio Inbound] Notification error:", err));
+          }
+
+          res.type("text/xml").status(200).send("<Response></Response>");
+          return;
+        }
+      }
+
+      // ─── Normal inbound message processing ───
 
       if (!contact) {
         console.warn(
           `[Twilio Inbound] No contact found for phone ${normalizedPhone} in account ${accountId}`
         );
-        // Return 200 — message received but no matching contact
         res.status(200).json({ received: true, matched: false });
         return;
       }
