@@ -8,9 +8,20 @@ import {
   createAppointment,
   getAvailableSlots,
   getCalendars,
+  getCalendar,
+  getAppointments,
+  getAccountMessagingSettings,
   findContactByPhone,
+  logContactActivity,
 } from "../db";
 import { mapVapiStatus, mapVapiEndedReason } from "../services/vapi";
+import {
+  parseBusinessHoursJson,
+  resolveBusinessHoursSchedule,
+  getTimeInTimezone,
+  isWithinBusinessHoursSchedule,
+  type BusinessHoursSchedule,
+} from "../utils/businessHours";
 
 // ─────────────────────────────────────────────
 // Public REST webhook endpoint for VAPI
@@ -24,6 +35,11 @@ export const vapiWebhookRouter = Router();
 // Account → Calendar mapping (loaded lazily)
 const accountCalendarCache = new Map<number, number>();
 
+/** Clear the calendar cache (used in tests) */
+export function clearCalendarCache() {
+  accountCalendarCache.clear();
+}
+
 async function getCalendarForAccount(accountId: number): Promise<number | null> {
   if (accountCalendarCache.has(accountId)) {
     return accountCalendarCache.get(accountId)!;
@@ -34,6 +50,102 @@ async function getCalendarForAccount(accountId: number): Promise<number | null> 
     return cals[0].id;
   }
   return null;
+}
+
+/**
+ * Resolve the effective timezone for an account.
+ * Priority: calendar timezone > businessHours timezone > default "America/New_York"
+ */
+async function getAccountTimezone(accountId: number, calendarId?: number | null): Promise<string> {
+  // Try calendar timezone first (most specific)
+  if (calendarId) {
+    const cal = await getCalendar(calendarId, accountId);
+    if (cal?.timezone) return cal.timezone;
+  }
+  // Fall back to business hours timezone from messaging settings
+  const settings = await getAccountMessagingSettings(accountId);
+  if (settings?.businessHours) {
+    const parsed = parseBusinessHoursJson(settings.businessHours);
+    if (parsed?.timezone) return parsed.timezone;
+  }
+  return "America/New_York";
+}
+
+/**
+ * Get the business hours schedule for an account.
+ */
+async function getAccountBusinessHoursSchedule(accountId: number): Promise<BusinessHoursSchedule> {
+  const settings = await getAccountMessagingSettings(accountId);
+  const parsed = settings?.businessHours ? parseBusinessHoursJson(settings.businessHours) : null;
+  return resolveBusinessHoursSchedule(parsed);
+}
+
+/**
+ * Convert a date string + time string in a given timezone to a UTC Date.
+ * e.g. convertToUTC("2026-03-30", "14:00", "America/New_York") → Date in UTC
+ */
+function convertToUTC(dateStr: string, timeStr: string, timezone: string): Date {
+  // Build a date in the target timezone using Intl to find the offset
+  const localStr = `${dateStr}T${timeStr}:00`;
+  const naive = new Date(localStr + "Z"); // treat as UTC temporarily
+  
+  // Get the timezone offset by comparing formatted output
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  });
+  
+  // Binary search for the correct UTC time that maps to the desired local time
+  // Start with an estimate based on a rough offset
+  const parts = formatter.formatToParts(naive);
+  const tzHour = parseInt(parts.find(p => p.type === "hour")?.value ?? "0", 10);
+  const tzMinute = parseInt(parts.find(p => p.type === "minute")?.value ?? "0", 10);
+  const [wantH, wantM] = timeStr.split(":").map(Number);
+  
+  // Calculate offset: naive is UTC, tzHour:tzMinute is what that UTC maps to in the timezone
+  const naiveMinutes = naive.getUTCHours() * 60 + naive.getUTCMinutes();
+  const tzMinutes = tzHour * 60 + tzMinute;
+  let offsetMinutes = tzMinutes - naiveMinutes;
+  
+  // Handle day boundary wrap
+  if (offsetMinutes > 720) offsetMinutes -= 1440;
+  if (offsetMinutes < -720) offsetMinutes += 1440;
+  
+  // The UTC time = local time - offset
+  const result = new Date(naive.getTime() - offsetMinutes * 60 * 1000);
+  return result;
+}
+
+/**
+ * Check for overlapping appointments on a calendar within a time range.
+ * Returns conflicting appointments (excluding cancelled ones).
+ */
+async function findConflictingAppointments(
+  calendarId: number,
+  accountId: number,
+  startTime: Date,
+  endTime: Date,
+  bufferMinutes: number = 0
+): Promise<Array<{ id: number; startTime: Date; endTime: Date; guestName: string }>> {
+  const bufferedStart = new Date(startTime.getTime() - bufferMinutes * 60 * 1000);
+  const bufferedEnd = new Date(endTime.getTime() + bufferMinutes * 60 * 1000);
+  
+  const existing = await getAppointments(accountId, {
+    calendarId,
+    startDate: new Date(startTime.getTime() - 24 * 60 * 60 * 1000), // day before for safety
+    endDate: new Date(endTime.getTime() + 24 * 60 * 60 * 1000),     // day after for safety
+  });
+  
+  return existing.filter(appt => {
+    if (appt.status === "cancelled") return false;
+    const apptStart = new Date(appt.startTime).getTime();
+    const apptEnd = new Date(appt.endTime).getTime();
+    // Check overlap with buffer
+    return (startTime.getTime() < apptEnd + bufferMinutes * 60 * 1000) &&
+           (endTime.getTime() > apptStart - bufferMinutes * 60 * 1000);
+  });
 }
 
 vapiWebhookRouter.post("/api/webhooks/vapi", async (req: Request, res: Response) => {
@@ -122,158 +234,304 @@ async function handleToolCalls(message: any): Promise<any> {
 }
 
 // ─────────────────────────────────────────────
-// bookAppointment tool handler
+// bookAppointment tool handler (hardened)
 // ─────────────────────────────────────────────
 async function handleBookAppointment(
   accountId: number,
   args: {
     guestName: string;
     guestEmail?: string;
-    guestPhone: string;
+    guestPhone?: string;
     date: string;
     time: string;
     notes?: string;
   },
   vapiCallId?: string
 ): Promise<string> {
-  const { guestName, guestEmail, guestPhone, date, time, notes } = args;
+  try {
+    const { guestName, guestEmail, guestPhone, date, time, notes } = args;
 
-  if (!guestName || !date || !time) {
-    return "I need the guest's name, date, and time to book an appointment. Could you provide those?";
-  }
-
-  // Get the calendar for this account
-  const calendarId = await getCalendarForAccount(accountId);
-  if (!calendarId) {
-    console.error(`[VAPI Webhook] No calendar found for account ${accountId}`);
-    return "I'm sorry, I'm having trouble accessing the scheduling system right now. Let me have someone call you back to schedule.";
-  }
-
-  // Parse date and time into UTC timestamps
-  // Determine correct Pacific Time offset (PDT = -07:00, PST = -08:00)
-  // Use a temp date to check if the target date is in DST
-  const tempDate = new Date(`${date}T12:00:00Z`);
-  const janOffset = new Date(tempDate.getFullYear(), 0, 1).getTimezoneOffset();
-  const julOffset = new Date(tempDate.getFullYear(), 6, 1).getTimezoneOffset();
-  // Pacific Time: PST = UTC-8, PDT = UTC-7
-  // DST in US: second Sunday of March to first Sunday of November
-  const month = tempDate.getUTCMonth(); // 0-indexed
-  const isPDT = month >= 2 && month <= 9; // Rough: March-October
-  const ptOffset = isPDT ? "-07:00" : "-08:00";
-  const startTime = new Date(`${date}T${time}:00${ptOffset}`);
-  const endTime = new Date(startTime.getTime() + 30 * 60 * 1000); // 30-min slot
-
-  if (isNaN(startTime.getTime())) {
-    return `I couldn't understand the date and time "${date} ${time}". Could you give me a specific date like March 28th at 2 PM?`;
-  }
-
-  // Check if the slot is in the past
-  if (startTime.getTime() < Date.now()) {
-    return "That time has already passed. Could you suggest a future date and time?";
-  }
-
-  // Try to find the contact from the call
-  let contactId: number | undefined;
-  if (vapiCallId) {
-    const call = await getAICallByExternalId(vapiCallId);
-    if (call?.contactId) {
-      contactId = call.contactId;
+    if (!guestName || !date || !time) {
+      return JSON.stringify({ success: false, reason: "I need the guest's name, date, and time to book an appointment. Could you provide those?" });
     }
+
+    // Get the calendar for this account
+    const calendarId = await getCalendarForAccount(accountId);
+    if (!calendarId) {
+      console.error(`[VAPI Webhook] No calendar found for account ${accountId}`);
+      return JSON.stringify({ success: false, reason: "I'm sorry, I'm having trouble accessing the scheduling system right now. Let me have someone call you back to schedule." });
+    }
+
+    // Get the calendar to read slot duration and buffer
+    const calendar = await getCalendar(calendarId, accountId);
+    const slotDuration = calendar?.slotDurationMinutes ?? 30;
+    const bufferMinutes = calendar?.bufferMinutes ?? 15;
+
+    // ── Timezone handling ──
+    // Use the account's configured timezone (from calendar or business hours)
+    const timezone = await getAccountTimezone(accountId, calendarId);
+    console.log(`[VAPI Webhook] Using timezone ${timezone} for account ${accountId}`);
+
+    // Convert the date/time from the account's timezone to UTC
+    const startTime = convertToUTC(date, time, timezone);
+    const endTime = new Date(startTime.getTime() + slotDuration * 60 * 1000);
+
+    if (isNaN(startTime.getTime())) {
+      return JSON.stringify({ success: false, reason: `I couldn't understand the date and time "${date} ${time}". Could you give me a specific date like March 28th at 2 PM?` });
+    }
+
+    // Check if the slot is in the past
+    if (startTime.getTime() < Date.now()) {
+      return JSON.stringify({ success: false, reason: "That time has already passed. Could you suggest a future date and time?" });
+    }
+
+    // ── Double-booking check ──
+    const conflicts = await findConflictingAppointments(calendarId, accountId, startTime, endTime, bufferMinutes);
+    if (conflicts.length > 0) {
+      console.log(`[VAPI Webhook] Double-booking detected: ${conflicts.length} conflict(s) for ${date} ${time}`);
+      // Get next 3 available slots to suggest alternatives
+      const availableSlots = await getAvailableSlots(calendarId, date);
+      const requestedMinutes = parseInt(time.split(":")[0]) * 60 + parseInt(time.split(":")[1]);
+      // Filter to slots after the requested time
+      const laterSlots = availableSlots.filter((s: { start: string }) => {
+        const [h, m] = s.start.split(":").map(Number);
+        return h * 60 + m > requestedMinutes;
+      }).slice(0, 3);
+
+      let suggestion = "";
+      if (laterSlots.length > 0) {
+        const slotStrs = laterSlots.map((s: { start: string }) => formatTime12h(s.start));
+        suggestion = ` Here are available times: ${slotStrs.join(", ")}.`;
+      } else {
+        suggestion = " Would you like to try a different date?";
+      }
+
+      return JSON.stringify({ success: false, reason: `That time is already booked.${suggestion}` });
+    }
+
+    // ── Contact linkage ──
+    // Priority: 1) from AI call session, 2) by phone number lookup
+    let contactId: number | null = null;
+    if (vapiCallId) {
+      const call = await getAICallByExternalId(vapiCallId);
+      if (call?.contactId && call.contactId > 0) {
+        contactId = call.contactId;
+      }
+    }
+    // Fallback: look up contact by phone number
+    if (!contactId && guestPhone && accountId) {
+      const contact = await findContactByPhone(guestPhone, accountId);
+      if (contact) contactId = contact.id;
+    }
+
+    // Create the appointment
+    const appointment = await createAppointment({
+      calendarId,
+      accountId,
+      contactId,
+      guestName,
+      guestEmail: guestEmail || "not-provided@placeholder.com",
+      guestPhone: guestPhone || "",
+      startTime,
+      endTime,
+      status: "confirmed",
+      notes: notes || `Booked via AI voice agent. VAPI Call: ${vapiCallId || "unknown"}`,
+    });
+
+    const humanDate = formatDateForHuman(date, time);
+    console.log(`[VAPI Webhook] ✅ Appointment created: ID=${appointment.id}, account=${accountId}, contact=${contactId}, guest=${guestName}, ${date} ${time} (${timezone})`);
+
+    // ── Activity logging ──
+    logContactActivity({
+      contactId: contactId || 0,
+      accountId,
+      activityType: "appointment_booked",
+      description: `Appointment booked via AI call for ${guestName} on ${humanDate}`,
+      metadata: JSON.stringify({
+        appointmentId: appointment.id,
+        calendarId,
+        guestName,
+        guestEmail,
+        guestPhone,
+        vapiCallId,
+        timezone,
+      }),
+    });
+
+    // ── Notification for account owner ──
+    createNotification({
+      accountId,
+      userId: null,
+      type: "appointment_booked",
+      title: "New appointment booked via AI",
+      body: `${guestName} booked for ${humanDate}`,
+      link: "/calendar",
+    }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
+
+    // ── Fire appointment_booked automation trigger (non-blocking) ──
+    if (contactId) {
+      import("../services/workflowTriggers")
+        .then(({ onAppointmentBooked }) =>
+          onAppointmentBooked(accountId, contactId!, appointment.id, calendarId!)
+        )
+        .catch((err) =>
+          console.error("[VAPI Webhook] appointment_booked trigger error:", err)
+        );
+    }
+
+    return JSON.stringify({
+      success: true,
+      appointmentId: appointment.id,
+      message: `Appointment confirmed for ${guestName} on ${humanDate}. They will receive a confirmation shortly.`,
+    });
+  } catch (err: any) {
+    console.error(`[VAPI Webhook] bookAppointment error:`, err);
+    return JSON.stringify({ success: false, reason: "System error, please try again" });
   }
-
-  // Create the appointment
-  const appointment = await createAppointment({
-    calendarId,
-    accountId,
-    contactId: contactId || null,
-    guestName,
-    guestEmail: guestEmail || "not-provided@placeholder.com",
-    guestPhone: guestPhone || "",
-    startTime,
-    endTime,
-    status: "confirmed",
-    notes: notes || `Booked via AI voice agent. VAPI Call: ${vapiCallId || "unknown"}`,
-  });
-
-  console.log(`[VAPI Webhook] ✅ Appointment created: ID=${appointment.id}, account=${accountId}, guest=${guestName}, ${date} ${time}`);
-
-  // Create notification for the account owner
-  createNotification({
-    accountId,
-    userId: null,
-    type: "appointment_booked",
-    title: "New appointment booked via AI",
-    body: `${guestName} booked for ${formatDateForHuman(date, time)}`,
-    link: "/calendar",
-  }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
-
-  // Fire appointment_booked automation trigger (non-blocking)
-  if (contactId) {
-    import("../services/workflowTriggers")
-      .then(({ onAppointmentBooked }) =>
-        onAppointmentBooked(accountId, contactId!, appointment.id, calendarId!)
-      )
-      .catch((err) =>
-        console.error("[VAPI Webhook] appointment_booked trigger error:", err)
-      );
-  }
-
-  return `Appointment confirmed for ${guestName} on ${formatDateForHuman(date, time)}. They will receive a confirmation shortly.`;
 }
 
 // ─────────────────────────────────────────────
-// checkAvailability tool handler
+// checkAvailability tool handler (hardened)
 // ─────────────────────────────────────────────
 async function handleCheckAvailability(
   accountId: number,
-  args: { date: string }
+  args: { date?: string }
 ): Promise<string> {
-  const { date } = args;
+  try {
+    const { date } = args;
 
-  if (!date) {
-    return "I need a date to check availability. What date were you thinking?";
-  }
-
-  const calendarId = await getCalendarForAccount(accountId);
-  if (!calendarId) {
-    return "I'm having trouble accessing the schedule. Let me suggest some general availability — we're typically available Monday through Friday, 9 AM to 5 PM Pacific Time.";
-  }
-
-  const slots = await getAvailableSlots(calendarId, date);
-
-  if (!slots || slots.length === 0) {
-    // Check if it's a weekend
-    const dateObj = new Date(date + "T12:00:00Z");
-    const day = dateObj.getUTCDay();
-    if (day === 0 || day === 6) {
-      return `We don't have availability on weekends. Would you like to check a weekday instead?`;
+    if (!date) {
+      return JSON.stringify({ success: false, reason: "I need a date to check availability. What date were you thinking?" });
     }
-    return `There are no available slots on ${formatDateOnly(date)}. Would you like to try a different date?`;
+
+    const calendarId = await getCalendarForAccount(accountId);
+    if (!calendarId) {
+      return JSON.stringify({ success: false, reason: "I'm having trouble accessing the schedule. Let me suggest some general availability — we're typically available Monday through Friday, 9 AM to 5 PM." });
+    }
+
+    // Get calendar config for buffer time
+    const calendar = await getCalendar(calendarId, accountId);
+    const timezone = await getAccountTimezone(accountId, calendarId);
+
+    // Get business hours schedule to cross-check
+    const businessHours = await getAccountBusinessHoursSchedule(accountId);
+
+    // Get available slots for the requested date
+    let slots = await getAvailableSlots(calendarId, date);
+
+    // Cross-check with business hours: filter out slots outside business hours
+    if (businessHours.enabled && slots.length > 0) {
+      const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+      const dateObj = new Date(date + "T12:00:00Z");
+      const dayName = dayNames[dateObj.getUTCDay()];
+      const dayConfig = businessHours.schedule[dayName];
+
+      if (!dayConfig || !dayConfig.open) {
+        slots = []; // Business is closed this day
+      } else {
+        const bhStart = dayConfig.start || "07:00";
+        const bhEnd = dayConfig.end || "22:00";
+        const [bhStartH, bhStartM] = bhStart.split(":").map(Number);
+        const [bhEndH, bhEndM] = bhEnd.split(":").map(Number);
+        const bhStartMin = bhStartH * 60 + bhStartM;
+        const bhEndMin = bhEndH * 60 + bhEndM;
+
+        slots = slots.filter((s: { start: string; end: string }) => {
+          const [h, m] = s.start.split(":").map(Number);
+          const slotMin = h * 60 + m;
+          return slotMin >= bhStartMin && slotMin < bhEndMin;
+        });
+      }
+    }
+
+    // If no slots on this date, try the next 2 days to find alternatives
+    if (!slots || slots.length === 0) {
+      const altSlots: Array<{ date: string; dateLabel: string; slots: string[] }> = [];
+      for (let i = 1; i <= 5 && altSlots.length < 2; i++) {
+        const nextDate = new Date(date + "T12:00:00Z");
+        nextDate.setUTCDate(nextDate.getUTCDate() + i);
+        const nextDateStr = nextDate.toISOString().split("T")[0];
+        let nextSlots = await getAvailableSlots(calendarId, nextDateStr);
+
+        // Cross-check with business hours
+        if (businessHours.enabled && nextSlots.length > 0) {
+          const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+          const dayName = dayNames[nextDate.getUTCDay()];
+          const dayConfig = businessHours.schedule[dayName];
+          if (!dayConfig || !dayConfig.open) {
+            nextSlots = [];
+          } else {
+            const bhStart = dayConfig.start || "07:00";
+            const bhEnd = dayConfig.end || "22:00";
+            const [bhStartH, bhStartM] = bhStart.split(":").map(Number);
+            const [bhEndH, bhEndM] = bhEnd.split(":").map(Number);
+            const bhStartMin = bhStartH * 60 + bhStartM;
+            const bhEndMin = bhEndH * 60 + bhEndM;
+            nextSlots = nextSlots.filter((s: { start: string; end: string }) => {
+              const [h, m] = s.start.split(":").map(Number);
+              return h * 60 + m >= bhStartMin && h * 60 + m < bhEndMin;
+            });
+          }
+        }
+
+        if (nextSlots.length > 0) {
+          altSlots.push({
+            date: nextDateStr,
+            dateLabel: formatDateOnly(nextDateStr),
+            slots: nextSlots.slice(0, 3).map((s: { start: string }) => formatTime12h(s.start)),
+          });
+        }
+      }
+
+      if (altSlots.length > 0) {
+        const altText = altSlots.map(a => `${a.dateLabel}: ${a.slots.join(", ")}`).join(". ");
+        return JSON.stringify({
+          success: true,
+          available: false,
+          message: `There are no available slots on ${formatDateOnly(date)}. Here are some upcoming options: ${altText}`,
+        });
+      }
+
+      return JSON.stringify({
+        success: true,
+        available: false,
+        message: `There are no available slots on ${formatDateOnly(date)} or the next few days. Would you like to try a different week?`,
+      });
+    }
+
+    // Return up to 5 slots
+    const displaySlots = slots.slice(0, 5).map((s: { start: string }) => formatTime12h(s.start));
+    const moreCount = slots.length - displaySlots.length;
+
+    let message = `Available times on ${formatDateOnly(date)}: ${displaySlots.join(", ")}`;
+    if (moreCount > 0) {
+      message += ` and ${moreCount} more slots`;
+    }
+
+    return JSON.stringify({
+      success: true,
+      available: true,
+      message,
+      slots: displaySlots,
+      timezone,
+    });
+  } catch (err: any) {
+    console.error(`[VAPI Webhook] checkAvailability error:`, err);
+    return JSON.stringify({ success: false, reason: "System error, please try again" });
   }
-
-  // Format slots for the AI to read
-  const slotStrings = slots.map((s: { start: string; end: string }) => {
-    const h = parseInt(s.start.split(":")[0]);
-    const m = s.start.split(":")[1];
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-    return `${h12}:${m} ${ampm}`;
-  });
-
-  // Limit to first 6 slots to keep it concise for the AI
-  const displaySlots = slotStrings.slice(0, 6);
-  const moreCount = slotStrings.length - displaySlots.length;
-
-  let response = `Available times on ${formatDateOnly(date)}: ${displaySlots.join(", ")}`;
-  if (moreCount > 0) {
-    response += ` and ${moreCount} more slots`;
-  }
-  return response;
 }
 
 // ─────────────────────────────────────────────
 // Date formatting helpers
 // ─────────────────────────────────────────────
+function formatTime12h(timeStr: string): string {
+  const h = parseInt(timeStr.split(":")[0]);
+  const m = timeStr.split(":")[1];
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
+  return `${h12}:${m} ${ampm}`;
+}
+
 function formatDateForHuman(date: string, time: string): string {
   const dateObj = new Date(`${date}T${time}:00`);
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -282,12 +540,7 @@ function formatDateForHuman(date: string, time: string): string {
   const monthName = months[dateObj.getMonth()];
   const dayNum = dateObj.getDate();
 
-  const h = parseInt(time.split(":")[0]);
-  const m = time.split(":")[1];
-  const ampm = h >= 12 ? "PM" : "AM";
-  const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-
-  return `${dayName}, ${monthName} ${dayNum} at ${h12}:${m} ${ampm}`;
+  return `${dayName}, ${monthName} ${dayNum} at ${formatTime12h(time)}`;
 }
 
 function formatDateOnly(date: string): string {

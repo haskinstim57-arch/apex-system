@@ -2466,3 +2466,17 @@
 - [x] Vitest: Tests for enqueue, dispatch, retry, business hours integration
 - [x] TypeScript: 0 errors
 - [x] Checkpoint saved
+
+## VAPI Appointment Booking Tool-Calling Hardening
+- [x] Audit: Review current bookAppointment and checkAvailability handlers in server/webhooks/vapi.ts
+- [x] Fix: Timezone handling — convert VAPI timestamps to account timezone from businessHours config
+- [x] Fix: Double-booking prevention — check existing appointments before inserting, return next 3 available slots on conflict
+- [x] Fix: Contact linkage — pull contactId from active AI call session (aiCalls table), with phone fallback
+- [x] Fix: VAPI tool result format — ensure { results: [{ toolCallId, result }] } shape
+- [x] Fix: Error handling — try/catch with graceful error responses for both handlers
+- [x] Improve: checkAvailability — return next 5 available 30-min slots, respect bufferTime and business hours, multi-day lookahead
+- [x] Add: onAppointmentBooked workflow trigger in server/services/workflowTriggers.ts (already existed, verified)
+- [x] Add: Notification to account owner on successful booking + activity logging
+- [x] Vitest: 22 tests — booking, double-booking, timezone (EDT/CDT/PDT), contact linkage, phone fallback, missing contact, error handling, VAPI format, unknown tools
+- [x] TypeScript: 0 errors
+- [x] Checkpoint saved
