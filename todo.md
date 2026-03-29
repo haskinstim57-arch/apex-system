@@ -2362,4 +2362,14 @@
 ### Testing
 - [x] 25 vitest tests passing (keyword detection, DND status blocking, schema contracts, auto-reply messages, source validation, phone normalization, CSV export, stats aggregation, activity types)
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: 9b35c1a6)
+
+## DND Toggle on Contact Detail
+
+- [x] Add DND Status card on Contact Detail page (left column, after Tags)
+- [x] Wire to smsCompliance.updateContactDnd tRPC mutation with cache invalidation
+- [x] Show current DND status with color-coded badge (green/amber/red) and icon (ShieldCheck/ShieldAlert/ShieldOff)
+- [x] Select dropdown with 4 options: Active, Block SMS only, Block Email only, Block All
+- [x] Loading indicator during mutation
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved

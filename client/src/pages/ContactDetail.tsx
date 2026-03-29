@@ -26,6 +26,7 @@ import {
   ArrowLeft,
   ArrowDownLeft,
   ArrowUpRight,
+  BellOff,
   Building2,
   Calendar,
   Loader2,
@@ -59,6 +60,9 @@ import {
   Volume2,
   FileText,
   Database,
+  ShieldCheck,
+  ShieldOff,
+  ShieldAlert,
   Hash,
   Type,
   CheckSquare,
@@ -210,6 +214,14 @@ export default function ContactDetail({
   const startAICallMutation = trpc.aiCalls.start.useMutation({
     onSuccess: () => {
       toast.success("AI call initiated successfully");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateDndMutation = trpc.smsCompliance.updateContactDnd.useMutation({
+    onSuccess: () => {
+      toast.success("DND status updated");
+      utils.contacts.get.invalidate({ id, accountId });
     },
     onError: (err) => toast.error(err.message),
   });
@@ -528,6 +540,87 @@ export default function ContactDetail({
                   <Plus className="h-3 w-3" />
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+          {/* DND Status Card */}
+          <Card className="bg-white border-0 card-shadow">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+                Do Not Disturb
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(() => {
+                const dnd = (contact as any).dndStatus || "active";
+                const dndConfig: Record<string, { label: string; desc: string; color: string; icon: any }> = {
+                  active: { label: "Active", desc: "All communications enabled", color: "bg-green-50 text-green-700 border-green-200", icon: ShieldCheck },
+                  dnd_sms: { label: "SMS Blocked", desc: "SMS messages are blocked", color: "bg-amber-50 text-amber-700 border-amber-200", icon: ShieldAlert },
+                  dnd_email: { label: "Email Blocked", desc: "Email messages are blocked", color: "bg-amber-50 text-amber-700 border-amber-200", icon: ShieldAlert },
+                  dnd_all: { label: "All Blocked", desc: "All communications blocked", color: "bg-red-50 text-red-700 border-red-200", icon: ShieldOff },
+                };
+                const current = dndConfig[dnd] || dndConfig.active;
+                const StatusIcon = current.icon;
+                return (
+                  <>
+                    <div className="flex items-center gap-2.5 p-2.5 rounded-lg bg-muted/30">
+                      <StatusIcon className="h-4 w-4 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <Badge variant="outline" className={`text-[10px] font-medium ${current.color}`}>
+                          {current.label}
+                        </Badge>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{current.desc}</p>
+                      </div>
+                    </div>
+                    <Select
+                      value={dnd}
+                      onValueChange={(v) => {
+                        updateDndMutation.mutate({
+                          accountId,
+                          contactId: contact.id,
+                          dndStatus: v as "active" | "dnd_sms" | "dnd_email" | "dnd_all",
+                        });
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Set DND status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-green-500" />
+                            Active — All communications enabled
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="dnd_sms">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-amber-500" />
+                            Block SMS only
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="dnd_email">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-amber-500" />
+                            Block Email only
+                          </span>
+                        </SelectItem>
+                        <SelectItem value="dnd_all">
+                          <span className="flex items-center gap-2">
+                            <span className="h-2 w-2 rounded-full bg-red-500" />
+                            Block All communications
+                          </span>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {updateDndMutation.isPending && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Updating...
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </CardContent>
           </Card>
         </div>
