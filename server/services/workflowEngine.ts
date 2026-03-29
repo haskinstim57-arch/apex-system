@@ -24,6 +24,7 @@ import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
 import { dispatchSMS, dispatchEmail } from "./messaging";
 import { isWithinBusinessHours, type BusinessHoursConfig } from "../utils/businessHours";
+import { enqueueMessage } from "./messageQueue";
 import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
 
 // ─────────────────────────────────────────────
@@ -415,10 +416,26 @@ async function executeAction(
       const { getAccountById } = await import("../db");
       const account = await getAccountById(accountId);
       const bhConfig = (account?.businessHoursConfig as BusinessHoursConfig | null) ?? null;
-      // Check business hours — skip call if outside configured hours
+      // Check business hours — queue call if outside configured hours
       if (!isWithinBusinessHours(bhConfig)) {
-        console.log(`[WorkflowEngine] Outside business hours — skipping AI call for account ${accountId}`);
-        return { action: "start_ai_call", skipped: true, reason: "outside_business_hours" };
+        const accountAssistantIdEarly = (account as any)?.vapiAssistantId;
+        const assistantIdEarly = accountAssistantIdEarly || resolveAssistantId(contact.leadSource);
+        const { id: queueId } = await enqueueMessage({
+          accountId,
+          contactId,
+          type: "ai_call",
+          payload: {
+            contactId,
+            phoneNumber: contact.phone,
+            customerName: `${contact.firstName} ${contact.lastName}`,
+            assistantId: assistantIdEarly,
+            initiatedById: 0,
+            metadata: { leadSource: contact.leadSource ?? undefined },
+          },
+          source: "workflow_engine",
+        });
+        console.log(`[WorkflowEngine] Outside business hours — queued AI call (queueId=${queueId}) for account ${accountId}`);
+        return { action: "start_ai_call", queued: true, queueId, reason: "queued_outside_business_hours" };
       }
       if (account && !(account as any).voiceAgentEnabled) {
         console.log(`[WorkflowEngine] AI voice agent disabled for account ${accountId} — skipping call`);

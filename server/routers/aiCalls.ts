@@ -23,6 +23,7 @@ import {
   VapiApiError,
 } from "../services/vapi";
 import { isWithinBusinessHours, getBusinessHoursBlockMessage, BUSINESS_HOURS, type BusinessHoursConfig } from "../utils/businessHours";
+import { enqueueMessage } from "../services/messageQueue";
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -60,14 +61,6 @@ export const aiCallsRouter = router({
       }
       const bhConfig = account.businessHoursConfig as BusinessHoursConfig | null;
 
-      // ── Business hours enforcement ──
-      if (!isWithinBusinessHours(bhConfig)) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: getBusinessHoursBlockMessage(bhConfig),
-        });
-      }
-
       // Get the contact to verify it exists and get phone number
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
@@ -86,6 +79,33 @@ export const aiCallsRouter = router({
       // Resolve which VAPI assistant to use based on lead source
       const assistantId = resolveAssistantId(contact.leadSource);
       const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+
+      // ── Business hours enforcement — queue if outside hours ──
+      if (!isWithinBusinessHours(bhConfig)) {
+        const { id: queueId } = await enqueueMessage({
+          accountId: input.accountId,
+          contactId: input.contactId,
+          type: "ai_call",
+          payload: {
+            contactId: input.contactId,
+            phoneNumber: contact.phone,
+            customerName: contactName,
+            assistantId,
+            initiatedById: ctx.user.id,
+            metadata: { leadSource: contact.leadSource ?? undefined },
+          },
+          source: "ai_calls.start",
+          initiatedById: ctx.user.id,
+        });
+        return {
+          id: 0,
+          success: true,
+          queued: true,
+          queueId,
+          externalCallId: null,
+          message: `Call queued — will be dispatched when business hours resume.`,
+        };
+      }
 
       // Create the call record first (status: queued)
       const { id } = await createAICall({
@@ -171,12 +191,39 @@ export const aiCallsRouter = router({
       }
       const bhConfig = account.businessHoursConfig as BusinessHoursConfig | null;
 
-      // ── Business hours enforcement ──
+      // ── Business hours enforcement — queue all contacts if outside hours ──
       if (!isWithinBusinessHours(bhConfig)) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: getBusinessHoursBlockMessage(bhConfig),
-        });
+        const queueResults: Array<{ contactId: number; queueId: number; success: boolean; error?: string }> = [];
+        for (const contactId of input.contactIds) {
+          const contact = await getContactById(contactId, input.accountId);
+          if (!contact || !contact.phone) {
+            queueResults.push({ contactId, queueId: 0, success: false, error: !contact ? "Contact not found" : "No phone number" });
+            continue;
+          }
+          const assistantId = resolveAssistantId(contact.leadSource);
+          const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+          const { id: queueId } = await enqueueMessage({
+            accountId: input.accountId,
+            contactId,
+            type: "ai_call",
+            payload: {
+              contactId,
+              phoneNumber: contact.phone,
+              customerName: contactName,
+              assistantId,
+              initiatedById: ctx.user.id,
+              metadata: { leadSource: contact.leadSource ?? undefined },
+            },
+            source: "ai_calls.bulkStart",
+            initiatedById: ctx.user.id,
+          });
+          queueResults.push({ contactId, queueId, success: true });
+        }
+        return {
+          results: queueResults.map(r => ({ contactId: r.contactId, callId: 0, success: r.success, error: r.error })),
+          queued: true,
+          message: `${queueResults.filter(r => r.success).length} call(s) queued — will be dispatched when business hours resume.`,
+        };
       }
 
       const results: Array<{

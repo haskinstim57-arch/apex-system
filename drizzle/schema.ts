@@ -2212,3 +2212,44 @@ export const smsComplianceLogs = mysqlTable("sms_compliance_logs", {
 });
 export type SmsComplianceLog = typeof smsComplianceLogs.$inferSelect;
 export type InsertSmsComplianceLog = typeof smsComplianceLogs.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// QUEUED MESSAGES — Holds outbound messages when outside business hours
+// Auto-dispatched when business hours resume
+// ─────────────────────────────────────────────
+export const queuedMessages = mysqlTable("queued_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The sub-account this message belongs to */
+  accountId: int("account_id").notNull(),
+  /** Optional contact this message is for */
+  contactId: int("contact_id"),
+  /** Message type: sms, email, ai_call */
+  type: mysqlEnum("type", ["sms", "email", "ai_call"]).notNull(),
+  /** Queue status */
+  status: mysqlEnum("status", ["pending", "dispatched", "failed", "cancelled"])
+    .default("pending")
+    .notNull(),
+  /** Full payload needed to dispatch (JSON) — includes to, body, subject, etc. */
+  payload: text("payload").notNull(),
+  /** Number of dispatch attempts so far */
+  attempts: int("attempts").default(0).notNull(),
+  /** Max number of dispatch attempts before marking as failed */
+  maxAttempts: int("max_attempts").default(3).notNull(),
+  /** Error message from last failed dispatch attempt */
+  lastError: text("last_error"),
+  /** When the message was originally requested */
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  /** When the message was actually dispatched (null if still pending) */
+  dispatchedAt: timestamp("dispatched_at"),
+  /** When the next dispatch attempt should happen (null = ASAP when business hours open) */
+  nextAttemptAt: timestamp("next_attempt_at"),
+  /** Who or what created this queued message */
+  source: varchar("source", { length: 100 }).default("business_hours_queue"),
+  /** Optional: user who initiated the original action */
+  initiatedById: int("initiated_by_id"),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type QueuedMessage = typeof queuedMessages.$inferSelect;
+export type InsertQueuedMessage = typeof queuedMessages.$inferInsert;

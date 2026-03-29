@@ -103,6 +103,8 @@ import {
   type InsertWebchatMessage,
   scheduledReports,
   type InsertScheduledReport,
+  queuedMessages,
+  type InsertQueuedMessage,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -5429,4 +5431,167 @@ export async function listDueScheduledReports() {
       )
     )
     .limit(50);
+}
+
+
+// ─────────────────────────────────────────────
+// QUEUED MESSAGES HELPERS
+// ─────────────────────────────────────────────
+
+/** Create a new queued message */
+export async function createQueuedMessage(data: {
+  accountId: number;
+  contactId?: number | null;
+  type: "sms" | "email" | "ai_call";
+  payload: string;
+  source?: string;
+  initiatedById?: number | null;
+  maxAttempts?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(queuedMessages).values({
+    accountId: data.accountId,
+    contactId: data.contactId ?? null,
+    type: data.type,
+    payload: data.payload,
+    source: data.source ?? "business_hours_queue",
+    initiatedById: data.initiatedById ?? null,
+    maxAttempts: data.maxAttempts ?? 3,
+    status: "pending",
+    attempts: 0,
+  });
+  return { id: Number(result[0].insertId) };
+}
+
+/** List pending queued messages for an account */
+export async function listQueuedMessages(
+  accountId: number,
+  opts?: { status?: "pending" | "dispatched" | "failed" | "cancelled"; limit?: number; offset?: number }
+) {
+  const db = await getDb();
+  if (!db) return { data: [], total: 0 };
+
+  const conditions = [eq(queuedMessages.accountId, accountId)];
+  if (opts?.status) {
+    conditions.push(eq(queuedMessages.status, opts.status));
+  }
+  const where = and(...conditions);
+
+  const [data, totalResult] = await Promise.all([
+    db
+      .select()
+      .from(queuedMessages)
+      .where(where)
+      .orderBy(desc(queuedMessages.createdAt))
+      .limit(opts?.limit ?? 50)
+      .offset(opts?.offset ?? 0),
+    db.select({ count: count() }).from(queuedMessages).where(where),
+  ]);
+
+  return { data, total: totalResult[0]?.count ?? 0 };
+}
+
+/** Get all pending messages across all accounts (for the dispatch worker) */
+export async function listAllPendingQueuedMessages(limit = 100) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(queuedMessages)
+    .where(
+      and(
+        eq(queuedMessages.status, "pending"),
+        or(
+          isNull(queuedMessages.nextAttemptAt),
+          sql`${queuedMessages.nextAttemptAt} <= NOW()`
+        )
+      )
+    )
+    .orderBy(asc(queuedMessages.createdAt))
+    .limit(limit);
+}
+
+/** Update a queued message status */
+export async function updateQueuedMessage(
+  id: number,
+  data: {
+    status?: "pending" | "dispatched" | "failed" | "cancelled";
+    attempts?: number;
+    lastError?: string | null;
+    dispatchedAt?: Date | null;
+    nextAttemptAt?: Date | null;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(queuedMessages)
+    .set(data)
+    .where(eq(queuedMessages.id, id));
+}
+
+/** Cancel a queued message */
+export async function cancelQueuedMessage(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(queuedMessages)
+    .set({ status: "cancelled" })
+    .where(and(eq(queuedMessages.id, id), eq(queuedMessages.accountId, accountId), eq(queuedMessages.status, "pending")));
+}
+
+/** Cancel all pending queued messages for an account */
+export async function cancelAllPendingQueuedMessages(accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(queuedMessages)
+    .set({ status: "cancelled" })
+    .where(and(eq(queuedMessages.accountId, accountId), eq(queuedMessages.status, "pending")));
+}
+
+/** Get queued message stats for an account */
+export async function getQueuedMessageStats(accountId: number) {
+  const db = await getDb();
+  if (!db) return { pending: 0, dispatched: 0, failed: 0, cancelled: 0 };
+
+  const results = await db
+    .select({
+      status: queuedMessages.status,
+      count: count(),
+    })
+    .from(queuedMessages)
+    .where(eq(queuedMessages.accountId, accountId))
+    .groupBy(queuedMessages.status);
+
+  const stats = { pending: 0, dispatched: 0, failed: 0, cancelled: 0 };
+  for (const row of results) {
+    if (row.status in stats) {
+      stats[row.status as keyof typeof stats] = row.count;
+    }
+  }
+  return stats;
+}
+
+/** Get a single queued message by ID */
+export async function getQueuedMessageById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(queuedMessages)
+    .where(eq(queuedMessages.id, id))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/** Retry a failed queued message (reset to pending) */
+export async function retryQueuedMessage(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(queuedMessages)
+    .set({ status: "pending", lastError: null, nextAttemptAt: null })
+    .where(and(eq(queuedMessages.id, id), eq(queuedMessages.accountId, accountId), eq(queuedMessages.status, "failed")));
 }

@@ -45,6 +45,7 @@ import LandingPages from "./pages/LandingPages";
 import PageEditor from "./pages/PageEditor";
 import FunnelsPage from "./pages/Funnels";
 import SmsCompliance from "./pages/SmsCompliance";
+import MessageQueue from "./pages/MessageQueue";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
@@ -287,6 +288,14 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <Reputation />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/message-queue">
+        <DashboardLayout>
+          <RequireAccount>
+            <MessageQueue />
           </RequireAccount>
         </DashboardLayout>
       </Route>

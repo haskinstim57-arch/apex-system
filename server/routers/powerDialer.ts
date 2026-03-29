@@ -29,6 +29,7 @@ import {
   VapiApiError,
 } from "../services/vapi";
 import { isWithinBusinessHours, getBusinessHoursBlockMessage, type BusinessHoursConfig } from "../utils/businessHours";
+import { enqueueMessage } from "../services/messageQueue";
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -178,14 +179,6 @@ export const powerDialerRouter = router({
       }
       const bhConfig = account.businessHoursConfig as BusinessHoursConfig | null;
 
-      // ── Business hours enforcement ──
-      if (!isWithinBusinessHours(bhConfig)) {
-        throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message: getBusinessHoursBlockMessage(bhConfig),
-        });
-      }
-
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Contact not found." });
@@ -196,6 +189,32 @@ export const powerDialerRouter = router({
 
       const assistantId = resolveAssistantId(contact.leadSource);
       const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+
+      // ── Business hours enforcement — queue if outside hours ──
+      if (!isWithinBusinessHours(bhConfig)) {
+        const { id: queueId } = await enqueueMessage({
+          accountId: input.accountId,
+          contactId: input.contactId,
+          type: "ai_call",
+          payload: {
+            contactId: input.contactId,
+            phoneNumber: contact.phone,
+            customerName: contactName,
+            assistantId,
+            initiatedById: ctx.user.id,
+            metadata: { leadSource: contact.leadSource ?? undefined },
+          },
+          source: "powerDialer.call",
+          initiatedById: ctx.user.id,
+        });
+        return {
+          callId: 0,
+          success: true,
+          queued: true,
+          queueId,
+          message: `Call queued — will be dispatched when business hours resume.`,
+        };
+      }
 
       // Create AI call record
       const { id: callId } = await createAICall({

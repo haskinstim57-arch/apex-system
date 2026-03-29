@@ -45,6 +45,7 @@ import { funnelsRouter } from "./routers/funnels";
 import { webchatRouter } from "./routers/webchat";
 import { scheduledReportsRouter } from "./routers/scheduledReports";
 import { smsComplianceRouter } from "./routers/smsCompliance";
+import { messageQueueRouter } from "./routers/messageQueue";
 
 export const appRouter = router({
   system: systemRouter,
@@ -101,6 +102,7 @@ export const appRouter = router({
   webchat: webchatRouter,
   scheduledReports: scheduledReportsRouter,
   smsCompliance: smsComplianceRouter,
+  messageQueue: messageQueueRouter,
 });
 
 export type AppRouter = typeof appRouter;

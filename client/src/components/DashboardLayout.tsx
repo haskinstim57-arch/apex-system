@@ -50,6 +50,7 @@ import {
   Mail,
   ListOrdered,
   FileText,
+  Clock,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -85,6 +86,7 @@ const subAccountMenuItems = [
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: ClipboardList, label: "Forms", path: "/forms" },
   { icon: Star, label: "Reputation", path: "/reputation" },
+  { icon: Clock, label: "Message Queue", path: "/message-queue" },
 ];
 
 /**

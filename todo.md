@@ -2448,3 +2448,21 @@
 - [x] TypeScript: 0 errors
 - [x] All 96 businessHours + messagingSettings tests passing
 - [x] Checkpoint saved
+
+## Message Queue for Business Hours Enforcement
+- [x] Schema: Create queued_messages table (accountId, contactId, type, payload, status, scheduledFor, attempts, error, createdAt)
+- [x] Migration: Push Drizzle migration for queued_messages table
+- [x] Backend: Queue service — enqueue function that stores messages when outside business hours
+- [x] Backend: Queue worker — polls for pending messages, checks if business hours are now open, dispatches
+- [x] Backend: Retry handling — max attempts, exponential backoff, error logging
+- [x] Backend: Integrate queue into SMS dispatch path (dispatchSMS)
+- [x] Backend: Integrate queue into email dispatch path (dispatchEmail)
+- [x] Backend: Integrate queue into AI call dispatch path (startAICall)
+- [x] Backend: Integrate queue into workflow engine delay/action steps
+- [x] Backend: tRPC router — queue management (list, cancel, retry, stats)
+- [x] Frontend: Queued Messages section in Settings or dedicated page
+- [x] Frontend: Queue stats (pending, dispatched, failed counts)
+- [x] Frontend: Cancel and retry actions on queued messages
+- [x] Vitest: Tests for enqueue, dispatch, retry, business hours integration
+- [x] TypeScript: 0 errors
+- [x] Checkpoint saved
