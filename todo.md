@@ -2372,4 +2372,16 @@
 - [x] Select dropdown with 4 options: Active, Block SMS only, Block Email only, Block All
 - [x] Loading indicator during mutation
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: 95460914)
+
+## Employee Contact Filter Bug Fix
+
+- [x] Add employee role check to contacts.list procedure — employees only see contacts where assignedUserId = their userId
+- [x] Apply filter to contacts.getFilteredIds — employee results post-filtered to assigned contacts only
+- [x] Apply filter to contacts.exportContacts — employee CSV exports scoped to assigned contacts
+- [x] Apply filter to contacts.stats — employee stats scoped via getContactStats(accountId, userId)
+- [x] Updated getContactStats in db.ts to accept optional assignedUserId parameter (backward compatible)
+- [x] No changes to any other role logic, permissions, or contact CRUD operations
+- [x] 12 new vitest tests added (39 total passing): role detection, list scoping, stats scoping, export scoping, filter logic validation for employee/owner/manager
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved

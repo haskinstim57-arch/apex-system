@@ -946,20 +946,26 @@ export async function assignContact(
     .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
 }
 
-export async function getContactStats(accountId: number) {
+export async function getContactStats(accountId: number, assignedUserId?: number) {
   const db = await getDb();
   if (!db) return { total: 0, new: 0, qualified: 0, won: 0 };
+
+  // Base conditions: always filter by account; optionally filter by assigned user (for employees)
+  const baseConditions = [eq(contacts.accountId, accountId)];
+  if (assignedUserId !== undefined) {
+    baseConditions.push(eq(contacts.assignedUserId, assignedUserId));
+  }
 
   const [totalResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(contacts)
-    .where(eq(contacts.accountId, accountId));
+    .where(and(...baseConditions));
 
   const [newResult] = await db
     .select({ count: sql<number>`count(*)` })
     .from(contacts)
     .where(
-      and(eq(contacts.accountId, accountId), eq(contacts.status, "new"))
+      and(...baseConditions, eq(contacts.status, "new"))
     );
 
   const [qualifiedResult] = await db
@@ -967,7 +973,7 @@ export async function getContactStats(accountId: number) {
     .from(contacts)
     .where(
       and(
-        eq(contacts.accountId, accountId),
+        ...baseConditions,
         eq(contacts.status, "qualified")
       )
     );
@@ -976,7 +982,7 @@ export async function getContactStats(accountId: number) {
     .select({ count: sql<number>`count(*)` })
     .from(contacts)
     .where(
-      and(eq(contacts.accountId, accountId), eq(contacts.status, "won"))
+      and(...baseConditions, eq(contacts.status, "won"))
     );
 
   return {

@@ -201,8 +201,13 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
-      return listContacts(input);
+      const member = await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      // Employees can only see contacts assigned to them
+      const filters = { ...input };
+      if (member.role === "employee") {
+        filters.assignedUserId = ctx.user.id;
+      }
+      return listContacts(filters);
     }),
 
   // ─── Get single contact ───
@@ -410,7 +415,11 @@ export const contactsRouter = router({
   stats: protectedProcedure
     .input(z.object({ accountId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const member = await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      // Employees see stats only for their assigned contacts
+      if (member.role === "employee") {
+        return getContactStats(input.accountId, ctx.user.id);
+      }
       return getContactStats(input.accountId);
     }),
 
@@ -983,14 +992,34 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
-      const ids = await getContactIdsByFilter(input.accountId, {
+      const member = await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      let ids = await getContactIdsByFilter(input.accountId, {
         tag: input.tag,
         status: input.status,
         leadSource: input.leadSource,
         search: input.search,
         unassignedOnly: input.unassignedOnly,
       });
+      // Employees can only see contacts assigned to them
+      if (member.role === "employee") {
+        const { contacts } = await import("../../drizzle/schema");
+        const { eq, and, inArray } = await import("drizzle-orm");
+        const db = await (await import("../db")).getDb();
+        if (db && ids.length > 0) {
+          const filtered = await db
+            .select({ id: contacts.id })
+            .from(contacts)
+            .where(
+              and(
+                inArray(contacts.id, ids),
+                eq(contacts.assignedUserId, ctx.user.id)
+              )
+            );
+          ids = filtered.map((r) => r.id);
+        } else {
+          ids = [];
+        }
+      }
       return { ids, total: ids.length };
     }),
 
@@ -1003,7 +1032,8 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const member = await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const isEmployee = member.role === "employee";
 
       const db = (await import("../db")).getDb();
       const dbInstance = await db;
@@ -1015,20 +1045,30 @@ export const contactsRouter = router({
       // Fetch contacts
       let contactList;
       if (input.contactIds && input.contactIds.length > 0) {
+        const exportConditions = [
+          eq(contacts.accountId, input.accountId),
+          inArray(contacts.id, input.contactIds),
+        ];
+        // Employees can only export their own assigned contacts
+        if (isEmployee) {
+          exportConditions.push(eq(contacts.assignedUserId, ctx.user.id));
+        }
         contactList = await dbInstance
           .select()
           .from(contacts)
-          .where(
-            and(
-              eq(contacts.accountId, input.accountId),
-              inArray(contacts.id, input.contactIds)
-            )
-          );
+          .where(and(...exportConditions));
       } else {
+        const exportConditions = [
+          eq(contacts.accountId, input.accountId),
+        ];
+        // Employees can only export their own assigned contacts
+        if (isEmployee) {
+          exportConditions.push(eq(contacts.assignedUserId, ctx.user.id));
+        }
         contactList = await dbInstance
           .select()
           .from(contacts)
-          .where(eq(contacts.accountId, input.accountId));
+          .where(and(...exportConditions));
       }
 
       // Fetch custom field definitions for column headers
