@@ -46,7 +46,9 @@ import PageEditor from "./pages/PageEditor";
 import FunnelsPage from "./pages/Funnels";
 import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
+import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
+import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
 import { AdminRoute } from "./components/AdminRoute";
@@ -55,6 +57,9 @@ import { RequireAccount } from "./components/RequireAccount";
 function Router() {
   return (
     <Switch>
+      {/* Offline fallback */}
+      <Route path="/offline" component={Offline} />
+
       {/* Public routes */}
       <Route path="/invite/:token" component={InviteAccept} />
       <Route path="/accept-invite" component={AcceptInvite} />
@@ -349,6 +354,7 @@ function App() {
             }}
           />
           <ImpersonationBanner />
+          <PwaInstallPrompt />
           <AccountProvider>
             <AiAdvisorProvider>
               <Router />

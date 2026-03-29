@@ -397,7 +397,7 @@ function DashboardLayoutContent({
                         isActive={isActive}
                         onClick={() => handleNavClick(item)}
                         tooltip={item.label}
-                        className="cursor-pointer"
+                        className="cursor-pointer touch-manipulation min-h-[44px]"
                       >
                         <item.icon className="h-4 w-4 shrink-0" />
                         <span>{item.label}</span>
@@ -431,7 +431,7 @@ function DashboardLayoutContent({
                         isActive={item.path === location}
                         onClick={() => handleNavClick(item)}
                         tooltip={item.label}
-                        className="cursor-pointer"
+                        className="cursor-pointer touch-manipulation min-h-[44px]"
                       >
                         <item.icon className="h-4 w-4 shrink-0" />
                         <span>{item.label}</span>
@@ -452,7 +452,7 @@ function DashboardLayoutContent({
                       isActive={location.startsWith("/settings")}
                       onClick={() => handleNavClick(item)}
                       tooltip={item.label}
-                      className="cursor-pointer"
+                      className="cursor-pointer touch-manipulation min-h-[44px]"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       <span>{item.label}</span>
@@ -477,13 +477,28 @@ function DashboardLayoutContent({
         {/* Top bar */}
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 gap-3">
           <div className="flex items-center gap-3">
-            <SidebarTrigger className="-ml-1" />
-            {/* Breadcrumb / page title */}
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span className="font-medium text-foreground">
-                {activeMenuItem?.label || "Dashboard"}
-              </span>
-            </div>
+            <SidebarTrigger className="-ml-1 min-h-[44px] min-w-[44px] touch-manipulation" />
+
+            {/* Mobile: centered logo */}
+            {isMobile && (
+              <div className="flex items-center gap-1.5">
+                <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
+                  <span className="text-xs font-bold text-primary-foreground">A</span>
+                </div>
+                <span className="text-sm font-bold tracking-tight text-foreground">
+                  Apex<span className="font-extrabold">System</span>
+                </span>
+              </div>
+            )}
+
+            {/* Desktop: Breadcrumb / page title */}
+            {!isMobile && (
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">
+                  {activeMenuItem?.label || "Dashboard"}
+                </span>
+              </div>
+            )}
 
             {/* Global search bar */}
             <div className="relative hidden md:flex items-center">

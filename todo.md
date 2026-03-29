@@ -2517,3 +2517,16 @@
 - [x] Tests: 47 condition branching tests (16 new), 163 total across all test files — all passing
 - [x] TypeScript: 0 errors
 - [x] Checkpoint saved
+
+## Progressive Web App (PWA) Support
+- [x] Install vite-plugin-pwa and configure vite.config.ts with manifest + workbox (autoUpdate, CacheFirst for fonts, NetworkFirst for tRPC)
+- [x] Generate PWA icons (192x192, 512x512, apple-touch-icon 180x180, masked SVG, favicon 32x32)
+- [x] Icons stored in client/public/icons/ and referenced in manifest
+- [x] Add PWA meta tags to client/index.html (mobile-web-app-capable, apple-mobile-web-app-capable, theme-color, apple-touch-icon)
+- [x] Mobile-responsive DashboardLayout: mobile logo in top bar, hamburger via SidebarTrigger, overlay sidebar via shadcn Sheet
+- [x] Mobile touch optimizations: 44px min tap targets on all sidebar buttons, touch-manipulation CSS, safe-area-inset padding, no horizontal overflow
+- [x] PwaInstallPrompt component: install banner with beforeinstallprompt event + 30-day localStorage dismissal + standalone detection
+- [x] Offline fallback page (Offline.tsx) with /offline route + workbox navigateFallback
+- [x] PWA standalone mode CSS: user-select disabled except in content areas
+- [x] Build verification: 0 TS errors, all feature tests passing
+- [x] Checkpoint saved
