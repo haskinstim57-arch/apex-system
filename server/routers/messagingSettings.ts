@@ -7,6 +7,10 @@ import {
   getAccountById,
   getMember,
 } from "../db";
+import {
+  DEFAULT_BUSINESS_HOURS_SCHEDULE,
+  parseBusinessHoursJson,
+} from "../utils/businessHours";
 
 /**
  * Require the caller to be an owner of the account or an agency admin.
@@ -21,6 +25,30 @@ async function requireAccountOwner(userId: number, accountId: number, role?: str
     });
   }
 }
+
+// ─────────────────────────────────────────────
+// Zod schema for business hours schedule validation
+// ─────────────────────────────────────────────
+
+const dayScheduleSchema = z.object({
+  open: z.boolean(),
+  start: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format").optional(),
+  end: z.string().regex(/^\d{2}:\d{2}$/, "Must be HH:MM format").optional(),
+});
+
+const businessHoursSchema = z.object({
+  enabled: z.boolean(),
+  timezone: z.string().min(1, "Timezone is required"),
+  schedule: z.object({
+    monday: dayScheduleSchema,
+    tuesday: dayScheduleSchema,
+    wednesday: dayScheduleSchema,
+    thursday: dayScheduleSchema,
+    friday: dayScheduleSchema,
+    saturday: dayScheduleSchema,
+    sunday: dayScheduleSchema,
+  }),
+});
 
 export const messagingSettingsRouter = router({
   /** Get messaging settings for an account */
@@ -38,8 +66,12 @@ export const messagingSettingsRouter = router({
           sendgridApiKey: null,
           sendgridFromEmail: null,
           sendgridFromName: null,
+          businessHours: DEFAULT_BUSINESS_HOURS_SCHEDULE,
         };
       }
+      // Parse business hours JSON
+      const businessHours = parseBusinessHoursJson(settings.businessHours) ?? DEFAULT_BUSINESS_HOURS_SCHEDULE;
+
       // Mask sensitive fields for display
       return {
         accountId: settings.accountId,
@@ -53,6 +85,7 @@ export const messagingSettingsRouter = router({
           : null,
         sendgridFromEmail: settings.sendgridFromEmail,
         sendgridFromName: settings.sendgridFromName,
+        businessHours,
       };
     }),
 
@@ -67,6 +100,7 @@ export const messagingSettingsRouter = router({
         sendgridApiKey: z.string().nullable().optional(),
         sendgridFromEmail: z.string().email().nullable().optional(),
         sendgridFromName: z.string().nullable().optional(),
+        businessHours: businessHoursSchema.optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -77,7 +111,7 @@ export const messagingSettingsRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
       }
 
-      const { accountId, ...data } = input;
+      const { accountId, businessHours, ...data } = input;
 
       // Filter out masked values (don't overwrite with mask)
       const cleanData: Record<string, string | null> = {};
@@ -87,7 +121,35 @@ export const messagingSettingsRouter = router({
         }
       }
 
+      // Serialize business hours to JSON string if provided
+      if (businessHours !== undefined) {
+        cleanData.businessHours = JSON.stringify(businessHours);
+      }
+
       await upsertAccountMessagingSettings(accountId, cleanData);
+      return { success: true };
+    }),
+
+  /** Save only business hours (dedicated endpoint for the business hours UI) */
+  saveBusinessHours: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        businessHours: businessHoursSchema,
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountOwner(ctx.user!.id, input.accountId, ctx.user!.role);
+
+      const account = await getAccountById(input.accountId);
+      if (!account) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      }
+
+      await upsertAccountMessagingSettings(input.accountId, {
+        businessHours: JSON.stringify(input.businessHours),
+      });
+
       return { success: true };
     }),
 });

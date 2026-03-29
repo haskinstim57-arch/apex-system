@@ -2403,4 +2403,48 @@
 - [x] Component already auto-hides when onboardingComplete is true (via allComplete check + localStorage dismiss)
 - [x] Positioned above KPI cards for immediate visibility after login
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: f93bfd19)
+
+## Configurable Business Hours per Account
+
+### Schema
+- [ ] Add businessHours JSON column to accountMessagingSettings table
+- [ ] Push migration with pnpm db:push
+
+### Backend
+- [ ] Update isWithinBusinessHours(accountId) to fetch per-account config from DB
+- [ ] Support enabled toggle, per-day schedule, timezone
+- [ ] Fall back to hardcoded defaults if no config exists
+- [ ] Expose businessHours in messagingSettings getSettings return shape
+- [ ] Add businessHours to updateSettings input schema with JSON validation
+
+### Frontend
+- [ ] Add Business Hours section in Settings UI
+- [ ] Enable/Disable toggle for time restrictions
+- [ ] Timezone selector dropdown (common IANA timezones)
+- [ ] Per-day toggles with open/close time pickers (Mon-Sun)
+- [ ] Save button
+
+### Testing
+- [ ] Write vitest tests for isWithinBusinessHours() with stored config
+- [ ] Test timezone offset handling
+- [ ] TypeScript check — 0 errors
 - [ ] Checkpoint saved
+
+## Configurable AI Business Hours per Account
+- [x] Schema: Add businessHours JSON column to accountMessagingSettings table
+- [x] Migration: Create and push Drizzle migration for new column
+- [x] Backend: Update businessHours.ts utility with per-day schedule support (isWithinBusinessHoursSchedule, parseBusinessHoursJson, resolveBusinessHoursSchedule, getAccountBusinessHours, isWithinAccountBusinessHours)
+- [x] Backend: Add timezone-aware time calculation (getTimeInTimezone) with DST handling
+- [x] Backend: Expose businessHours in messagingSettings.get and messagingSettings.save tRPC procedures
+- [x] Backend: Add dedicated messagingSettings.saveBusinessHours tRPC procedure
+- [x] Backend: Zod validation schema for businessHours JSON structure
+- [x] Frontend: Business Hours card in MessagingSettings page with enable/disable toggle
+- [x] Frontend: Timezone selector with common US + international timezones
+- [x] Frontend: Per-day schedule with open/close toggle and start/end time pickers (30-min increments)
+- [x] Frontend: "Apply to weekdays" and "Apply to all" quick-apply buttons
+- [x] Frontend: Client-side validation (at least one open day, start < end)
+- [x] Vitest: 79 tests for businessHours utility (parseBusinessHoursJson, resolveBusinessHoursSchedule, parseTimeString, getTimeInTimezone, isWithinBusinessHoursSchedule, timezone offset handling for EST/EDT/CST/PST/JST/IST/AEST, day rollover, half-hour boundaries, labels, enforceBusinessHours)
+- [x] TypeScript: 0 errors
+- [x] All 96 businessHours + messagingSettings tests passing
+- [x] Checkpoint saved

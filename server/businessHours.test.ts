@@ -415,3 +415,466 @@ describe("Business Hours Enforcement — Per-Account Config", () => {
     });
   });
 });
+
+// ─────────────────────────────────────────────
+// NEW: Per-Day Schedule Format Tests
+// ─────────────────────────────────────────────
+
+import {
+  parseBusinessHoursJson,
+  resolveBusinessHoursSchedule,
+  parseTimeString,
+  isWithinBusinessHoursSchedule,
+  getBusinessHoursScheduleLabel,
+  DEFAULT_BUSINESS_HOURS_SCHEDULE,
+} from "./utils/businessHours";
+import type { BusinessHoursSchedule } from "../drizzle/schema";
+
+describe("parseBusinessHoursJson", () => {
+  it("returns null for null/undefined/empty input", () => {
+    expect(parseBusinessHoursJson(null)).toBeNull();
+    expect(parseBusinessHoursJson(undefined)).toBeNull();
+    expect(parseBusinessHoursJson("")).toBeNull();
+  });
+
+  it("returns null for invalid JSON", () => {
+    expect(parseBusinessHoursJson("{bad json")).toBeNull();
+    expect(parseBusinessHoursJson("42")).toBeNull();
+    expect(parseBusinessHoursJson('"string"')).toBeNull();
+  });
+
+  it("returns null for objects missing required fields", () => {
+    expect(parseBusinessHoursJson(JSON.stringify({ timezone: "UTC" }))).toBeNull();
+    expect(
+      parseBusinessHoursJson(JSON.stringify({ enabled: true, timezone: "UTC" }))
+    ).toBeNull();
+    expect(
+      parseBusinessHoursJson(
+        JSON.stringify({ enabled: "yes", timezone: "UTC", schedule: {} })
+      )
+    ).toBeNull();
+  });
+
+  it("parses a valid business hours JSON string", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/Chicago",
+      schedule: {
+        monday: { open: true, start: "08:00", end: "17:00" },
+        tuesday: { open: true, start: "08:00", end: "17:00" },
+        wednesday: { open: true, start: "08:00", end: "17:00" },
+        thursday: { open: true, start: "08:00", end: "17:00" },
+        friday: { open: true, start: "08:00", end: "17:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+      },
+    };
+    const result = parseBusinessHoursJson(JSON.stringify(config));
+    expect(result).toEqual(config);
+  });
+});
+
+describe("resolveBusinessHoursSchedule", () => {
+  it("returns defaults when no config is provided", () => {
+    const result = resolveBusinessHoursSchedule(null);
+    expect(result).toEqual(DEFAULT_BUSINESS_HOURS_SCHEDULE);
+  });
+
+  it("returns defaults when undefined is provided", () => {
+    const result = resolveBusinessHoursSchedule(undefined);
+    expect(result).toEqual(DEFAULT_BUSINESS_HOURS_SCHEDULE);
+  });
+
+  it("fills missing days with defaults", () => {
+    const partial: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/Denver",
+      schedule: {
+        monday: { open: true, start: "09:00", end: "18:00" },
+      },
+    };
+    const result = resolveBusinessHoursSchedule(partial);
+    expect(result.timezone).toBe("America/Denver");
+    expect(result.schedule.monday).toEqual({ open: true, start: "09:00", end: "18:00" });
+    expect(result.schedule.tuesday).toEqual(DEFAULT_BUSINESS_HOURS_SCHEDULE.schedule.tuesday);
+  });
+
+  it("preserves enabled=false", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: false,
+      timezone: "UTC",
+      schedule: {},
+    };
+    const result = resolveBusinessHoursSchedule(config);
+    expect(result.enabled).toBe(false);
+  });
+});
+
+describe("parseTimeString", () => {
+  it("parses standard HH:MM format", () => {
+    expect(parseTimeString("07:00")).toEqual({ hour: 7, minute: 0 });
+    expect(parseTimeString("22:30")).toEqual({ hour: 22, minute: 30 });
+    expect(parseTimeString("00:00")).toEqual({ hour: 0, minute: 0 });
+    expect(parseTimeString("23:59")).toEqual({ hour: 23, minute: 59 });
+  });
+
+  it("handles edge cases gracefully", () => {
+    expect(parseTimeString("")).toEqual({ hour: 0, minute: 0 });
+    expect(parseTimeString("12")).toEqual({ hour: 12, minute: 0 });
+  });
+});
+
+describe("isWithinBusinessHoursSchedule — per-day schedule", () => {
+  const standardConfig: BusinessHoursSchedule = {
+    enabled: true,
+    timezone: "America/New_York",
+    schedule: {
+      monday: { open: true, start: "07:00", end: "22:00" },
+      tuesday: { open: true, start: "07:00", end: "22:00" },
+      wednesday: { open: true, start: "07:00", end: "22:00" },
+      thursday: { open: true, start: "07:00", end: "22:00" },
+      friday: { open: true, start: "07:00", end: "22:00" },
+      saturday: { open: true, start: "08:00", end: "20:00" },
+      sunday: { open: false },
+    },
+  };
+
+  it("returns true when disabled (no restrictions)", () => {
+    const disabled: BusinessHoursSchedule = {
+      enabled: false,
+      timezone: "UTC",
+      schedule: {},
+    };
+    expect(isWithinBusinessHoursSchedule(disabled, new Date("2026-01-15T03:00:00Z"))).toBe(true);
+    expect(isWithinBusinessHoursSchedule(disabled, new Date("2026-01-18T03:00:00Z"))).toBe(true);
+  });
+
+  it("returns true during business hours on a weekday", () => {
+    // Monday 2026-03-16 at 15:00 UTC = 11:00 AM EDT
+    const date = new Date("2026-03-16T15:00:00Z");
+    expect(isWithinBusinessHoursSchedule(standardConfig, date)).toBe(true);
+  });
+
+  it("returns false before business hours on a weekday", () => {
+    // Monday 2026-03-16 at 10:00 UTC = 6:00 AM EDT (before 7 AM)
+    const date = new Date("2026-03-16T10:00:00Z");
+    expect(isWithinBusinessHoursSchedule(standardConfig, date)).toBe(false);
+  });
+
+  it("returns false after business hours on a weekday", () => {
+    // Tuesday 2026-03-17 at 03:00 UTC = 11:00 PM EDT (after 10 PM)
+    const date = new Date("2026-03-17T03:00:00Z");
+    expect(isWithinBusinessHoursSchedule(standardConfig, date)).toBe(false);
+  });
+
+  it("returns false on a closed day (Sunday)", () => {
+    // Sunday 2026-03-15 at 18:00 UTC = 2:00 PM EDT
+    const date = new Date("2026-03-15T18:00:00Z");
+    expect(isWithinBusinessHoursSchedule(standardConfig, date)).toBe(false);
+  });
+
+  it("returns true on Saturday within hours", () => {
+    // Saturday 2026-03-14 at 16:00 UTC = 12:00 PM EDT
+    const date = new Date("2026-03-14T16:00:00Z");
+    expect(isWithinBusinessHoursSchedule(standardConfig, date)).toBe(true);
+  });
+
+  it("returns true at exact start time boundary", () => {
+    // Monday 2026-03-16 at 11:00 UTC = 7:00 AM EDT (exact start)
+    const date = new Date("2026-03-16T11:00:00Z");
+    expect(isWithinBusinessHoursSchedule(standardConfig, date)).toBe(true);
+  });
+
+  it("returns false at exact end time boundary (exclusive)", () => {
+    // Tuesday 2026-03-17 at 02:00 UTC = 10:00 PM EDT (exact end — should be blocked)
+    const date = new Date("2026-03-17T02:00:00Z");
+    expect(isWithinBusinessHoursSchedule(standardConfig, date)).toBe(false);
+  });
+
+  it("uses defaults when null config is provided", () => {
+    // Monday 2026-03-16 at 15:00 UTC = 11:00 AM EDT — within default hours
+    const date = new Date("2026-03-16T15:00:00Z");
+    expect(isWithinBusinessHoursSchedule(null, date)).toBe(true);
+  });
+
+  it("handles Pacific timezone correctly", () => {
+    const pacificConfig: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/Los_Angeles",
+      schedule: {
+        monday: { open: true, start: "09:00", end: "17:00" },
+        tuesday: { open: true, start: "09:00", end: "17:00" },
+        wednesday: { open: true, start: "09:00", end: "17:00" },
+        thursday: { open: true, start: "09:00", end: "17:00" },
+        friday: { open: true, start: "09:00", end: "17:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+      },
+    };
+
+    // Monday 2026-03-16 at 20:00 UTC = 1:00 PM PDT — within hours
+    expect(isWithinBusinessHoursSchedule(pacificConfig, new Date("2026-03-16T20:00:00Z"))).toBe(true);
+
+    // Monday 2026-03-16 at 15:00 UTC = 8:00 AM PDT — before 9 AM
+    expect(isWithinBusinessHoursSchedule(pacificConfig, new Date("2026-03-16T15:00:00Z"))).toBe(false);
+  });
+
+  it("handles Tokyo timezone (UTC+9)", () => {
+    const tokyoConfig: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "Asia/Tokyo",
+      schedule: {
+        monday: { open: true, start: "09:00", end: "18:00" },
+        tuesday: { open: true, start: "09:00", end: "18:00" },
+        wednesday: { open: true, start: "09:00", end: "18:00" },
+        thursday: { open: true, start: "09:00", end: "18:00" },
+        friday: { open: true, start: "09:00", end: "18:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+      },
+    };
+
+    // Wednesday 2026-01-14 at 02:00 UTC = 11:00 AM JST Wednesday — within hours
+    expect(isWithinBusinessHoursSchedule(tokyoConfig, new Date("2026-01-14T02:00:00Z"))).toBe(true);
+
+    // Wednesday 2026-01-14 at 10:00 UTC = 7:00 PM JST Wednesday — after hours
+    expect(isWithinBusinessHoursSchedule(tokyoConfig, new Date("2026-01-14T10:00:00Z"))).toBe(false);
+  });
+
+  it("handles half-hour time boundaries", () => {
+    const halfHourConfig: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "UTC",
+      schedule: {
+        monday: { open: true, start: "08:30", end: "17:30" },
+        tuesday: { open: true, start: "08:30", end: "17:30" },
+        wednesday: { open: true, start: "08:30", end: "17:30" },
+        thursday: { open: true, start: "08:30", end: "17:30" },
+        friday: { open: true, start: "08:30", end: "17:30" },
+        saturday: { open: false },
+        sunday: { open: false },
+      },
+    };
+
+    // Monday at 08:29 UTC — just before start
+    expect(isWithinBusinessHoursSchedule(halfHourConfig, new Date("2026-03-16T08:29:00Z"))).toBe(false);
+
+    // Monday at 08:30 UTC — exact start
+    expect(isWithinBusinessHoursSchedule(halfHourConfig, new Date("2026-03-16T08:30:00Z"))).toBe(true);
+
+    // Monday at 17:29 UTC — just before end
+    expect(isWithinBusinessHoursSchedule(halfHourConfig, new Date("2026-03-16T17:29:00Z"))).toBe(true);
+
+    // Monday at 17:30 UTC — exact end (exclusive)
+    expect(isWithinBusinessHoursSchedule(halfHourConfig, new Date("2026-03-16T17:30:00Z"))).toBe(false);
+  });
+});
+
+describe("isWithinBusinessHours — unified format detection", () => {
+  it("detects new schedule format and delegates correctly", () => {
+    const schedule: BusinessHoursSchedule = {
+      enabled: false,
+      timezone: "UTC",
+      schedule: {},
+    };
+    expect(isWithinBusinessHours(schedule, new Date())).toBe(true);
+  });
+});
+
+describe("getBusinessHoursScheduleLabel", () => {
+  it("returns disabled message when not enabled", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: false,
+      timezone: "UTC",
+      schedule: {},
+    };
+    expect(getBusinessHoursScheduleLabel(config)).toBe(
+      "No time restrictions (send any time)"
+    );
+  });
+
+  it("returns all-days label when all 7 days share same hours", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/New_York",
+      schedule: {
+        sunday: { open: true, start: "09:00", end: "17:00" },
+        monday: { open: true, start: "09:00", end: "17:00" },
+        tuesday: { open: true, start: "09:00", end: "17:00" },
+        wednesday: { open: true, start: "09:00", end: "17:00" },
+        thursday: { open: true, start: "09:00", end: "17:00" },
+        friday: { open: true, start: "09:00", end: "17:00" },
+        saturday: { open: true, start: "09:00", end: "17:00" },
+      },
+    };
+    const label = getBusinessHoursScheduleLabel(config);
+    expect(label).toContain("7 days a week");
+    expect(label).toContain("09:00");
+    expect(label).toContain("17:00");
+  });
+
+  it("returns custom schedule label for mixed hours", () => {
+    const label = getBusinessHoursScheduleLabel(DEFAULT_BUSINESS_HOURS_SCHEDULE);
+    expect(label).toContain("Custom schedule");
+  });
+});
+
+// ─────────────────────────────────────────────
+// Timezone Offset Handling (specific requirement)
+// ─────────────────────────────────────────────
+
+describe("timezone offset handling — per-day schedule", () => {
+  it("correctly handles EST (UTC-5) offset with per-day schedule", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/New_York",
+      schedule: {
+        thursday: { open: true, start: "07:00", end: "22:00" },
+        friday: { open: true, start: "07:00", end: "22:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+        monday: { open: true, start: "07:00", end: "22:00" },
+        tuesday: { open: true, start: "07:00", end: "22:00" },
+        wednesday: { open: true, start: "07:00", end: "22:00" },
+      },
+    };
+
+    // Thursday 2026-01-15 at 12:00 UTC = 7:00 AM EST — exactly at start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T12:00:00Z"))).toBe(true);
+
+    // Thursday 2026-01-15 at 11:59 UTC = 6:59 AM EST — just before start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T11:59:00Z"))).toBe(false);
+  });
+
+  it("correctly handles EDT (UTC-4) offset with per-day schedule", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/New_York",
+      schedule: {
+        wednesday: { open: true, start: "07:00", end: "22:00" },
+        thursday: { open: true, start: "07:00", end: "22:00" },
+        friday: { open: true, start: "07:00", end: "22:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+        monday: { open: true, start: "07:00", end: "22:00" },
+        tuesday: { open: true, start: "07:00", end: "22:00" },
+      },
+    };
+
+    // Wednesday 2026-07-15 at 11:00 UTC = 7:00 AM EDT — exactly at start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-07-15T11:00:00Z"))).toBe(true);
+
+    // Wednesday 2026-07-15 at 10:59 UTC = 6:59 AM EDT — just before start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-07-15T10:59:00Z"))).toBe(false);
+  });
+
+  it("correctly handles CST (UTC-6) offset with per-day schedule", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/Chicago",
+      schedule: {
+        thursday: { open: true, start: "08:00", end: "18:00" },
+        friday: { open: true, start: "08:00", end: "18:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+        monday: { open: true, start: "08:00", end: "18:00" },
+        tuesday: { open: true, start: "08:00", end: "18:00" },
+        wednesday: { open: true, start: "08:00", end: "18:00" },
+      },
+    };
+
+    // Thursday 2026-01-15 at 14:00 UTC = 8:00 AM CST — exactly at start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T14:00:00Z"))).toBe(true);
+
+    // Thursday 2026-01-15 at 13:59 UTC = 7:59 AM CST — just before start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T13:59:00Z"))).toBe(false);
+  });
+
+  it("correctly handles PST (UTC-8) offset with per-day schedule", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/Los_Angeles",
+      schedule: {
+        thursday: { open: true, start: "09:00", end: "17:00" },
+        friday: { open: true, start: "09:00", end: "17:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+        monday: { open: true, start: "09:00", end: "17:00" },
+        tuesday: { open: true, start: "09:00", end: "17:00" },
+        wednesday: { open: true, start: "09:00", end: "17:00" },
+      },
+    };
+
+    // Thursday 2026-01-15 at 17:00 UTC = 9:00 AM PST — exactly at start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T17:00:00Z"))).toBe(true);
+
+    // Thursday 2026-01-15 at 01:00 UTC = 5:00 PM PST (Jan 14) — end time
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T01:00:00Z"))).toBe(false);
+  });
+
+  it("correctly handles JST (UTC+9) offset with per-day schedule", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "Asia/Tokyo",
+      schedule: {
+        thursday: { open: true, start: "09:00", end: "18:00" },
+        friday: { open: true, start: "09:00", end: "18:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+        monday: { open: true, start: "09:00", end: "18:00" },
+        tuesday: { open: true, start: "09:00", end: "18:00" },
+        wednesday: { open: true, start: "09:00", end: "18:00" },
+      },
+    };
+
+    // Thursday 2026-01-15 at 00:00 UTC = 9:00 AM JST — exactly at start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T00:00:00Z"))).toBe(true);
+
+    // Thursday 2026-01-14 at 23:59 UTC = 8:59 AM JST Thursday — just before start
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-14T23:59:00Z"))).toBe(false);
+  });
+
+  it("handles day rollover from UTC to positive offset timezone", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "Asia/Tokyo",
+      schedule: {
+        friday: { open: true, start: "08:00", end: "20:00" },
+        saturday: { open: false },
+        sunday: { open: false },
+        monday: { open: true, start: "08:00", end: "20:00" },
+        tuesday: { open: true, start: "08:00", end: "20:00" },
+        wednesday: { open: true, start: "08:00", end: "20:00" },
+        thursday: { open: true, start: "08:00", end: "20:00" },
+      },
+    };
+
+    // Thursday 2026-01-15 at 23:00 UTC = Friday 2026-01-16 08:00 JST — Friday is open
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-15T23:00:00Z"))).toBe(true);
+
+    // Friday 2026-01-16 at 23:00 UTC = Saturday 2026-01-17 08:00 JST — Saturday is closed
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-16T23:00:00Z"))).toBe(false);
+  });
+
+  it("handles day rollback from UTC to negative offset timezone", () => {
+    const config: BusinessHoursSchedule = {
+      enabled: true,
+      timezone: "America/New_York",
+      schedule: {
+        thursday: { open: true, start: "07:00", end: "22:00" },
+        friday: { open: false },
+        saturday: { open: false },
+        sunday: { open: false },
+        monday: { open: true, start: "07:00", end: "22:00" },
+        tuesday: { open: true, start: "07:00", end: "22:00" },
+        wednesday: { open: true, start: "07:00", end: "22:00" },
+      },
+    };
+
+    // Friday 2026-01-16 at 02:00 UTC = Thursday 2026-01-15 21:00 EST — Thursday is open, within hours
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-16T02:00:00Z"))).toBe(true);
+
+    // Friday 2026-01-16 at 12:00 UTC = Friday 2026-01-16 07:00 EST — Friday is closed
+    expect(isWithinBusinessHoursSchedule(config, new Date("2026-01-16T12:00:00Z"))).toBe(false);
+  });
+});

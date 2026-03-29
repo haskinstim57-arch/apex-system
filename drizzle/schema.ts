@@ -741,12 +741,27 @@ export const accountMessagingSettings = mysqlTable("account_messaging_settings",
   sendgridApiKey: varchar("sendgrid_api_key", { length: 255 }),
   sendgridFromEmail: varchar("sendgrid_from_email", { length: 255 }),
   sendgridFromName: varchar("sendgrid_from_name", { length: 255 }),
+  /** Business hours configuration (JSON) — per-day schedule with timezone */
+  businessHours: text("business_hours"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 
 export type AccountMessagingSettings = typeof accountMessagingSettings.$inferSelect;
 export type InsertAccountMessagingSettings = typeof accountMessagingSettings.$inferInsert;
+
+/** Business hours JSON shape stored in accountMessagingSettings.businessHours */
+export interface BusinessHoursSchedule {
+  enabled: boolean;
+  timezone: string;
+  schedule: {
+    [day: string]: {
+      open: boolean;
+      start?: string; // "HH:MM" format
+      end?: string;   // "HH:MM" format
+    };
+  };
+}
 
 // ─────────────────────────────────────────────
 // PASSWORD RESET TOKENS — For forgot password flow

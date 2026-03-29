@@ -1,0 +1,1 @@
+ALTER TABLE `account_messaging_settings` ADD `business_hours` text;
