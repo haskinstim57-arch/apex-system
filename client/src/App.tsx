@@ -24,6 +24,7 @@ import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
 import MessagingSettings from "./pages/MessagingSettings";
 import LeadScoringSettings from "./pages/LeadScoringSettings";
+import NotificationSettings from "./pages/NotificationSettings";
 import Onboarding from "./pages/Onboarding";
 import AcceptInvite from "./pages/AcceptInvite";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -331,6 +332,13 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <LeadScoringSettings />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings/notifications">
+        <DashboardLayout>
+          <RequireAccount>
+            <NotificationSettings />
           </RequireAccount>
         </DashboardLayout>
       </Route>

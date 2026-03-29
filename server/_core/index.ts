@@ -29,6 +29,7 @@ import { webchatWebhookRouter } from "../webhooks/webchat";
 import { webchatWidgetRouter } from "../webhooks/webchatWidget";
 import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 import { startMessageQueueWorker } from "../services/messageQueue";
+import { startPushBatchWorker } from "../services/pushBatcher";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -399,6 +400,9 @@ async function startServer() {
 
     // Start message queue worker (checks every 30s, dispatches queued messages when business hours open)
     startMessageQueueWorker();
+
+    // Start push notification batch flush worker (checks every 15s, groups rapid-fire events)
+    startPushBatchWorker();
   });
 }
 

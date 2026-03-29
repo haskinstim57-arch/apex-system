@@ -2271,9 +2271,46 @@ export const pushSubscriptions = mysqlTable("push_subscriptions", {
   auth: text("auth").notNull(),
   /** User agent string for identifying the device */
   userAgent: varchar("user_agent", { length: 500 }),
+  /**
+   * JSON: per-event-type notification preferences.
+   * Shape: { inbound_sms: boolean, inbound_email: boolean, appointment_booked: boolean,
+   *          ai_call_completed: boolean, facebook_lead: boolean, quiet_hours_enabled: boolean,
+   *          quiet_hours_start: string ("22:00"), quiet_hours_end: string ("07:00"),
+   *          quiet_hours_timezone: string ("America/New_York") }
+   * null = all enabled (default)
+   */
+  notificationPreferences: text("notification_preferences"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 
 export type PushSubscription = typeof pushSubscriptions.$inferSelect;
 export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;
+
+// ═══════════════════════════════════════════════
+// PUSH NOTIFICATION BATCH TABLE
+// Groups rapid-fire events into single notifications
+// ═══════════════════════════════════════════════
+export const pushNotificationBatch = mysqlTable("push_notification_batch", {
+  id: int("id").primaryKey().autoincrement(),
+  /** Account receiving the notifications */
+  accountId: int("account_id").notNull(),
+  /** Event type for grouping: inbound_sms, inbound_email, appointment_booked, ai_call_completed, facebook_lead */
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  /** Number of events in this batch */
+  eventCount: int("event_count").default(1).notNull(),
+  /** JSON array of individual event payloads for context */
+  eventPayloads: text("event_payloads"),
+  /** pending = accumulating, sent = flushed, expired = TTL exceeded */
+  status: mysqlEnum("status", ["pending", "sent", "expired"]).default("pending").notNull(),
+  /** When this batch window opened */
+  windowStart: timestamp("window_start").defaultNow().notNull(),
+  /** When this batch should be flushed (windowStart + batchWindowMs) */
+  flushAt: timestamp("flush_at").notNull(),
+  /** When the batch was actually sent */
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PushNotificationBatch = typeof pushNotificationBatch.$inferSelect;
+export type InsertPushNotificationBatch = typeof pushNotificationBatch.$inferInsert;

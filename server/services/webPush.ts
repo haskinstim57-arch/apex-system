@@ -160,9 +160,10 @@ export async function sendPushNotification(
 }
 
 /**
- * Send push notification to all users in an account (e.g., for account-wide events)
+ * Send push notification to all users in an account — DIRECT (bypasses preferences/batching).
+ * Used by the batch flush worker to actually deliver grouped notifications.
  */
-export async function sendPushNotificationToAccount(
+export async function sendPushNotificationToAccountDirect(
   accountId: number,
   payload: PushPayload
 ): Promise<{ sent: number; failed: number }> {
@@ -211,4 +212,74 @@ export async function sendPushNotificationToAccount(
   }
 
   return { sent, failed };
+}
+
+/**
+ * Send push notification to all users in an account — SMART version.
+ * Checks per-subscription notification preferences and quiet hours,
+ * then routes through the batching service for grouping.
+ *
+ * This is the function that event handlers should call.
+ */
+export async function sendPushNotificationToAccount(
+  accountId: number,
+  payload: PushPayload & { eventType?: string; contactName?: string }
+): Promise<void> {
+  // Lazy import to avoid circular dependency
+  const { enqueuePushEvent, parseNotificationPreferences, isEventTypeEnabled, isWithinQuietHours } = await import("./pushBatcher");
+  type PushEventType = import("./pushBatcher").PushEventType;
+
+  const eventType = (payload.eventType || deriveEventType(payload.tag || "")) as PushEventType | null;
+  if (!eventType) {
+    // Unknown event type — send directly without batching
+    await sendPushNotificationToAccountDirect(accountId, payload);
+    return;
+  }
+
+  // Check if ANY subscription for this account has this event type enabled
+  const db = await getDb();
+  if (!db) return;
+
+  const subs = await db
+    .select({ notificationPreferences: pushSubscriptions.notificationPreferences })
+    .from(pushSubscriptions)
+    .where(eq(pushSubscriptions.accountId, accountId));
+
+  if (subs.length === 0) return;
+
+  // Check preferences — if ALL subscriptions have this event type disabled, skip
+  const anyEnabled = subs.some((sub) => {
+    const prefs = parseNotificationPreferences(sub.notificationPreferences);
+    return isEventTypeEnabled(prefs, eventType);
+  });
+
+  if (!anyEnabled) return;
+
+  // Check quiet hours — if ALL subscriptions are in quiet hours, skip
+  const anyAwake = subs.some((sub) => {
+    const prefs = parseNotificationPreferences(sub.notificationPreferences);
+    return !isWithinQuietHours(prefs);
+  });
+
+  if (!anyAwake) return;
+
+  // Route through batcher
+  await enqueuePushEvent(accountId, eventType, {
+    title: payload.title,
+    body: payload.body,
+    url: payload.url,
+    contactName: payload.contactName,
+  });
+}
+
+/**
+ * Derive event type from the notification tag
+ */
+function deriveEventType(tag: string): string | null {
+  if (tag.startsWith("inbound-sms")) return "inbound_sms";
+  if (tag.startsWith("inbound-email")) return "inbound_email";
+  if (tag.startsWith("appointment")) return "appointment_booked";
+  if (tag.startsWith("call-")) return "ai_call_completed";
+  if (tag.startsWith("fb-lead")) return "facebook_lead";
+  return null;
 }

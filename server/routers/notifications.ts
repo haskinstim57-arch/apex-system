@@ -11,6 +11,10 @@ import {
 } from "../db";
 import { savePushSubscription, removePushSubscription } from "../services/webPush";
 import { ENV } from "../_core/env";
+import { pushSubscriptions } from "../../drizzle/schema";
+import { eq, and } from "drizzle-orm";
+import { getDb } from "../db";
+import { parseNotificationPreferences, DEFAULT_NOTIFICATION_PREFERENCES } from "../services/pushBatcher";
 
 async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
   if (userRole === "admin") {
@@ -126,6 +130,74 @@ export const notificationsRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await removePushSubscription(ctx.user.id, input.endpoint);
+      return { success: true };
+    }),
+
+  /** Get notification preferences for the current user's push subscriptions in an account */
+  getPreferences: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = await getDb();
+      if (!db) return { preferences: DEFAULT_NOTIFICATION_PREFERENCES, hasSubscription: false };
+
+      const subs = await db
+        .select()
+        .from(pushSubscriptions)
+        .where(
+          and(
+            eq(pushSubscriptions.userId, ctx.user.id),
+            eq(pushSubscriptions.accountId, input.accountId)
+          )
+        )
+        .limit(1);
+
+      if (subs.length === 0) {
+        return { preferences: DEFAULT_NOTIFICATION_PREFERENCES, hasSubscription: false };
+      }
+
+      return {
+        preferences: parseNotificationPreferences(subs[0].notificationPreferences),
+        hasSubscription: true,
+      };
+    }),
+
+  /** Update notification preferences for all of the current user's push subscriptions in an account */
+  updatePreferences: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        preferences: z.object({
+          inbound_sms: z.boolean(),
+          inbound_email: z.boolean(),
+          appointment_booked: z.boolean(),
+          ai_call_completed: z.boolean(),
+          facebook_lead: z.boolean(),
+          quiet_hours_enabled: z.boolean(),
+          quiet_hours_start: z.string().regex(/^\d{2}:\d{2}$/),
+          quiet_hours_end: z.string().regex(/^\d{2}:\d{2}$/),
+          quiet_hours_timezone: z.string().min(1),
+        }),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const prefsJson = JSON.stringify(input.preferences);
+
+      // Update all subscriptions for this user in this account
+      await db
+        .update(pushSubscriptions)
+        .set({ notificationPreferences: prefsJson })
+        .where(
+          and(
+            eq(pushSubscriptions.userId, ctx.user.id),
+            eq(pushSubscriptions.accountId, input.accountId)
+          )
+        );
+
       return { success: true };
     }),
 });

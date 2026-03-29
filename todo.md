@@ -2547,3 +2547,21 @@
 - [x] Web Push: usePushNotifications hook for frontend subscription management
 - [x] Build verification: 0 TS errors, 167 tests passing
 - [x] Checkpoint saved
+
+## Push Notification Settings UI + Grouping/Batching
+- [x] Schema: Add notificationPreferences JSON column to pushSubscriptions table
+- [x] Schema: Create pushNotificationBatch table for grouping rapid-fire events
+- [x] Migration: Push Drizzle migration for both schema changes
+- [x] Backend: Notification batching service — enqueuePushEvent, flushPendingBatches, buildBatchNotification, cleanupOldBatches
+- [x] Backend: Batch flush worker — runs every 15s, sends grouped notifications, cleanup every 6h
+- [x] Backend: sendPushNotificationToAccount now checks preferences (isEventTypeEnabled) and quiet hours (isWithinQuietHours)
+- [x] Backend: Events routed through enqueuePushEvent for batching (30s window, max 20 stored payloads)
+- [x] Backend: tRPC procedures — getPreferences, updatePreferences in notifications router
+- [x] Frontend: NotificationSettings page with 5 event-type toggles (SMS, email, appointment, AI call, Facebook lead)
+- [x] Frontend: Subscribe/unsubscribe button wired to usePushNotifications hook with permission status
+- [x] Frontend: Quiet hours with start/end time pickers + timezone selector (17 IANA timezones)
+- [x] Frontend: Smart Batching info card explaining 15s window and auto-grouping
+- [x] Frontend: Settings page Notifications card now links to /settings/notifications
+- [x] Vitest: 30 tests — parsePreferences, isEventTypeEnabled, isWithinQuietHours (overnight, same-day, timezone, boundary), buildBatchNotification (single, grouped, names, empty), integration
+- [x] TypeScript: 0 errors, 193 total tests passing
+- [x] Checkpoint saved

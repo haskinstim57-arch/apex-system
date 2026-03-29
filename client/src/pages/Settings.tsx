@@ -413,16 +413,17 @@ export default function SettingsPage() {
 
       {/* Placeholder sections for future modules */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="bg-white border-0 card-shadow opacity-60">
+        <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/notifications'}>
           <CardContent className="pt-5 pb-4 px-5">
             <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                <Bell className="h-4 w-4 text-muted-foreground" />
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Bell className="h-4 w-4 text-primary" />
               </div>
-              <div>
-                <p className="text-sm font-medium">Notifications</p>
-                <p className="text-xs text-muted-foreground">Coming soon</p>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Push Notifications</p>
+                <p className="text-xs text-muted-foreground">Manage alerts & quiet hours</p>
               </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
