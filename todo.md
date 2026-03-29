@@ -2292,4 +2292,37 @@
 ### Testing
 - [x] 40 vitest tests passing (auth, data structure contracts, input validation, CSV export, helper functions)
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: b93bfb27)
+
+## Scheduled Email Reports
+
+### Schema
+- [x] Add scheduledReports table (19 columns: accountId, name, frequency, dayOfWeek, dayOfMonth, sendHour, timezone, reportTypes JSON, recipients JSON, periodDays, isActive, nextRunAt, lastRunAt, lastRunStatus, createdById)
+- [x] Add report_sent to notifications type enum
+- [x] Push migration with pnpm db:push
+
+### Backend
+- [x] scheduledReports tRPC router (10 procedures: list, get, create, update, toggleActive, delete, sendTest, preview, options)
+- [x] Report email generation service (generateReportEmailHTML with 4 sections: KPIs, Campaign ROI, Workflow Performance, Revenue Attribution)
+- [x] CSV attachment generation (generateReportCSV)
+- [x] Cron job running every 5 minutes checking for due reports
+- [x] SendGrid integration with per-account credentials and HTML email delivery
+- [x] In-app notification on report delivery (report_sent type)
+- [x] Audit logging for all CRUD operations
+- [x] calculateNextRunAt helper with timezone-aware scheduling
+
+### Frontend
+- [x] ScheduledReportsCard component in Settings page
+- [x] Create/edit dialog with report name, frequency picker, day-of-week/month selectors, send time, timezone, period selector
+- [x] Report type checkboxes with descriptions (4 types)
+- [x] Multi-recipient email input with add/remove
+- [x] Toggle active/inactive switch per schedule
+- [x] Send test report button
+- [x] Preview dialog with iframe rendering of report HTML
+- [x] Last sent date, status badge (Active/Paused), and next scheduled date display
+- [x] Delete confirmation dialog
+
+### Testing
+- [x] 29 vitest tests passing (input validation, report types, frequencies, DB helpers, email generation, SendGrid, notification types)
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved

@@ -995,6 +995,7 @@ export const notifications = mysqlTable("notifications", {
     "new_contact_facebook",
     "new_contact_booking",
     "missed_call",
+    "report_sent",
   ]).notNull(),
   title: varchar("title", { length: 500 }).notNull(),
   body: text("body"),
@@ -2089,3 +2090,51 @@ export const invoiceItems = mysqlTable("invoice_items", {
 });
 export type InvoiceItem = typeof invoiceItems.$inferSelect;
 export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// SCHEDULED REPORTS — Automated analytics email delivery
+// ─────────────────────────────────────────────
+export const scheduledReports = mysqlTable("scheduled_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** Display name for this report schedule */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Frequency: daily | weekly | monthly */
+  frequency: mysqlEnum("frequency", ["daily", "weekly", "monthly"]).default("weekly").notNull(),
+  /** Day of week for weekly reports (0=Sun, 1=Mon, ..., 6=Sat) */
+  dayOfWeek: int("day_of_week").default(1),
+  /** Day of month for monthly reports (1-28) */
+  dayOfMonth: int("day_of_month").default(1),
+  /** Hour to send (0-23, in account timezone) */
+  sendHour: int("send_hour").default(8).notNull(),
+  /** Timezone for scheduling (IANA format, e.g. "America/New_York") */
+  timezone: varchar("timezone", { length: 100 }).default("America/New_York").notNull(),
+  /**
+   * JSON array of report types to include:
+   * ["kpis", "campaignROI", "workflowPerformance", "revenueAttribution"]
+   */
+  reportTypes: json("report_types").$type<string[]>().notNull(),
+  /**
+   * JSON array of recipient email addresses
+   */
+  recipients: json("recipients").$type<string[]>().notNull(),
+  /** Number of days for the analytics period (e.g. 7, 30, 90) */
+  periodDays: int("period_days").default(30).notNull(),
+  /** Whether this schedule is active */
+  isActive: boolean("is_active").default(true).notNull(),
+  /** When the next report should be sent */
+  nextRunAt: timestamp("next_run_at"),
+  /** When the last report was successfully sent */
+  lastRunAt: timestamp("last_run_at"),
+  /** Result of the last run: success | failed | null */
+  lastRunStatus: varchar("last_run_status", { length: 50 }),
+  /** Error message from last failed run */
+  lastRunError: text("last_run_error"),
+  /** Who created this schedule */
+  createdById: int("created_by_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type ScheduledReport = typeof scheduledReports.$inferSelect;
+export type InsertScheduledReport = typeof scheduledReports.$inferInsert;

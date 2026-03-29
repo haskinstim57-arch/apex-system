@@ -109,6 +109,7 @@ import { ApiKeysCard } from "@/components/ApiKeysCard";
 import { AgencyBrandingCard } from "@/components/AgencyBrandingCard";
 import { WebchatWidgetsCard } from "@/components/WebchatWidgetsCard";
 import { CustomFieldsCard } from "@/components/CustomFieldsCard";
+import { ScheduledReportsCard } from "@/components/ScheduledReportsCard";
 import { useAccount } from "@/contexts/AccountContext";
 
 function IntegrationLink({
@@ -379,6 +380,11 @@ export default function SettingsPage() {
       {/* Agency Branding — visible to account owners and admins with an account selected */}
       {currentAccountId && (
         <AgencyBrandingCard accountId={currentAccountId} />
+      )}
+
+      {/* Scheduled Reports — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <ScheduledReportsCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}

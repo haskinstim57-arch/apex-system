@@ -101,6 +101,8 @@ import {
   type InsertWebchatSession,
   webchatMessages,
   type InsertWebchatMessage,
+  scheduledReports,
+  type InsertScheduledReport,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -5353,4 +5355,72 @@ export async function getUnreadWebchatCount(accountId: number) {
       )
     );
   return result?.count ?? 0;
+}
+
+// ─────────────────────────────────────────────
+// SCHEDULED REPORTS HELPERS
+// ─────────────────────────────────────────────
+
+export async function createScheduledReport(data: InsertScheduledReport) {
+  const db = await getDb();
+  if (!db) return null;
+  const [result] = await db.insert(scheduledReports).values(data);
+  return result.insertId;
+}
+
+export async function listScheduledReports(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scheduledReports)
+    .where(eq(scheduledReports.accountId, accountId))
+    .orderBy(desc(scheduledReports.createdAt));
+}
+
+export async function getScheduledReport(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [row] = await db
+    .select()
+    .from(scheduledReports)
+    .where(and(eq(scheduledReports.id, id), eq(scheduledReports.accountId, accountId)));
+  return row ?? null;
+}
+
+export async function updateScheduledReport(
+  id: number,
+  accountId: number,
+  data: Partial<InsertScheduledReport>
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(scheduledReports)
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(scheduledReports.id, id), eq(scheduledReports.accountId, accountId)));
+}
+
+export async function deleteScheduledReport(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .delete(scheduledReports)
+    .where(and(eq(scheduledReports.id, id), eq(scheduledReports.accountId, accountId)));
+}
+
+/** Find all active scheduled reports where nextRunAt <= now */
+export async function listDueScheduledReports() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(scheduledReports)
+    .where(
+      and(
+        eq(scheduledReports.isActive, true),
+        sql`${scheduledReports.nextRunAt} <= NOW()`
+      )
+    )
+    .limit(50);
 }

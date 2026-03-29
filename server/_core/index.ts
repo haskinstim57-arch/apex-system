@@ -27,6 +27,7 @@ import { inboundApiRouter } from "../webhooks/inboundApi";
 import { publicPagesRouter } from "../webhooks/publicPages";
 import { webchatWebhookRouter } from "../webhooks/webchat";
 import { webchatWidgetRouter } from "../webhooks/webchatWidget";
+import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -391,6 +392,9 @@ async function startServer() {
 
     // Start date trigger cron job (runs daily, scans contacts against date_trigger workflows)
     startDateTriggerCron();
+
+    // Start scheduled reports cron (runs every 5 min, sends due analytics reports)
+    startScheduledReportsCron();
   });
 }
 

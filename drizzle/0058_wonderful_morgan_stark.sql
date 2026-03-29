@@ -1,0 +1,22 @@
+CREATE TABLE `scheduled_reports` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`account_id` int NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`frequency` enum('daily','weekly','monthly') NOT NULL DEFAULT 'weekly',
+	`day_of_week` int DEFAULT 1,
+	`day_of_month` int DEFAULT 1,
+	`send_hour` int NOT NULL DEFAULT 8,
+	`timezone` varchar(100) NOT NULL DEFAULT 'America/New_York',
+	`report_types` json NOT NULL,
+	`recipients` json NOT NULL,
+	`period_days` int NOT NULL DEFAULT 30,
+	`is_active` boolean NOT NULL DEFAULT true,
+	`next_run_at` timestamp,
+	`last_run_at` timestamp,
+	`last_run_status` varchar(50),
+	`last_run_error` text,
+	`created_by_id` int,
+	`created_at` timestamp NOT NULL DEFAULT (now()),
+	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `scheduled_reports_id` PRIMARY KEY(`id`)
+);

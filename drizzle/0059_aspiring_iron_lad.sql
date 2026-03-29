@@ -1,0 +1,1 @@
+ALTER TABLE `notifications` MODIFY COLUMN `type` enum('inbound_message','appointment_booked','appointment_cancelled','ai_call_completed','campaign_finished','workflow_failed','new_contact_facebook','new_contact_booking','missed_call','report_sent') NOT NULL;
