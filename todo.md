@@ -2079,3 +2079,20 @@
 - [x] Add navigation link in Settings sidebar/tabs
 - [x] TypeScript check — 0 errors
 - [x] Checkpoint saved
+
+## Smart Lists & Contact Segments
+- [x] Add `contact_segments` table to drizzle/schema.ts (accountId, name, filterConfig JSON, isPreset, icon, color, contactCount)
+- [x] Push schema migration
+- [x] Backend: segment CRUD helpers in server/db.ts
+- [x] Backend: tRPC router — segments (create, list, get, update, delete, getContacts)
+- [x] Backend: dynamic filter evaluation (resolve filterConfig JSON into SQL WHERE clauses)
+- [x] Backend: integrate segments into campaign recipient targeting (add segment-based recipient selection)
+- [x] Backend: integrate segments into workflow conditions (segment membership as condition)
+- [x] Frontend: Smart Lists sidebar/panel in Contacts.tsx with saved segments
+- [x] Frontend: "Save as Smart List" button to save current filter state
+- [x] Frontend: Quick-access preset Smart Lists (Hot Leads, New This Week, Uncontacted, etc.)
+- [x] Frontend: Segment picker in Campaign Builder for recipient targeting
+- [x] Frontend: Segment condition in Automations workflow builder (via in_segment field in workflow engine)
+- [x] Write vitest tests for segments CRUD and filter evaluation
+- [x] TypeScript check — 0 errors
+- [x] Checkpoint saved

@@ -16,6 +16,9 @@ import {
   getEmailTemplate,
   createNotification,
   getContactTags,
+  getSegmentById,
+  contactMatchesSegment,
+  type SegmentFilterConfig,
 } from "../db";
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
@@ -689,6 +692,13 @@ export async function resolveContactFieldValue(
     return String(score ?? 0);
   }
 
+  // Special field: segment membership check
+  // Usage: field = "in_segment", value = segment ID
+  // Returns "true" or "false" — use with equals operator
+  if (field === "in_segment") {
+    return "__segment_check__";
+  }
+
   // Check custom fields (fields starting with "cf." or not found in standard fields)
   if (field.startsWith("cf.")) {
     const slug = field.slice(3);
@@ -736,6 +746,33 @@ async function evaluateCondition(
 
   const fieldValue = await resolveContactFieldValue(contact as Record<string, unknown>, condConfig.field, contactId);
   const compareValue = condConfig.value ?? "";
+
+  // Special handling for segment membership check
+  if (condConfig.field === "in_segment" && compareValue) {
+    try {
+      const segmentId = parseInt(compareValue, 10);
+      const segment = await getSegmentById(segmentId, accountId);
+      if (segment) {
+        const filterConfig: SegmentFilterConfig = segment.filterConfig
+          ? JSON.parse(segment.filterConfig)
+          : {};
+        const isMember = await contactMatchesSegment(contactId, accountId, filterConfig);
+        const segResult = condConfig.operator === "not_equals" ? !isMember : isMember;
+        console.log(
+          `[WorkflowEngine] Segment condition: contact ${contactId} in_segment ${segmentId} → ${segResult}`
+        );
+        return {
+          result: segResult,
+          field: condConfig.field,
+          operator: condConfig.operator,
+          fieldValue: isMember ? "true" : "false",
+          compareValue,
+        };
+      }
+    } catch (e) {
+      console.error(`[WorkflowEngine] Segment check failed:`, e);
+    }
+  }
 
   // For "has_tag" field with contains operator, check if the tag list includes the value
   const result = evaluateConditionOperator(fieldValue, condConfig.operator, compareValue);

@@ -143,6 +143,13 @@ export default function CampaignBuilder({
     { enabled: !!accountId && step === 3 }
   );
 
+  // Segments for recipient targeting
+  const { data: segments = [] } = trpc.segments.list.useQuery(
+    { accountId },
+    { enabled: !!accountId && step === 3 }
+  );
+  const addFromSegmentMut = trpc.campaigns.addRecipientsFromSegment.useMutation();
+
   // ─── Mutations ───
   const createMutation = trpc.campaigns.create.useMutation();
   const addRecipientsMutation = trpc.campaigns.addRecipients.useMutation();
@@ -754,6 +761,54 @@ export default function CampaignBuilder({
                   {selectedContacts.length} selected
                 </Badge>
               </div>
+
+              {/* Smart List Quick-Add */}
+              {segments.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap p-2 rounded-lg bg-muted/30 border border-border/30">
+                  <span className="text-[11px] font-medium text-muted-foreground">Add from Smart List:</span>
+                  {segments.map((seg: any) => (
+                    <Button
+                      key={seg.id}
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1.5"
+                      onClick={() => {
+                        // Resolve segment contacts and add them
+                        const segContacts = contacts.filter((c: any) => {
+                          const fc = seg.filterConfig ? (typeof seg.filterConfig === 'string' ? JSON.parse(seg.filterConfig) : seg.filterConfig) : {};
+                          let match = true;
+                          if (fc.status && c.status !== fc.status) match = false;
+                          if (fc.leadSource && c.leadSource !== fc.leadSource) match = false;
+                          return match;
+                        });
+                        const eligible = segContacts.filter((c: any) =>
+                          campaignType === "email" ? !!c.email : !!c.phone
+                        );
+                        const newRecipients = eligible
+                          .filter((c: any) => !selectedContacts.find((s) => s.id === c.id))
+                          .map((c: any) => ({
+                            id: c.id,
+                            firstName: c.firstName,
+                            lastName: c.lastName,
+                            email: c.email || "",
+                            phone: c.phone || "",
+                            status: c.status,
+                          }));
+                        if (newRecipients.length > 0) {
+                          setSelectedContacts((prev) => [...prev, ...newRecipients]);
+                          toast.success(`Added ${newRecipients.length} contacts from "${seg.name}"`);
+                        } else {
+                          toast.info(`No new eligible contacts in "${seg.name}"`);
+                        }
+                      }}
+                    >
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: seg.color ? `var(--${seg.color}-500, #3b82f6)` : '#3b82f6' }} />
+                      {seg.name}
+                      <span className="text-muted-foreground">({seg.contactCount})</span>
+                    </Button>
+                  ))}
+                </div>
+              )}
 
               {/* Select all / deselect */}
               <div className="flex items-center justify-between">

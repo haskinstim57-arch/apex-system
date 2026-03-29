@@ -63,6 +63,11 @@ import {
   GitMerge,
   Zap,
   TrendingUp,
+  ListFilter,
+  FolderOpen,
+  RefreshCw,
+  LayoutList,
+  Sparkles,
 } from "lucide-react";
 import {
   Popover,
@@ -180,6 +185,17 @@ export default function Contacts() {
   const [saveViewName, setSaveViewName] = useState("");
   const [activeViewId, setActiveViewId] = useState<number | null>(null);
   const [viewsOpen, setViewsOpen] = useState(false);
+
+  // Smart Lists (Segments)
+  const [segmentsOpen, setSegmentsOpen] = useState(false);
+  const [activeSegmentId, setActiveSegmentId] = useState<number | null>(null);
+  const [saveSegmentOpen, setSaveSegmentOpen] = useState(false);
+  const [saveSegmentName, setSaveSegmentName] = useState("");
+  const [saveSegmentDesc, setSaveSegmentDesc] = useState("");
+  const [saveSegmentColor, setSaveSegmentColor] = useState("blue");
+  const [editSegmentId, setEditSegmentId] = useState<number | null>(null);
+  const [editSegmentName, setEditSegmentName] = useState("");
+  const [deleteSegmentConfirm, setDeleteSegmentConfirm] = useState<number | null>(null);
 
   // Column customization
   const [sortBy, setSortBy] = useState<string>("");
@@ -395,6 +411,107 @@ export default function Contacts() {
     setSortDir("desc");
     setActiveViewId(null);
     setPage(0);
+  }
+
+  // ─── Smart Lists (Segments) ───
+  const { data: segments = [], isLoading: segmentsLoading } = trpc.segments.list.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId }
+  );
+
+  const createSegmentMut = trpc.segments.create.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Smart List "${saveSegmentName}" created with ${data.contactCount} contacts`);
+      utils.segments.list.invalidate();
+      setSaveSegmentOpen(false);
+      setSaveSegmentName("");
+      setSaveSegmentDesc("");
+      setSaveSegmentColor("blue");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateSegmentMut = trpc.segments.update.useMutation({
+    onSuccess: () => {
+      toast.success("Smart List updated");
+      utils.segments.list.invalidate();
+      setEditSegmentId(null);
+      setEditSegmentName("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteSegmentMut = trpc.segments.delete.useMutation({
+    onSuccess: () => {
+      toast.success("Smart List deleted");
+      utils.segments.list.invalidate();
+      if (activeSegmentId === deleteSegmentConfirm) {
+        clearSegment();
+      }
+      setDeleteSegmentConfirm(null);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const refreshSegmentMut = trpc.segments.refreshCount.useMutation({
+    onSuccess: () => {
+      utils.segments.list.invalidate();
+      toast.success("Count refreshed");
+    },
+  });
+
+  function applySegment(segment: typeof segments[0]) {
+    const fc = segment.filterConfig as any;
+    setSearch(fc?.search || "");
+    setStatusFilter(fc?.status || "");
+    setSourceFilter(fc?.leadSource || "");
+    setCfFilters(fc?.customFieldFilters || []);
+    setSortBy("");
+    setSortDir("desc");
+    setActiveSegmentId(segment.id);
+    setActiveViewId(null);
+    setPage(0);
+  }
+
+  function clearSegment() {
+    setSearch("");
+    setStatusFilter("");
+    setSourceFilter("");
+    setCfFilters([]);
+    setSortBy("");
+    setSortDir("desc");
+    setActiveSegmentId(null);
+    setPage(0);
+  }
+
+  function buildCurrentFilterConfig() {
+    const config: Record<string, unknown> = {};
+    if (statusFilter) config.status = statusFilter;
+    if (sourceFilter) config.leadSource = sourceFilter;
+    if (search) config.search = search;
+    if (cfFilters.length > 0) {
+      config.customFieldFilters = cfFilters.map((f) => ({
+        slug: f.slug,
+        operator: f.operator,
+        value: f.value,
+      }));
+    }
+    return config;
+  }
+
+  const SEGMENT_COLORS = [
+    { value: "blue", label: "Blue", class: "bg-blue-500" },
+    { value: "green", label: "Green", class: "bg-green-500" },
+    { value: "orange", label: "Orange", class: "bg-orange-500" },
+    { value: "red", label: "Red", class: "bg-red-500" },
+    { value: "purple", label: "Purple", class: "bg-purple-500" },
+    { value: "pink", label: "Pink", class: "bg-pink-500" },
+    { value: "cyan", label: "Cyan", class: "bg-cyan-500" },
+    { value: "amber", label: "Amber", class: "bg-amber-500" },
+  ];
+
+  function getSegmentColorClass(color: string | null) {
+    return SEGMENT_COLORS.find((c) => c.value === color)?.class || "bg-blue-500";
   }
 
   // Bulk edit custom field mutation
@@ -624,6 +741,168 @@ export default function Contacts() {
         </div>
       )}
 
+      {/* Smart Lists Bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button
+          variant={segmentsOpen ? "secondary" : "outline"}
+          size="sm"
+          className="h-8 gap-1.5 text-xs"
+          onClick={() => setSegmentsOpen(!segmentsOpen)}
+        >
+          <LayoutList className="h-3.5 w-3.5" />
+          Smart Lists
+          {segments.length > 0 && (
+            <Badge variant="secondary" className="h-4 px-1.5 text-[10px] ml-0.5">
+              {segments.length}
+            </Badge>
+          )}
+        </Button>
+        {activeSegmentId && (
+          <>
+            <Badge variant="outline" className="h-7 gap-1 text-xs font-medium bg-primary/5 border-primary/20 text-primary">
+              <ListFilter className="h-3 w-3" />
+              {segments.find((s) => s.id === activeSegmentId)?.name || "Segment"}
+            </Badge>
+            <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={clearSegment}>
+              <X className="h-3 w-3 mr-1" /> Clear
+            </Button>
+          </>
+        )}
+        {segments.filter((s) => !s.isPreset).slice(0, 5).map((seg) => (
+          <Button
+            key={seg.id}
+            variant={activeSegmentId === seg.id ? "secondary" : "ghost"}
+            size="sm"
+            className={`h-7 text-xs gap-1.5 ${activeSegmentId === seg.id ? "bg-primary/10 text-primary" : ""}`}
+            onClick={() => applySegment(seg)}
+          >
+            <div className={`h-2 w-2 rounded-full ${getSegmentColorClass(seg.color)}`} />
+            {seg.name}
+            <span className="text-muted-foreground">({seg.contactCount})</span>
+          </Button>
+        ))}
+      </div>
+
+      {/* Smart Lists Expanded Panel */}
+      {segmentsOpen && (
+        <Card className="border-border/50">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LayoutList className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold">Smart Lists</h3>
+                <span className="text-xs text-muted-foreground">({segments.length})</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs gap-1"
+                  onClick={() => setSaveSegmentOpen(true)}
+                >
+                  <Plus className="h-3 w-3" />
+                  Save Current Filters
+                </Button>
+              </div>
+            </div>
+
+            {segmentsLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : segments.length === 0 ? (
+              <div className="text-center py-6">
+                <FolderOpen className="h-8 w-8 text-muted-foreground/50 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No Smart Lists yet</p>
+                <p className="text-xs text-muted-foreground/70 mt-1">Apply filters and save them as a Smart List for quick access</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {segments.map((seg) => (
+                  <div
+                    key={seg.id}
+                    className={`group relative flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all hover:bg-muted/50 ${
+                      activeSegmentId === seg.id ? "border-primary/40 bg-primary/5" : "border-border/50"
+                    }`}
+                    onClick={() => applySegment(seg)}
+                  >
+                    <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-white text-xs font-bold ${getSegmentColorClass(seg.color)}`}>
+                      {seg.contactCount}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {editSegmentId === seg.id ? (
+                        <Input
+                          value={editSegmentName}
+                          onChange={(e) => setEditSegmentName(e.target.value)}
+                          className="h-6 text-xs px-1"
+                          autoFocus
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && editSegmentName.trim()) {
+                              updateSegmentMut.mutate({
+                                id: seg.id,
+                                accountId: accountId!,
+                                name: editSegmentName.trim(),
+                              });
+                            }
+                            if (e.key === "Escape") {
+                              setEditSegmentId(null);
+                            }
+                          }}
+                        />
+                      ) : (
+                        <p className="text-sm font-medium truncate">{seg.name}</p>
+                      )}
+                      {seg.description && (
+                        <p className="text-[11px] text-muted-foreground truncate">{seg.description}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          refreshSegmentMut.mutate({ id: seg.id, accountId: accountId! });
+                        }}
+                      >
+                        <RefreshCw className={`h-3 w-3 ${refreshSegmentMut.isPending ? "animate-spin" : ""}`} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditSegmentId(seg.id);
+                          setEditSegmentName(seg.name);
+                        }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete Smart List "${seg.name}"?`)) {
+                            deleteSegmentMut.mutate({ id: seg.id, accountId: accountId! });
+                          }
+                        }}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Search & Filters */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
@@ -724,6 +1003,81 @@ export default function Contacts() {
               >
                 {saveViewMut.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                 Save Current View
+              </Button>
+            </div>
+          </PopoverContent>
+        </Popover>
+
+        {/* Save as Smart List */}
+        <Popover open={saveSegmentOpen} onOpenChange={setSaveSegmentOpen}>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-9 gap-1.5 border-border/50">
+              <Sparkles className="h-3.5 w-3.5" />
+              Save Smart List
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-72 p-3" align="end">
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Smart List Name</Label>
+                <Input
+                  placeholder="e.g. Hot Leads, FHA Borrowers"
+                  value={saveSegmentName}
+                  onChange={(e) => setSaveSegmentName(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Description (optional)</Label>
+                <Input
+                  placeholder="Brief description..."
+                  value={saveSegmentDesc}
+                  onChange={(e) => setSaveSegmentDesc(e.target.value)}
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Color</Label>
+                <div className="flex items-center gap-1.5">
+                  {SEGMENT_COLORS.map((c) => (
+                    <button
+                      key={c.value}
+                      className={`h-6 w-6 rounded-full ${c.class} transition-all ${
+                        saveSegmentColor === c.value ? "ring-2 ring-offset-2 ring-primary" : "opacity-60 hover:opacity-100"
+                      }`}
+                      onClick={() => setSaveSegmentColor(c.value)}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="p-2 rounded bg-muted/50 text-[11px] text-muted-foreground">
+                <p className="font-medium mb-1">Current filters will be saved:</p>
+                <ul className="space-y-0.5">
+                  {statusFilter && <li>Status: {statusFilter}</li>}
+                  {sourceFilter && <li>Source: {sourceFilter}</li>}
+                  {search && <li>Search: "{search}"</li>}
+                  {cfFilters.length > 0 && <li>{cfFilters.length} custom field filter(s)</li>}
+                  {!statusFilter && !sourceFilter && !search && cfFilters.length === 0 && (
+                    <li className="italic">No filters applied — will match all contacts</li>
+                  )}
+                </ul>
+              </div>
+              <Button
+                size="sm"
+                className="w-full h-8 text-xs"
+                disabled={!saveSegmentName.trim() || createSegmentMut.isPending}
+                onClick={() => {
+                  createSegmentMut.mutate({
+                    accountId: accountId!,
+                    name: saveSegmentName.trim(),
+                    description: saveSegmentDesc.trim() || undefined,
+                    filterConfig: buildCurrentFilterConfig(),
+                    color: saveSegmentColor,
+                  });
+                }}
+              >
+                {createSegmentMut.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                Create Smart List
               </Button>
             </div>
           </PopoverContent>

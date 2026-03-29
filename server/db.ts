@@ -83,6 +83,8 @@ import {
   type InsertLeadScoringRule,
   leadScoreHistory,
   type InsertLeadScoreHistoryEntry,
+  contactSegments,
+  type InsertContactSegment,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -4420,4 +4422,301 @@ export async function updateContactLeadScore(
     .update(contacts)
     .set({ leadScore: newScore })
     .where(and(eq(contacts.id, contactId), eq(contacts.accountId, accountId)));
+}
+
+// ─────────────────────────────────────────────
+// CONTACT SEGMENTS — Smart Lists with dynamic filters
+// ─────────────────────────────────────────────
+
+export interface SegmentFilterConfig {
+  status?: string;
+  leadSource?: string;
+  tags?: string[];
+  tagsAny?: string[];
+  assignedUserId?: number;
+  search?: string;
+  scoreMin?: number;
+  scoreMax?: number;
+  createdAfter?: string;
+  createdBefore?: string;
+  hasEmail?: boolean;
+  hasPhone?: boolean;
+  customFieldFilters?: Array<{ slug: string; operator: string; value?: string }>;
+}
+
+export async function createSegment(data: InsertContactSegment) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(contactSegments).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function listSegments(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(contactSegments)
+    .where(eq(contactSegments.accountId, accountId))
+    .orderBy(desc(contactSegments.updatedAt));
+}
+
+export async function getSegmentById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(contactSegments)
+    .where(and(eq(contactSegments.id, id), eq(contactSegments.accountId, accountId)))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function updateSegment(
+  id: number,
+  accountId: number,
+  data: Partial<InsertContactSegment>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(contactSegments)
+    .set(data)
+    .where(and(eq(contactSegments.id, id), eq(contactSegments.accountId, accountId)));
+}
+
+export async function deleteSegment(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(contactSegments)
+    .where(and(eq(contactSegments.id, id), eq(contactSegments.accountId, accountId)));
+}
+
+/**
+ * Resolve a segment's filterConfig into matching contact IDs.
+ * This is the core dynamic evaluation engine — it builds SQL WHERE clauses
+ * from the JSON filter config and returns the matching contact IDs.
+ */
+export async function resolveSegmentContacts(
+  accountId: number,
+  filterConfig: SegmentFilterConfig,
+  opts?: { limit?: number; offset?: number; countOnly?: boolean }
+): Promise<{ ids: number[]; total: number }> {
+  const db = await getDb();
+  if (!db) return { ids: [], total: 0 };
+
+  const conditions = [eq(contacts.accountId, accountId)];
+
+  // Status filter
+  if (filterConfig.status) {
+    conditions.push(eq(contacts.status, filterConfig.status as any));
+  }
+
+  // Lead source filter
+  if (filterConfig.leadSource) {
+    conditions.push(eq(contacts.leadSource, filterConfig.leadSource));
+  }
+
+  // Assigned user filter
+  if (filterConfig.assignedUserId) {
+    conditions.push(eq(contacts.assignedUserId, filterConfig.assignedUserId));
+  }
+
+  // Search filter
+  if (filterConfig.search) {
+    const term = `%${filterConfig.search}%`;
+    conditions.push(
+      or(
+        like(contacts.firstName, term),
+        like(contacts.lastName, term),
+        like(contacts.email, term),
+        like(contacts.phone, term),
+        like(contacts.company, term)
+      )!
+    );
+  }
+
+  // Lead score range
+  if (filterConfig.scoreMin !== undefined) {
+    conditions.push(sql`${contacts.leadScore} >= ${filterConfig.scoreMin}`);
+  }
+  if (filterConfig.scoreMax !== undefined) {
+    conditions.push(sql`${contacts.leadScore} <= ${filterConfig.scoreMax}`);
+  }
+
+  // Date range filters
+  if (filterConfig.createdAfter) {
+    conditions.push(sql`${contacts.createdAt} >= ${filterConfig.createdAfter}`);
+  }
+  if (filterConfig.createdBefore) {
+    conditions.push(sql`${contacts.createdAt} <= ${filterConfig.createdBefore}`);
+  }
+
+  // Has email / has phone
+  if (filterConfig.hasEmail === true) {
+    conditions.push(sql`${contacts.email} IS NOT NULL AND ${contacts.email} != ''`);
+  }
+  if (filterConfig.hasPhone === true) {
+    conditions.push(sql`${contacts.phone} IS NOT NULL AND ${contacts.phone} != ''`);
+  }
+
+  // Custom field filters
+  if (filterConfig.customFieldFilters && filterConfig.customFieldFilters.length > 0) {
+    for (const cf of filterConfig.customFieldFilters) {
+      const jsonPath = sql.raw(`JSON_UNQUOTE(JSON_EXTRACT(customFields, '$.${cf.slug.replace(/'/g, "''")}'))`);
+      switch (cf.operator) {
+        case "equals":
+          conditions.push(sql`${jsonPath} = ${cf.value ?? ""}`);
+          break;
+        case "not_equals":
+          conditions.push(sql`${jsonPath} != ${cf.value ?? ""}`);
+          break;
+        case "contains":
+          conditions.push(sql`${jsonPath} LIKE ${`%${cf.value ?? ""}%`}`);
+          break;
+        case "greater_than":
+          conditions.push(sql`CAST(${jsonPath} AS DECIMAL(20,2)) > ${parseFloat(cf.value ?? "0")}`);
+          break;
+        case "less_than":
+          conditions.push(sql`CAST(${jsonPath} AS DECIMAL(20,2)) < ${parseFloat(cf.value ?? "0")}`);
+          break;
+        case "is_empty":
+          conditions.push(sql`(${jsonPath} IS NULL OR ${jsonPath} = '' OR ${jsonPath} = 'null')`);
+          break;
+        case "is_not_empty":
+          conditions.push(sql`(${jsonPath} IS NOT NULL AND ${jsonPath} != '' AND ${jsonPath} != 'null')`);
+          break;
+      }
+    }
+  }
+
+  // Tag filters (ALL tags required)
+  if (filterConfig.tags && filterConfig.tags.length > 0) {
+    for (const tag of filterConfig.tags) {
+      const tagSubquery = sql`EXISTS (
+        SELECT 1 FROM contact_tags ct
+        WHERE ct.contact_id = ${contacts.id} AND ct.tag = ${tag}
+      )`;
+      conditions.push(tagSubquery);
+    }
+  }
+
+  // Tag filters (ANY tag matches)
+  if (filterConfig.tagsAny && filterConfig.tagsAny.length > 0) {
+    const tagValues = filterConfig.tagsAny;
+    const tagSubquery = sql`EXISTS (
+      SELECT 1 FROM contact_tags ct
+      WHERE ct.contact_id = ${contacts.id} AND ct.tag IN (${sql.join(tagValues.map(t => sql`${t}`), sql`, `)})
+    )`;
+    conditions.push(tagSubquery);
+  }
+
+  const whereClause = and(...conditions);
+
+  // Count
+  const [countResult] = await db
+    .select({ total: sql<number>`count(*)` })
+    .from(contacts)
+    .where(whereClause);
+  const total = countResult?.total ?? 0;
+
+  if (opts?.countOnly) {
+    return { ids: [], total };
+  }
+
+  // Get IDs
+  let query = db
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(whereClause)
+    .orderBy(desc(contacts.createdAt));
+
+  if (opts?.limit) {
+    query = query.limit(opts.limit) as any;
+  }
+  if (opts?.offset) {
+    query = query.offset(opts.offset) as any;
+  }
+
+  const rows = await query;
+  return { ids: rows.map((r) => r.id), total };
+}
+
+/**
+ * Refresh the cached contact count for a segment
+ */
+export async function refreshSegmentCount(id: number, accountId: number) {
+  const segment = await getSegmentById(id, accountId);
+  if (!segment) return;
+
+  const filterConfig: SegmentFilterConfig = segment.filterConfig
+    ? JSON.parse(segment.filterConfig)
+    : {};
+
+  const { total } = await resolveSegmentContacts(accountId, filterConfig, { countOnly: true });
+
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(contactSegments)
+    .set({ contactCount: total, countRefreshedAt: new Date() })
+    .where(and(eq(contactSegments.id, id), eq(contactSegments.accountId, accountId)));
+
+  return total;
+}
+
+/**
+ * Check if a specific contact matches a segment's filter config
+ */
+export async function contactMatchesSegment(
+  contactId: number,
+  accountId: number,
+  filterConfig: SegmentFilterConfig
+): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+
+  const { ids } = await resolveSegmentContacts(accountId, filterConfig, { limit: 1 });
+  // We need to check if this specific contact is in the result
+  // More efficient: add contactId condition
+  const conditions = [eq(contacts.accountId, accountId), eq(contacts.id, contactId)];
+
+  // Reuse the same filter logic but with the contactId constraint
+  const fullConditions = [...conditions];
+
+  if (filterConfig.status) {
+    fullConditions.push(eq(contacts.status, filterConfig.status as any));
+  }
+  if (filterConfig.leadSource) {
+    fullConditions.push(eq(contacts.leadSource, filterConfig.leadSource));
+  }
+  if (filterConfig.scoreMin !== undefined) {
+    fullConditions.push(sql`${contacts.leadScore} >= ${filterConfig.scoreMin}`);
+  }
+  if (filterConfig.scoreMax !== undefined) {
+    fullConditions.push(sql`${contacts.leadScore} <= ${filterConfig.scoreMax}`);
+  }
+  if (filterConfig.hasEmail === true) {
+    fullConditions.push(sql`${contacts.email} IS NOT NULL AND ${contacts.email} != ''`);
+  }
+  if (filterConfig.hasPhone === true) {
+    fullConditions.push(sql`${contacts.phone} IS NOT NULL AND ${contacts.phone} != ''`);
+  }
+  if (filterConfig.tags && filterConfig.tags.length > 0) {
+    for (const tag of filterConfig.tags) {
+      fullConditions.push(sql`EXISTS (
+        SELECT 1 FROM contact_tags ct
+        WHERE ct.contact_id = ${contacts.id} AND ct.tag = ${tag}
+      )`);
+    }
+  }
+
+  const [result] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(contacts)
+    .where(and(...fullConditions))
+    .limit(1);
+
+  return (result?.count ?? 0) > 0;
 }

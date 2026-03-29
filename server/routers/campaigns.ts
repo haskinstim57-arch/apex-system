@@ -19,6 +19,10 @@ import {
   removeCampaignRecipient,
   getCampaignStats,
   getMember,
+  getSegmentById,
+  resolveSegmentContacts,
+  listContacts,
+  type SegmentFilterConfig,
 } from "../db";
 
 // ─────────────────────────────────────────────
@@ -534,5 +538,68 @@ export const campaignsRouter = router({
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
       await updateCampaign(input.id, input.accountId, { status: "cancelled" });
       return { success: true };
+    }),
+
+  /** Add recipients from a segment (Smart List) to a campaign */
+  addRecipientsFromSegment: protectedProcedure
+    .input(
+      z.object({
+        campaignId: z.number().int().positive(),
+        accountId: z.number().int().positive(),
+        segmentId: z.number().int().positive(),
+        /** Campaign type determines which field to use as toAddress */
+        type: z.enum(["email", "sms"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+
+      const campaign = await getCampaign(input.campaignId, input.accountId);
+      if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
+
+      const segment = await getSegmentById(input.segmentId, input.accountId);
+      if (!segment) throw new TRPCError({ code: "NOT_FOUND", message: "Segment not found" });
+
+      const filterConfig: SegmentFilterConfig = segment.filterConfig
+        ? JSON.parse(segment.filterConfig)
+        : {};
+
+      // Get all matching contact IDs
+      const { ids } = await resolveSegmentContacts(input.accountId, filterConfig);
+      if (ids.length === 0) {
+        return { success: true, added: 0, skipped: 0 };
+      }
+
+      // Fetch contact details to get email/phone
+      const contactsResult = await listContacts({
+        accountId: input.accountId,
+        limit: ids.length,
+        offset: 0,
+      });
+
+      const contactMap = new Map(contactsResult.data.map((c) => [c.id, c]));
+
+      const recipients: Array<{ contactId: number; toAddress: string }> = [];
+      let skipped = 0;
+
+      for (const id of ids) {
+        const contact = contactMap.get(id);
+        if (!contact) { skipped++; continue; }
+
+        const toAddress = input.type === "email" ? contact.email : contact.phone;
+        if (!toAddress) { skipped++; continue; }
+
+        recipients.push({ contactId: id, toAddress });
+      }
+
+      if (recipients.length > 0) {
+        await addCampaignRecipients(input.campaignId, recipients);
+        const stats = await getCampaignRecipientStats(input.campaignId);
+        await updateCampaign(input.campaignId, input.accountId, {
+          totalRecipients: stats.total,
+        });
+      }
+
+      return { success: true, added: recipients.length, skipped };
     }),
 });

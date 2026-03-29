@@ -1715,3 +1715,51 @@ export const leadScoreHistory = mysqlTable("lead_score_history", {
 });
 export type LeadScoreHistoryEntry = typeof leadScoreHistory.$inferSelect;
 export type InsertLeadScoreHistoryEntry = typeof leadScoreHistory.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CONTACT SEGMENTS — account-level smart lists with dynamic filter configs
+// ─────────────────────────────────────────────
+export const contactSegments = mysqlTable("contact_segments", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this segment belongs to */
+  accountId: int("account_id").notNull(),
+  /** Display name, e.g. "Hot Leads", "New This Week" */
+  name: varchar("name", { length: 150 }).notNull(),
+  /** Optional description */
+  description: varchar("description", { length: 500 }),
+  /** Optional icon identifier (lucide icon name) */
+  icon: varchar("icon", { length: 50 }),
+  /** Optional color for the segment badge */
+  color: varchar("color", { length: 30 }),
+  /**
+   * JSON filter configuration. Structure:
+   * {
+   *   status?: string,
+   *   leadSource?: string,
+   *   tags?: string[],             // contact must have ALL these tags
+   *   tagsAny?: string[],          // contact must have ANY of these tags
+   *   assignedUserId?: number,
+   *   search?: string,
+   *   scoreMin?: number,           // leadScore >= scoreMin
+   *   scoreMax?: number,           // leadScore <= scoreMax
+   *   createdAfter?: string,       // ISO date string
+   *   createdBefore?: string,      // ISO date string
+   *   hasEmail?: boolean,          // contact has non-null email
+   *   hasPhone?: boolean,          // contact has non-null phone
+   *   customFieldFilters?: Array<{ slug: string, operator: string, value?: string }>
+   * }
+   */
+  filterConfig: text("filter_config").notNull(),
+  /** Whether this is a system-generated preset (cannot be deleted by users) */
+  isPreset: boolean("is_preset").default(false).notNull(),
+  /** Cached contact count (updated periodically or on demand) */
+  contactCount: int("contact_count").default(0).notNull(),
+  /** Last time the contact count was refreshed */
+  countRefreshedAt: timestamp("count_refreshed_at"),
+  /** User who created this segment */
+  createdById: int("created_by_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type ContactSegment = typeof contactSegments.$inferSelect;
+export type InsertContactSegment = typeof contactSegments.$inferInsert;
