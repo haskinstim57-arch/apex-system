@@ -183,6 +183,8 @@ export const contacts = mysqlTable("contacts", {
   zip: varchar("zip", { length: 20 }),
   /** Date of birth */
   dateOfBirth: timestamp("dateOfBirth"),
+  /** Lead score (0-100+, higher = hotter lead) */
+  leadScore: int("leadScore").default(0).notNull(),
   /** Custom fields JSON */
   customFields: text("customFields"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -447,6 +449,7 @@ export const workflows = mysqlTable("workflows", {
     "missed_call",
     "form_submitted",
     "date_trigger",
+    "score_changed",
   ]).notNull(),
   /** JSON config for trigger (e.g., which tag, which stage) */
   triggerConfig: text("triggerConfig"),
@@ -925,6 +928,7 @@ export const contactActivities = mysqlTable("contact_activities", {
     "task_created",
     "task_completed",
     "lead_routed",
+    "lead_score_changed",
   ]).notNull(),
   /** Human-readable description of the activity */
   description: text("description").notNull(),
@@ -1420,6 +1424,7 @@ export const outboundWebhooks = mysqlTable("outbound_webhooks", {
     "form_submitted",
     "review_received",
     "workflow_completed",
+    "score_changed",
   ]).notNull(),
   /** The destination URL to POST event payloads to */
   url: text("url").notNull(),
@@ -1630,3 +1635,83 @@ export const savedViews = mysqlTable("saved_views", {
 });
 export type SavedView = typeof savedViews.$inferSelect;
 export type InsertSavedView = typeof savedViews.$inferInsert;
+
+// ─────────────────────────────────────────────
+// LEAD SCORING RULES — configurable scoring rules per account
+// Each rule awards/deducts points when a specific event occurs,
+// optionally filtered by a JSON condition.
+// ─────────────────────────────────────────────
+export const leadScoringRules = mysqlTable("lead_scoring_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this rule belongs to */
+  accountId: int("account_id").notNull(),
+  /** Human-readable rule name */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** The event that triggers this scoring rule */
+  event: mysqlEnum("event", [
+    "contact_created",
+    "tag_added",
+    "pipeline_stage_changed",
+    "inbound_message_received",
+    "appointment_booked",
+    "appointment_cancelled",
+    "call_completed",
+    "missed_call",
+    "form_submitted",
+    "email_opened",
+    "link_clicked",
+    "facebook_lead_received",
+  ]).notNull(),
+  /** Points to add (positive) or subtract (negative) */
+  delta: int("delta").notNull(),
+  /** Optional JSON condition that must match for the rule to fire.
+   *  e.g. { "field": "leadSource", "operator": "equals", "value": "Facebook" }
+   *  or { "tag": "VIP" } for tag_added events */
+  condition: json("condition").$type<LeadScoringCondition | null>(),
+  /** Whether this rule is active */
+  isActive: boolean("is_active").default(true).notNull(),
+  /** Display order */
+  sortOrder: int("sort_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+/** Condition for lead scoring rule */
+export interface LeadScoringCondition {
+  field?: string;
+  operator?: "equals" | "not_equals" | "contains" | "greater_than" | "less_than";
+  value?: string;
+  /** For tag_added events: only fire when this specific tag is added */
+  tag?: string;
+  /** For pipeline_stage_changed: only fire when moving to this status */
+  toStatus?: string;
+  /** For inbound_message_received: only fire for this channel */
+  channel?: "sms" | "email";
+}
+
+export type LeadScoringRule = typeof leadScoringRules.$inferSelect;
+export type InsertLeadScoringRule = typeof leadScoringRules.$inferInsert;
+
+// ─────────────────────────────────────────────
+// LEAD SCORE HISTORY — audit trail for score changes
+// ─────────────────────────────────────────────
+export const leadScoreHistory = mysqlTable("lead_score_history", {
+  id: int("id").autoincrement().primaryKey(),
+  contactId: int("contact_id").notNull(),
+  accountId: int("account_id").notNull(),
+  /** The rule that triggered this change (null for manual adjustments) */
+  ruleId: int("rule_id"),
+  /** The event that caused the score change */
+  event: varchar("event", { length: 100 }).notNull(),
+  /** Points added/subtracted */
+  delta: int("delta").notNull(),
+  /** Score before the change */
+  scoreBefore: int("score_before").notNull(),
+  /** Score after the change */
+  scoreAfter: int("score_after").notNull(),
+  /** Human-readable reason */
+  reason: varchar("reason", { length: 500 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type LeadScoreHistoryEntry = typeof leadScoreHistory.$inferSelect;
+export type InsertLeadScoreHistoryEntry = typeof leadScoreHistory.$inferInsert;

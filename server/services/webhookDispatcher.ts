@@ -18,7 +18,8 @@ export type WebhookEvent =
   | "missed_call"
   | "form_submitted"
   | "review_received"
-  | "workflow_completed";
+  | "workflow_completed"
+  | "score_changed";
 
 export interface WebhookPayload {
   event: WebhookEvent;

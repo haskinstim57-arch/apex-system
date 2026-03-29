@@ -55,6 +55,7 @@ const triggerTypeEnum = z.enum([
   "missed_call",
   "form_submitted",
   "date_trigger",
+  "score_changed",
 ]);
 
 const actionTypeEnum = z.enum([

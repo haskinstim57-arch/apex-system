@@ -330,6 +330,34 @@
       "when": 1774748214305,
       "tag": "0046_lucky_songbird",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "5",
+      "when": 1774753285143,
+      "tag": "0047_tricky_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "5",
+      "when": 1774753471286,
+      "tag": "0048_massive_lily_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "5",
+      "when": 1774753605144,
+      "tag": "0049_mature_weapon_omega",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "5",
+      "when": 1774753691113,
+      "tag": "0050_hard_vargas",
+      "breakpoints": true
     }
   ]
 }

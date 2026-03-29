@@ -37,6 +37,7 @@ import { columnPreferencesRouter } from "./routers/columnPreferences";
 import { customFieldAnalyticsRouter } from "./routers/customFieldAnalytics";
 import { savedViewsRouter } from "./routers/savedViews";
 import { contactMergeRouter } from "./routers/contactMerge";
+import { leadScoringRouter } from "./routers/leadScoring";
 
 export const appRouter = router({
   system: systemRouter,
@@ -85,6 +86,7 @@ export const appRouter = router({
   customFieldAnalytics: customFieldAnalyticsRouter,
   savedViews: savedViewsRouter,
   contactMerge: contactMergeRouter,
+  leadScoring: leadScoringRouter,
 });
 
 export type AppRouter = typeof appRouter;

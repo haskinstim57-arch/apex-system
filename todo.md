@@ -2056,3 +2056,19 @@
 - [x] Write 27 vitest tests for duplicate detection and merge logic (all passing)
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Checkpoint saved
+
+## Lead Scoring Module
+- [x] Add `leadScore` integer field to contacts table (default 0)
+- [x] Create `lead_scoring_rules` table (accountId, event, delta, condition JSON, isActive)
+- [x] Push schema migration
+- [x] Build lead scoring rules CRUD router (list, create, update, delete)
+- [x] Build lead scoring engine service (applyLeadScore: evaluate rules for event, update contact score)
+- [x] Wire scoring engine into event sources: SMS reply, appointment booked, call completed, form submitted, email opened, tag added, pipeline stage changed
+- [x] Add `score_changed` workflow trigger type
+- [x] Add `leadScore` as a condition field in workflow condition evaluator
+- [x] Display lead score on contact cards in Contacts.tsx with color coding (cold/warm/hot)
+- [x] Add score column to contacts list with sorting support
+- [ ] Build Lead Scoring Rules management UI in Settings
+- [x] Write vitest tests for lead scoring logic
+- [x] TypeScript check — 0 errors
+- [x] Checkpoint saved

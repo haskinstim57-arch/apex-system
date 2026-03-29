@@ -683,6 +683,12 @@ export async function resolveContactFieldValue(
     return tags.map((t) => t.tag).join(",");
   }
 
+  // Special field: lead score (always numeric)
+  if (field === "leadScore" || field === "lead_score") {
+    const score = contact.leadScore;
+    return String(score ?? 0);
+  }
+
   // Check custom fields (fields starting with "cf." or not found in standard fields)
   if (field.startsWith("cf.")) {
     const slug = field.slice(3);

@@ -1,6 +1,7 @@
 import { getActiveWorkflowsByTrigger } from "../db";
 import { triggerWorkflow } from "./workflowEngine";
 import { dispatchWebhookEvent } from "./webhookDispatcher";
+import { processLeadScoringEvent } from "./leadScoringEngine";
 
 // ─────────────────────────────────────────────
 // Workflow Trigger Service
@@ -24,6 +25,10 @@ export async function onContactCreated(accountId: number, contactId: number) {
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "contact_created", { contactId }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "contact_created", contactId, accountId }).catch((err) =>
+      console.error("[LeadScoring] contact_created error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onContactCreated error:", err);
   }
@@ -44,6 +49,10 @@ export async function onTagAdded(accountId: number, contactId: number, tag: stri
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "tag_added", { contactId, tag }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "tag_added", contactId, accountId, tag }).catch((err) =>
+      console.error("[LeadScoring] tag_added error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onTagAdded error:", err);
   }
@@ -77,6 +86,10 @@ export async function onPipelineStageChanged(
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "pipeline_stage_changed", { contactId, fromStatus, toStatus }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "pipeline_stage_changed", contactId, accountId, toStatus }).catch((err) =>
+      console.error("[LeadScoring] pipeline_stage_changed error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onPipelineStageChanged error:", err);
   }
@@ -99,6 +112,10 @@ export async function onFacebookLeadReceived(accountId: number, contactId: numbe
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "facebook_lead_received", { contactId }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "facebook_lead_received", contactId, accountId }).catch((err) =>
+      console.error("[LeadScoring] facebook_lead_received error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onFacebookLeadReceived error:", err);
   }
@@ -121,6 +138,10 @@ export async function onCallCompleted(accountId: number, contactId: number) {
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "call_completed", { contactId }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "call_completed", contactId, accountId }).catch((err) =>
+      console.error("[LeadScoring] call_completed error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onCallCompleted error:", err);
   }
@@ -150,6 +171,10 @@ export async function onInboundMessageReceived(
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "inbound_message_received", { contactId, channel }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "inbound_message_received", contactId, accountId, channel }).catch((err) =>
+      console.error("[LeadScoring] inbound_message_received error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onInboundMessageReceived error:", err);
   }
@@ -180,6 +205,10 @@ export async function onAppointmentBooked(
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "appointment_booked", { contactId, appointmentId, calendarId }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "appointment_booked", contactId, accountId }).catch((err) =>
+      console.error("[LeadScoring] appointment_booked error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onAppointmentBooked error:", err);
   }
@@ -206,6 +235,10 @@ export async function onAppointmentCancelled(
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "appointment_cancelled", { contactId, appointmentId }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "appointment_cancelled", contactId, accountId }).catch((err) =>
+      console.error("[LeadScoring] appointment_cancelled error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onAppointmentCancelled error:", err);
   }
@@ -228,6 +261,10 @@ export async function onMissedCall(accountId: number, contactId: number) {
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "missed_call", { contactId }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "missed_call", contactId, accountId }).catch((err) =>
+      console.error("[LeadScoring] missed_call error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onMissedCall error:", err);
   }
@@ -257,6 +294,10 @@ export async function onFormSubmitted(
     }
     // Dispatch outbound webhook
     dispatchWebhookEvent(accountId, "form_submitted", { contactId, formId: formId || null }).catch(() => {});
+    // Lead scoring
+    processLeadScoringEvent({ event: "form_submitted", contactId, accountId }).catch((err) =>
+      console.error("[LeadScoring] form_submitted error:", err)
+    );
   } catch (err) {
     console.error("[Triggers] onFormSubmitted error:", err);
   }
@@ -287,5 +328,37 @@ export async function onDateTriggerCheck(
     }
   } catch (err) {
     console.error("[Triggers] onDateTriggerCheck error:", err);
+  }
+}
+
+/**
+ * Fire when a contact's lead score changes.
+ * Matches workflows with triggerType = "score_changed"
+ * Optionally filters by triggerConfig.minScore / triggerConfig.maxScore thresholds.
+ */
+export async function onLeadScoreChanged(
+  accountId: number,
+  contactId: number,
+  newScore: number
+) {
+  try {
+    const workflows = await getActiveWorkflowsByTrigger(accountId, "score_changed");
+    for (const wf of workflows) {
+      const config = wf.triggerConfig ? JSON.parse(wf.triggerConfig) : {};
+      // If config specifies a minScore threshold, only fire if newScore >= minScore
+      if (config.minScore !== undefined && newScore < Number(config.minScore)) continue;
+      // If config specifies a maxScore threshold, only fire if newScore <= maxScore
+      if (config.maxScore !== undefined && newScore > Number(config.maxScore)) continue;
+      await triggerWorkflow(wf, contactId, accountId, `score_changed:${newScore}`);
+    }
+    if (workflows.length > 0) {
+      console.log(
+        `[Triggers] score_changed: fired ${workflows.length} workflow(s) for contact ${contactId}, score=${newScore}`
+      );
+    }
+    // Dispatch outbound webhook
+    dispatchWebhookEvent(accountId, "score_changed", { contactId, newScore }).catch(() => {});
+  } catch (err) {
+    console.error("[Triggers] onLeadScoreChanged error:", err);
   }
 }

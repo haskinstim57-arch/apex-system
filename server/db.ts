@@ -79,6 +79,10 @@ import {
   type InsertDialerScript,
   leadRoutingRules,
   type InsertLeadRoutingRule,
+  leadScoringRules,
+  type InsertLeadScoringRule,
+  leadScoreHistory,
+  type InsertLeadScoreHistoryEntry,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -4308,4 +4312,112 @@ export async function getExecutionHistoryWithWorkflow(
   ]);
 
   return { executions: rows, total: countResult[0]?.total ?? 0 };
+}
+
+
+// ─────────────────────────────────────────────
+// LEAD SCORING RULES HELPERS
+// ─────────────────────────────────────────────
+
+export async function listLeadScoringRules(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(leadScoringRules)
+    .where(eq(leadScoringRules.accountId, accountId))
+    .orderBy(leadScoringRules.sortOrder);
+}
+
+export async function getLeadScoringRuleById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const [rule] = await db
+    .select()
+    .from(leadScoringRules)
+    .where(and(eq(leadScoringRules.id, id), eq(leadScoringRules.accountId, accountId)));
+  return rule ?? null;
+}
+
+export async function createLeadScoringRule(data: InsertLeadScoringRule) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(leadScoringRules).values(data).$returningId();
+  return { id: result.id };
+}
+
+export async function updateLeadScoringRule(
+  id: number,
+  accountId: number,
+  data: Partial<InsertLeadScoringRule>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(leadScoringRules)
+    .set(data)
+    .where(and(eq(leadScoringRules.id, id), eq(leadScoringRules.accountId, accountId)));
+}
+
+export async function deleteLeadScoringRule(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(leadScoringRules)
+    .where(and(eq(leadScoringRules.id, id), eq(leadScoringRules.accountId, accountId)));
+}
+
+export async function getActiveLeadScoringRulesByEvent(accountId: number, event: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(leadScoringRules)
+    .where(
+      and(
+        eq(leadScoringRules.accountId, accountId),
+        eq(leadScoringRules.event, event as any),
+        eq(leadScoringRules.isActive, true)
+      )
+    );
+}
+
+// ─────────────────────────────────────────────
+// LEAD SCORE HISTORY HELPERS
+// ─────────────────────────────────────────────
+
+export async function createLeadScoreHistoryEntry(data: InsertLeadScoreHistoryEntry) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(leadScoreHistory).values(data).$returningId();
+  return { id: result.id };
+}
+
+export async function getLeadScoreHistory(contactId: number, accountId: number, limit = 50) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(leadScoreHistory)
+    .where(
+      and(
+        eq(leadScoreHistory.contactId, contactId),
+        eq(leadScoreHistory.accountId, accountId)
+      )
+    )
+    .orderBy(desc(leadScoreHistory.createdAt))
+    .limit(limit);
+}
+
+export async function updateContactLeadScore(
+  contactId: number,
+  accountId: number,
+  newScore: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(contacts)
+    .set({ leadScore: newScore })
+    .where(and(eq(contacts.id, contactId), eq(contacts.accountId, accountId)));
 }

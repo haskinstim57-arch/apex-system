@@ -61,6 +61,8 @@ import {
   Bookmark,
   BookmarkCheck,
   GitMerge,
+  Zap,
+  TrendingUp,
 } from "lucide-react";
 import {
   Popover,
@@ -68,6 +70,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useState, useMemo } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
@@ -84,6 +92,33 @@ const STATUSES = [
   "lost",
   "nurture",
 ] as const;
+
+// ─── Lead Score Tier Helpers ───
+function getScoreTier(score: number) {
+  if (score >= 80) return { label: "On Fire", color: "text-red-600", bg: "bg-red-50 border-red-200", icon: "🔥" };
+  if (score >= 50) return { label: "Hot", color: "text-orange-600", bg: "bg-orange-50 border-orange-200", icon: "🟠" };
+  if (score >= 20) return { label: "Warm", color: "text-amber-600", bg: "bg-amber-50 border-amber-200", icon: "🟡" };
+  return { label: "Cold", color: "text-slate-500", bg: "bg-slate-50 border-slate-200", icon: "🔵" };
+}
+
+function LeadScoreBadge({ score }: { score: number }) {
+  const tier = getScoreTier(score);
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${tier.bg} ${tier.color}`}>
+            <Zap className="h-3 w-3" />
+            {score}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="top">
+          <p className="text-xs">{tier.label} Lead ({score} pts)</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
 
 const STATUS_COLORS: Record<string, string> = {
   new: "bg-blue-50 text-blue-700 border-blue-200",
@@ -886,6 +921,27 @@ export default function Contacts() {
                 <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Source
                 </TableHead>
+                <TableHead
+                  className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none"
+                  onClick={() => {
+                    if (sortBy === "leadScore") {
+                      setSortDir(sortDir === "asc" ? "desc" : "asc");
+                    } else {
+                      setSortBy("leadScore");
+                      setSortDir("desc");
+                    }
+                  }}
+                >
+                  <span className="flex items-center gap-1">
+                    <Zap className="h-3 w-3" />
+                    Score
+                    {sortBy === "leadScore" ? (
+                      sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                    ) : (
+                      <ArrowUpDown className="h-3 w-3 opacity-30" />
+                    )}
+                  </span>
+                </TableHead>
                 <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Assigned To
                 </TableHead>
@@ -925,14 +981,14 @@ export default function Contacts() {
             <TableBody>
               {contactsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8 + visibleCfColumns.length} className="text-center py-12">
+                  <TableCell colSpan={9 + visibleCfColumns.length} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : contacts.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8 + visibleCfColumns.length}
+                    colSpan={9 + visibleCfColumns.length}
                     className="text-center py-12 text-muted-foreground text-sm"
                   >
                     {search || statusFilter || sourceFilter
@@ -987,6 +1043,9 @@ export default function Contacts() {
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {contact.leadSource || "—"}
+                      </TableCell>
+                      <TableCell>
+                        <LeadScoreBadge score={(contact as any).leadScore ?? 0} />
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {assignedMember?.userName || "Unassigned"}

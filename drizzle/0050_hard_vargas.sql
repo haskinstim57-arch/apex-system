@@ -1,0 +1,1 @@
+ALTER TABLE `outbound_webhooks` MODIFY COLUMN `trigger_event` enum('contact_created','contact_updated','tag_added','pipeline_stage_changed','facebook_lead_received','inbound_message_received','appointment_booked','appointment_cancelled','call_completed','missed_call','form_submitted','review_received','workflow_completed','score_changed') NOT NULL;
