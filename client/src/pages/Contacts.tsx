@@ -60,6 +60,7 @@ import {
   SlidersHorizontal,
   Bookmark,
   BookmarkCheck,
+  GitMerge,
 } from "lucide-react";
 import {
   Popover,
@@ -453,6 +454,12 @@ export default function Contacts() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <a href="/contacts/merge">
+            <Button variant="outline" size="sm" className="h-9 gap-1.5">
+              <GitMerge className="h-3.5 w-3.5" />
+              Merge Duplicates
+            </Button>
+          </a>
           <Button
             variant="outline"
             size="sm"

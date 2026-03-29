@@ -2027,3 +2027,32 @@
 - [x] Write 31 vitest tests for all 3 features (all passing)
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Checkpoint saved
+
+### Feature: Contact Merge / Deduplication
+- [x] Build duplicate detection procedure (findDuplicates: group by email/phone/both within account, with match scoring 100/90)
+- [x] Build merge procedure that reassigns all related records from loser(s) to winner contact:
+  - contactTags (deduplicate tags)
+  - contactNotes
+  - messages
+  - campaignRecipients
+  - aiCalls
+  - workflowExecutions
+  - tasks
+  - deals
+  - appointments
+  - contactActivities
+  - formSubmissions
+  - reviewRequests
+  - reviews
+  - dialerSessions (contactIds JSON array)
+- [x] Merge customFields JSON (winner takes priority, fill gaps from loser)
+- [x] Merge contact fields (winner takes priority, fill empty fields from loser, support field overrides)
+- [x] Log merge action in contactActivities for audit trail
+- [x] Delete loser contacts after reassignment
+- [x] Build mergePreview procedure (show related record counts for winner + losers)
+- [x] Build ContactMerge page at /contacts/merge (scan button, match-by selector, duplicate groups with confidence badges)
+- [x] Build Merge dialog (side-by-side comparison, radio field picker for winner values, related records summary, confirm merge)
+- [x] Add "Merge Duplicates" button to Contacts page header linking to /contacts/merge
+- [x] Write 27 vitest tests for duplicate detection and merge logic (all passing)
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Checkpoint saved

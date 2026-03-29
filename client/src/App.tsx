@@ -38,6 +38,7 @@ import Forms from "./pages/Forms";
 import FormBuilder from "./pages/FormBuilder";
 import PublicForm from "./pages/PublicForm";
 import Reputation from "./pages/Reputation";
+import ContactMerge from "./pages/ContactMerge";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
@@ -163,6 +164,13 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <CalendarPage />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/contacts/merge">
+        <DashboardLayout>
+          <RequireAccount>
+            <ContactMerge />
           </RequireAccount>
         </DashboardLayout>
       </Route>
