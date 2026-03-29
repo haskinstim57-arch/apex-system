@@ -147,4 +147,76 @@ describe("evaluateConditionOperator", () => {
       expect(evaluateConditionOperator("50", "less_than", "50")).toBe(false);
     });
   });
+
+  // ─── exists (alias for is_not_empty) ───
+  describe("exists", () => {
+    it("returns true when field has a value", () => {
+      expect(evaluateConditionOperator("hello", "exists", "")).toBe(true);
+    });
+    it("returns false when field is empty", () => {
+      expect(evaluateConditionOperator("", "exists", "")).toBe(false);
+    });
+    it("returns false when field is only whitespace", () => {
+      expect(evaluateConditionOperator("   ", "exists", "")).toBe(false);
+    });
+    it("returns true for numeric string", () => {
+      expect(evaluateConditionOperator("0", "exists", "")).toBe(true);
+    });
+  });
+
+  // ─── not_exists (alias for is_empty) ───
+  describe("not_exists", () => {
+    it("returns true when field is empty", () => {
+      expect(evaluateConditionOperator("", "not_exists", "")).toBe(true);
+    });
+    it("returns false when field has a value", () => {
+      expect(evaluateConditionOperator("hello", "not_exists", "")).toBe(false);
+    });
+    it("returns true when field is only whitespace", () => {
+      expect(evaluateConditionOperator("   ", "not_exists", "")).toBe(true);
+    });
+  });
+
+  // ─── exists/not_exists match is_not_empty/is_empty behavior ───
+  describe("exists/not_exists aliases", () => {
+    it("exists matches is_not_empty for non-empty value", () => {
+      expect(evaluateConditionOperator("test", "exists", "")).toBe(
+        evaluateConditionOperator("test", "is_not_empty", "")
+      );
+    });
+    it("exists matches is_not_empty for empty value", () => {
+      expect(evaluateConditionOperator("", "exists", "")).toBe(
+        evaluateConditionOperator("", "is_not_empty", "")
+      );
+    });
+    it("not_exists matches is_empty for non-empty value", () => {
+      expect(evaluateConditionOperator("test", "not_exists", "")).toBe(
+        evaluateConditionOperator("test", "is_empty", "")
+      );
+    });
+    it("not_exists matches is_empty for empty value", () => {
+      expect(evaluateConditionOperator("", "not_exists", "")).toBe(
+        evaluateConditionOperator("", "is_empty", "")
+      );
+    });
+  });
+
+  // ─── Lead Score via greater_than/less_than ───
+  describe("lead score conditions", () => {
+    it("greater_than works for lead score values", () => {
+      expect(evaluateConditionOperator("85", "greater_than", "50")).toBe(true);
+    });
+    it("less_than works for lead score values", () => {
+      expect(evaluateConditionOperator("25", "less_than", "50")).toBe(true);
+    });
+    it("equals works for exact lead score", () => {
+      expect(evaluateConditionOperator("100", "equals", "100")).toBe(true);
+    });
+    it("exists works for lead score field with value", () => {
+      expect(evaluateConditionOperator("75", "exists", "")).toBe(true);
+    });
+    it("not_exists works for lead score field without value", () => {
+      expect(evaluateConditionOperator("", "not_exists", "")).toBe(true);
+    });
+  });
 });

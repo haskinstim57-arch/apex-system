@@ -84,6 +84,8 @@ const conditionOperatorEnum = z.enum([
   "less_than",
   "is_empty",
   "is_not_empty",
+  "exists",
+  "not_exists",
   "starts_with",
   "ends_with",
 ]);
@@ -260,6 +262,7 @@ export const automationsRouter = router({
         delayValue: z.number().int().positive().optional(),
         config: z.string().optional(),
         conditionConfig: z.string().optional(),
+        nextStepId: z.number().int().positive().optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -313,6 +316,7 @@ export const automationsRouter = router({
         delayValue: input.stepType === "delay" ? input.delayValue! : null,
         config: input.config ?? null,
         conditionConfig: input.stepType === "condition" ? (input.conditionConfig ?? null) : null,
+        nextStepId: input.nextStepId ?? null,
       });
 
       return { id, stepOrder: nextOrder };
@@ -331,6 +335,7 @@ export const automationsRouter = router({
         delayValue: z.number().int().positive().optional().nullable(),
         config: z.string().optional().nullable(),
         conditionConfig: z.string().optional().nullable(),
+        nextStepId: z.number().int().positive().optional().nullable(),
       })
     )
     .mutation(async ({ ctx, input }) => {

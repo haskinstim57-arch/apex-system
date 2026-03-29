@@ -2480,3 +2480,40 @@
 - [x] Vitest: 22 tests — booking, double-booking, timezone (EDT/CDT/PDT), contact linkage, phone fallback, missing contact, error handling, VAPI format, unknown tools
 - [x] TypeScript: 0 errors
 - [x] Checkpoint saved
+
+## Workflow Conditional Branching (If/Else Logic)
+- [ ] Schema: Add 'condition' to stepType enum on workflowSteps
+- [ ] Schema: Add conditionConfig JSON column to workflowSteps
+- [ ] Schema: Add nextStepId nullable integer column to workflowSteps
+- [ ] Migration: Push Drizzle migration for schema changes
+- [ ] Engine: Implement condition evaluation in workflowEngine.ts (parse conditionConfig, evaluate against contact data)
+- [ ] Engine: Support field types — tag check, contact.* field access, custom fields
+- [ ] Engine: Support all operators — equals, not_equals, contains, not_contains, exists, not_exists, greater_than, less_than
+- [ ] Engine: Branch to trueBranchStepId or falseBranchStepId based on evaluation result
+- [ ] Engine: Use nextStepId for non-linear step ordering, fall back to sort-order for backward compatibility
+- [ ] Router: Include conditionConfig and nextStepId in step create/update input schemas
+- [ ] Router: Return conditionConfig and nextStepId in step list/get queries
+- [ ] UI: Add "Condition" step type option in step builder
+- [ ] UI: Field selector dropdown (Tag, First Name, Last Name, Email, Phone, Source, Lead Score, custom fields)
+- [ ] UI: Operator dropdown (equals, not_equals, contains, not_contains, exists, not_exists, greater_than, less_than)
+- [ ] UI: Value input field
+- [ ] UI: TRUE/FALSE branch outputs with visual distinction (diamond/branch icon)
+- [ ] Vitest: Tests for condition evaluator covering all operators with true/false outcomes
+- [ ] Vitest: Confirm existing linear workflow tests still pass
+- [ ] TypeScript: 0 errors
+- [ ] Checkpoint saved
+
+## Workflow Conditional Branching Enhancements
+- [x] Schema: Add nextStepId nullable integer column to workflowSteps
+- [x] Migration: Push Drizzle migration for nextStepId
+- [x] Engine: Add exists/not_exists operator aliases alongside is_empty/is_not_empty
+- [x] Engine: Wire nextStepId into resolveNextStepOrder for delay, action, and condition steps
+- [x] Router: Include nextStepId in addStep and updateStep input schemas
+- [x] Router: Add exists/not_exists to conditionOperatorEnum
+- [x] UI: Add Lead Score (leadScore) to CONDITION_FIELDS list
+- [x] UI: Add dynamic custom fields (cf.*) to CONDITION_FIELDS dropdown in AddStepDialog and EditStepDialog
+- [x] UI: Add exists/not_exists operators to CONDITION_OPERATORS list
+- [x] UI: formatConditionConfig handles cf.* field display
+- [x] Tests: 47 condition branching tests (16 new), 163 total across all test files — all passing
+- [x] TypeScript: 0 errors
+- [x] Checkpoint saved

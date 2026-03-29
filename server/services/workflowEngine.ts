@@ -200,15 +200,25 @@ async function processExecution(executionId: number) {
         result: JSON.stringify({ delayType: step.delayType, delayValue: step.delayValue }),
       });
 
-      // Move to next step with a scheduled time
-      await updateWorkflowExecution(executionId, {
-        currentStep: execution.currentStep + 1,
-        nextStepAt,
-      });
-
-      console.log(
-        `[WorkflowEngine] Execution ${executionId}: delay step completed, next at ${nextStepAt.toISOString()}`
-      );
+      // Move to next step with a scheduled time — use nextStepId if set, else sequential
+      const delayNextOrder = resolveNextStepOrder(step, steps, execution.currentStep);
+      if (delayNextOrder > steps.length) {
+        await updateWorkflowExecution(executionId, {
+          currentStep: delayNextOrder,
+          status: "completed",
+          completedAt: new Date(),
+          nextStepAt: null,
+        });
+        console.log(`[WorkflowEngine] Execution ${executionId}: delay step completed, no more steps`);
+      } else {
+        await updateWorkflowExecution(executionId, {
+          currentStep: delayNextOrder,
+          nextStepAt,
+        });
+        console.log(
+          `[WorkflowEngine] Execution ${executionId}: delay step completed, next step ${delayNextOrder} at ${nextStepAt.toISOString()}`
+        );
+      }
     } else if (step.stepType === "condition") {
       // Evaluate the condition and route to the appropriate branch
       const condResult = await evaluateCondition(step, execution.contactId, execution.accountId);
@@ -278,11 +288,11 @@ async function processExecution(executionId: number) {
         result: JSON.stringify(result),
       });
 
-      // Move to next step immediately
-      const nextStep = execution.currentStep + 1;
-      if (nextStep > steps.length) {
+      // Move to next step immediately — use nextStepId if set, else sequential
+      const actionNextOrder = resolveNextStepOrder(step, steps, execution.currentStep);
+      if (actionNextOrder > steps.length) {
         await updateWorkflowExecution(executionId, {
-          currentStep: nextStep,
+          currentStep: actionNextOrder,
           status: "completed",
           completedAt: new Date(),
           nextStepAt: null,
@@ -290,7 +300,7 @@ async function processExecution(executionId: number) {
         console.log(`[WorkflowEngine] Execution ${executionId}: all steps completed`);
       } else {
         await updateWorkflowExecution(executionId, {
-          currentStep: nextStep,
+          currentStep: actionNextOrder,
           nextStepAt: null, // Process immediately
         });
         // Process next step immediately (recursive)
@@ -323,6 +333,26 @@ async function processExecution(executionId: number) {
       }).catch((notifErr) => console.error("[WorkflowEngine] Notification error:", notifErr));
     }
   }
+}
+
+/**
+ * Resolve the next step order for non-condition steps.
+ * If the step has a nextStepId set, find that step's order; otherwise fall back to sequential (currentStep + 1).
+ * This enables non-linear step ordering for any step type.
+ */
+function resolveNextStepOrder(
+  step: WorkflowStep,
+  allSteps: WorkflowStep[],
+  currentStepOrder: number
+): number {
+  if (step.nextStepId != null) {
+    const targetStep = allSteps.find((s) => s.id === step.nextStepId);
+    if (targetStep) return targetStep.stepOrder;
+    // nextStepId points to a non-existent step — end the workflow
+    console.warn(`[WorkflowEngine] nextStepId ${step.nextStepId} not found, ending workflow`);
+    return allSteps.length + 1;
+  }
+  return currentStepOrder + 1;
 }
 
 /** Calculate delay in milliseconds */
@@ -711,8 +741,10 @@ export function evaluateConditionOperator(
       return numA < numB;
     }
     case "is_empty":
+    case "not_exists":
       return fv.trim() === "";
     case "is_not_empty":
+    case "exists":
       return fv.trim() !== "";
     case "starts_with":
       return fv.toLowerCase().startsWith(cv.toLowerCase());

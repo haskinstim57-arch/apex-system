@@ -516,6 +516,8 @@ export const workflowSteps = mysqlTable("workflow_steps", {
   config: text("config"),
   /** JSON config for condition steps: { field, operator, value, trueBranchStepOrder, falseBranchStepOrder } */
   conditionConfig: text("conditionConfig"),
+  /** Explicit next step ID for non-linear step ordering. If set, overrides sort-order traversal. Null = follow sequential order. */
+  nextStepId: int("nextStepId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

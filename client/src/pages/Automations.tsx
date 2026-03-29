@@ -130,7 +130,10 @@ const CONDITION_FIELDS = [
   { value: "firstName", label: "First Name" },
   { value: "lastName", label: "Last Name" },
   { value: "has_tag", label: "Has Tag (comma-separated)" },
+  { value: "leadScore", label: "Lead Score" },
 ] as const;
+
+// Static fields above; dynamic custom fields (cf.*) are loaded at runtime and merged in the UI
 
 const CONDITION_OPERATORS = [
   { value: "equals", label: "Equals" },
@@ -141,6 +144,8 @@ const CONDITION_OPERATORS = [
   { value: "ends_with", label: "Ends With" },
   { value: "is_empty", label: "Is Empty" },
   { value: "is_not_empty", label: "Is Not Empty" },
+  { value: "exists", label: "Exists (has value)" },
+  { value: "not_exists", label: "Does Not Exist (no value)" },
   { value: "greater_than", label: "Greater Than" },
   { value: "less_than", label: "Less Than" },
 ] as const;
@@ -949,7 +954,9 @@ function StepCard({
 }
 
 function formatConditionConfig(conditionConfig: Record<string, unknown>): string {
-  const field = CONDITION_FIELDS.find((f) => f.value === conditionConfig.field)?.label ?? String(conditionConfig.field);
+  const fieldKey = String(conditionConfig.field ?? "");
+  const field = CONDITION_FIELDS.find((f) => f.value === fieldKey)?.label
+    ?? (fieldKey.startsWith("cf.") ? `Custom: ${fieldKey.slice(3)}` : fieldKey);
   const op = CONDITION_OPERATORS.find((o) => o.value === conditionConfig.operator)?.label ?? String(conditionConfig.operator);
   const val = conditionConfig.value ? ` "${conditionConfig.value}"` : "";
   const branches: string[] = [];
@@ -1018,6 +1025,22 @@ function AddStepDialog({
   const [condValue, setCondValue] = useState("");
   const [condTrueBranch, setCondTrueBranch] = useState("");
   const [condFalseBranch, setCondFalseBranch] = useState("");
+
+  // Fetch custom field definitions for the account to populate condition field dropdown
+  const { data: customFieldDefs } = trpc.customFields.list.useQuery(
+    { accountId },
+    { enabled: open && stepType === "condition" }
+  );
+  const allConditionFields = useMemo(() => {
+    const base = CONDITION_FIELDS.map((f) => ({ value: f.value, label: f.label }));
+    if (customFieldDefs && customFieldDefs.length > 0) {
+      const cfFields = customFieldDefs
+        .filter((cf) => cf.isActive)
+        .map((cf) => ({ value: `cf.${cf.slug}`, label: `Custom: ${cf.name}` }));
+      return [...base, ...cfFields];
+    }
+    return base;
+  }, [customFieldDefs]);
 
   const addStepMutation = trpc.automations.addStep.useMutation({
     onSuccess: () => {
@@ -1350,7 +1373,7 @@ function AddStepDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CONDITION_FIELDS.map((f) => (
+                      {allConditionFields.map((f) => (
                         <SelectItem key={f.value} value={f.value}>
                           {f.label}
                         </SelectItem>
@@ -1500,6 +1523,22 @@ function EditStepDialog({
   const [condTrueBranch, setCondTrueBranch] = useState(String(condConfig.trueBranchStepOrder ?? ""));
   const [condFalseBranch, setCondFalseBranch] = useState(String(condConfig.falseBranchStepOrder ?? ""));
 
+  // Fetch custom field definitions for condition field dropdown
+  const { data: customFieldDefs } = trpc.customFields.list.useQuery(
+    { accountId },
+    { enabled: open && step?.stepType === "condition" }
+  );
+  const allConditionFields = useMemo(() => {
+    const base = CONDITION_FIELDS.map((f) => ({ value: f.value, label: f.label }));
+    if (customFieldDefs && customFieldDefs.length > 0) {
+      const cfFields = customFieldDefs
+        .filter((cf) => cf.isActive)
+        .map((cf) => ({ value: `cf.${cf.slug}`, label: `Custom: ${cf.name}` }));
+      return [...base, ...cfFields];
+    }
+    return base;
+  }, [customFieldDefs]);
+
   const updateMutation = trpc.automations.updateStep.useMutation({
     onSuccess: () => {
       toast.success("Step updated");
@@ -1596,7 +1635,7 @@ function EditStepDialog({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {CONDITION_FIELDS.map((f) => (
+                      {allConditionFields.map((f) => (
                         <SelectItem key={f.value} value={f.value}>
                           {f.label}
                         </SelectItem>
