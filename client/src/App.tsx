@@ -1,4 +1,5 @@
 import { Toaster } from "@/components/ui/sonner";
+import { Suspense, lazy } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
@@ -17,7 +18,7 @@ import Messages from "./pages/Messages";
 import Campaigns from "./pages/Campaigns";
 import CampaignDetail from "./pages/CampaignDetail";
 import AICalls from "./pages/AICalls";
-import Automations from "./pages/Automations";
+const Automations = lazy(() => import("./pages/Automations"));
 import Pipeline from "./pages/Pipeline";
 import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
@@ -27,13 +28,13 @@ import Onboarding from "./pages/Onboarding";
 import AcceptInvite from "./pages/AcceptInvite";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
-import CalendarPage from "./pages/Calendar";
+const CalendarPage = lazy(() => import("./pages/Calendar"));
 import Inbox from "./pages/Inbox";
 import BookingPage from "./pages/BookingPage";
 import EmailTemplates from "./pages/EmailTemplates";
 import EmailTemplateEditor from "./pages/EmailTemplateEditor";
-import Analytics from "./pages/Analytics";
-import PowerDialer from "./pages/PowerDialer";
+const Analytics = lazy(() => import("./pages/Analytics"));
+const PowerDialer = lazy(() => import("./pages/PowerDialer"));
 import DialerAnalytics from "./pages/DialerAnalytics";
 import Forms from "./pages/Forms";
 import FormBuilder from "./pages/FormBuilder";
@@ -53,6 +54,14 @@ import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
 import { AdminRoute } from "./components/AdminRoute";
 import { RequireAccount } from "./components/RequireAccount";
+
+function LazyFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  );
+}
 
 function Router() {
   return (
@@ -161,7 +170,7 @@ function Router() {
       <Route path="/automations">
         <DashboardLayout>
           <RequireAccount>
-            <Automations />
+            <Suspense fallback={<LazyFallback />}><Automations /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -203,7 +212,7 @@ function Router() {
       <Route path="/calendar">
         <DashboardLayout>
           <RequireAccount>
-            <CalendarPage />
+            <Suspense fallback={<LazyFallback />}><CalendarPage /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -254,14 +263,14 @@ function Router() {
       <Route path="/analytics">
         <DashboardLayout>
           <RequireAccount>
-            <Analytics />
+            <Suspense fallback={<LazyFallback />}><Analytics /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/power-dialer">
         <DashboardLayout>
           <RequireAccount>
-            <PowerDialer />
+            <Suspense fallback={<LazyFallback />}><PowerDialer /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>

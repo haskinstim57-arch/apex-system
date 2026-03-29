@@ -15,6 +15,7 @@ import {
   logContactActivity,
 } from "../db";
 import { mapVapiStatus, mapVapiEndedReason } from "../services/vapi";
+import { sendPushNotificationToAccount } from "../services/webPush";
 import {
   parseBusinessHoursJson,
   resolveBusinessHoursSchedule,
@@ -368,6 +369,14 @@ async function handleBookAppointment(
       link: "/calendar",
     }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
 
+    // ── Push notification for appointment booked ──
+    sendPushNotificationToAccount(accountId, {
+      title: "New appointment booked via AI",
+      body: `${guestName} booked for ${humanDate}`,
+      url: "/calendar",
+      tag: `appointment-${appointment.id}`,
+    }).catch((err) => console.error("[VAPI Webhook] Push notification error:", err));
+
     // ── Fire appointment_booked automation trigger (non-blocking) ──
     if (contactId) {
       import("../services/workflowTriggers")
@@ -675,6 +684,14 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
       body: summary.substring(0, 200),
       link: `/ai-calls`,
     }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
+
+    // Push notification for call completed
+    sendPushNotificationToAccount(call.accountId, {
+      title: "AI call completed",
+      body: summary.substring(0, 100),
+      url: "/ai-calls",
+      tag: `call-${call.id}`,
+    }).catch((err) => console.error("[VAPI Webhook] Push notification error:", err));
   }
 
   return { success: true };
@@ -751,6 +768,14 @@ async function handleSimplifiedPayload(body: any): Promise<{ success: boolean; e
       body: summary.substring(0, 200),
       link: `/ai-calls`,
     }).catch((err) => console.error("[VAPI Webhook] Notification error:", err));
+
+    // Push notification for call completed (simplified format)
+    sendPushNotificationToAccount(call.accountId, {
+      title: "AI call completed",
+      body: summary.substring(0, 100),
+      url: "/ai-calls",
+      tag: `call-${call.id}`,
+    }).catch((err) => console.error("[VAPI Webhook] Push notification error:", err));
   }
 
   return { success: true };

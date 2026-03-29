@@ -7,6 +7,7 @@ import {
   logContactActivity,
   createNotification,
 } from "../db";
+import { sendPushNotificationToAccount } from "../services/webPush";
 import { getDb } from "../db";
 import { accountMessagingSettings } from "../../drizzle/schema";
 import { eq, isNotNull } from "drizzle-orm";
@@ -221,6 +222,14 @@ inboundMessageRouter.post(
         link: `/inbox`,
       }).catch((err) => console.error("[Twilio Inbound] Notification error:", err));
 
+      // Send push notification
+      sendPushNotificationToAccount(accountId, {
+        title: `New SMS from ${contact.firstName || From}`,
+        body: Body.substring(0, 100),
+        url: `/inbox`,
+        tag: `inbound-sms-${contact.id}`,
+      }).catch((err) => console.error("[Twilio Inbound] Push notification error:", err));
+
       // Fire inbound_message_received automation trigger (non-blocking)
       import("../services/workflowTriggers")
         .then(({ onInboundMessageReceived }) =>
@@ -331,6 +340,14 @@ inboundMessageRouter.post(
         body: subject ? subject.substring(0, 200) : messageBody.substring(0, 200),
         link: `/inbox`,
       }).catch((err) => console.error("[SendGrid Inbound] Notification error:", err));
+
+      // Send push notification
+      sendPushNotificationToAccount(accountId, {
+        title: `New email from ${contact.firstName || senderEmail}`,
+        body: subject ? subject.substring(0, 100) : messageBody.substring(0, 100),
+        url: `/inbox`,
+        tag: `inbound-email-${contact.id}`,
+      }).catch((err) => console.error("[SendGrid Inbound] Push notification error:", err));
 
       // Fire inbound_message_received automation trigger (non-blocking)
       import("../services/workflowTriggers")

@@ -2530,3 +2530,20 @@
 - [x] PWA standalone mode CSS: user-select disabled except in content areas
 - [x] Build verification: 0 TS errors, all feature tests passing
 - [x] Checkpoint saved
+
+## PWA Polish — Code Splitting, Shortcuts, Push Notifications
+- [x] Code splitting: manual chunks in vite.config.ts (vendor-react, vendor-trpc, page-calendar, page-automations, page-analytics, page-power-dialer)
+- [x] Code splitting: React.lazy() + Suspense for heavy page imports in App.tsx (Calendar, Automations, Analytics, PowerDialer, MessageQueue)
+- [x] App shortcuts: Generated 3 shortcut icons (96x96) — contact, inbox, campaign
+- [x] App shortcuts: Added shortcuts array to PWA manifest (New Contact, Open Inbox, New Campaign)
+- [x] Web Push: Installed web-push npm package
+- [x] Web Push: VAPID keys configured (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT)
+- [x] Web Push: pushSubscriptions schema table + migration pushed
+- [x] Web Push: tRPC procedures — subscribePush, unsubscribePush, getVapidPublicKey in notifications router
+- [x] Web Push: webPush service — sendPushNotificationToAccount + sendPushNotificationToUser
+- [x] Web Push: Integrated into inbound SMS, inbound email, VAPI appointment booked, AI call completed, Facebook lead
+- [x] Web Push: Service worker push handler (sw-push.js) with notification click → navigate
+- [x] Web Push: PwaInstallPrompt — notification permission banner after install/dismiss with 30-day cooldown
+- [x] Web Push: usePushNotifications hook for frontend subscription management
+- [x] Build verification: 0 TS errors, 167 tests passing
+- [x] Checkpoint saved

@@ -175,10 +175,34 @@ const plugins = [
         { src: "/icons/pwa-512x512.png", sizes: "512x512", type: "image/png" },
         { src: "/icons/pwa-512x512.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
       ],
+      shortcuts: [
+        {
+          name: "New Contact",
+          short_name: "Contact",
+          description: "Add a new contact",
+          url: "/contacts?new=true",
+          icons: [{ src: "/icons/shortcut-contact.png", sizes: "96x96" }],
+        },
+        {
+          name: "Open Inbox",
+          short_name: "Inbox",
+          description: "View your inbox",
+          url: "/inbox",
+          icons: [{ src: "/icons/shortcut-inbox.png", sizes: "96x96" }],
+        },
+        {
+          name: "New Campaign",
+          short_name: "Campaign",
+          description: "Start a campaign",
+          url: "/campaigns?new=true",
+          icons: [{ src: "/icons/shortcut-campaign.png", sizes: "96x96" }],
+        },
+      ],
     },
     workbox: {
       globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
       maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MB — large SPA bundle
+      importScripts: ["/sw-push.js"],
       navigateFallback: "/index.html",
       navigateFallbackDenylist: [/^\/api/],
       runtimeCaching: [
@@ -226,6 +250,22 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
+            return 'vendor-react';
+          }
+          if (id.includes('node_modules/@trpc') || id.includes('node_modules/@tanstack/react-query')) {
+            return 'vendor-trpc';
+          }
+          if (id.includes('/pages/Calendar')) return 'page-calendar';
+          if (id.includes('/pages/Automations')) return 'page-automations';
+          if (id.includes('/pages/Analytics')) return 'page-analytics';
+          if (id.includes('/pages/PowerDialer')) return 'page-power-dialer';
+        },
+      },
+    },
   },
   server: {
     host: true,

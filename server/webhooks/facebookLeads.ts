@@ -10,6 +10,7 @@ import {
 } from "../db";
 import { ENV } from "../_core/env";
 import { routeLead } from "../services/leadRoutingEngine";
+import { sendPushNotificationToAccount } from "../services/webPush";
 
 const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 
@@ -420,6 +421,14 @@ async function processLead(
     body: `${data.firstName} ${data.lastName}${data.email ? ` (${data.email})` : ""}`,
     link: `/contacts/${contactId}`,
   }).catch((err) => console.error(`[FB Leads Webhook] Notification error:`, err));
+
+  // Send push notification
+  sendPushNotificationToAccount(data.accountId, {
+    title: "New Facebook Lead",
+    body: `${data.firstName} ${data.lastName}${data.email ? ` (${data.email})` : ""}`,
+    url: `/contacts/${contactId}`,
+    tag: `fb-lead-${contactId}`,
+  }).catch((err) => console.error(`[FB Leads Webhook] Push notification error:`, err));
 
   return { contactId, dealId };
 }

@@ -9,6 +9,8 @@ import {
   dismissNotification,
   getMember,
 } from "../db";
+import { savePushSubscription, removePushSubscription } from "../services/webPush";
+import { ENV } from "../_core/env";
 
 async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
   if (userRole === "admin") {
@@ -81,6 +83,49 @@ export const notificationsRouter = router({
     .mutation(async ({ ctx, input }) => {
       await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       await dismissNotification(input.id, input.accountId);
+      return { success: true };
+    }),
+
+  /** Get the VAPID public key for push subscription */
+  getVapidPublicKey: protectedProcedure.query(() => {
+    return { publicKey: ENV.vapidPublicKey };
+  }),
+
+  /** Subscribe to push notifications */
+  subscribePush: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        subscription: z.object({
+          endpoint: z.string().url(),
+          keys: z.object({
+            p256dh: z.string().min(1),
+            auth: z.string().min(1),
+          }),
+        }),
+        userAgent: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const id = await savePushSubscription(
+        ctx.user.id,
+        input.accountId,
+        input.subscription,
+        input.userAgent
+      );
+      return { success: true, subscriptionId: id };
+    }),
+
+  /** Unsubscribe from push notifications */
+  unsubscribePush: protectedProcedure
+    .input(
+      z.object({
+        endpoint: z.string().url(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await removePushSubscription(ctx.user.id, input.endpoint);
       return { success: true };
     }),
 });

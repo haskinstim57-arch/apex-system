@@ -2255,3 +2255,25 @@ export const queuedMessages = mysqlTable("queued_messages", {
 
 export type QueuedMessage = typeof queuedMessages.$inferSelect;
 export type InsertQueuedMessage = typeof queuedMessages.$inferInsert;
+
+// ═══════════════════════════════════════════════
+// PUSH SUBSCRIPTIONS TABLE
+// ═══════════════════════════════════════════════
+export const pushSubscriptions = mysqlTable("push_subscriptions", {
+  id: int("id").primaryKey().autoincrement(),
+  userId: int("user_id").notNull(),
+  accountId: int("account_id").notNull(),
+  /** The push subscription endpoint URL */
+  endpoint: text("endpoint").notNull(),
+  /** The p256dh key from the subscription */
+  p256dh: text("p256dh").notNull(),
+  /** The auth key from the subscription */
+  auth: text("auth").notNull(),
+  /** User agent string for identifying the device */
+  userAgent: varchar("user_agent", { length: 500 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PushSubscription = typeof pushSubscriptions.$inferSelect;
+export type InsertPushSubscription = typeof pushSubscriptions.$inferInsert;

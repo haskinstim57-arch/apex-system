@@ -23,4 +23,7 @@ export const ENV = {
   sendgridFromEmail: process.env.SENDGRID_FROM_EMAIL ?? "",
   sendgridFromName: process.env.SENDGRID_FROM_NAME ?? "",
   encryptionKey: process.env.ENCRYPTION_KEY ?? "",
+  vapidPublicKey: process.env.VAPID_PUBLIC_KEY ?? "",
+  vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
+  vapidSubject: process.env.VAPID_SUBJECT ?? "",
 };
