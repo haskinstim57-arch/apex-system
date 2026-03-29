@@ -325,6 +325,30 @@ export default function SettingsPage() {
         <LeadRoutingRulesCard accountId={currentAccountId} />
       )}
 
+      {/* Lead Scoring Rules — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <Card className="bg-white border-0 card-shadow">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-500" />
+              Lead Scoring
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Automatically score contacts based on their engagement and actions.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 -mt-2">
+            <IntegrationLink
+              icon={Zap}
+              label="Scoring Rules"
+              description="Create and manage lead scoring rules for this account"
+              href="/settings/lead-scoring"
+              iconColor="text-amber-500"
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* AI Voice Calling Kill Switch — visible to anyone with an account selected */}
       {currentAccountId && (
         <AIVoiceCallingCard accountId={currentAccountId} />

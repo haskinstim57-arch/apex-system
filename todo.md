@@ -2068,7 +2068,14 @@
 - [x] Add `leadScore` as a condition field in workflow condition evaluator
 - [x] Display lead score on contact cards in Contacts.tsx with color coding (cold/warm/hot)
 - [x] Add score column to contacts list with sorting support
-- [ ] Build Lead Scoring Rules management UI in Settings
+- [x] Build Lead Scoring Rules management UI in Settings
 - [x] Write vitest tests for lead scoring logic
+- [x] TypeScript check — 0 errors
+- [x] Checkpoint saved
+
+## Lead Scoring Rules Management UI
+- [x] Build LeadScoringSettings.tsx page with rules CRUD (create, edit, toggle, delete)
+- [x] Add route in App.tsx for /settings/lead-scoring
+- [x] Add navigation link in Settings sidebar/tabs
 - [x] TypeScript check — 0 errors
 - [x] Checkpoint saved
