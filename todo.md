@@ -2139,3 +2139,65 @@
 - [x] Write vitest tests for pages/funnels CRUD and public serving
 - [x] TypeScript check — 0 errors
 - [x] Checkpoint saved
+
+## Landing Page Enhancements (3 features)
+
+### Feature 1: Pre-built Page Templates
+- [x] Create template data with GrapesJS-compatible HTML/CSS for: Lead Capture, Webinar Registration, Thank You Page, Mortgage Calculator, Free Consultation
+- [x] Add template selection step in Create Page dialog
+- [x] Backend: template list endpoint or hardcoded templates served from router
+
+### Feature 2: Form Submission → Contact Creation
+- [x] Backend: Public POST endpoint for form submissions on published pages
+- [x] Auto-create or update contact from form data (name, email, phone, custom fields)
+- [x] Trigger `form_submitted` workflow event on submission
+- [x] Fire lead scoring engine on form submission (via onFormSubmitted trigger)
+- [x] Inject form submission JS into published page HTML
+- [x] Store form submissions in contact activity log
+
+### Feature 3: Funnel Analytics
+- [x] Schema: Add `page_views` table (pageId, accountId, visitorId, referrer, timestamp)
+- [x] Backend: Track page views on public page endpoint
+- [x] Backend: Analytics queries (views per page, conversion rates between funnel steps)
+- [x] Backend: Funnel analytics router endpoint
+- [x] Frontend: Visual funnel chart on Funnels page with conversion rates between steps
+- [x] Frontend: Page-level analytics (views, submissions, conversion rate) on Landing Pages list
+
+### Shared
+- [x] Write vitest tests for templates, form submission, and analytics (44 tests passing)
+- [x] TypeScript check — 0 errors
+- [x] Checkpoint saved
+
+## AI Webchat Widget Upgrade
+
+### Schema
+- [x] Add chatWidgets table to drizzle/schema.ts (accountId, name, greeting, aiEnabled, handoffKeywords, brandColor, position, etc.)
+- [x] Push migration with pnpm db:push
+
+### Backend
+- [x] Create webchat tRPC router (CRUD for chat widgets, list/get/update/delete)
+- [x] Public REST endpoint: POST /api/webchat/message — receives visitor messages
+- [x] Public REST endpoint: POST /api/webchat/init — returns widget config + session
+- [x] Public REST endpoint: GET /api/webchat/poll — returns new messages for polling
+- [x] Contact creation: auto-create contact from webchat visitor (name, email if provided)
+- [x] Message routing: store webchat messages in webchatMessages table, route to Inbox via webchat tab
+- [x] Fire inbound_message_received workflow trigger on new webchat message
+- [x] Fire form_submitted workflow trigger when visitor provides contact info
+- [x] Human handoff detection: detect keywords like "speak to agent", "human", "help" and flag conversation
+- [x] AI response integration: use LLM to generate responses when aiEnabled, stop when handoff triggered
+
+### Embeddable Widget
+- [x] Build public embeddable webchat widget JS served at /api/webchat/widget.js
+- [x] Widget renders chat bubble + chat window, connects to public REST endpoints
+- [x] Widget supports sessionId persistence via localStorage
+
+### Frontend (Settings)
+- [x] Add Chat Widgets management card/page in Settings
+- [x] UI to create/edit/delete chat widgets with config (name, greeting, AI toggle, handoff keywords, brand color)
+- [x] Display embeddable <script> snippet for each widget
+- [x] Webchat conversations visible in Inbox with "webchat" channel tab + session list + thread view
+
+### Testing
+- [x] Write vitest tests for webchat router (15 tests passing) + handoff detection
+- [x] TypeScript check — 0 errors
+- [ ] Checkpoint saved

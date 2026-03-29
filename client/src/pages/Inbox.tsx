@@ -15,11 +15,14 @@ import {
   ArrowLeft,
   Loader2,
   Mail,
+  MessageCircle,
   MessageSquare,
   Phone,
   Search,
   Send,
   User,
+  UserCheck,
+  XCircle,
   Inbox as InboxIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -27,7 +30,7 @@ import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
 
-type FilterTab = "all" | "sms" | "email" | "unread";
+type FilterTab = "all" | "sms" | "email" | "webchat" | "unread";
 
 export default function Inbox() {
   const { user } = useAuth();
@@ -163,10 +166,56 @@ export default function Inbox() {
     return <NoAccountSelected />;
   }
 
-  const filterTabs: { key: FilterTab; label: string; icon?: React.ReactNode }[] = [
+  // ─── Webchat sessions query ───
+  const { data: webchatSessionsData, isLoading: webchatLoading } =
+    trpc.webchat.listSessions.useQuery(
+      { accountId: accountId!, limit: 50 },
+      { enabled: !!accountId && activeFilter === "webchat", refetchInterval: 5000 }
+    );
+  const { data: webchatUnread } = trpc.webchat.getUnreadCount.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId, refetchInterval: 10000 }
+  );
+  const webchatSessions = webchatSessionsData?.sessions || [];
+
+  // Webchat session detail state
+  const [selectedSessionId, setSelectedSessionId] = useState<number | null>(null);
+  const { data: webchatDetail, isLoading: webchatDetailLoading } =
+    trpc.webchat.getSessionMessages.useQuery(
+      { accountId: accountId!, sessionId: selectedSessionId! },
+      { enabled: !!accountId && !!selectedSessionId, refetchInterval: 3000 }
+    );
+
+  const takeOverMutation = trpc.webchat.takeOverSession.useMutation({
+    onSuccess: () => {
+      toast.success("You've taken over this conversation");
+      utils.webchat.listSessions.invalidate({ accountId: accountId! });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const closeSessionMutation = trpc.webchat.closeSession.useMutation({
+    onSuccess: () => {
+      toast.success("Session closed");
+      utils.webchat.listSessions.invalidate({ accountId: accountId! });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const [webchatReply, setWebchatReply] = useState("");
+  const sendAgentReply = trpc.webchat.sendAgentReply.useMutation({
+    onSuccess: () => {
+      setWebchatReply("");
+      utils.webchat.getSessionMessages.invalidate({ accountId: accountId!, sessionId: selectedSessionId! });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const filterTabs: { key: FilterTab; label: string; icon?: React.ReactNode; badge?: number }[] = [
     { key: "all", label: "All" },
     { key: "sms", label: "SMS", icon: <Phone className="h-3 w-3" /> },
     { key: "email", label: "Email", icon: <Mail className="h-3 w-3" /> },
+    { key: "webchat", label: "Webchat", icon: <MessageCircle className="h-3 w-3" />, badge: webchatUnread?.count },
     { key: "unread", label: "Unread" },
   ];
 
@@ -219,6 +268,11 @@ export default function Inbox() {
               >
                 {tab.icon}
                 {tab.label}
+                {tab.badge && tab.badge > 0 ? (
+                  <span className="ml-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+                    {tab.badge}
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>
@@ -226,27 +280,93 @@ export default function Inbox() {
 
         {/* Conversation list */}
         <div className="flex-1 overflow-y-auto">
-          {convsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </div>
-          ) : conversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <InboxIcon className="h-10 w-10 text-muted-foreground/40 mb-3" />
-              <p className="text-sm text-muted-foreground">No conversations yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
-                Messages will appear here when you send or receive them
-              </p>
-            </div>
+          {activeFilter === "webchat" ? (
+            /* Webchat sessions list */
+            webchatLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : webchatSessions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <MessageCircle className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No webchat sessions</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Webchat conversations will appear here when visitors use your chat widget
+                </p>
+              </div>
+            ) : (
+              webchatSessions.map((session: any) => (
+                <button
+                  key={session.id}
+                  onClick={() => {
+                    setSelectedSessionId(session.id);
+                    setSelectedContactId(null);
+                    setIsMobileThreadOpen(true);
+                  }}
+                  className={`w-full text-left px-4 py-3 border-b border-border/30 transition-colors hover:bg-accent ${
+                    selectedSessionId === session.id ? "bg-muted/40" : ""
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="relative shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                        <MessageCircle className="h-4 w-4 text-indigo-600" />
+                      </div>
+                      {session.handoffRequested && !session.agentTakenOver && (
+                        <div className="absolute -top-0.5 -right-0.5 h-3 w-3 rounded-full bg-orange-500 border-2 border-background" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-medium truncate">
+                          {session.visitorName || session.visitorEmail || `Visitor #${session.id}`}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground shrink-0">
+                          {session.createdAt ? formatRelativeTime(new Date(session.createdAt)) : ""}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        {session.handoffRequested && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0 text-orange-600 border-orange-200">
+                            {session.agentTakenOver ? "Agent Active" : "Handoff Requested"}
+                          </Badge>
+                        )}
+                        {session.status === "closed" && (
+                          <Badge variant="secondary" className="text-[10px] px-1 py-0">Closed</Badge>
+                        )}
+                        <span className="text-xs text-muted-foreground truncate">
+                          {session.visitorEmail || session.pageUrl || ""}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))
+            )
           ) : (
-            conversations.map((conv) => (
-              <ConversationRow
-                key={conv.contactId}
-                conversation={conv}
-                isSelected={selectedContactId === conv.contactId}
-                onClick={() => handleSelectContact(conv.contactId)}
-              />
-            ))
+            /* Regular conversations list */
+            convsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : conversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+                <InboxIcon className="h-10 w-10 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground">No conversations yet</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Messages will appear here when you send or receive them
+                </p>
+              </div>
+            ) : (
+              conversations.map((conv) => (
+                <ConversationRow
+                  key={conv.contactId}
+                  conversation={conv}
+                  isSelected={selectedContactId === conv.contactId}
+                  onClick={() => handleSelectContact(conv.contactId)}
+                />
+              ))
+            )
           )}
         </div>
       </div>
@@ -257,7 +377,142 @@ export default function Inbox() {
           !isMobileThreadOpen ? "hidden md:flex" : "flex"
         }`}
       >
-        {selectedContactId && selectedConversation ? (
+        {/* Webchat thread view */}
+        {activeFilter === "webchat" && selectedSessionId && webchatDetail ? (
+          <>
+            {/* Webchat thread header */}
+            <div className="h-14 px-4 border-b border-border/50 flex items-center gap-3 shrink-0">
+              <button
+                onClick={() => { setIsMobileThreadOpen(false); setSelectedSessionId(null); }}
+                className="md:hidden p-1 rounded-md hover:bg-accent"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </button>
+              <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center shrink-0">
+                <MessageCircle className="h-4 w-4 text-indigo-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">
+                  {webchatDetail.session.visitorName || webchatDetail.session.visitorEmail || `Visitor #${webchatDetail.session.id}`}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {webchatDetail.session.visitorEmail || ""}
+                  {webchatDetail.session.pageUrl ? ` · ${webchatDetail.session.pageUrl}` : ""}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {!webchatDetail.session.agentTakenOver && webchatDetail.session.status === "active" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs h-8"
+                    onClick={() => takeOverMutation.mutate({ accountId: accountId!, sessionId: selectedSessionId })}
+                    disabled={takeOverMutation.isPending}
+                  >
+                    <UserCheck className="h-3.5 w-3.5 mr-1" />
+                    Take Over
+                  </Button>
+                )}
+                {webchatDetail.session.agentTakenOver && (
+                  <Badge variant="default" className="text-[10px] bg-green-600">You're Active</Badge>
+                )}
+                {webchatDetail.session.status === "active" && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs h-8 text-destructive"
+                    onClick={() => closeSessionMutation.mutate({ accountId: accountId!, sessionId: selectedSessionId })}
+                    disabled={closeSessionMutation.isPending}
+                  >
+                    <XCircle className="h-3.5 w-3.5 mr-1" />
+                    Close
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Webchat messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {webchatDetailLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : webchatDetail.messages.length > 0 ? (
+                <>
+                  {webchatDetail.messages.map((msg: any) => (
+                    <div key={msg.id} className={`flex ${msg.sender === "visitor" ? "justify-start" : "justify-end"}`}>
+                      <div
+                        className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
+                          msg.sender === "visitor"
+                            ? "bg-muted/50 text-foreground rounded-bl-md"
+                            : msg.sender === "agent"
+                              ? "bg-green-600 text-white rounded-br-md"
+                              : "bg-primary text-primary-foreground rounded-br-md"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-[10px] uppercase tracking-wider opacity-60">
+                            {msg.sender === "visitor" ? "Visitor" : msg.sender === "agent" ? "Agent" : "AI"}
+                          </span>
+                        </div>
+                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>
+                        <div className="flex items-center justify-end mt-1">
+                          <span className="text-[10px] opacity-50">
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div ref={threadEndRef} />
+                </>
+              ) : (
+                <div className="flex items-center justify-center py-12">
+                  <p className="text-sm text-muted-foreground">No messages in this session</p>
+                </div>
+              )}
+            </div>
+
+            {/* Agent reply box (only when taken over and session active) */}
+            {webchatDetail.session.agentTakenOver && webchatDetail.session.status === "active" && (
+              <div className="border-t border-border/50 p-3 shrink-0">
+                <div className="flex gap-2">
+                  <Textarea
+                    placeholder="Type your reply..."
+                    value={webchatReply}
+                    onChange={(e) => setWebchatReply(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        if (webchatReply.trim()) {
+                          sendAgentReply.mutate({ accountId: accountId!, sessionId: selectedSessionId, content: webchatReply.trim() });
+                        }
+                      }
+                    }}
+                    className="min-h-[60px] max-h-[120px] resize-none text-sm"
+                    rows={2}
+                  />
+                  <Button
+                    onClick={() => {
+                      if (webchatReply.trim()) {
+                        sendAgentReply.mutate({ accountId: accountId!, sessionId: selectedSessionId, content: webchatReply.trim() });
+                      }
+                    }}
+                    disabled={sendAgentReply.isPending || !webchatReply.trim()}
+                    size="icon"
+                    className="h-[48px] w-[48px] sm:h-[60px] sm:w-[60px] bg-green-600 hover:bg-green-700 shrink-0"
+                  >
+                    {sendAgentReply.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        ) : selectedContactId && selectedConversation ? (
           <>
             {/* Thread header */}
             <div className="h-14 px-4 border-b border-border/50 flex items-center gap-3 shrink-0">

@@ -42,6 +42,7 @@ import { segmentsRouter } from "./routers/segments";
 import { sequencesRouter } from "./routers/sequences";
 import { landingPagesRouter } from "./routers/landingPages";
 import { funnelsRouter } from "./routers/funnels";
+import { webchatRouter } from "./routers/webchat";
 
 export const appRouter = router({
   system: systemRouter,
@@ -95,6 +96,7 @@ export const appRouter = router({
   sequences: sequencesRouter,
   landingPages: landingPagesRouter,
   funnels: funnelsRouter,
+  webchat: webchatRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -95,6 +95,12 @@ import {
   type InsertLandingPage,
   funnels,
   type InsertFunnel,
+  chatWidgets,
+  type InsertChatWidget,
+  webchatSessions,
+  type InsertWebchatSession,
+  webchatMessages,
+  type InsertWebchatMessage,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -5150,4 +5156,201 @@ export async function deleteFunnel(id: number, accountId: number) {
   await db!
     .delete(funnels)
     .where(and(eq(funnels.id, id), eq(funnels.accountId, accountId)));
+}
+
+
+// ─────────────────────────────────────────────
+// CHAT WIDGETS
+// ─────────────────────────────────────────────
+
+export async function createChatWidget(data: InsertChatWidget) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(chatWidgets).values(data).$returningId();
+  return { id: result.id };
+}
+
+export async function listChatWidgets(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(chatWidgets)
+    .where(eq(chatWidgets.accountId, accountId))
+    .orderBy(desc(chatWidgets.createdAt));
+}
+
+export async function getChatWidgetById(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db
+    .select()
+    .from(chatWidgets)
+    .where(and(eq(chatWidgets.id, id), eq(chatWidgets.accountId, accountId)));
+  return row;
+}
+
+export async function getChatWidgetByKey(widgetKey: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db
+    .select()
+    .from(chatWidgets)
+    .where(and(eq(chatWidgets.widgetKey, widgetKey), eq(chatWidgets.isActive, true)));
+  return row;
+}
+
+export async function updateChatWidget(
+  id: number,
+  accountId: number,
+  data: Partial<InsertChatWidget>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(chatWidgets)
+    .set(data)
+    .where(and(eq(chatWidgets.id, id), eq(chatWidgets.accountId, accountId)));
+}
+
+export async function deleteChatWidget(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(chatWidgets)
+    .where(and(eq(chatWidgets.id, id), eq(chatWidgets.accountId, accountId)));
+}
+
+// ─────────────────────────────────────────────
+// WEBCHAT SESSIONS
+// ─────────────────────────────────────────────
+
+export async function createWebchatSession(data: InsertWebchatSession) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(webchatSessions).values(data).$returningId();
+  return { id: result.id };
+}
+
+export async function getWebchatSessionByKey(sessionKey: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db
+    .select()
+    .from(webchatSessions)
+    .where(eq(webchatSessions.sessionKey, sessionKey));
+  return row;
+}
+
+export async function getWebchatSessionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const [row] = await db
+    .select()
+    .from(webchatSessions)
+    .where(eq(webchatSessions.id, id));
+  return row;
+}
+
+export async function updateWebchatSession(
+  id: number,
+  data: Partial<InsertWebchatSession>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(webchatSessions)
+    .set(data)
+    .where(eq(webchatSessions.id, id));
+}
+
+export async function listWebchatSessions(
+  accountId: number,
+  opts?: { status?: "active" | "closed"; handoffOnly?: boolean; limit?: number; offset?: number }
+) {
+  const db = await getDb();
+  if (!db) return { sessions: [], total: 0 };
+  const conditions = [eq(webchatSessions.accountId, accountId)];
+  if (opts?.status) {
+    conditions.push(eq(webchatSessions.status, opts.status));
+  }
+  if (opts?.handoffOnly) {
+    conditions.push(eq(webchatSessions.handoffRequested, true));
+  }
+  const limit = opts?.limit ?? 50;
+  const offset = opts?.offset ?? 0;
+  const [rows, countResult] = await Promise.all([
+    db
+      .select()
+      .from(webchatSessions)
+      .where(and(...conditions))
+      .orderBy(desc(webchatSessions.updatedAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ total: sql<number>`count(*)` })
+      .from(webchatSessions)
+      .where(and(...conditions)),
+  ]);
+  return { sessions: rows, total: countResult[0]?.total ?? 0 };
+}
+
+// ─────────────────────────────────────────────
+// WEBCHAT MESSAGES
+// ─────────────────────────────────────────────
+
+export async function createWebchatMessage(data: InsertWebchatMessage) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(webchatMessages).values(data).$returningId();
+  return { id: result.id };
+}
+
+export async function listWebchatMessages(sessionId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(webchatMessages)
+    .where(
+      and(
+        eq(webchatMessages.sessionId, sessionId),
+        eq(webchatMessages.accountId, accountId)
+      )
+    )
+    .orderBy(asc(webchatMessages.createdAt));
+}
+
+export async function markWebchatMessagesAsRead(sessionId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(webchatMessages)
+    .set({ isRead: true })
+    .where(
+      and(
+        eq(webchatMessages.sessionId, sessionId),
+        eq(webchatMessages.accountId, accountId),
+        eq(webchatMessages.sender, "visitor"),
+        eq(webchatMessages.isRead, false)
+      )
+    );
+}
+
+export async function getUnreadWebchatCount(accountId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const [result] = await db
+    .select({ count: sql<number>`count(DISTINCT ${webchatMessages.sessionId})` })
+    .from(webchatMessages)
+    .innerJoin(webchatSessions, eq(webchatMessages.sessionId, webchatSessions.id))
+    .where(
+      and(
+        eq(webchatMessages.accountId, accountId),
+        eq(webchatMessages.sender, "visitor"),
+        eq(webchatMessages.isRead, false),
+        eq(webchatSessions.status, "active")
+      )
+    );
+  return result?.count ?? 0;
 }

@@ -930,6 +930,9 @@ export const contactActivities = mysqlTable("contact_activities", {
     "task_completed",
     "lead_routed",
     "lead_score_changed",
+    "webchat_started",
+    "webchat_handoff",
+    "webchat_message",
   ]).notNull(),
   /** Human-readable description of the activity */
   description: text("description").notNull(),
@@ -1899,3 +1902,100 @@ export const funnels = mysqlTable("funnels", {
 });
 export type Funnel = typeof funnels.$inferSelect;
 export type InsertFunnel = typeof funnels.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// CHAT WIDGETS — Embeddable webchat widget configuration
+// Each widget belongs to a sub-account and can be embedded
+// on external websites via a <script> tag.
+// ─────────────────────────────────────────────
+export const chatWidgets = mysqlTable("chat_widgets", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this widget belongs to */
+  accountId: int("account_id").notNull(),
+  /** Human-readable widget name */
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Public unique identifier used in embed snippet */
+  widgetKey: varchar("widget_key", { length: 64 }).notNull().unique(),
+  /** Greeting message shown when chat opens */
+  greeting: text("greeting"),
+  /** Whether AI auto-responses are enabled */
+  aiEnabled: boolean("ai_enabled").default(true).notNull(),
+  /** Optional system prompt for the AI assistant */
+  aiSystemPrompt: text("ai_system_prompt"),
+  /** Comma-separated keywords that trigger human handoff (e.g. "agent,human,help,speak to someone") */
+  handoffKeywords: text("handoff_keywords"),
+  /** Brand color for the widget bubble (hex) */
+  brandColor: varchar("brand_color", { length: 20 }).default("#6366f1").notNull(),
+  /** Widget position on the page */
+  position: mysqlEnum("position", ["bottom-right", "bottom-left"]).default("bottom-right").notNull(),
+  /** Allowed domains (comma-separated). Empty = allow all */
+  allowedDomains: text("allowed_domains"),
+  /** Whether to collect visitor info (name, email) before chat */
+  collectVisitorInfo: boolean("collect_visitor_info").default(true).notNull(),
+  /** Whether the widget is active */
+  isActive: boolean("is_active").default(true).notNull(),
+  /** User who created the widget */
+  createdById: int("created_by_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type ChatWidget = typeof chatWidgets.$inferSelect;
+export type InsertChatWidget = typeof chatWidgets.$inferInsert;
+
+// ─────────────────────────────────────────────
+// WEBCHAT SESSIONS — Tracks individual chat sessions from visitors
+// ─────────────────────────────────────────────
+export const webchatSessions = mysqlTable("webchat_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The widget this session belongs to */
+  widgetId: int("widget_id").notNull(),
+  /** Sub-account (denormalized for fast queries) */
+  accountId: int("account_id").notNull(),
+  /** Unique session ID generated client-side (stored in localStorage) */
+  sessionKey: varchar("session_key", { length: 64 }).notNull().unique(),
+  /** Linked contact (created after visitor provides info or matched by email) */
+  contactId: int("contact_id"),
+  /** Visitor name (if collected) */
+  visitorName: varchar("visitor_name", { length: 255 }),
+  /** Visitor email (if collected) */
+  visitorEmail: varchar("visitor_email", { length: 320 }),
+  /** Whether human handoff has been requested */
+  handoffRequested: boolean("handoff_requested").default(false).notNull(),
+  /** Whether a human agent has taken over this conversation */
+  agentTakenOver: boolean("agent_taken_over").default(false).notNull(),
+  /** User ID of the agent who took over (null if AI-only) */
+  agentUserId: int("agent_user_id"),
+  /** Session status */
+  status: mysqlEnum("status", ["active", "closed"]).default("active").notNull(),
+  /** Page URL where the chat was initiated */
+  pageUrl: text("page_url"),
+  /** IP address of the visitor */
+  ipAddress: varchar("ip_address", { length: 45 }),
+  /** User agent string */
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type WebchatSession = typeof webchatSessions.$inferSelect;
+export type InsertWebchatSession = typeof webchatSessions.$inferInsert;
+
+// ─────────────────────────────────────────────
+// WEBCHAT MESSAGES — Individual messages within a webchat session
+// ─────────────────────────────────────────────
+export const webchatMessages = mysqlTable("webchat_messages", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The session this message belongs to */
+  sessionId: int("session_id").notNull(),
+  /** Sub-account (denormalized for fast queries) */
+  accountId: int("account_id").notNull(),
+  /** Who sent the message */
+  sender: mysqlEnum("sender", ["visitor", "ai", "agent"]).notNull(),
+  /** Message content */
+  content: text("content").notNull(),
+  /** Whether this message has been read by an agent */
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type WebchatMessage = typeof webchatMessages.$inferSelect;
+export type InsertWebchatMessage = typeof webchatMessages.$inferInsert;

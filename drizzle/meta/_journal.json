@@ -379,6 +379,20 @@
       "when": 1774760455396,
       "tag": "0053_chemical_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "5",
+      "when": 1774787431067,
+      "tag": "0054_thankful_bruce_banner",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "5",
+      "when": 1774787566286,
+      "tag": "0055_lush_captain_stacy",
+      "breakpoints": true
     }
   ]
 }

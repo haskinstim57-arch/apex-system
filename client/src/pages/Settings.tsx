@@ -106,6 +106,7 @@ import { WebhookDeliveryLogs } from "@/components/WebhookDeliveryLogs";
 import { WebhookConditionsEditor, WebhookConditionsBadges } from "@/components/WebhookConditionsEditor";
 import type { WebhookCondition } from "@/components/WebhookConditionsEditor";
 import { ApiKeysCard } from "@/components/ApiKeysCard";
+import { WebchatWidgetsCard } from "@/components/WebchatWidgetsCard";
 import { CustomFieldsCard } from "@/components/CustomFieldsCard";
 import { useAccount } from "@/contexts/AccountContext";
 
@@ -367,6 +368,11 @@ export default function SettingsPage() {
       {/* API Keys — visible to anyone with an account selected */}
       {currentAccountId && (
         <ApiKeysCard accountId={currentAccountId} />
+      )}
+
+      {/* Webchat Widgets — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <WebchatWidgetsCard accountId={currentAccountId} />
       )}
 
       {/* Admin Integrations */}
