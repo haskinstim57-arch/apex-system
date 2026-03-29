@@ -1,5 +1,6 @@
 import {
   boolean,
+  decimal,
   int,
   json,
   mysqlEnum,
@@ -69,10 +70,20 @@ export const accounts = mysqlTable("accounts", {
     endHour: number;
     daysOfWeek: number[];
   }>(),
+  /** White-label / Agency Branding */
+  customDomain: varchar("customDomain", { length: 255 }),
+  primaryColor: varchar("primaryColor", { length: 20 }).default("#d4a843"),
+  fromEmailDomain: varchar("fromEmailDomain", { length: 255 }),
+  /** Verified flag for the custom email sender domain */
+  emailDomainVerified: boolean("emailDomainVerified").default(false).notNull(),
+  /** Branding text shown in emails / portal footer */
+  brandName: varchar("brandName", { length: 255 }),
+  /** Favicon URL for white-label portal */
+  faviconUrl: text("faviconUrl"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-export type Account = typeof accounts.$inferSelect;;
+export type Account = typeof accounts.$inferSelect;
 export type InsertAccount = typeof accounts.$inferInsert;
 
 // ─────────────────────────────────────────────
@@ -493,6 +504,7 @@ export const workflowSteps = mysqlTable("workflow_steps", {
     "notify_user",
     "send_review_request",
     "enroll_in_sequence",
+    "request_payment",
   ]),
   /** Delay type (null for action steps) */
   delayType: mysqlEnum("delayType", ["minutes", "hours", "days"]),
@@ -1999,3 +2011,81 @@ export const webchatMessages = mysqlTable("webchat_messages", {
 });
 export type WebchatMessage = typeof webchatMessages.$inferSelect;
 export type InsertWebchatMessage = typeof webchatMessages.$inferInsert;
+
+// ─────────────────────────────────────────────
+// PRODUCTS — Reusable line items for invoices
+// ─────────────────────────────────────────────
+export const products = mysqlTable("products", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  /** Price in cents (e.g. 5000 = $50.00) */
+  price: int("price").notNull(),
+  type: mysqlEnum("type", ["one_time", "recurring"]).default("one_time").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = typeof products.$inferInsert;
+
+// ─────────────────────────────────────────────
+// INVOICES — Payment collection for contacts
+// ─────────────────────────────────────────────
+export const invoices = mysqlTable("invoices", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  contactId: int("contact_id").notNull(),
+  /** Auto-generated unique per account, e.g. "INV-0001" */
+  invoiceNumber: varchar("invoice_number", { length: 20 }).notNull(),
+  status: mysqlEnum("status", [
+    "draft",
+    "sent",
+    "paid",
+    "partially_paid",
+    "overdue",
+    "cancelled",
+  ]).default("draft").notNull(),
+  issueDate: timestamp("issue_date").defaultNow().notNull(),
+  dueDate: timestamp("due_date"),
+  /** All monetary values in cents */
+  subtotal: int("subtotal").default(0).notNull(),
+  taxRate: decimal("tax_rate", { precision: 5, scale: 2 }),
+  taxAmount: int("tax_amount").default(0).notNull(),
+  total: int("total").default(0).notNull(),
+  amountPaid: int("amount_paid").default(0).notNull(),
+  balanceDue: int("balance_due").default(0).notNull(),
+  currency: varchar("currency", { length: 3 }).default("USD").notNull(),
+  notes: text("notes"),
+  /** Square integration fields */
+  squarePaymentId: varchar("square_payment_id", { length: 255 }),
+  squarePaymentLink: text("square_payment_link"),
+  squareOrderId: varchar("square_order_id", { length: 255 }),
+  sentAt: timestamp("sent_at"),
+  paidAt: timestamp("paid_at"),
+  /** Who created this invoice */
+  createdById: int("created_by_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = typeof invoices.$inferInsert;
+
+// ─────────────────────────────────────────────
+// INVOICE ITEMS — Line items on an invoice
+// ─────────────────────────────────────────────
+export const invoiceItems = mysqlTable("invoice_items", {
+  id: int("id").autoincrement().primaryKey(),
+  invoiceId: int("invoice_id").notNull(),
+  description: varchar("description", { length: 500 }).notNull(),
+  /** Quantity as decimal (e.g. 1.5 hours) */
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).default("1").notNull(),
+  /** Unit price in cents */
+  unitPrice: int("unit_price").notNull(),
+  /** Computed: quantity * unitPrice (in cents) */
+  amount: int("amount").notNull(),
+  sortOrder: int("sort_order").default(0).notNull(),
+});
+export type InvoiceItem = typeof invoiceItems.$inferSelect;
+export type InsertInvoiceItem = typeof invoiceItems.$inferInsert;

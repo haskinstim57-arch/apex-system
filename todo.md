@@ -2200,4 +2200,72 @@
 ### Testing
 - [x] Write vitest tests for webchat router (15 tests passing) + handoff detection
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: 30c8033a)
+
+## Payment Collection / Invoicing (#21) — Square Integration
+
+### Schema
+- [ ] Add invoices table (accountId, contactId, invoiceNumber, status, dates, amounts in cents, Square fields)
+- [ ] Add invoice_items table (invoiceId, description, quantity, unitPrice, amount, sortOrder)
+- [ ] Add products table (accountId, name, price in cents, type, description, isActive)
+- [ ] Push migration with pnpm db:push
+
+### Backend — Square SDK
+- [ ] Install square npm package
+- [ ] Request env vars: SQUARE_ACCESS_TOKEN, SQUARE_ENVIRONMENT, SQUARE_APPLICATION_ID, SQUARE_LOCATION_ID
+- [ ] Create server/services/square.ts (createPaymentLink, getPaymentStatus, processRefund)
+
+### Backend — Payments tRPC Router
+- [ ] Products CRUD: createProduct, listProducts, updateProduct, deleteProduct
+- [ ] Invoices: createInvoice (with line items, auto-generate invoice number), updateInvoice, getInvoice (with items), listInvoices (filters + pagination)
+- [ ] sendInvoice: generate Square payment link, send via SMS/email
+- [ ] recordPayment: manual payment for cash/check
+- [ ] cancelInvoice
+- [ ] getPaymentStats: total collected 30d, outstanding balance, overdue count
+
+### Square Webhook
+- [ ] REST endpoint at /api/webhooks/square for payment.completed events
+- [ ] Verify webhook signature, update invoice status, record payment amount
+
+### Workflow Action
+- [ ] Add request_payment action type to workflow engine
+- [ ] Action sends Square payment link to contact via SMS/email
+
+### Frontend — Payments Page
+- [ ] Add Payments sidebar nav item
+- [ ] Products management (CRUD table)
+- [ ] Invoices list with status filter tabs (All/Draft/Sent/Paid/Overdue), search
+- [ ] Create/edit invoice form: contact selector, dynamic line items, product picker, tax, dates, notes
+- [ ] Invoice detail view: line items, status badge, payment history, actions
+- [ ] Dashboard stats cards (collected, outstanding, overdue)
+
+### Testing
+- [ ] Write vitest tests for payments router, Square service, webhook
+- [ ] TypeScript check — 0 errors
+- [ ] Checkpoint saved
+
+## White-Label and Agency Branding
+
+### Schema
+- [x] Add customDomain, primaryColor, fromEmailDomain, emailDomainVerified, brandName, faviconUrl fields to accounts table
+- [x] Push migration with pnpm db:push
+
+### Backend
+- [x] getBranding procedure — returns all branding fields for an account
+- [x] updateBranding procedure — saves logo, favicon, brand name, primary color, custom domain
+- [x] setEmailDomain procedure — initiates SendGrid domain authentication, returns DNS records
+- [x] verifyEmailDomain procedure — validates domain via SendGrid API
+- [x] Audit logging for all branding changes
+
+### Frontend
+- [x] AgencyBrandingCard component in Settings page
+- [x] Brand Identity section: brand name, primary color picker with 10 presets, logo URL with preview, favicon URL with preview
+- [x] Custom Domain section with CNAME instructions
+- [x] Email Sender Domain section with authenticate + verify flow
+- [x] DNS Records dialog showing required CNAME/TXT records with copy buttons
+- [x] Live branding preview (header, body, footer mockup)
+
+### Testing
+- [x] 18 vitest tests passing (input validation, color presets, schema fields, DNS record shape)
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved

@@ -453,6 +453,206 @@ export const accountsRouter = router({
       };
     }),
 
+  // ─── White-Label / Agency Branding ───
+
+  /** Get branding settings for an account */
+  getBranding: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager"]);
+      }
+      const account = await db.getAccountById(input.accountId);
+      if (!account) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
+      }
+      return {
+        logoUrl: (account as any).logoUrl ?? null,
+        faviconUrl: (account as any).faviconUrl ?? null,
+        brandName: (account as any).brandName ?? null,
+        primaryColor: (account as any).primaryColor ?? "#d4a843",
+        customDomain: (account as any).customDomain ?? null,
+        fromEmailDomain: (account as any).fromEmailDomain ?? null,
+        emailDomainVerified: (account as any).emailDomainVerified ?? false,
+      };
+    }),
+
+  /** Update branding settings (logo, colors, brand name, favicon) */
+  updateBranding: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        logoUrl: z.string().nullable().optional(),
+        faviconUrl: z.string().nullable().optional(),
+        brandName: z.string().max(255).nullable().optional(),
+        primaryColor: z.string().max(20).optional(),
+        customDomain: z.string().max(255).nullable().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+      const { accountId, ...data } = input;
+      await db.updateAccount(accountId, data as any);
+
+      await db.createAuditLog({
+        accountId,
+        userId: ctx.user.id,
+        action: "account.branding_updated",
+        resourceType: "account",
+        resourceId: accountId,
+        metadata: JSON.stringify(data),
+      });
+      return { success: true };
+    }),
+
+  /** Set custom email sender domain and initiate SendGrid domain authentication */
+  setEmailDomain: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        fromEmailDomain: z.string().min(3).max(255),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+
+      // Attempt SendGrid domain authentication if API key is available
+      let dnsRecords: Array<{ type: string; host: string; data: string }> = [];
+      let sendgridDomainId: string | null = null;
+
+      const sgApiKey = process.env.SENDGRID_API_KEY;
+      if (sgApiKey) {
+        try {
+          const response = await fetch("https://api.sendgrid.com/v3/whitelabel/domains", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${sgApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              domain: input.fromEmailDomain,
+              automatic_security: true,
+              custom_spf: false,
+            }),
+          });
+
+          if (response.ok) {
+            const result = await response.json() as any;
+            sendgridDomainId = String(result.id);
+            // Extract DNS records from the response
+            const dns = result.dns || {};
+            for (const key of Object.keys(dns)) {
+              const rec = dns[key];
+              if (rec && rec.type && rec.host && rec.data) {
+                dnsRecords.push({ type: rec.type, host: rec.host, data: rec.data });
+              }
+            }
+          } else {
+            const errBody = await response.text();
+            console.error(`[Branding] SendGrid domain auth failed: ${response.status} ${errBody}`);
+          }
+        } catch (err) {
+          console.error("[Branding] SendGrid domain auth error:", err);
+        }
+      }
+
+      await db.updateAccount(input.accountId, {
+        fromEmailDomain: input.fromEmailDomain,
+        emailDomainVerified: false,
+      } as any);
+
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "account.email_domain_set",
+        resourceType: "account",
+        resourceId: input.accountId,
+        metadata: JSON.stringify({ domain: input.fromEmailDomain, sendgridDomainId }),
+      });
+
+      return {
+        success: true,
+        domain: input.fromEmailDomain,
+        dnsRecords,
+        sendgridDomainId,
+        message: dnsRecords.length > 0
+          ? "Add the following DNS records to your domain, then verify."
+          : "Domain saved. Configure SendGrid API key to enable domain authentication.",
+      };
+    }),
+
+  /** Verify the custom email sender domain via SendGrid */
+  verifyEmailDomain: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        sendgridDomainId: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+
+      const sgApiKey = process.env.SENDGRID_API_KEY;
+      if (!sgApiKey) {
+        return { success: false, verified: false, message: "SendGrid API key not configured." };
+      }
+
+      if (!input.sendgridDomainId) {
+        return { success: false, verified: false, message: "No SendGrid domain ID provided. Set the email domain first." };
+      }
+
+      try {
+        const response = await fetch(
+          `https://api.sendgrid.com/v3/whitelabel/domains/${input.sendgridDomainId}/validate`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${sgApiKey}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (!response.ok) {
+          const errBody = await response.text();
+          console.error(`[Branding] SendGrid domain verify failed: ${response.status} ${errBody}`);
+          return { success: false, verified: false, message: "Verification request failed. Check DNS records and try again." };
+        }
+
+        const result = await response.json() as any;
+        const isValid = result.valid === true;
+
+        if (isValid) {
+          await db.updateAccount(input.accountId, { emailDomainVerified: true } as any);
+        }
+
+        await db.createAuditLog({
+          accountId: input.accountId,
+          userId: ctx.user.id,
+          action: isValid ? "account.email_domain_verified" : "account.email_domain_verification_failed",
+          resourceType: "account",
+          resourceId: input.accountId,
+          metadata: JSON.stringify({ sendgridDomainId: input.sendgridDomainId, valid: isValid }),
+        });
+
+        return {
+          success: true,
+          verified: isValid,
+          validationResults: result.validation_results || {},
+          message: isValid ? "Domain verified successfully!" : "Domain verification failed. Please check your DNS records.",
+        };
+      } catch (err) {
+        console.error("[Branding] Domain verification error:", err);
+        return { success: false, verified: false, message: "Verification request failed." };
+      }
+    }),
+
   /** Toggle AI voice calling on/off for an account */
   toggleVoiceAgent: protectedProcedure
     .input(
