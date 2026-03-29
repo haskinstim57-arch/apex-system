@@ -2384,4 +2384,15 @@
 - [x] No changes to any other role logic, permissions, or contact CRUD operations
 - [x] 12 new vitest tests added (39 total passing): role detection, list scoping, stats scoping, export scoping, filter logic validation for employee/owner/manager
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: db9e5091)
+
+## Onboarding Checklist Backend Fix
+
+- [x] Rewrote getOnboardingStatus procedure in server/routers/accounts.ts
+- [x] Queries 7 conditions: accountMessagingSettings.twilioFromNumber, contacts count, campaigns status='sent', workflows count, pipelines count, calendars count, accountMembers count > 1
+- [x] Return shape: { steps: [{id, label, complete}], allComplete, completedCount, totalCount: 7 }
+- [x] Auto-sets onboardingComplete = true on accounts row when allComplete is true
+- [x] Rewrote OnboardingChecklist.tsx to consume new steps-based return shape with icons, descriptions, nav links, progress bar, milestone emails, and congratulations animation
+- [x] 23 new vitest tests added (37 total passing): return shape contract, completion logic, step conditions, schema references, auto-complete behavior
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved

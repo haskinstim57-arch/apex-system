@@ -269,61 +269,91 @@ export const accountsRouter = router({
       }
       const database = await db.getDb();
       if (!database) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
-      const { accounts, contacts, calendars, campaigns, workflows, accountMessagingSettings } = await import("../../drizzle/schema");
-      const { count } = await import("drizzle-orm");
+      const {
+        accounts,
+        contacts,
+        calendars,
+        campaigns,
+        workflows,
+        pipelines,
+        accountMembers,
+        accountMessagingSettings,
+      } = await import("../../drizzle/schema");
+      const { count, and } = await import("drizzle-orm");
 
-      // 1. Get account record
-      const [account] = await database
-        .select({
-          phone: accounts.phone,
-          missedCallTextBackEnabled: accounts.missedCallTextBackEnabled,
-          voiceAgentEnabled: accounts.voiceAgentEnabled,
-        })
-        .from(accounts)
-        .where(eq(accounts.id, input.accountId))
-        .limit(1);
-
-      // 2. Get messaging settings (sendgridFromEmail)
+      // 1. Phone number connected — check accountMessagingSettings.twilioFromNumber
       const [msgSettings] = await database
-        .select({ sendgridFromEmail: accountMessagingSettings.sendgridFromEmail })
+        .select({ twilioFromNumber: accountMessagingSettings.twilioFromNumber })
         .from(accountMessagingSettings)
         .where(eq(accountMessagingSettings.accountId, input.accountId))
         .limit(1);
+      const phoneConnected = !!(msgSettings?.twilioFromNumber);
 
-      // 3. Count contacts
+      // 2. First contact added — at least 1 contact row
       const [contactCount] = await database
         .select({ cnt: count() })
         .from(contacts)
         .where(eq(contacts.accountId, input.accountId));
+      const firstContact = (contactCount?.cnt ?? 0) > 0;
 
-      // 4. Count calendars
-      const [calendarCount] = await database
-        .select({ cnt: count() })
-        .from(calendars)
-        .where(eq(calendars.accountId, input.accountId));
-
-      // 5. Count campaigns
-      const [campaignCount] = await database
+      // 3. First campaign sent — at least 1 campaign with status = 'sent'
+      const [sentCampaignCount] = await database
         .select({ cnt: count() })
         .from(campaigns)
-        .where(eq(campaigns.accountId, input.accountId));
+        .where(and(eq(campaigns.accountId, input.accountId), eq(campaigns.status, "sent")));
+      const firstCampaignSent = (sentCampaignCount?.cnt ?? 0) > 0;
 
-      // 6. Count workflows
+      // 4. Automation created — at least 1 workflow row
       const [workflowCount] = await database
         .select({ cnt: count() })
         .from(workflows)
         .where(eq(workflows.accountId, input.accountId));
+      const automationCreated = (workflowCount?.cnt ?? 0) > 0;
 
-      return {
-        hasPhoneNumber: !!account?.phone,
-        hasEmail: !!msgSettings?.sendgridFromEmail,
-        hasContact: (contactCount?.cnt ?? 0) > 0,
-        hasCalendar: (calendarCount?.cnt ?? 0) > 0,
-        hasMissedCallTextBack: !!account?.missedCallTextBackEnabled,
-        hasCampaign: (campaignCount?.cnt ?? 0) > 0,
-        hasWorkflow: (workflowCount?.cnt ?? 0) > 0,
-        hasVoiceAgent: !!account?.voiceAgentEnabled,
-      };
+      // 5. Pipeline configured — at least 1 pipeline row
+      const [pipelineCount] = await database
+        .select({ cnt: count() })
+        .from(pipelines)
+        .where(eq(pipelines.accountId, input.accountId));
+      const pipelineConfigured = (pipelineCount?.cnt ?? 0) > 0;
+
+      // 6. Calendar set up — at least 1 calendar row
+      const [calendarCount] = await database
+        .select({ cnt: count() })
+        .from(calendars)
+        .where(eq(calendars.accountId, input.accountId));
+      const calendarSetup = (calendarCount?.cnt ?? 0) > 0;
+
+      // 7. Team member invited — more than 1 member in accountMembers
+      const [memberCount] = await database
+        .select({ cnt: count() })
+        .from(accountMembers)
+        .where(eq(accountMembers.accountId, input.accountId));
+      const teamInvited = (memberCount?.cnt ?? 0) > 1;
+
+      const steps = [
+        { id: "phone_connected" as const, label: "Connect a phone number", complete: phoneConnected },
+        { id: "first_contact" as const, label: "Add your first contact", complete: firstContact },
+        { id: "first_campaign" as const, label: "Send your first campaign", complete: firstCampaignSent },
+        { id: "automation_created" as const, label: "Create an automation", complete: automationCreated },
+        { id: "pipeline_configured" as const, label: "Set up your pipeline", complete: pipelineConfigured },
+        { id: "calendar_setup" as const, label: "Configure your calendar", complete: calendarSetup },
+        { id: "team_invited" as const, label: "Invite a team member", complete: teamInvited },
+      ];
+
+      const completedCount = steps.filter((s) => s.complete).length;
+      const totalCount = 7;
+      const allComplete = completedCount === totalCount;
+
+      // Auto-mark onboarding as complete when all 7 steps are done
+      if (allComplete) {
+        await database
+          .update(accounts)
+          .set({ onboardingComplete: true })
+          .where(eq(accounts.id, input.accountId));
+      }
+
+      return { steps, allComplete, completedCount, totalCount };
     }),
 
   /** Mark onboarding as complete for a sub-account */

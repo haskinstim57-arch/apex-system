@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,13 +6,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import {
   Phone,
-  Mail,
   UserPlus,
-  Calendar,
-  PhoneMissed,
   Megaphone,
   Zap,
-  Bot,
+  GitBranch,
+  Calendar,
+  Users,
   CheckCircle2,
   Circle,
   X,
@@ -26,92 +25,47 @@ interface OnboardingChecklistProps {
   accountId: number;
 }
 
-interface ChecklistStep {
-  key: string;
-  label: string;
-  description: string;
-  icon: React.ComponentType<{ className?: string }>;
-  link: string;
-  completedKey: keyof OnboardingStatus;
-}
-
-interface OnboardingStatus {
-  hasPhoneNumber: boolean;
-  hasEmail: boolean;
-  hasContact: boolean;
-  hasCalendar: boolean;
-  hasMissedCallTextBack: boolean;
-  hasCampaign: boolean;
-  hasWorkflow: boolean;
-  hasVoiceAgent: boolean;
-}
-
-const CHECKLIST_STEPS: ChecklistStep[] = [
-  {
-    key: "phone",
-    label: "Get a Phone Number",
-    description: "Set up a phone number for SMS and AI calls",
+/** Map step IDs to icons and navigation links */
+const STEP_CONFIG: Record<
+  string,
+  { icon: React.ComponentType<{ className?: string }>; link: string; description: string }
+> = {
+  phone_connected: {
     icon: Phone,
     link: "/settings#phone",
-    completedKey: "hasPhoneNumber",
+    description: "Set up a phone number for SMS and AI calls",
   },
-  {
-    key: "email",
-    label: "Connect Your Email",
-    description: "Configure SendGrid for email campaigns",
-    icon: Mail,
-    link: "/settings#email",
-    completedKey: "hasEmail",
-  },
-  {
-    key: "contact",
-    label: "Add Your First Contact",
-    description: "Import or create your first lead",
+  first_contact: {
     icon: UserPlus,
     link: "/contacts",
-    completedKey: "hasContact",
+    description: "Import or create your first lead",
   },
-  {
-    key: "calendar",
-    label: "Create a Calendar",
-    description: "Set up booking availability for appointments",
-    icon: Calendar,
-    link: "/calendar",
-    completedKey: "hasCalendar",
-  },
-  {
-    key: "missedCall",
-    label: "Set Up Missed Call Text-Back",
-    description: "Auto-reply to missed calls with a text message",
-    icon: PhoneMissed,
-    link: "/settings#missed-call",
-    completedKey: "hasMissedCallTextBack",
-  },
-  {
-    key: "campaign",
-    label: "Launch Your First Campaign",
-    description: "Send an email or SMS campaign to your contacts",
+  first_campaign: {
     icon: Megaphone,
     link: "/campaigns",
-    completedKey: "hasCampaign",
+    description: "Send an email or SMS campaign to your contacts",
   },
-  {
-    key: "workflow",
-    label: "Build Your First Automation",
-    description: "Create a workflow to automate follow-ups",
+  automation_created: {
     icon: Zap,
     link: "/automations",
-    completedKey: "hasWorkflow",
+    description: "Create a workflow to automate follow-ups",
   },
-  {
-    key: "voiceAgent",
-    label: "Set Up AI Voice Agent",
-    description: "Enable AI-powered outbound calling for your account",
-    icon: Bot,
-    link: "/settings#voice",
-    completedKey: "hasVoiceAgent",
+  pipeline_configured: {
+    icon: GitBranch,
+    link: "/pipeline",
+    description: "Set up your sales pipeline stages",
   },
-];
+  calendar_setup: {
+    icon: Calendar,
+    link: "/calendar",
+    description: "Set up booking availability for appointments",
+  },
+  team_invited: {
+    icon: Users,
+    link: "/settings#team",
+    description: "Invite a team member to collaborate",
+  },
+};
 
 export default function OnboardingChecklist({ accountId }: OnboardingChecklistProps) {
   const [, navigate] = useLocation();
@@ -124,21 +78,17 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
   // Check localStorage for dismiss state
   useEffect(() => {
     const key = `onboarding-dismissed-${accountId}`;
-    const stored = localStorage.getItem(key);
-    if (stored === "true") {
+    if (localStorage.getItem(key) === "true") {
       setDismissed(true);
     }
-    // Check if halfway notification was already shown
     const halfwayKey = `onboarding-halfway-${accountId}`;
     if (localStorage.getItem(halfwayKey) === "true") {
       halfwayNotifiedRef.current = true;
     }
   }, [accountId]);
 
-  const stableAccountId = useMemo(() => accountId, [accountId]);
-
   const { data: status, isLoading } = trpc.accounts.getOnboardingStatus.useQuery(
-    { accountId: stableAccountId },
+    { accountId },
     { enabled: !dismissed && !showCongrats }
   );
 
@@ -149,11 +99,8 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
   useEffect(() => {
     if (!status) return;
 
-    const completedCount = CHECKLIST_STEPS.filter(
-      (step) => status[step.completedKey]
-    ).length;
-    const totalSteps = CHECKLIST_STEPS.length;
-    const progressPercent = Math.round((completedCount / totalSteps) * 100);
+    const { completedCount, totalCount, allComplete } = status;
+    const progressPercent = Math.round((completedCount / totalCount) * 100);
 
     // 50% milestone email
     if (progressPercent >= 50 && !halfwayNotifiedRef.current) {
@@ -163,14 +110,20 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
         { accountId, milestone: "halfway" },
         {
           onSuccess: () => {
-            toast.success(`Halfway there! You've completed ${completedCount} of ${totalSteps} steps. Keep going!`);
+            toast.success(
+              `Halfway there! You've completed ${completedCount} of ${totalCount} steps. Keep going!`
+            );
           },
         }
       );
     }
 
     // 100% completion — auto-dismiss + congratulations
-    if (completedCount === totalSteps && prevCompletedRef.current !== null && prevCompletedRef.current < totalSteps) {
+    if (
+      allComplete &&
+      prevCompletedRef.current !== null &&
+      prevCompletedRef.current < totalCount
+    ) {
       setShowCongrats(true);
       completeOnboarding.mutate(
         { accountId },
@@ -182,8 +135,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
       );
       // Auto-dismiss after 5 seconds
       setTimeout(() => {
-        const key = `onboarding-dismissed-${accountId}`;
-        localStorage.setItem(key, "true");
+        localStorage.setItem(`onboarding-dismissed-${accountId}`, "true");
         setDismissed(true);
         setShowCongrats(false);
       }, 5000);
@@ -205,16 +157,14 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
               <PartyPopper className="h-7 w-7 text-emerald-600" />
             </div>
             <h3 className="text-lg font-semibold text-foreground">
-              Congratulations! 🎉
+              Congratulations!
             </h3>
             <p className="text-sm text-muted-foreground max-w-sm">
               You've completed all onboarding steps! Your account is fully set up
               and ready to go. Time to start closing deals.
             </p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-muted-foreground">
-                {CHECKLIST_STEPS.length}/{CHECKLIST_STEPS.length} complete
-              </span>
+              <span className="text-xs text-muted-foreground">7/7 complete</span>
               <div className="h-2 w-24 bg-emerald-100 rounded-full overflow-hidden">
                 <div className="h-full w-full bg-emerald-500 rounded-full" />
               </div>
@@ -228,18 +178,14 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
   if (isLoading) return <OnboardingChecklistSkeleton />;
   if (!status) return null;
 
-  const completedCount = CHECKLIST_STEPS.filter(
-    (step) => status[step.completedKey]
-  ).length;
-  const totalSteps = CHECKLIST_STEPS.length;
-  const progressPercent = Math.round((completedCount / totalSteps) * 100);
+  const { steps, completedCount, totalCount, allComplete } = status;
+  const progressPercent = Math.round((completedCount / totalCount) * 100);
 
   // All steps complete — show congrats handled above via useEffect
-  if (completedCount === totalSteps) return null;
+  if (allComplete) return null;
 
   const handleDismiss = () => {
-    const key = `onboarding-dismissed-${accountId}`;
-    localStorage.setItem(key, "true");
+    localStorage.setItem(`onboarding-dismissed-${accountId}`, "true");
     setDismissed(true);
   };
 
@@ -257,7 +203,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                 Getting Started
               </h3>
               <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
-                {completedCount}/{totalSteps} complete
+                {completedCount}/{totalCount} complete
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -301,21 +247,23 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
         {/* Checklist steps */}
         {expanded && (
           <div className="space-y-1">
-            {CHECKLIST_STEPS.map((step) => {
-              const isComplete = status[step.completedKey];
-              const Icon = step.icon;
+            {steps.map((step) => {
+              const config = STEP_CONFIG[step.id];
+              const Icon = config?.icon ?? Circle;
+              const link = config?.link ?? "/settings";
+              const description = config?.description ?? step.label;
 
               return (
                 <div
-                  key={step.key}
+                  key={step.id}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    isComplete
+                    step.complete
                       ? "bg-emerald-50/50"
                       : "hover:bg-gray-50"
                   }`}
                 >
                   {/* Status icon */}
-                  {isComplete ? (
+                  {step.complete ? (
                     <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
                   ) : (
                     <Circle className="h-5 w-5 text-gray-300 shrink-0" />
@@ -324,7 +272,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                   {/* Step icon */}
                   <div
                     className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
-                      isComplete
+                      step.complete
                         ? "bg-emerald-100 text-emerald-600"
                         : "bg-gray-100 text-gray-500"
                     }`}
@@ -336,7 +284,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                   <div className="flex-1 min-w-0">
                     <p
                       className={`text-sm font-medium ${
-                        isComplete
+                        step.complete
                           ? "text-emerald-700 line-through"
                           : "text-foreground"
                       }`}
@@ -344,17 +292,17 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                       {step.label}
                     </p>
                     <p className="text-xs text-muted-foreground truncate">
-                      {step.description}
+                      {description}
                     </p>
                   </div>
 
                   {/* Action button */}
-                  {!isComplete && (
+                  {!step.complete && (
                     <Button
                       variant="outline"
                       size="sm"
                       className="h-7 text-xs px-3 shrink-0 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
-                      onClick={() => navigate(step.link)}
+                      onClick={() => navigate(link)}
                     >
                       Set Up
                     </Button>
@@ -382,7 +330,7 @@ function OnboardingChecklistSkeleton() {
         </div>
         <Skeleton className="h-2 w-full rounded-full mb-4" />
         <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => (
+          {Array.from({ length: 7 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 px-3 py-2.5">
               <Skeleton className="h-5 w-5 rounded-full" />
               <Skeleton className="h-8 w-8 rounded-lg" />
