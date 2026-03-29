@@ -1565,3 +1565,38 @@ export const customFieldDefs = mysqlTable("custom_field_defs", {
 });
 export type CustomFieldDef = typeof customFieldDefs.$inferSelect;
 export type InsertCustomFieldDef = typeof customFieldDefs.$inferInsert;
+
+// ─── Custom Field Templates ─────────────────────────────────
+export const customFieldTemplates = mysqlTable("custom_field_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Template name, e.g. "Mortgage LO", "Real Estate Agent" */
+  name: varchar("name", { length: 200 }).notNull(),
+  /** Short description of the template */
+  description: text("description"),
+  /** Industry category */
+  industry: varchar("industry", { length: 100 }).notNull(),
+  /** JSON array of field definitions: [{label, slug, type, options?, required, sortOrder}] */
+  fields: text("fields").notNull(),
+  /** true for built-in system templates, false for user-created */
+  isSystem: boolean("is_system").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type CustomFieldTemplate = typeof customFieldTemplates.$inferSelect;
+export type InsertCustomFieldTemplate = typeof customFieldTemplates.$inferInsert;
+
+// ─── User Column Preferences ────────────────────────────────
+export const userColumnPreferences = mysqlTable("user_column_preferences", {
+  id: int("id").autoincrement().primaryKey(),
+  /** User who owns this preference */
+  userId: int("user_id").notNull(),
+  /** Sub-account context */
+  accountId: int("account_id").notNull(),
+  /** Page identifier, e.g. "contacts" */
+  page: varchar("page", { length: 50 }).notNull(),
+  /** JSON array of column configs: [{key, visible, width?, sortOrder}] */
+  columns: text("columns").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type UserColumnPreference = typeof userColumnPreferences.$inferSelect;
+export type InsertUserColumnPreference = typeof userColumnPreferences.$inferInsert;

@@ -23,6 +23,7 @@ import {
   Minus,
   BarChart3,
 } from "lucide-react";
+import { CustomFieldAnalytics } from "@/components/CustomFieldAnalytics";
 import {
   AreaChart,
   Area,
@@ -626,6 +627,11 @@ export default function Analytics() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Custom Field Analytics */}
+      {stableAccountId && (
+        <CustomFieldAnalytics accountId={stableAccountId} />
       )}
     </div>
   );

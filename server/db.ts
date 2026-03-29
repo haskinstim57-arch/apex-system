@@ -723,6 +723,12 @@ export async function getAccountDashboardStats(accountId: number) {
 // CONTACT HELPERS
 // ─────────────────────────────────────────────
 
+export interface CustomFieldFilter {
+  slug: string;
+  operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "is_empty" | "is_not_empty";
+  value?: string;
+}
+
 export interface ContactListFilters {
   accountId: number;
   search?: string;
@@ -730,6 +736,9 @@ export interface ContactListFilters {
   leadSource?: string;
   assignedUserId?: number;
   tag?: string;
+  sortBy?: string;
+  sortDir?: "asc" | "desc";
+  customFieldFilters?: CustomFieldFilter[];
   limit?: number;
   offset?: number;
 }
@@ -792,6 +801,36 @@ export async function listContacts(filters: ContactListFilters) {
     conditions.push(inArray(contacts.id, tagContactIds));
   }
 
+  // Custom field filters — filter on JSON-extracted values from customFields column
+  if (filters.customFieldFilters && filters.customFieldFilters.length > 0) {
+    for (const cf of filters.customFieldFilters) {
+      const jsonPath = sql.raw(`JSON_UNQUOTE(JSON_EXTRACT(customFields, '$.${cf.slug.replace(/'/g, "''")}'))`);
+      switch (cf.operator) {
+        case "equals":
+          conditions.push(sql`${jsonPath} = ${cf.value ?? ""}`);
+          break;
+        case "not_equals":
+          conditions.push(sql`${jsonPath} != ${cf.value ?? ""}`);
+          break;
+        case "contains":
+          conditions.push(sql`${jsonPath} LIKE ${`%${cf.value ?? ""}%`}`);
+          break;
+        case "greater_than":
+          conditions.push(sql`CAST(${jsonPath} AS DECIMAL(20,2)) > ${parseFloat(cf.value ?? "0")}`);
+          break;
+        case "less_than":
+          conditions.push(sql`CAST(${jsonPath} AS DECIMAL(20,2)) < ${parseFloat(cf.value ?? "0")}`);
+          break;
+        case "is_empty":
+          conditions.push(sql`(${jsonPath} IS NULL OR ${jsonPath} = '' OR ${jsonPath} = 'null')`);
+          break;
+        case "is_not_empty":
+          conditions.push(sql`(${jsonPath} IS NOT NULL AND ${jsonPath} != '' AND ${jsonPath} != 'null')`);
+          break;
+      }
+    }
+  }
+
   const whereClause = and(...conditions);
 
   const [countResult] = await db
@@ -802,11 +841,34 @@ export async function listContacts(filters: ContactListFilters) {
   const limit = filters.limit ?? 50;
   const offset = filters.offset ?? 0;
 
+  // Determine sort order
+  let orderByClause;
+  const sortDir = filters.sortDir ?? "desc";
+  if (filters.sortBy) {
+    const sortField = filters.sortBy;
+    if (sortField.startsWith("cf_")) {
+      // Sort by custom field JSON value
+      const slug = sortField.slice(3);
+      const jsonPath = sql.raw(`JSON_UNQUOTE(JSON_EXTRACT(customFields, '$.${slug.replace(/'/g, "''")}'))`);
+      orderByClause = sortDir === "asc" ? sql`${jsonPath} ASC` : sql`${jsonPath} DESC`;
+    } else {
+      // Sort by standard column
+      const col = (contacts as any)[sortField];
+      if (col) {
+        orderByClause = sortDir === "asc" ? asc(col) : desc(col);
+      } else {
+        orderByClause = desc(contacts.createdAt);
+      }
+    }
+  } else {
+    orderByClause = desc(contacts.createdAt);
+  }
+
   const data = await db
     .select()
     .from(contacts)
     .where(whereClause)
-    .orderBy(desc(contacts.createdAt))
+    .orderBy(orderByClause)
     .limit(limit)
     .offset(offset);
 

@@ -1966,3 +1966,34 @@
 - [x] Write 35 vitest tests for custom fields (validation, type enforcement, webhook conditions, workflow engine, CSV export) — all passing
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Checkpoint saved
+
+### Feature: Custom Field Templates
+- [x] Add custom_field_templates table to schema (id, name, description, industry, fields JSON, isSystem, createdAt)
+- [x] Push schema migration
+- [x] Seed 5 built-in templates (Mortgage LO, Real Estate Agent, Insurance Agent, Solar Sales, General Sales)
+- [x] Create tRPC routes: list, get, applyTemplate (skip existing slugs)
+- [x] Build Apply Template modal in CustomFieldsCard (template picker with field preview + apply confirmation)
+- [x] Template picker accessible via "Use Template" button in Custom Fields card header
+
+### Feature: Contact List Column Customization
+- [x] Add user_column_preferences table to schema (userId, accountId, page, columns JSON, createdAt, updatedAt)
+- [x] Push schema migration
+- [x] Create tRPC routes: get, save column preferences
+- [x] Enhance contacts list query to support sortBy/sortDir with custom field JSON extraction
+- [x] Enhance contacts list query to support custom field filters (cf_slug operator value)
+- [x] Build Columns picker popover in Contacts table header (toggle show/hide CF columns)
+- [x] Render custom field values in table cells (type-appropriate formatting: checkbox Yes/No, date locale, number, text)
+- [x] Add sort-by-click on custom field column headers (ArrowUp/Down/UpDown icons)
+- [x] Add custom field filters to the filter bar (field picker, operator, value input)
+- [x] Persist column preferences per user via columnPreferences.save
+
+### Feature: Custom Field Analytics
+- [x] Create tRPC route getAnalytics (dropdown distribution, number stats, checkbox %, date summaries)
+- [x] Build CustomFieldAnalytics component on Analytics page
+- [x] Dropdown fields: donut chart (<=6 items) or horizontal bar chart (>6 items) with recharts
+- [x] Number fields: stat cards grid (avg, min, max, sum, count)
+- [x] Checkbox fields: donut chart with Yes/No breakdown and percentage
+- [x] Date fields: colored summary cards (overdue, next 7d, next 30d, total)
+- [x] Write 26 vitest tests for all 3 features (all passing)
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Checkpoint saved

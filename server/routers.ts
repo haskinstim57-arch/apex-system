@@ -32,6 +32,9 @@ import { reputationRouter } from "./routers/reputation";
 import { webhooksRouter } from "./routers/webhooks";
 import { apiKeysRouter } from "./routers/apiKeys";
 import { customFieldsRouter } from "./routers/customFields";
+import { customFieldTemplatesRouter } from "./routers/customFieldTemplates";
+import { columnPreferencesRouter } from "./routers/columnPreferences";
+import { customFieldAnalyticsRouter } from "./routers/customFieldAnalytics";
 
 export const appRouter = router({
   system: systemRouter,
@@ -75,6 +78,9 @@ export const appRouter = router({
   webhooks: webhooksRouter,
   apiKeys: apiKeysRouter,
   customFields: customFieldsRouter,
+  customFieldTemplates: customFieldTemplatesRouter,
+  columnPreferences: columnPreferencesRouter,
+  customFieldAnalytics: customFieldAnalyticsRouter,
 });
 
 export type AppRouter = typeof appRouter;

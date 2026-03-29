@@ -47,6 +47,9 @@ import {
   Phone,
   AlignLeft,
   ChevronDown,
+  LayoutTemplate,
+  Loader2,
+  Check,
 } from "lucide-react";
 
 const FIELD_TYPES = [
@@ -99,8 +102,11 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
   const [formData, setFormData] = useState<FieldFormData>(defaultFormData);
   const [newOption, setNewOption] = useState("");
   const [autoSlug, setAutoSlug] = useState(true);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
 
   const { data: fields = [], isLoading } = trpc.customFields.list.useQuery({ accountId });
+  const { data: templates = [] } = trpc.customFieldTemplates.list.useQuery();
 
   const createMut = trpc.customFields.create.useMutation({
     onSuccess: () => {
@@ -134,6 +140,18 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
   const toggleMut = trpc.customFields.update.useMutation({
     onSuccess: () => {
       utils.customFields.list.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const applyTemplateMut = trpc.customFieldTemplates.applyTemplate.useMutation({
+    onSuccess: (result) => {
+      utils.customFields.list.invalidate({ accountId });
+      setTemplateOpen(false);
+      setSelectedTemplateId(null);
+      toast.success(
+        `Applied "${result.templateName}": ${result.created} fields created, ${result.skipped} skipped (already exist)`
+      );
     },
     onError: (err) => toast.error(err.message),
   });
@@ -240,10 +258,16 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
               Define custom data fields for contacts. These fields are enforced on create/update, available in CSV import/export, and usable in workflow and webhook conditions.
             </CardDescription>
           </div>
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="h-3.5 w-3.5 mr-1" />
-            Add Field
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" onClick={() => setTemplateOpen(true)}>
+              <LayoutTemplate className="h-3.5 w-3.5 mr-1" />
+              Templates
+            </Button>
+            <Button size="sm" onClick={openCreate}>
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Field
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -512,6 +536,93 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Template Picker Dialog */}
+      <Dialog open={templateOpen} onOpenChange={(open) => { setTemplateOpen(open); if (!open) setSelectedTemplateId(null); }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutTemplate className="h-5 w-5" />
+              Apply Field Template
+            </DialogTitle>
+            <DialogDescription>
+              Choose an industry template to quickly add pre-configured custom fields. Existing fields with the same slug will be skipped.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2">
+            {templates.map((tmpl) => {
+              const tmplFields = (() => { try { return JSON.parse(tmpl.fields); } catch { return []; } })();
+              const isSelected = selectedTemplateId === tmpl.id;
+              return (
+                <div
+                  key={tmpl.id}
+                  onClick={() => setSelectedTemplateId(isSelected ? null : tmpl.id)}
+                  className={`rounded-lg border p-4 cursor-pointer transition-all ${
+                    isSelected
+                      ? "border-primary bg-primary/5 ring-1 ring-primary"
+                      : "border-border hover:border-muted-foreground/30 hover:bg-muted/30"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold">{tmpl.name}</span>
+                        <Badge variant="secondary" className="text-[10px]">{tmpl.industry}</Badge>
+                        {isSelected && <Check className="h-4 w-4 text-primary" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{tmpl.description}</p>
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 font-medium">Fields included:</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {tmplFields.map((f: any, i: number) => {
+                          const ft = FIELD_TYPES.find((t) => t.value === f.type);
+                          const Icon = ft?.icon || Type;
+                          return (
+                            <Badge key={i} variant="outline" className="text-[10px] gap-1 font-normal">
+                              <Icon className="h-2.5 w-2.5" />
+                              {f.label}
+                              {f.required && <span className="text-destructive">*</span>}
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {templates.length === 0 && (
+              <div className="text-xs text-muted-foreground text-center py-8">
+                No templates available.
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTemplateOpen(false); setSelectedTemplateId(null); }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!selectedTemplateId || applyTemplateMut.isPending}
+              onClick={() => {
+                if (selectedTemplateId) {
+                  applyTemplateMut.mutate({ templateId: selectedTemplateId, accountId });
+                }
+              }}
+            >
+              {applyTemplateMut.isPending ? (
+                <><Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Applying...</>
+              ) : (
+                "Apply Template"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

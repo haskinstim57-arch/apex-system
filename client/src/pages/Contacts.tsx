@@ -52,7 +52,18 @@ import {
   X,
   Users,
   Share2,
+  Columns3,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Download,
+  SlidersHorizontal,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -121,6 +132,68 @@ export default function Contacts() {
   const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [bulkAssignUserId, setBulkAssignUserId] = useState<string>("");
 
+  // Column customization
+  const [sortBy, setSortBy] = useState<string>("");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [cfFilters, setCfFilters] = useState<Array<{ slug: string; operator: string; value: string }>>([]);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [cfFilterSlug, setCfFilterSlug] = useState("");
+  const [cfFilterOp, setCfFilterOp] = useState("equals");
+  const [cfFilterVal, setCfFilterVal] = useState("");
+
+  // Custom field definitions for this account
+  const { data: fieldDefs = [] } = trpc.customFields.list.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId }
+  );
+  const activeFieldDefs = useMemo(() => fieldDefs.filter((f) => f.isActive), [fieldDefs]);
+
+  // Column preferences
+  const { data: colPrefs } = trpc.columnPreferences.get.useQuery(
+    { accountId: accountId!, page: "contacts" },
+    { enabled: !!accountId }
+  );
+  const saveColPrefsMut = trpc.columnPreferences.save.useMutation({
+    onSuccess: () => utils.columnPreferences.get.invalidate({ accountId: accountId!, page: "contacts" }),
+  });
+
+  // Visible custom field columns (stored as column objects with key/visible)
+  const visibleCfColumns = useMemo(() => {
+    if (!colPrefs?.columns || !Array.isArray(colPrefs.columns)) {
+      return activeFieldDefs.slice(0, 3).map((f) => f.slug);
+    }
+    // Extract cf_ keys that are visible
+    const cfCols = colPrefs.columns
+      .filter((c: any) => c.key?.startsWith("cf_") && c.visible)
+      .map((c: any) => c.key.slice(3));
+    return cfCols.length > 0 ? cfCols : activeFieldDefs.slice(0, 3).map((f) => f.slug);
+  }, [colPrefs, activeFieldDefs]);
+
+  function toggleCfColumn(slug: string) {
+    const currentCols = Array.isArray(colPrefs?.columns) ? colPrefs.columns : [];
+    const cfKey = `cf_${slug}`;
+    const exists = currentCols.find((c: any) => c.key === cfKey);
+    let nextCols;
+    if (exists) {
+      nextCols = currentCols.map((c: any) =>
+        c.key === cfKey ? { ...c, visible: !c.visible } : c
+      );
+    } else {
+      nextCols = [...currentCols, { key: cfKey, visible: true, sortOrder: currentCols.length }];
+    }
+    saveColPrefsMut.mutate({ accountId: accountId!, page: "contacts", columns: nextCols });
+  }
+
+  // Stable cfFilters for query
+  const stableCfFilters = useMemo(() => {
+    if (cfFilters.length === 0) return undefined;
+    return cfFilters.map((f) => ({
+      slug: f.slug,
+      operator: f.operator as "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "is_empty" | "is_not_empty",
+      value: f.value || undefined,
+    }));
+  }, [cfFilters]);
+
   // Contacts query
   const { data: contactsData, isLoading: contactsLoading } =
     trpc.contacts.list.useQuery(
@@ -131,9 +204,42 @@ export default function Contacts() {
         leadSource: sourceFilter || undefined,
         limit: pageSize,
         offset: page * pageSize,
+        sortBy: sortBy || undefined,
+        sortDir: sortBy ? sortDir : undefined,
+        customFieldFilters: stableCfFilters,
       },
       { enabled: !!accountId }
     );
+
+  // CSV export
+  const [exportTriggered, setExportTriggered] = useState(false);
+  const { data: exportData, isFetching: exportLoading } = trpc.contacts.exportContacts.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId && exportTriggered, refetchOnWindowFocus: false }
+  );
+
+  // Handle export data when it arrives
+  useMemo(() => {
+    if (exportData && exportTriggered) {
+      const headers = exportData.headers || [];
+      const rows = exportData.rows || [];
+      if (headers.length > 0) {
+        const csvLines = [headers.join(",")];
+        for (const row of rows) {
+          csvLines.push(row.map((cell: string) => `"${(cell || "").replace(/"/g, '""')}"`).join(","));
+        }
+        const blob = new Blob([csvLines.join("\n")], { type: "text/csv" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `contacts_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success(`Exported ${rows.length} contacts`);
+      }
+      setExportTriggered(false);
+    }
+  }, [exportData, exportTriggered]);
 
   // Members for assignment
   const { data: members } = trpc.members.list.useQuery(
@@ -277,6 +383,16 @@ export default function Contacts() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => setExportTriggered(true)}
+            disabled={exportLoading}
+            className="h-9 gap-1.5"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {exportLoading ? "Exporting..." : "Export CSV"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setImportOpen(true)}
             className="h-9 gap-1.5"
           >
@@ -375,19 +491,47 @@ export default function Contacts() {
         >
           <Filter className="h-3.5 w-3.5" />
           Filters
-          {(statusFilter || sourceFilter) && (
+          {(statusFilter || sourceFilter || cfFilters.length > 0) && (
             <Badge
               variant="secondary"
               className="h-4 w-4 p-0 flex items-center justify-center text-[10px] ml-1"
             >
-              {(statusFilter ? 1 : 0) + (sourceFilter ? 1 : 0)}
+              {(statusFilter ? 1 : 0) + (sourceFilter ? 1 : 0) + cfFilters.length}
             </Badge>
           )}
         </Button>
+
+        {/* Column Picker */}
+        {activeFieldDefs.length > 0 && (
+          <Popover open={columnsOpen} onOpenChange={setColumnsOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="h-9 gap-1.5 border-border/50">
+                <Columns3 className="h-3.5 w-3.5" />
+                Columns
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="end">
+              <p className="text-xs font-medium text-muted-foreground px-2 py-1.5">Custom Field Columns</p>
+              {activeFieldDefs.map((fd) => (
+                <label
+                  key={fd.slug}
+                  className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer text-sm"
+                >
+                  <Checkbox
+                    checked={visibleCfColumns.includes(fd.slug)}
+                    onCheckedChange={() => toggleCfColumn(fd.slug)}
+                  />
+                  <span className="truncate">{fd.name}</span>
+                </label>
+              ))}
+            </PopoverContent>
+          </Popover>
+        )}
       </div>
 
       {/* Filter Row */}
       {showFilters && (
+        <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg bg-card border border-border/50">
           <Select
             value={statusFilter || "all"}
@@ -427,7 +571,63 @@ export default function Contacts() {
               ))}
             </SelectContent>
           </Select>
-          {(statusFilter || sourceFilter) && (
+          {activeFieldDefs.length > 0 && (
+            <>
+              <div className="h-6 w-px bg-border/50" />
+              <Select value={cfFilterSlug || "pick"} onValueChange={(v) => { setCfFilterSlug(v === "pick" ? "" : v); }}>
+                <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
+                  <SelectValue placeholder="Custom Field" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pick">Custom Field...</SelectItem>
+                  {activeFieldDefs.map((fd) => (
+                    <SelectItem key={fd.slug} value={fd.slug}>{fd.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {cfFilterSlug && (
+                <>
+                  <Select value={cfFilterOp} onValueChange={setCfFilterOp}>
+                    <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="equals">Equals</SelectItem>
+                      <SelectItem value="not_equals">Not Equals</SelectItem>
+                      <SelectItem value="contains">Contains</SelectItem>
+                      <SelectItem value="greater_than">Greater Than</SelectItem>
+                      <SelectItem value="less_than">Less Than</SelectItem>
+                      <SelectItem value="is_empty">Is Empty</SelectItem>
+                      <SelectItem value="is_not_empty">Is Not Empty</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {cfFilterOp !== "is_empty" && cfFilterOp !== "is_not_empty" && (
+                    <Input
+                      placeholder="Value"
+                      value={cfFilterVal}
+                      onChange={(e) => setCfFilterVal(e.target.value)}
+                      className="w-full sm:w-[120px] h-8 text-xs"
+                    />
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 text-xs"
+                    onClick={() => {
+                      setCfFilters([...cfFilters, { slug: cfFilterSlug, operator: cfFilterOp, value: cfFilterVal }]);
+                      setCfFilterSlug("");
+                      setCfFilterOp("equals");
+                      setCfFilterVal("");
+                      setPage(0);
+                    }}
+                  >
+                    Add Filter
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+          {(statusFilter || sourceFilter || cfFilters.length > 0) && (
             <Button
               variant="ghost"
               size="sm"
@@ -435,12 +635,33 @@ export default function Contacts() {
               onClick={() => {
                 setStatusFilter("");
                 setSourceFilter("");
+                setCfFilters([]);
                 setPage(0);
               }}
             >
-              Clear
+              Clear All
             </Button>
           )}
+        </div>
+        {cfFilters.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {cfFilters.map((f, i) => {
+              const fd = activeFieldDefs.find((d) => d.slug === f.slug);
+              return (
+                <Badge key={i} variant="secondary" className="text-xs gap-1 pr-1">
+                  <SlidersHorizontal className="h-2.5 w-2.5" />
+                  {fd?.name || f.slug} {f.operator.replace("_", " ")} {f.value || ""}
+                  <button
+                    onClick={() => { setCfFilters(cfFilters.filter((_, j) => j !== i)); setPage(0); }}
+                    className="ml-1 rounded-full hover:bg-muted p-0.5"
+                  >
+                    <X className="h-2.5 w-2.5" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        )}
         </div>
       )}
 
@@ -475,6 +696,34 @@ export default function Contacts() {
                 <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   Assigned To
                 </TableHead>
+                {visibleCfColumns.map((slug) => {
+                  const fd = activeFieldDefs.find((d) => d.slug === slug);
+                  if (!fd) return null;
+                  const isSorted = sortBy === `cf_${slug}`;
+                  return (
+                    <TableHead
+                      key={slug}
+                      className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider cursor-pointer select-none"
+                      onClick={() => {
+                        if (isSorted) {
+                          setSortDir(sortDir === "asc" ? "desc" : "asc");
+                        } else {
+                          setSortBy(`cf_${slug}`);
+                          setSortDir("asc");
+                        }
+                      }}
+                    >
+                      <span className="flex items-center gap-1">
+                        {fd.name}
+                        {isSorted ? (
+                          sortDir === "asc" ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                        ) : (
+                          <ArrowUpDown className="h-3 w-3 opacity-30" />
+                        )}
+                      </span>
+                    </TableHead>
+                  );
+                })}
                 <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[50px]">
                   Actions
                 </TableHead>
@@ -483,14 +732,14 @@ export default function Contacts() {
             <TableBody>
               {contactsLoading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-12">
+                  <TableCell colSpan={8 + visibleCfColumns.length} className="text-center py-12">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground mx-auto" />
                   </TableCell>
                 </TableRow>
               ) : contacts.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={8}
+                    colSpan={8 + visibleCfColumns.length}
                     className="text-center py-12 text-muted-foreground text-sm"
                   >
                     {search || statusFilter || sourceFilter
@@ -549,6 +798,23 @@ export default function Contacts() {
                       <TableCell className="text-sm text-muted-foreground">
                         {assignedMember?.userName || "Unassigned"}
                       </TableCell>
+                      {visibleCfColumns.map((slug) => {
+                        const cfData = contact.customFields as Record<string, any> | null;
+                        const val = cfData?.[slug];
+                        const fd = activeFieldDefs.find((d) => d.slug === slug);
+                        let display = "—";
+                        if (val !== undefined && val !== null && val !== "") {
+                          if (fd?.type === "checkbox") display = val ? "Yes" : "No";
+                          else if (fd?.type === "date" && val) display = new Date(val).toLocaleDateString();
+                          else if (fd?.type === "number") display = String(val);
+                          else display = String(val);
+                        }
+                        return (
+                          <TableCell key={slug} className="text-sm text-muted-foreground max-w-[150px] truncate">
+                            {display}
+                          </TableCell>
+                        );
+                      })}
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger

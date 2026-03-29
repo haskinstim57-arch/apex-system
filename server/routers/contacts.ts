@@ -183,6 +183,17 @@ export const contactsRouter = router({
         leadSource: z.string().optional(),
         assignedUserId: z.number().int().positive().optional(),
         tag: z.string().optional(),
+        sortBy: z.string().optional(),
+        sortDir: z.enum(["asc", "desc"]).optional().default("desc"),
+        customFieldFilters: z
+          .array(
+            z.object({
+              slug: z.string(),
+              operator: z.enum(["equals", "not_equals", "contains", "greater_than", "less_than", "is_empty", "is_not_empty"]),
+              value: z.string().optional(),
+            })
+          )
+          .optional(),
         limit: z.number().int().min(1).max(100).optional().default(50),
         offset: z.number().int().min(0).optional().default(0),
       })
