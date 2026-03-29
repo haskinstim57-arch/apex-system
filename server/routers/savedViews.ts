@@ -25,6 +25,8 @@ const filterSchema = z.object({
       })
     )
     .optional(),
+  leadScoreMin: z.number().int().optional(),
+  leadScoreMax: z.number().int().optional(),
 });
 
 export const savedViewsRouter = router({

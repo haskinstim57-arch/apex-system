@@ -164,6 +164,8 @@ export default function Contacts() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [sourceFilter, setSourceFilter] = useState<string>("");
   const [showFilters, setShowFilters] = useState(false);
+  const [scoreMin, setScoreMin] = useState<string>("");
+  const [scoreMax, setScoreMax] = useState<string>("");
   const [page, setPage] = useState(0);
   const pageSize = 25;
 
@@ -272,6 +274,8 @@ export default function Contacts() {
         sortBy: sortBy || undefined,
         sortDir: sortBy ? sortDir : undefined,
         customFieldFilters: stableCfFilters,
+        leadScoreMin: scoreMin ? parseInt(scoreMin, 10) : undefined,
+        leadScoreMax: scoreMax ? parseInt(scoreMax, 10) : undefined,
       },
       { enabled: !!accountId }
     );
@@ -396,6 +400,8 @@ export default function Contacts() {
     setStatusFilter(filters?.status || "");
     setSourceFilter(filters?.source || "");
     setCfFilters(filters?.customFieldFilters || []);
+    setScoreMin(filters?.leadScoreMin !== undefined ? String(filters.leadScoreMin) : "");
+    setScoreMax(filters?.leadScoreMax !== undefined ? String(filters.leadScoreMax) : "");
     setSortBy(view.sortBy || "");
     setSortDir((view.sortDir as "asc" | "desc") || "desc");
     setActiveViewId(view.id);
@@ -407,6 +413,8 @@ export default function Contacts() {
     setStatusFilter("");
     setSourceFilter("");
     setCfFilters([]);
+    setScoreMin("");
+    setScoreMax("");
     setSortBy("");
     setSortDir("desc");
     setActiveViewId(null);
@@ -466,6 +474,8 @@ export default function Contacts() {
     setStatusFilter(fc?.status || "");
     setSourceFilter(fc?.leadSource || "");
     setCfFilters(fc?.customFieldFilters || []);
+    setScoreMin(fc?.leadScoreMin !== undefined ? String(fc.leadScoreMin) : "");
+    setScoreMax(fc?.leadScoreMax !== undefined ? String(fc.leadScoreMax) : "");
     setSortBy("");
     setSortDir("desc");
     setActiveSegmentId(segment.id);
@@ -478,6 +488,8 @@ export default function Contacts() {
     setStatusFilter("");
     setSourceFilter("");
     setCfFilters([]);
+    setScoreMin("");
+    setScoreMax("");
     setSortBy("");
     setSortDir("desc");
     setActiveSegmentId(null);
@@ -496,6 +508,8 @@ export default function Contacts() {
         value: f.value,
       }));
     }
+    if (scoreMin) config.leadScoreMin = parseInt(scoreMin, 10);
+    if (scoreMax) config.leadScoreMax = parseInt(scoreMax, 10);
     return config;
   }
 
@@ -933,12 +947,12 @@ export default function Contacts() {
         >
           <Filter className="h-3.5 w-3.5" />
           Filters
-          {(statusFilter || sourceFilter || cfFilters.length > 0) && (
+          {(statusFilter || sourceFilter || scoreMin || scoreMax || cfFilters.length > 0) && (
             <Badge
               variant="secondary"
               className="h-4 w-4 p-0 flex items-center justify-center text-[10px] ml-1"
             >
-              {(statusFilter ? 1 : 0) + (sourceFilter ? 1 : 0) + cfFilters.length}
+              {(statusFilter ? 1 : 0) + (sourceFilter ? 1 : 0) + (scoreMin || scoreMax ? 1 : 0) + cfFilters.length}
             </Badge>
           )}
         </Button>
@@ -971,6 +985,8 @@ export default function Contacts() {
                         customFieldFilters: cfFilters.length > 0
                           ? cfFilters.map((f) => ({ slug: f.slug, operator: f.operator as any, value: f.value }))
                           : undefined,
+                        leadScoreMin: scoreMin ? parseInt(scoreMin, 10) : undefined,
+                        leadScoreMax: scoreMax ? parseInt(scoreMax, 10) : undefined,
                       },
                       sortBy: sortBy || undefined,
                       sortDir: sortBy ? sortDir : undefined,
@@ -994,6 +1010,8 @@ export default function Contacts() {
                       customFieldFilters: cfFilters.length > 0
                         ? cfFilters.map((f) => ({ slug: f.slug, operator: f.operator as any, value: f.value }))
                         : undefined,
+                      leadScoreMin: scoreMin ? parseInt(scoreMin, 10) : undefined,
+                      leadScoreMax: scoreMax ? parseInt(scoreMax, 10) : undefined,
                     },
                     sortBy: sortBy || undefined,
                     sortDir: sortBy ? sortDir : undefined,
@@ -1057,7 +1075,8 @@ export default function Contacts() {
                   {sourceFilter && <li>Source: {sourceFilter}</li>}
                   {search && <li>Search: "{search}"</li>}
                   {cfFilters.length > 0 && <li>{cfFilters.length} custom field filter(s)</li>}
-                  {!statusFilter && !sourceFilter && !search && cfFilters.length === 0 && (
+                  {(scoreMin || scoreMax) && <li>Score: {scoreMin || '0'} – {scoreMax || '∞'}</li>}
+                  {!statusFilter && !sourceFilter && !search && !scoreMin && !scoreMax && cfFilters.length === 0 && (
                     <li className="italic">No filters applied — will match all contacts</li>
                   )}
                 </ul>
@@ -1153,6 +1172,29 @@ export default function Contacts() {
               ))}
             </SelectContent>
           </Select>
+          {/* Lead Score Range */}
+          <div className="h-6 w-px bg-border/50" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-medium text-muted-foreground whitespace-nowrap">Score:</span>
+            <Input
+              type="number"
+              placeholder="Min"
+              value={scoreMin}
+              onChange={(e) => { setScoreMin(e.target.value); setPage(0); }}
+              className="w-[70px] h-8 text-xs"
+              min={0}
+            />
+            <span className="text-xs text-muted-foreground">–</span>
+            <Input
+              type="number"
+              placeholder="Max"
+              value={scoreMax}
+              onChange={(e) => { setScoreMax(e.target.value); setPage(0); }}
+              className="w-[70px] h-8 text-xs"
+              min={0}
+            />
+          </div>
+
           {activeFieldDefs.length > 0 && (
             <>
               <div className="h-6 w-px bg-border/50" />
@@ -1209,7 +1251,7 @@ export default function Contacts() {
               )}
             </>
           )}
-          {(statusFilter || sourceFilter || cfFilters.length > 0) && (
+          {(statusFilter || sourceFilter || scoreMin || scoreMax || cfFilters.length > 0) && (
             <Button
               variant="ghost"
               size="sm"
@@ -1217,6 +1259,8 @@ export default function Contacts() {
               onClick={() => {
                 setStatusFilter("");
                 setSourceFilter("");
+                setScoreMin("");
+                setScoreMax("");
                 setCfFilters([]);
                 setPage(0);
               }}

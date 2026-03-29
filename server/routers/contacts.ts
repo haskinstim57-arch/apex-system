@@ -183,6 +183,8 @@ export const contactsRouter = router({
         leadSource: z.string().optional(),
         assignedUserId: z.number().int().positive().optional(),
         tag: z.string().optional(),
+        leadScoreMin: z.number().int().optional(),
+        leadScoreMax: z.number().int().optional(),
         sortBy: z.string().optional(),
         sortDir: z.enum(["asc", "desc"]).optional().default("desc"),
         customFieldFilters: z

@@ -2096,3 +2096,10 @@
 - [x] Write vitest tests for segments CRUD and filter evaluation
 - [x] TypeScript check — 0 errors
 - [x] Checkpoint saved
+
+## Lead Score Range Filter in Contacts
+- [x] Backend: Add leadScoreMin/leadScoreMax params to contacts.list query
+- [x] Frontend: Add min/max score inputs to Contacts filter row
+- [x] Wire score filter state into the list query and Smart List save
+- [x] TypeScript check — 0 errors
+- [x] Checkpoint saved

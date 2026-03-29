@@ -742,6 +742,8 @@ export interface ContactListFilters {
   leadSource?: string;
   assignedUserId?: number;
   tag?: string;
+  leadScoreMin?: number;
+  leadScoreMax?: number;
   sortBy?: string;
   sortDir?: "asc" | "desc";
   customFieldFilters?: CustomFieldFilter[];
@@ -793,6 +795,14 @@ export async function listContacts(filters: ContactListFilters) {
         like(contacts.company, term)
       )!
     );
+  }
+
+  // Lead score range filter
+  if (filters.leadScoreMin !== undefined && filters.leadScoreMin !== null) {
+    conditions.push(sql`${contacts.leadScore} >= ${filters.leadScoreMin}`);
+  }
+  if (filters.leadScoreMax !== undefined && filters.leadScoreMax !== null) {
+    conditions.push(sql`${contacts.leadScore} <= ${filters.leadScoreMax}`);
   }
 
   // If filtering by tag, get matching contact IDs first
