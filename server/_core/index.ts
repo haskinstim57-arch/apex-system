@@ -24,6 +24,7 @@ import { inboundMessageRouter } from "../webhooks/inboundMessages";
 import { twilioVoiceStatusRouter } from "../webhooks/twilioVoiceStatus";
 import { applySecurityMiddleware } from "../middleware/security";
 import { inboundApiRouter } from "../webhooks/inboundApi";
+import { publicPagesRouter } from "../webhooks/publicPages";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -69,6 +70,8 @@ async function startServer() {
   app.use(outlookCalendarWebhookRouter);
   // Inbound API endpoints (external services push data in via API key)
   app.use(inboundApiRouter);
+  // Public landing page serving
+  app.use(publicPagesRouter);
   // Internal import endpoint (localhost only, for one-time historical imports)
   app.post("/api/internal/import-lead", async (req, res) => {
     try {

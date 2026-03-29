@@ -1841,3 +1841,61 @@ export const sequenceEnrollments = mysqlTable("sequence_enrollments", {
 });
 export type SequenceEnrollment = typeof sequenceEnrollments.$inferSelect;
 export type InsertSequenceEnrollment = typeof sequenceEnrollments.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// LANDING PAGES — Drag-and-drop page builder
+// ─────────────────────────────────────────────
+export const landingPages = mysqlTable("landing_pages", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** URL-friendly slug for public access: /p/:accountSlug/:pageSlug */
+  slug: varchar("slug", { length: 200 }).notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  /** Optional meta description for SEO */
+  metaDescription: text("meta_description"),
+  /** The rendered HTML content of the page */
+  htmlContent: text("html_content"),
+  /** CSS styles for the page */
+  cssContent: text("css_content"),
+  /** GrapesJS project data (JSON) — components + styles for the editor */
+  gjsData: json("gjs_data"),
+  /** draft | published | archived */
+  status: mysqlEnum("status", ["draft", "published", "archived"]).default("draft").notNull(),
+  /** When the page was first published */
+  publishedAt: timestamp("published_at"),
+  /** Optional custom favicon URL */
+  faviconUrl: varchar("favicon_url", { length: 1000 }),
+  /** Optional custom header/footer code injection */
+  headerCode: text("header_code"),
+  footerCode: text("footer_code"),
+  /** Page visit count */
+  viewCount: int("view_count").default(0).notNull(),
+  /** Form submission count (for pages with embedded forms) */
+  submissionCount: int("submission_count").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type LandingPage = typeof landingPages.$inferSelect;
+export type InsertLandingPage = typeof landingPages.$inferInsert;
+
+// ─────────────────────────────────────────────
+// FUNNELS — Multi-step page sequences
+// ─────────────────────────────────────────────
+export const funnels = mysqlTable("funnels", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 500 }).notNull(),
+  description: text("description"),
+  /**
+   * JSON array of funnel steps:
+   * [{ pageId: number, label: string, order: number }]
+   */
+  steps: json("steps"),
+  /** draft | active | archived */
+  status: mysqlEnum("status", ["draft", "active", "archived"]).default("draft").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type Funnel = typeof funnels.$inferSelect;
+export type InsertFunnel = typeof funnels.$inferInsert;

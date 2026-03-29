@@ -41,6 +41,9 @@ import PublicForm from "./pages/PublicForm";
 import Reputation from "./pages/Reputation";
 import ContactMerge from "./pages/ContactMerge";
 import Sequences from "./pages/Sequences";
+import LandingPages from "./pages/LandingPages";
+import PageEditor from "./pages/PageEditor";
+import FunnelsPage from "./pages/Funnels";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { AccountProvider } from "./contexts/AccountContext";
 import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
@@ -159,6 +162,27 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <Sequences />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/pages">
+        <DashboardLayout>
+          <RequireAccount>
+            <LandingPages />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/pages/:id/editor">
+        <DashboardLayout>
+          <RequireAccount>
+            <PageEditor />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/funnels">
+        <DashboardLayout>
+          <RequireAccount>
+            <FunnelsPage />
           </RequireAccount>
         </DashboardLayout>
       </Route>

@@ -40,6 +40,8 @@ import { contactMergeRouter } from "./routers/contactMerge";
 import { leadScoringRouter } from "./routers/leadScoring";
 import { segmentsRouter } from "./routers/segments";
 import { sequencesRouter } from "./routers/sequences";
+import { landingPagesRouter } from "./routers/landingPages";
+import { funnelsRouter } from "./routers/funnels";
 
 export const appRouter = router({
   system: systemRouter,
@@ -91,6 +93,8 @@ export const appRouter = router({
   leadScoring: leadScoringRouter,
   segments: segmentsRouter,
   sequences: sequencesRouter,
+  landingPages: landingPagesRouter,
+  funnels: funnelsRouter,
 });
 
 export type AppRouter = typeof appRouter;

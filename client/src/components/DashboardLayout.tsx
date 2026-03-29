@@ -48,6 +48,7 @@ import {
   Zap,
   Mail,
   ListOrdered,
+  FileText,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -77,6 +78,7 @@ const subAccountMenuItems = [
   { icon: Send, label: "Campaigns", path: "/campaigns" },
   { icon: Zap, label: "Automations", path: "/automations" },
   { icon: ListOrdered, label: "Sequences", path: "/sequences" },
+  { icon: FileText, label: "Pages & Funnels", path: "/pages" },
   { icon: BarChart3, label: "Analytics", path: "/analytics" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: ClipboardList, label: "Forms", path: "/forms" },

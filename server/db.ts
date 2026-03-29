@@ -1,4 +1,4 @@
-import { and, eq, desc, asc, sql, inArray, count, lte, gte, isNull } from "drizzle-orm";
+import { and, eq, desc, asc, sql, inArray, count, lte, gte, isNull, ne } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import { like, or } from "drizzle-orm";
 import {
@@ -91,6 +91,10 @@ import {
   type InsertSequence,
   type InsertSequenceStep,
   type InsertSequenceEnrollment,
+  landingPages,
+  type InsertLandingPage,
+  funnels,
+  type InsertFunnel,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -5028,4 +5032,122 @@ export async function advanceEnrollment(enrollmentId: number, newStep: number, t
       })
       .where(eq(sequenceEnrollments.id, enrollmentId));
   }
+}
+
+
+// ─────────────────────────────────────────────
+// LANDING PAGES
+// ─────────────────────────────────────────────
+
+export async function createLandingPage(data: InsertLandingPage) {
+  const db = await getDb();
+  const [result] = await db!.insert(landingPages).values(data);
+  return result.insertId;
+}
+
+export async function listLandingPages(accountId: number) {
+  const db = await getDb();
+  return db!
+    .select()
+    .from(landingPages)
+    .where(and(eq(landingPages.accountId, accountId), ne(landingPages.status, "archived")))
+    .orderBy(desc(landingPages.updatedAt));
+}
+
+export async function getLandingPage(id: number, accountId: number) {
+  const db = await getDb();
+  const [row] = await db!
+    .select()
+    .from(landingPages)
+    .where(and(eq(landingPages.id, id), eq(landingPages.accountId, accountId)));
+  return row ?? null;
+}
+
+export async function getLandingPageBySlug(accountId: number, slug: string) {
+  const db = await getDb();
+  const [row] = await db!
+    .select()
+    .from(landingPages)
+    .where(
+      and(
+        eq(landingPages.accountId, accountId),
+        eq(landingPages.slug, slug),
+        eq(landingPages.status, "published")
+      )
+    );
+  return row ?? null;
+}
+
+export async function updateLandingPage(
+  id: number,
+  accountId: number,
+  data: Partial<InsertLandingPage>
+) {
+  const db = await getDb();
+  await db!
+    .update(landingPages)
+    .set(data)
+    .where(and(eq(landingPages.id, id), eq(landingPages.accountId, accountId)));
+}
+
+export async function deleteLandingPage(id: number, accountId: number) {
+  const db = await getDb();
+  await db!
+    .delete(landingPages)
+    .where(and(eq(landingPages.id, id), eq(landingPages.accountId, accountId)));
+}
+
+export async function incrementPageViewCount(id: number) {
+  const db = await getDb();
+  await db!
+    .update(landingPages)
+    .set({ viewCount: sql`${landingPages.viewCount} + 1` })
+    .where(eq(landingPages.id, id));
+}
+
+// ─────────────────────────────────────────────
+// FUNNELS
+// ─────────────────────────────────────────────
+
+export async function createFunnel(data: InsertFunnel) {
+  const db = await getDb();
+  const [result] = await db!.insert(funnels).values(data);
+  return result.insertId;
+}
+
+export async function listFunnels(accountId: number) {
+  const db = await getDb();
+  return db!
+    .select()
+    .from(funnels)
+    .where(and(eq(funnels.accountId, accountId), ne(funnels.status, "archived")))
+    .orderBy(desc(funnels.updatedAt));
+}
+
+export async function getFunnel(id: number, accountId: number) {
+  const db = await getDb();
+  const [row] = await db!
+    .select()
+    .from(funnels)
+    .where(and(eq(funnels.id, id), eq(funnels.accountId, accountId)));
+  return row ?? null;
+}
+
+export async function updateFunnel(
+  id: number,
+  accountId: number,
+  data: Partial<InsertFunnel>
+) {
+  const db = await getDb();
+  await db!
+    .update(funnels)
+    .set(data)
+    .where(and(eq(funnels.id, id), eq(funnels.accountId, accountId)));
+}
+
+export async function deleteFunnel(id: number, accountId: number) {
+  const db = await getDb();
+  await db!
+    .delete(funnels)
+    .where(and(eq(funnels.id, id), eq(funnels.accountId, accountId)));
 }

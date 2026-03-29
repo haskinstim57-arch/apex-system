@@ -2122,3 +2122,20 @@
 - [x] Write vitest tests for sequence CRUD and drip engine
 - [x] TypeScript check — 0 errors
 - [x] Checkpoint saved
+
+## Landing Page & Funnel Builder
+- [x] Schema: Add `pages` table (accountId, slug, title, htmlContent, cssContent, gjsData JSON, status, publishedAt)
+- [x] Schema: Add `funnels` table (accountId, name, description, steps JSON array of pageIds, status)
+- [x] Push schema migration
+- [x] Backend: Pages CRUD helpers in server/db.ts
+- [x] Backend: Funnels CRUD helpers in server/db.ts
+- [x] Backend: tRPC router — pages (create, list, get, update, delete, publish/unpublish, duplicate)
+- [x] Backend: tRPC router — funnels (create, list, get, update, delete)
+- [x] Backend: Public page serving endpoint GET /p/:accountSlug/:pageSlug
+- [x] Frontend: Page Builder UI with GrapesJS drag-and-drop editor integration
+- [x] Frontend: Pages list page with create/edit/delete/publish controls
+- [x] Frontend: Funnel Manager UI with step sequencing and page assignment
+- [x] Register routes in App.tsx and add sidebar navigation links
+- [x] Write vitest tests for pages/funnels CRUD and public serving
+- [x] TypeScript check — 0 errors
+- [x] Checkpoint saved
