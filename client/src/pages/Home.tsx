@@ -108,8 +108,8 @@ export default function Home() {
         </div>
       )}
 
-      {/* ─── Onboarding Checklist (sub-account mode, admin/owner only) ─── */}
-      {currentAccountId && isAdmin && (
+      {/* ─── Onboarding Checklist (all users in sub-account mode) ─── */}
+      {currentAccountId && (
         <OnboardingChecklist accountId={currentAccountId} />
       )}
 

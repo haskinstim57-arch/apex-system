@@ -2395,4 +2395,12 @@
 - [x] Rewrote OnboardingChecklist.tsx to consume new steps-based return shape with icons, descriptions, nav links, progress bar, milestone emails, and congratulations animation
 - [x] 23 new vitest tests added (37 total passing): return shape contract, completion logic, step conditions, schema references, auto-complete behavior
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: af243ee7)
+
+## Onboarding Checklist on Sub-Account Dashboard
+
+- [x] Removed isAdmin gate from OnboardingChecklist rendering in Home.tsx — now visible to all users (owners, employees, admins) when a sub-account is selected
+- [x] Component already auto-hides when onboardingComplete is true (via allComplete check + localStorage dismiss)
+- [x] Positioned above KPI cards for immediate visibility after login
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved
