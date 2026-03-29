@@ -2268,4 +2268,28 @@
 ### Testing
 - [x] 18 vitest tests passing (input validation, color presets, schema fields, DNS record shape)
 - [x] TypeScript check — 0 errors
+- [x] Checkpoint saved (version: 716ab736)
+
+## Advanced Analytics Reporting
+
+### Backend
+- [x] Date range comparison queries (this period vs last period with % change via calcChange helper)
+- [x] Campaign ROI tracking (campaignROI endpoint: contacts generated, conversion rate, revenue attributed per campaign)
+- [x] Workflow performance metrics (workflowPerformance endpoint: executions, completion rate, avg duration, step-level breakdown)
+- [x] Revenue attribution (revenueAttribution endpoint: by source — merges deal revenue + invoice collected)
+- [x] CSV export endpoint for all 4 report types (exportCSV procedure)
+- [x] PDF export deferred — CSV covers all reporting needs for now
+
+### Frontend
+- [x] Period selector with 6 preset ranges (7d, 30d, 60d, 90d, 180d, 365d)
+- [x] Tabbed navigation: Overview, Campaign ROI, Workflows, Revenue
+- [x] Overview tab: 6 KPI cards with period-over-period % change, contacts growth area chart, messages by channel stacked bar, call outcomes donut, pipeline by stage horizontal bar, appointments by status bar, campaign performance table, AI call completion rate bar, quick summary cards linking to advanced tabs
+- [x] Campaign ROI tab: summary KPI cards, full breakdown table (recipients, delivered, opened, clicked, leads, conversion %, revenue), top campaigns by revenue horizontal bar chart
+- [x] Workflows tab: summary KPI cards, workflow breakdown table (trigger, status, executions, completed, failed, rate, avg time), execution status stacked bar chart, step-level breakdown table with success rate progress bars
+- [x] Revenue tab: summary KPI cards, revenue by source stacked bar chart, source breakdown table with share % progress bars, revenue distribution donut chart
+- [x] CSV export buttons on each tab section
+
+### Testing
+- [x] 40 vitest tests passing (auth, data structure contracts, input validation, CSV export, helper functions)
+- [x] TypeScript check — 0 errors
 - [ ] Checkpoint saved
