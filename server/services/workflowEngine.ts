@@ -672,7 +672,7 @@ export function evaluateConditionOperator(
 }
 
 /** Resolve the field value from a contact record (supports tags via "has_tag" field) */
-async function resolveContactFieldValue(
+export async function resolveContactFieldValue(
   contact: Record<string, unknown>,
   field: string,
   contactId: number
@@ -683,9 +683,32 @@ async function resolveContactFieldValue(
     return tags.map((t) => t.tag).join(",");
   }
 
+  // Check custom fields (fields starting with "cf." or not found in standard fields)
+  if (field.startsWith("cf.")) {
+    const slug = field.slice(3);
+    const customFields = contact.customFields
+      ? (typeof contact.customFields === "string" ? JSON.parse(contact.customFields) : contact.customFields)
+      : {};
+    const cfVal = customFields[slug];
+    if (cfVal === null || cfVal === undefined) return "";
+    if (typeof cfVal === "boolean") return cfVal ? "true" : "false";
+    return String(cfVal);
+  }
+
   // Standard contact fields
   const value = contact[field];
-  if (value === null || value === undefined) return "";
+  if (value === null || value === undefined) {
+    // Fallback: check custom fields for backward compatibility
+    const customFields = contact.customFields
+      ? (typeof contact.customFields === "string" ? JSON.parse(contact.customFields) : contact.customFields)
+      : {};
+    const cfVal = customFields[field];
+    if (cfVal !== null && cfVal !== undefined) {
+      if (typeof cfVal === "boolean") return cfVal ? "true" : "false";
+      return String(cfVal);
+    }
+    return "";
+  }
   if (value instanceof Date) return value.toISOString();
   return String(value);
 }

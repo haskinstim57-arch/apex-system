@@ -1527,3 +1527,41 @@ export const inboundRequestLogs = mysqlTable("inbound_request_logs", {
 });
 export type InboundRequestLog = typeof inboundRequestLogs.$inferSelect;
 export type InsertInboundRequestLog = typeof inboundRequestLogs.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// CUSTOM FIELD DEFINITIONS — schema-driven custom fields for contacts
+// ─────────────────────────────────────────────
+export const customFieldDefs = mysqlTable("custom_field_defs", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Sub-account this field definition belongs to */
+  accountId: int("account_id").notNull(),
+  /** Human-readable label */
+  name: varchar("name", { length: 100 }).notNull(),
+  /** Machine-friendly slug (e.g. "loan_amount", "property_type") */
+  slug: varchar("slug", { length: 100 }).notNull(),
+  /** Field data type */
+  type: mysqlEnum("type", [
+    "text",
+    "number",
+    "date",
+    "dropdown",
+    "checkbox",
+    "textarea",
+    "url",
+    "email",
+    "phone",
+  ]).notNull(),
+  /** JSON array of options for dropdown type, e.g. ["Option A","Option B"] */
+  options: text("options"),
+  /** Whether this field is required when creating/updating contacts */
+  required: boolean("required").default(false).notNull(),
+  /** Display order in forms */
+  sortOrder: int("sort_order").default(0).notNull(),
+  /** Soft-disable without deleting */
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type CustomFieldDef = typeof customFieldDefs.$inferSelect;
+export type InsertCustomFieldDef = typeof customFieldDefs.$inferInsert;

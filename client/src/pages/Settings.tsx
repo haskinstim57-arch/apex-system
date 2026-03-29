@@ -106,6 +106,7 @@ import { WebhookDeliveryLogs } from "@/components/WebhookDeliveryLogs";
 import { WebhookConditionsEditor, WebhookConditionsBadges } from "@/components/WebhookConditionsEditor";
 import type { WebhookCondition } from "@/components/WebhookConditionsEditor";
 import { ApiKeysCard } from "@/components/ApiKeysCard";
+import { CustomFieldsCard } from "@/components/CustomFieldsCard";
 import { useAccount } from "@/contexts/AccountContext";
 
 function IntegrationLink({
@@ -327,6 +328,11 @@ export default function SettingsPage() {
       {/* AI Voice Calling Kill Switch — visible to anyone with an account selected */}
       {currentAccountId && (
         <AIVoiceCallingCard accountId={currentAccountId} />
+      )}
+
+      {/* Custom Fields — visible to anyone with an account selected */}
+      {currentAccountId && (
+        <CustomFieldsCard accountId={currentAccountId} />
       )}
 
       {/* Outbound Webhooks — visible to anyone with an account selected */}

@@ -58,6 +58,12 @@ import {
   Pause,
   Volume2,
   FileText,
+  Database,
+  Hash,
+  Type,
+  CheckSquare,
+  Link,
+  AlignLeft,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -130,6 +136,13 @@ export default function ContactDetail({
     { accountId },
     { enabled: !!contact }
   );
+
+  // Custom field definitions
+  const { data: customFieldDefs = [] } = trpc.customFields.list.useQuery(
+    { accountId },
+    { enabled: !!contact }
+  );
+  const activeFieldDefs = customFieldDefs.filter((d: any) => d.isActive);
 
   // State
   const [editOpen, setEditOpen] = useState(false);
@@ -341,6 +354,60 @@ export default function ContactDetail({
               />
             </CardContent>
           </Card>
+
+          {/* Custom Fields Card */}
+          {activeFieldDefs.length > 0 && (
+            <Card className="bg-white border-0 card-shadow">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Database className="h-3.5 w-3.5 text-muted-foreground" />
+                  Custom Fields
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {activeFieldDefs.map((def: any) => {
+                  const cf = contact.customFields
+                    ? (typeof contact.customFields === "string"
+                        ? JSON.parse(contact.customFields)
+                        : contact.customFields)
+                    : {};
+                  const val = cf[def.slug];
+                  let displayVal = "—";
+                  if (val !== null && val !== undefined && val !== "") {
+                    if (def.type === "checkbox") {
+                      displayVal = val === true || val === "true" ? "Yes" : "No";
+                    } else if (def.type === "date" && val) {
+                      displayVal = new Date(val).toLocaleDateString();
+                    } else if (def.type === "url" && val) {
+                      displayVal = val;
+                    } else {
+                      displayVal = String(val);
+                    }
+                  }
+                  const iconMap: Record<string, any> = {
+                    text: Type,
+                    number: Hash,
+                    date: Calendar,
+                    dropdown: ChevronDown,
+                    checkbox: CheckSquare,
+                    textarea: AlignLeft,
+                    url: Link,
+                    email: Mail,
+                    phone: Phone,
+                  };
+                  const FieldIcon = iconMap[def.type] || Type;
+                  return (
+                    <InfoRow
+                      key={def.id}
+                      icon={FieldIcon}
+                      label={def.name}
+                      value={displayVal}
+                    />
+                  );
+                })}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Assignment Card */}
           <Card className="bg-white border-0 card-shadow">
@@ -584,6 +651,7 @@ export default function ContactDetail({
         contact={contact}
         accountId={accountId}
         members={members ?? []}
+        customFieldDefs={activeFieldDefs}
         onSubmit={(data) =>
           updateMutation.mutate({ id: contact.id, accountId, ...data })
         }
@@ -621,6 +689,7 @@ function EditContactDialog({
   contact,
   accountId,
   members,
+  customFieldDefs = [],
   onSubmit,
   loading,
 }: {
@@ -629,6 +698,7 @@ function EditContactDialog({
   contact: any;
   accountId: number;
   members: any[];
+  customFieldDefs?: any[];
   onSubmit: (data: any) => void;
   loading: boolean;
 }) {
@@ -645,11 +715,31 @@ function EditContactDialog({
   const [state, setState] = useState(contact.state || "");
   const [zip, setZip] = useState(contact.zip || "");
 
+  // Custom fields state
+  const existingCf = contact.customFields
+    ? (typeof contact.customFields === "string" ? JSON.parse(contact.customFields) : contact.customFields)
+    : {};
+  const [customFieldValues, setCustomFieldValues] = useState<Record<string, any>>(existingCf);
+
+  const updateCustomField = (slug: string, value: any) => {
+    setCustomFieldValues((prev: Record<string, any>) => ({ ...prev, [slug]: value }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firstName.trim() || !lastName.trim()) {
       toast.error("First name and last name are required");
       return;
+    }
+    // Check required custom fields
+    for (const def of customFieldDefs) {
+      if (def.required) {
+        const val = customFieldValues[def.slug];
+        if (val === undefined || val === null || val === "") {
+          toast.error(`"${def.name}" is required`);
+          return;
+        }
+      }
     }
     onSubmit({
       firstName: firstName.trim(),
@@ -664,6 +754,7 @@ function EditContactDialog({
       city: city.trim() || null,
       state: state.trim() || null,
       zip: zip.trim() || null,
+      customFields: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
     });
   };
 
@@ -771,6 +862,88 @@ function EditContactDialog({
               </Select>
             </div>
           </div>
+          <Separator className="bg-border/50" />
+          {/* Custom Fields */}
+          {customFieldDefs.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Custom Fields</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {customFieldDefs.map((def: any) => {
+                  const val = customFieldValues[def.slug];
+                  return (
+                    <div key={def.id} className={def.type === "textarea" ? "col-span-1 sm:col-span-2 space-y-1.5" : "space-y-1.5"}>
+                      <Label className="text-xs">
+                        {def.name}
+                        {def.required && <span className="text-destructive ml-0.5">*</span>}
+                      </Label>
+                      {def.type === "text" || def.type === "url" || def.type === "email" || def.type === "phone" ? (
+                        <Input
+                          type={def.type === "email" ? "email" : def.type === "url" ? "url" : def.type === "phone" ? "tel" : "text"}
+                          value={val || ""}
+                          onChange={(e) => updateCustomField(def.slug, e.target.value)}
+                          className="h-9 text-sm"
+                          placeholder={def.name}
+                        />
+                      ) : def.type === "number" ? (
+                        <Input
+                          type="number"
+                          value={val ?? ""}
+                          onChange={(e) => updateCustomField(def.slug, e.target.value ? parseFloat(e.target.value) : "")}
+                          className="h-9 text-sm"
+                          placeholder={def.name}
+                        />
+                      ) : def.type === "date" ? (
+                        <Input
+                          type="date"
+                          value={val ? new Date(val).toISOString().split("T")[0] : ""}
+                          onChange={(e) => updateCustomField(def.slug, e.target.value)}
+                          className="h-9 text-sm"
+                        />
+                      ) : def.type === "textarea" ? (
+                        <Textarea
+                          value={val || ""}
+                          onChange={(e) => updateCustomField(def.slug, e.target.value)}
+                          className="text-sm min-h-[60px]"
+                          placeholder={def.name}
+                        />
+                      ) : def.type === "dropdown" ? (
+                        <Select
+                          value={val || "__none__"}
+                          onValueChange={(v) => updateCustomField(def.slug, v === "__none__" ? "" : v)}
+                        >
+                          <SelectTrigger className="h-9 text-xs">
+                            <SelectValue placeholder="Select..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">Select...</SelectItem>
+                            {(def.options ? JSON.parse(def.options) : []).map((opt: string) => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : def.type === "checkbox" ? (
+                        <div className="flex items-center gap-2 h-9">
+                          <input
+                            type="checkbox"
+                            checked={val === true || val === "true"}
+                            onChange={(e) => updateCustomField(def.slug, e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300"
+                          />
+                          <span className="text-xs text-muted-foreground">Enabled</span>
+                        </div>
+                      ) : (
+                        <Input
+                          value={val || ""}
+                          onChange={(e) => updateCustomField(def.slug, e.target.value)}
+                          className="h-9 text-sm"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <Separator className="bg-border/50" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5 col-span-1 sm:col-span-2">

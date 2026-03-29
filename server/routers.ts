@@ -31,6 +31,7 @@ import { formsRouter } from "./routers/forms";
 import { reputationRouter } from "./routers/reputation";
 import { webhooksRouter } from "./routers/webhooks";
 import { apiKeysRouter } from "./routers/apiKeys";
+import { customFieldsRouter } from "./routers/customFields";
 
 export const appRouter = router({
   system: systemRouter,
@@ -73,6 +74,7 @@ export const appRouter = router({
   reputation: reputationRouter,
   webhooks: webhooksRouter,
   apiKeys: apiKeysRouter,
+  customFields: customFieldsRouter,
 });
 
 export type AppRouter = typeof appRouter;

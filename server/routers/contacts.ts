@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
 import { isValidE164, normalizeToE164, E164_ERROR_MESSAGE } from "../../shared/phone";
 import { routeLeadsBatch } from "../services/leadRoutingEngine";
+import { getAccountCustomFieldDefs, validateCustomFields } from "./customFields";
 import {
   createContact,
   getContactById,
@@ -86,12 +87,20 @@ export const contactsRouter = router({
         state: z.string().max(100).optional(),
         zip: z.string().max(20).optional(),
         tags: z.array(z.string().max(100)).optional(),
+        customFields: z.record(z.string(), z.unknown()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
       await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
 
-      const { tags, ...contactData } = input;
+      const { tags, customFields: rawCustomFields, ...contactData } = input;
+
+      // Validate custom fields against definitions
+      let validatedCustomFields: Record<string, unknown> | null = null;
+      if (rawCustomFields && Object.keys(rawCustomFields).length > 0) {
+        const defs = await getAccountCustomFieldDefs(input.accountId);
+        validatedCustomFields = validateCustomFields(rawCustomFields, defs, { requireAll: true });
+      }
       // Normalize empty strings to null
       let phone = contactData.phone || null;
       // Validate and normalize phone to E.164 if provided
@@ -109,6 +118,7 @@ export const contactsRouter = router({
         ...contactData,
         email: contactData.email || null,
         phone,
+        customFields: validatedCustomFields ? JSON.stringify(validatedCustomFields) : null,
       };
 
       const { id } = await createContact(normalizedData);
@@ -221,6 +231,7 @@ export const contactsRouter = router({
         city: z.string().max(100).optional().nullable(),
         state: z.string().max(100).optional().nullable(),
         zip: z.string().max(20).optional().nullable(),
+        customFields: z.record(z.string(), z.unknown()).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -234,7 +245,17 @@ export const contactsRouter = router({
         });
       }
 
-      const { id, accountId, ...updateData } = input;
+      const { id, accountId, customFields: rawCustomFields, ...updateData } = input;
+
+      // Validate and merge custom fields
+      let mergedCustomFields: string | undefined;
+      if (rawCustomFields !== undefined) {
+        const defs = await getAccountCustomFieldDefs(accountId);
+        const existingCf = existing.customFields ? JSON.parse(existing.customFields) : {};
+        const merged = { ...existingCf, ...rawCustomFields };
+        const validated = validateCustomFields(merged, defs);
+        mergedCustomFields = JSON.stringify(validated);
+      }
       // Normalize empty strings to null for email/phone
       const normalized: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(updateData)) {
@@ -252,6 +273,11 @@ export const contactsRouter = router({
           });
         }
         normalized.phone = normalizedPhone;
+      }
+
+      // Add merged custom fields to update data
+      if (mergedCustomFields !== undefined) {
+        normalized.customFields = mergedCustomFields;
       }
 
       await updateContact(id, accountId, normalized);
@@ -625,6 +651,7 @@ export const contactsRouter = router({
             phone: z.string().max(30).optional().default(""),
             tags: z.string().optional().default(""),
             notes: z.string().optional().default(""),
+            customFields: z.record(z.string(), z.string()).optional(),
           })
         ).min(1).max(50000),
       })
@@ -639,6 +666,9 @@ export const contactsRouter = router({
       const importedContacts: Array<{ contactId: number; tags?: string[]; leadSource?: string }> = [];
 
       // ── Phase 1: Pre-process all rows (normalize, validate) ──
+      // Load custom field definitions once for the entire import
+      const customFieldDefs = await getAccountCustomFieldDefs(input.accountId);
+
       type ProcessedRow = {
         rowNum: number;
         firstName: string;
@@ -647,6 +677,7 @@ export const contactsRouter = router({
         normalizedPhone: string | null;
         tagsStr: string;
         notes: string;
+        customFields: Record<string, string> | null;
       };
       const validRows: ProcessedRow[] = [];
 
@@ -678,7 +709,23 @@ export const contactsRouter = router({
           }
         }
 
-        validRows.push({ rowNum, firstName, lastName, email, normalizedPhone, tagsStr, notes });
+        // Process custom fields for this row
+        let rowCustomFields: Record<string, string> | null = null;
+        if (row.customFields && Object.keys(row.customFields).length > 0) {
+          try {
+            rowCustomFields = validateCustomFields(row.customFields, customFieldDefs) as Record<string, string>;
+          } catch (err) {
+            failed++;
+            errorRows.push({
+              row: rowNum,
+              data: { firstName, lastName, email, phone: rawPhone, tags: tagsStr, notes },
+              reason: err instanceof Error ? err.message : "Invalid custom fields",
+            });
+            continue;
+          }
+        }
+
+        validRows.push({ rowNum, firstName, lastName, email, normalizedPhone, tagsStr, notes, customFields: rowCustomFields });
       }
 
       // ── Phase 2: Bulk duplicate check (batch queries instead of N individual queries) ──
@@ -723,6 +770,7 @@ export const contactsRouter = router({
               email: row.email || null,
               phone: row.normalizedPhone,
               status: "new",
+              customFields: row.customFields ? JSON.stringify(row.customFields) : null,
             });
 
             // Add tags if provided (comma-separated)
@@ -931,5 +979,113 @@ export const contactsRouter = router({
         unassignedOnly: input.unassignedOnly,
       });
       return { ids, total: ids.length };
+    }),
+
+  // ─── Export contacts as CSV-ready data (includes custom fields) ───
+  exportContacts: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        contactIds: z.array(z.number().int().positive()).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      const db = (await import("../db")).getDb();
+      const dbInstance = await db;
+      if (!dbInstance) return { headers: [], rows: [] };
+
+      const { contacts } = await import("../../drizzle/schema");
+      const { eq, inArray, and } = await import("drizzle-orm");
+
+      // Fetch contacts
+      let contactList;
+      if (input.contactIds && input.contactIds.length > 0) {
+        contactList = await dbInstance
+          .select()
+          .from(contacts)
+          .where(
+            and(
+              eq(contacts.accountId, input.accountId),
+              inArray(contacts.id, input.contactIds)
+            )
+          );
+      } else {
+        contactList = await dbInstance
+          .select()
+          .from(contacts)
+          .where(eq(contacts.accountId, input.accountId));
+      }
+
+      // Fetch custom field definitions for column headers
+      const fieldDefs = await getAccountCustomFieldDefs(input.accountId);
+
+      // Fetch tags for all contacts
+      const { contactTags } = await import("../../drizzle/schema");
+      const allTags = await dbInstance
+        .select()
+        .from(contactTags)
+        .where(
+          inArray(
+            contactTags.contactId,
+            contactList.map((c) => c.id)
+          )
+        );
+      const tagsByContact = new Map<number, string[]>();
+      for (const t of allTags) {
+        const arr = tagsByContact.get(t.contactId) || [];
+        arr.push(t.tag);
+        tagsByContact.set(t.contactId, arr);
+      }
+
+      // Build headers: standard fields + custom field columns
+      const standardHeaders = [
+        "First Name",
+        "Last Name",
+        "Email",
+        "Phone",
+        "Company",
+        "Title",
+        "Status",
+        "Lead Source",
+        "Address",
+        "City",
+        "State",
+        "ZIP",
+        "Tags",
+      ];
+      const customHeaders = fieldDefs.map((d) => d.name);
+      const headers = [...standardHeaders, ...customHeaders];
+
+      // Build rows
+      const rows = contactList.map((c) => {
+        const cf = c.customFields ? JSON.parse(c.customFields) : {};
+        const tags = tagsByContact.get(c.id)?.join(", ") || "";
+        const standardValues = [
+          c.firstName,
+          c.lastName,
+          c.email || "",
+          c.phone || "",
+          c.company || "",
+          c.title || "",
+          c.status,
+          c.leadSource || "",
+          c.address || "",
+          c.city || "",
+          c.state || "",
+          c.zip || "",
+          tags,
+        ];
+        const customValues = fieldDefs.map((d) => {
+          const val = cf[d.slug];
+          if (val === null || val === undefined) return "";
+          if (typeof val === "boolean") return val ? "Yes" : "No";
+          return String(val);
+        });
+        return [...standardValues, ...customValues];
+      });
+
+      return { headers, rows, fieldDefs: fieldDefs.map((d) => ({ slug: d.slug, name: d.name, type: d.type })) };
     }),
 });

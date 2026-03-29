@@ -91,12 +91,34 @@ export function evaluateCondition(
  * e.g. "contact.source" with data { contact: { source: "Facebook" } } → "Facebook"
  */
 function resolveFieldValue(fieldPath: string, data: Record<string, unknown>): unknown {
+  // Support custom fields via cf.slug_name prefix
+  if (fieldPath.startsWith("cf.")) {
+    const slug = fieldPath.slice(3);
+    // Look for customFields in the data payload (contact data)
+    const customFields = data.customFields
+      ? (typeof data.customFields === "string" ? JSON.parse(data.customFields as string) : data.customFields)
+      : {};
+    return (customFields as Record<string, unknown>)[slug];
+  }
+
   const parts = fieldPath.split(".");
   let current: unknown = data;
   for (const part of parts) {
     if (current === null || current === undefined || typeof current !== "object") return undefined;
     current = (current as Record<string, unknown>)[part];
   }
+
+  // Fallback: if field not found in standard data, check customFields
+  if (current === undefined && data.customFields) {
+    const customFields = typeof data.customFields === "string"
+      ? JSON.parse(data.customFields as string)
+      : data.customFields;
+    if (customFields && typeof customFields === "object") {
+      const cfVal = (customFields as Record<string, unknown>)[fieldPath];
+      if (cfVal !== undefined) return cfVal;
+    }
+  }
+
   return current;
 }
 

@@ -1949,3 +1949,20 @@
 - [x] Write 30 vitest tests for all 3 features (all passing)
 - [x] Run pnpm check — 0 TypeScript errors
 - [x] Checkpoint saved
+
+### Feature: Schema-Driven Custom Fields for Contacts
+- [x] Add customFieldDefs table to schema (accountId, name, slug, type enum, options JSON, required, sortOrder, isActive, createdAt, updatedAt)
+- [x] Push schema migration
+- [x] Create custom field definitions CRUD router (create, list, update, delete, reorder) with slug uniqueness validation
+- [x] Export validateCustomFields helper + getAccountCustomFieldDefs for use across modules
+- [x] Update contacts create/update to validate customFields against definitions (type checking, required fields, option validation, merge with existing)
+- [x] Integrate custom fields into CSV export (add cf_ prefixed columns dynamically from account field defs)
+- [x] Integrate custom fields into CSV import (map cf_ CSV columns to custom field slugs, validate types)
+- [x] Add custom field support to webhook condition evaluation (cf. prefix + fallback to customFields)
+- [x] Add custom field support to workflow condition evaluation (cf. prefix in resolveContactFieldValue)
+- [x] Build CustomFieldsCard component in Settings.tsx (define fields with name, slug, type, options, required, enable/disable)
+- [x] Update ContactDetail.tsx Custom Fields Card to render values with type-appropriate icons
+- [x] Update EditContactDialog to render custom fields as editable typed inputs (text, number, date, dropdown, checkbox, textarea, url, email, phone) with required field validation
+- [x] Write 35 vitest tests for custom fields (validation, type enforcement, webhook conditions, workflow engine, CSV export) — all passing
+- [x] Run pnpm check — 0 TypeScript errors
+- [x] Checkpoint saved
