@@ -2700,3 +2700,9 @@
 - [x] Issue 4: Confirmation before write actions — 11 critical tools in CRITICAL_TOOLS set, ConfirmationCard UI with Approve/Reject
 - [x] All 15 Jarvis tests pass
 - [x] Verified all 4 fixes in browser
+
+## Fix 2 Remaining Jarvis Issues (FIXED)
+- [x] Issue 1: Input bar contained inside panel — added overflow-hidden to SidebarInset + flex container, panel uses h-full + flex-col + overflow-hidden, chat mode uses flex-1 min-h-0, input is shrink-0 last child
+- [x] Issue 2: New Chat button clears everything — handleNewChat aborts in-flight stream, clears all state (messages, tools, input, streaming), createSession.onSuccess invalidates getSession cache, shows fresh empty state
+- [x] All 15 Jarvis tests pass
+- [x] Verified both fixes in browser

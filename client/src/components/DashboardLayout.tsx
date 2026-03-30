@@ -459,7 +459,7 @@ function DashboardLayoutContent({
         )}
       </div>
 
-      <SidebarInset>
+      <SidebarInset className="min-h-0 overflow-hidden">
         {/* Top bar */}
         <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 gap-3">
           <div className="flex items-center gap-3">
@@ -552,7 +552,7 @@ function DashboardLayoutContent({
             </DropdownMenu>
           </div>
         </div>
-        <div className="flex flex-1 min-h-0">
+        <div className="flex flex-1 min-h-0 overflow-hidden">
           <main className="flex-1 min-w-0 overflow-y-auto">
             <div className="p-4 md:p-6">{children}</div>
           </main>
@@ -564,3 +564,5 @@ function DashboardLayoutContent({
     </>
   );
 }
+
+

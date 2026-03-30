@@ -403,6 +403,16 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
         setActiveSessionId(data.id);
         setMode("chat");
         setShowHistory(false);
+        // Clear all chat state so old conversation doesn't flash
+        setStreamingText("");
+        setActiveTools([]);
+        setLastToolsUsed([]);
+        setShowTools(false);
+        setPendingConfirmation(null);
+        setResolvedConfirmations([]);
+        setInput("");
+        // Invalidate the old session query cache so stale messages don't show
+        utils.jarvis.getSession.invalidate();
         utils.jarvis.listSessions.invalidate({ accountId });
         // Focus input after React re-renders the chat view
         setTimeout(() => inputRef.current?.focus(), 150);
@@ -535,6 +545,20 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
   );
 
   const handleNewChat = useCallback(async () => {
+    // Abort any in-flight stream
+    if (abortRef.current) {
+      abortRef.current.abort();
+      abortRef.current = null;
+    }
+    // Clear all local chat state immediately so old messages disappear
+    setIsThinking(false);
+    setStreamingText("");
+    setActiveTools([]);
+    setLastToolsUsed([]);
+    setShowTools(false);
+    setPendingConfirmation(null);
+    setResolvedConfirmations([]);
+    setInput("");
     try {
       await createSession.mutateAsync({ accountId });
     } catch {
