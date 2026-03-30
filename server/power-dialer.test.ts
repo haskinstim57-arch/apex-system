@@ -20,7 +20,15 @@ vi.mock("./db", async () => {
     updateDialerScript: vi.fn().mockResolvedValue(undefined),
     deleteDialerScript: vi.fn().mockResolvedValue(undefined),
     // Auth/access
-    getMember: vi.fn().mockResolvedValue({ id: 1, role: "owner" }),
+    getMember: vi.fn().mockResolvedValue({ id: 1, role: "owner", isActive: true }),
+    // Accounts
+    getAccountById: vi.fn().mockResolvedValue({
+      id: 1,
+      name: "Test Account",
+      businessHoursConfig: null,
+      voiceAgentEnabled: true,
+    }),
+    getDialerAnalytics: vi.fn().mockResolvedValue({ totalCalls: 0, answered: 0, noAnswer: 0 }),
     // Contacts
     getContactById: vi.fn().mockResolvedValue(null),
     listContacts: vi.fn().mockResolvedValue({ data: [], total: 0 }),
@@ -32,6 +40,17 @@ vi.mock("./db", async () => {
     createContactNote: vi.fn().mockResolvedValue({ id: 1 }),
   };
 });
+
+// ─── Mock message queue service ───
+vi.mock("./services/messageQueue", () => ({
+  enqueueMessage: vi.fn().mockResolvedValue({ id: 1 }),
+}));
+
+// ─── Mock business hours util ───
+vi.mock("./utils/businessHours", () => ({
+  isWithinBusinessHours: vi.fn().mockReturnValue(true),
+  getBusinessHoursBlockMessage: vi.fn().mockReturnValue("Outside business hours"),
+}));
 
 // ─── Mock VAPI service ───
 vi.mock("./services/vapi", () => ({

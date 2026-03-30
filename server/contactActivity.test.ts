@@ -3,11 +3,13 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 
 // ─── Mock DB helpers ───
+// Note: requireAccountMember is NOT in db.ts — it's defined inline in contacts.ts
+// and calls getMember from db.ts. So we mock getMember to return a valid member.
 vi.mock("./db", async () => {
   const actual = await vi.importActual<typeof import("./db")>("./db");
   return {
     ...actual,
-    requireAccountMember: vi.fn().mockResolvedValue(true),
+    getMember: vi.fn().mockResolvedValue({ id: 1, userId: 1, accountId: 1, role: "owner", isActive: true }),
     getContactById: vi.fn(),
     getContactActivities: vi.fn(),
     createContactActivity: vi.fn(),
@@ -20,8 +22,10 @@ import {
   getContactActivities,
   createContactActivity,
   logContactActivity,
+  getMember,
 } from "./db";
 
+const mockGetMember = vi.mocked(getMember);
 const mockGetContactById = vi.mocked(getContactById);
 const mockGetContactActivities = vi.mocked(getContactActivities);
 const mockCreateContactActivity = vi.mocked(createContactActivity);
@@ -122,14 +126,16 @@ const sampleActivities = [
 describe("contacts.getActivity", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Reset getMember to return valid member by default
+    mockGetMember.mockResolvedValue({ id: 1, userId: 1, accountId: 1, role: "owner", isActive: true } as any);
   });
 
   it("returns paginated activities for a valid contact", async () => {
-    mockGetContactById.mockResolvedValue(mockContact);
+    mockGetContactById.mockResolvedValue(mockContact as any);
     mockGetContactActivities.mockResolvedValue({
       items: sampleActivities,
       hasMore: false,
-    });
+    } as any);
 
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
@@ -148,11 +154,11 @@ describe("contacts.getActivity", () => {
   });
 
   it("respects custom limit and offset parameters", async () => {
-    mockGetContactById.mockResolvedValue(mockContact);
+    mockGetContactById.mockResolvedValue(mockContact as any);
     mockGetContactActivities.mockResolvedValue({
       items: sampleActivities.slice(0, 2),
       hasMore: true,
-    });
+    } as any);
 
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
@@ -184,11 +190,11 @@ describe("contacts.getActivity", () => {
   });
 
   it("returns empty items when no activities exist", async () => {
-    mockGetContactById.mockResolvedValue(mockContact);
+    mockGetContactById.mockResolvedValue(mockContact as any);
     mockGetContactActivities.mockResolvedValue({
       items: [],
       hasMore: false,
-    });
+    } as any);
 
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
@@ -204,11 +210,11 @@ describe("contacts.getActivity", () => {
 
   it("returns activities in reverse chronological order", async () => {
     const reversed = [...sampleActivities].reverse();
-    mockGetContactById.mockResolvedValue(mockContact);
+    mockGetContactById.mockResolvedValue(mockContact as any);
     mockGetContactActivities.mockResolvedValue({
       items: reversed,
       hasMore: false,
-    });
+    } as any);
 
     const ctx = createTestContext();
     const caller = appRouter.createCaller(ctx);
@@ -325,14 +331,14 @@ describe("createContactActivity", () => {
   });
 
   it("creates an activity record and returns the id", async () => {
-    mockCreateContactActivity.mockResolvedValue({ id: 100 });
+    mockCreateContactActivity.mockResolvedValue({ id: 100 } as any);
 
     const result = await createContactActivity({
       contactId: 42,
       accountId: 1,
       activityType: "contact_created",
       description: "Contact created",
-    });
+    } as any);
 
     expect(result).toEqual({ id: 100 });
     expect(mockCreateContactActivity).toHaveBeenCalledWith(
