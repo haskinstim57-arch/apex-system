@@ -10,6 +10,12 @@ import {
   chat,
 } from "../services/jarvisService";
 import { invokeLLM } from "../_core/llm";
+import {
+  getAccountDashboardStats,
+  getContactStats,
+  getMessageStats,
+  listCampaigns,
+} from "../db";
 
 export const jarvisRouter = router({
   /** List all conversation sessions for the current user */
@@ -70,7 +76,7 @@ export const jarvisRouter = router({
       return { success: true };
     }),
 
-  /** Get page-context-aware recommendations for the Suggestions tab */
+  /** Get page-context-aware recommendations powered by LLM + real CRM data */
   getRecommendations: protectedProcedure
     .input(z.object({
       accountId: z.number(),
@@ -79,80 +85,150 @@ export const jarvisRouter = router({
     .query(async ({ ctx, input }) => {
       await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
 
-      const contextPrompts: Record<string, { suggestions: Array<{ title: string; description: string; prompt: string; priority: "high" | "medium" | "low" }> }> = {
-        dashboard: {
-          suggestions: [
-            { title: "Pipeline Summary", description: "Get a quick overview of your deals and conversion rates", prompt: "Show me my pipeline summary with deal counts per stage and overall conversion rate", priority: "high" },
-            { title: "Today's Follow-ups", description: "See which contacts need attention today", prompt: "Which contacts should I follow up with today? Check for any overdue tasks or recent leads", priority: "high" },
-            { title: "Campaign Performance", description: "Review how your active campaigns are performing", prompt: "Show me the performance stats for my active campaigns", priority: "medium" },
-            { title: "Weekly Activity Report", description: "Summarize messages sent, calls made, and deals moved this week", prompt: "Give me a weekly activity report: messages sent, contacts created, and deals moved", priority: "low" },
-          ],
-        },
-        contacts: {
-          suggestions: [
-            { title: "Uncontacted Leads", description: "Find leads that haven't been reached out to yet", prompt: "Find contacts that were created in the last 7 days but have no messages sent to them", priority: "high" },
-            { title: "Hot Leads", description: "Identify your highest-scoring leads", prompt: "Show me my top 10 contacts sorted by lead score", priority: "high" },
-            { title: "Bulk Tag Contacts", description: "Organize contacts by adding tags to groups", prompt: "What tags are currently in use? Show me a summary of contacts per tag", priority: "medium" },
-            { title: "Contact Cleanup", description: "Find duplicate or incomplete contact records", prompt: "Find contacts that are missing email addresses or phone numbers", priority: "low" },
-          ],
-        },
-        inbox: {
-          suggestions: [
-            { title: "Unread Messages", description: "Check for messages that need a response", prompt: "Show me the latest messages that haven't been responded to", priority: "high" },
-            { title: "Quick Reply Templates", description: "Send a follow-up message to a recent lead", prompt: "Draft a follow-up SMS for my most recent inbound lead", priority: "medium" },
-            { title: "Message Stats", description: "See your messaging activity and delivery rates", prompt: "Show me my message stats: total sent, delivered, and response rates", priority: "low" },
-          ],
-        },
-        campaigns: {
-          suggestions: [
-            { title: "Campaign Stats", description: "Review performance of your campaigns", prompt: "Show me detailed stats for all my campaigns including open rates and click rates", priority: "high" },
-            { title: "Audience Segments", description: "Review your contact segments for targeting", prompt: "List all my contact segments with their sizes", priority: "medium" },
-            { title: "Sequence Overview", description: "Check the status of your active sequences", prompt: "Show me all active sequences and how many contacts are enrolled in each", priority: "medium" },
-          ],
-        },
-        pipeline: {
-          suggestions: [
-            { title: "Deal Overview", description: "See all deals organized by pipeline stage", prompt: "Show me a pipeline overview with deal counts and values per stage", priority: "high" },
-            { title: "Stale Deals", description: "Find deals that haven't moved in a while", prompt: "Find deals that have been in the same stage for more than 14 days", priority: "high" },
-            { title: "Move Deals", description: "Advance deals to the next stage", prompt: "Show me deals in the first stage that are ready to move forward", priority: "medium" },
-          ],
-        },
-        automations: {
-          suggestions: [
-            { title: "Active Workflows", description: "See which automations are currently running", prompt: "List all active workflows and their trigger conditions", priority: "high" },
-            { title: "Trigger a Workflow", description: "Manually trigger a workflow for a specific contact", prompt: "Show me available workflows I can trigger manually", priority: "medium" },
-          ],
-        },
-        calendar: {
-          suggestions: [
-            { title: "Today's Appointments", description: "See what's on your calendar today", prompt: "Show me all appointments scheduled for today", priority: "high" },
-            { title: "Available Slots", description: "Check your availability for scheduling", prompt: "What are my available time slots for the next 3 days?", priority: "medium" },
-            { title: "Schedule a Meeting", description: "Book an appointment with a contact", prompt: "Help me schedule a meeting with a contact", priority: "medium" },
-          ],
-        },
-        analytics: {
-          suggestions: [
-            { title: "Dashboard Stats", description: "Get a comprehensive overview of your account metrics", prompt: "Show me my dashboard stats: total contacts, messages, deals, and campaigns", priority: "high" },
-            { title: "Contact Growth", description: "See how your contact list is growing", prompt: "Show me contact stats including total contacts and recent additions", priority: "medium" },
-          ],
-        },
-        "ai-calls": {
-          suggestions: [
-            { title: "Call Summary", description: "Review recent AI call activity", prompt: "Show me a summary of recent AI calls and their outcomes", priority: "high" },
-          ],
-        },
-        "power-dialer": {
-          suggestions: [
-            { title: "Dialer Queue", description: "Check contacts queued for power dialing", prompt: "Show me contacts that are ready for power dialing", priority: "high" },
-          ],
-        },
+      type Suggestion = {
+        title: string;
+        description: string;
+        prompt: string;
+        priority: "high" | "medium" | "low";
       };
 
-      const pageData = contextPrompts[input.pageContext];
-      if (pageData) return pageData.suggestions;
+      // ── Gather real CRM data snapshot for context ──
+      let dataSnapshot = "";
+      try {
+        const [dashStats, contactStats, messageStats, campaigns] = await Promise.allSettled([
+          getAccountDashboardStats(input.accountId),
+          getContactStats(input.accountId),
+          getMessageStats(input.accountId),
+          listCampaigns(input.accountId, {}),
+        ]);
 
-      // Fallback: generic suggestions
-      return [
+        const ds = dashStats.status === "fulfilled" ? dashStats.value : null;
+        const cs = contactStats.status === "fulfilled" ? contactStats.value : null;
+        const ms = messageStats.status === "fulfilled" ? messageStats.value : null;
+        const cp = campaigns?.status === "fulfilled" ? campaigns.value : null;
+
+        const parts: string[] = [];
+        if (ds) parts.push(`Dashboard: ${JSON.stringify(ds)}`);
+        if (cs) parts.push(`Contacts: total=${cs.total}, new=${cs.new}, qualified=${cs.qualified}, won=${cs.won}`);
+        if (ms) parts.push(`Messages: total=${ms.total}, sent=${ms.sent}, delivered=${ms.delivered}, failed=${ms.failed}, emails=${ms.emails}, sms=${ms.sms}`);
+
+        if (cp) {
+          const campList = Array.isArray(cp) ? cp : (cp as any).data || [];
+          parts.push(`Campaigns (${campList.length}): ${JSON.stringify(campList.slice(0, 5).map((c: any) => ({
+            name: c.name,
+            status: c.status,
+            type: c.type,
+          })))}`);
+        }
+        dataSnapshot = parts.join("\n");
+      } catch {
+        dataSnapshot = "Unable to fetch CRM data snapshot.";
+      }
+
+      // ── Ask LLM to generate personalized suggestions ──
+      try {
+        const result = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are Jarvis, an AI assistant for a CRM platform used by loan officers. Generate exactly 4 personalized, actionable suggestions based on the user's real CRM data and the page they are currently viewing.
+
+Each suggestion must be something the user can execute RIGHT NOW through Jarvis's CRM tools (search contacts, send SMS/email, check pipeline, manage workflows, view stats, schedule appointments, etc.).
+
+Rules:
+- Be specific and data-driven. Reference actual numbers from the data snapshot.
+- Prioritize high-impact actions (follow-ups, stale deals, uncontacted leads).
+- The "prompt" field should be a natural language instruction that Jarvis can execute.
+- Priority: "high" = urgent/impactful, "medium" = useful, "low" = nice to have.
+- Keep titles under 30 chars, descriptions under 80 chars.
+- Do NOT suggest actions outside Jarvis's capabilities.`,
+            },
+            {
+              role: "user",
+              content: `Current page: ${input.pageContext}
+User: ${ctx.user.name || "User"}
+
+CRM Data Snapshot:
+${dataSnapshot || "No data available yet — this is a new or empty account."}
+
+Generate 4 suggestions as JSON array.`,
+            },
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "suggestions",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  suggestions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        title: { type: "string", description: "Short action title (under 30 chars)" },
+                        description: { type: "string", description: "Brief description (under 80 chars)" },
+                        prompt: { type: "string", description: "Natural language instruction for Jarvis to execute" },
+                        priority: { type: "string", enum: ["high", "medium", "low"], description: "Priority level" },
+                      },
+                      required: ["title", "description", "prompt", "priority"],
+                      additionalProperties: false,
+                    },
+                  },
+                },
+                required: ["suggestions"],
+                additionalProperties: false,
+              },
+            },
+          },
+        });
+
+        const content = result.choices[0]?.message?.content;
+        if (content) {
+          const parsed = JSON.parse(typeof content === "string" ? content : "");
+          if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
+            return parsed.suggestions.slice(0, 4) as Suggestion[];
+          }
+        }
+      } catch (err) {
+        console.error("[Jarvis] LLM suggestions failed, falling back to static:", err);
+      }
+
+      // ── Fallback: static context-based suggestions ──
+      const fallbacks: Record<string, Suggestion[]> = {
+        dashboard: [
+          { title: "Pipeline Summary", description: "Get a quick overview of your deals and conversion rates", prompt: "Show me my pipeline summary with deal counts per stage", priority: "high" },
+          { title: "Today's Follow-ups", description: "See which contacts need attention today", prompt: "Which contacts should I follow up with today?", priority: "high" },
+          { title: "Campaign Performance", description: "Review how your active campaigns are performing", prompt: "Show me the performance stats for my active campaigns", priority: "medium" },
+        ],
+        contacts: [
+          { title: "Uncontacted Leads", description: "Find leads that haven't been reached out to yet", prompt: "Find contacts created in the last 7 days with no messages sent", priority: "high" },
+          { title: "Hot Leads", description: "Identify your highest-scoring leads", prompt: "Show me my top 10 contacts sorted by lead score", priority: "high" },
+          { title: "Contact Cleanup", description: "Find incomplete contact records", prompt: "Find contacts missing email or phone numbers", priority: "medium" },
+        ],
+        inbox: [
+          { title: "Unread Messages", description: "Check for messages that need a response", prompt: "Show me the latest messages that haven't been responded to", priority: "high" },
+          { title: "Message Stats", description: "See your messaging activity and delivery rates", prompt: "Show me my message stats", priority: "medium" },
+        ],
+        pipeline: [
+          { title: "Deal Overview", description: "See all deals organized by pipeline stage", prompt: "Show me a pipeline overview with deal counts per stage", priority: "high" },
+          { title: "Stale Deals", description: "Find deals stuck in the same stage", prompt: "Find deals that haven't moved in over 14 days", priority: "high" },
+        ],
+        campaigns: [
+          { title: "Campaign Stats", description: "Review performance of your campaigns", prompt: "Show me detailed stats for all my campaigns", priority: "high" },
+          { title: "Sequence Overview", description: "Check active sequences and enrollment", prompt: "Show me all active sequences and enrollment counts", priority: "medium" },
+        ],
+        automations: [
+          { title: "Active Workflows", description: "See which automations are currently running", prompt: "List all active workflows and their triggers", priority: "high" },
+        ],
+        calendar: [
+          { title: "Today's Appointments", description: "See what's on your calendar today", prompt: "Show me all appointments scheduled for today", priority: "high" },
+          { title: "Available Slots", description: "Check your availability for scheduling", prompt: "What are my available time slots for the next 3 days?", priority: "medium" },
+        ],
+      };
+
+      return fallbacks[input.pageContext] || [
         { title: "Quick Stats", description: "Get an overview of your account", prompt: "Show me my dashboard stats", priority: "high" as const },
         { title: "Recent Contacts", description: "See your newest leads", prompt: "Show me the 5 most recently created contacts", priority: "medium" as const },
         { title: "Send a Message", description: "Reach out to a contact", prompt: "Help me send a message to a contact", priority: "medium" as const },

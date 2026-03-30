@@ -27,6 +27,7 @@ import { inboundApiRouter } from "../webhooks/inboundApi";
 import { publicPagesRouter } from "../webhooks/publicPages";
 import { webchatWebhookRouter } from "../webhooks/webchat";
 import { webchatWidgetRouter } from "../webhooks/webchatWidget";
+import { jarvisStreamRouter } from "../webhooks/jarvisStream";
 import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 import { startMessageQueueWorker } from "../services/messageQueue";
 import { startPushBatchWorker } from "../services/pushBatcher";
@@ -79,6 +80,8 @@ async function startServer() {
   app.use(webchatWebhookRouter);
   // Embeddable webchat widget script
   app.use(webchatWidgetRouter);
+  // Jarvis AI streaming endpoint
+  app.use(jarvisStreamRouter);
   // Public landing page serving
   app.use(publicPagesRouter);
   // Internal import endpoint (localhost only, for one-time historical imports)

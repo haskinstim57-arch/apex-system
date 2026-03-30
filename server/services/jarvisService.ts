@@ -294,3 +294,178 @@ export async function chat(
 
   return { reply: finalReply, toolsUsed: uniqueTools };
 }
+
+// ═══════════════════════════════════════════════
+// STREAMING CHAT — yields SSE-friendly events
+// ═══════════════════════════════════════════════
+
+const TOOL_DISPLAY: Record<string, string> = {
+  search_contacts: "Searched contacts",
+  get_contact_detail: "Fetched contact details",
+  create_contact: "Created a contact",
+  update_contact: "Updated contact info",
+  add_contact_note: "Added a note",
+  add_contact_tag: "Tagged a contact",
+  send_sms: "Sent an SMS",
+  send_email: "Sent an email",
+  get_dashboard_stats: "Pulled dashboard stats",
+  get_contact_stats: "Pulled contact stats",
+  get_message_stats: "Pulled message stats",
+  get_campaign_stats: "Pulled campaign stats",
+  list_campaigns: "Listed campaigns",
+  pipeline_overview: "Checked pipeline",
+  list_pipeline_stages: "Listed pipeline stages",
+  move_deal_stage: "Moved a deal",
+  create_deal: "Created a deal",
+  list_workflows: "Listed workflows",
+  trigger_workflow: "Triggered a workflow",
+  list_segments: "Listed segments",
+  list_sequences: "Listed sequences",
+  enroll_in_sequence: "Enrolled in sequence",
+  get_calendar_appointments: "Checked appointments",
+};
+
+export type StreamEvent =
+  | { type: "tool_start"; data: { name: string; displayName: string } }
+  | { type: "tool_result"; data: { name: string; displayName: string; success: boolean } }
+  | { type: "text_delta"; data: { content: string } }
+  | { type: "done"; data: { toolsUsed: string[] } }
+  | { type: "error"; data: { message: string } };
+
+export async function* chatStream(
+  sessionId: number,
+  userMessage: string,
+  ctx: ChatContext
+): AsyncGenerator<StreamEvent> {
+  const db = await getDbHelpers();
+
+  const session = await getSession(sessionId, ctx.accountId);
+  if (!session) {
+    yield { type: "error", data: { message: "Session not found" } };
+    return;
+  }
+
+  const history = session.messages;
+  history.push({ role: "user", content: userMessage, timestamp: Date.now() });
+
+  const systemMsg: Message = { role: "system", content: buildSystemPrompt(ctx) };
+  const trimmedHistory = history.slice(-40);
+  const llmMessages: Message[] = [
+    systemMsg,
+    ...trimmedHistory.map(m => {
+      if (m.role === "tool") {
+        return { role: "tool" as const, content: m.content, tool_call_id: m.tool_call_id } as any;
+      }
+      if (m.role === "assistant" && m.tool_calls && m.tool_calls.length > 0) {
+        return { role: "assistant" as const, content: m.content || "", tool_calls: m.tool_calls } as any;
+      }
+      return { role: m.role as "user" | "assistant", content: m.content };
+    }),
+  ];
+
+  const toolsUsed: string[] = [];
+  let finalReply = "";
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    // ── Non-streaming call for tool rounds, streaming for final text ──
+    // We use non-streaming for tool-calling rounds because we need the full
+    // tool_calls array before executing tools. Only the final text response streams.
+    const isLastRound = round === MAX_TOOL_ROUNDS - 1;
+
+    const result: InvokeResult = await invokeLLM({
+      messages: llmMessages,
+      tools: JARVIS_TOOLS,
+      tool_choice: isLastRound ? "none" : "auto",
+    });
+
+    const choice = result.choices[0];
+    if (!choice) {
+      finalReply = "I encountered an issue processing your request. Please try again.";
+      yield { type: "text_delta", data: { content: finalReply } };
+      history.push({ role: "assistant", content: finalReply, timestamp: Date.now() });
+      break;
+    }
+
+    const assistantMsg = choice.message;
+    const toolCalls = assistantMsg.tool_calls;
+
+    if (!toolCalls || toolCalls.length === 0) {
+      // ── Final text response — stream it via SSE ──
+      finalReply = (typeof assistantMsg.content === "string" ? assistantMsg.content : "") || "";
+
+      // Stream the final text in chunks for a typing effect
+      const chunkSize = 12;
+      for (let i = 0; i < finalReply.length; i += chunkSize) {
+        yield { type: "text_delta", data: { content: finalReply.slice(i, i + chunkSize) } };
+      }
+
+      history.push({ role: "assistant", content: finalReply, timestamp: Date.now() });
+      break;
+    }
+
+    // ── Tool calling round ──
+    const rawContent = assistantMsg.content;
+    const contentStr = typeof rawContent === "string" ? rawContent : "";
+    history.push({ role: "assistant", content: contentStr, tool_calls: toolCalls, timestamp: Date.now() });
+    llmMessages.push({ role: "assistant", content: contentStr, tool_calls: toolCalls } as any);
+
+    for (const tc of toolCalls) {
+      const toolName = tc.function.name;
+      const displayName = TOOL_DISPLAY[toolName] || toolName;
+      toolsUsed.push(toolName);
+
+      yield { type: "tool_start", data: { name: toolName, displayName } };
+
+      let toolResult: unknown;
+      let success = true;
+      try {
+        const args = JSON.parse(tc.function.arguments || "{}");
+        toolResult = await executeTool(toolName, args, {
+          accountId: ctx.accountId,
+          userId: ctx.userId,
+        });
+      } catch (err: any) {
+        toolResult = { error: err.message || "Tool execution failed" };
+        success = false;
+      }
+
+      const toolResultStr = JSON.stringify(toolResult);
+      history.push({ role: "tool", content: toolResultStr, tool_call_id: tc.id, timestamp: Date.now() });
+      llmMessages.push({ role: "tool", content: toolResultStr, tool_call_id: tc.id } as any);
+
+      yield { type: "tool_result", data: { name: toolName, displayName, success } };
+    }
+
+    // If this was the last round, force a final text response
+    if (isLastRound) {
+      const finalResult = await invokeLLM({
+        messages: llmMessages,
+        tools: JARVIS_TOOLS,
+        tool_choice: "none",
+      });
+      const lastContent = finalResult.choices[0]?.message?.content;
+      finalReply = (typeof lastContent === "string" ? lastContent : "") || "I completed the requested actions.";
+
+      const chunkSize = 12;
+      for (let i = 0; i < finalReply.length; i += chunkSize) {
+        yield { type: "text_delta", data: { content: finalReply.slice(i, i + chunkSize) } };
+      }
+
+      history.push({ role: "assistant", content: finalReply, timestamp: Date.now() });
+    }
+  }
+
+  // ── Persist ──
+  let title = session.title;
+  if (title === "New conversation" && history.filter(m => m.role === "user").length === 1) {
+    title = userMessage.substring(0, 80) || "New conversation";
+  }
+
+  await db.updateJarvisSession(sessionId, ctx.accountId, {
+    messages: JSON.stringify(history),
+    title,
+  });
+
+  const uniqueTools = Array.from(new Set(toolsUsed));
+  yield { type: "done", data: { toolsUsed: uniqueTools } };
+}

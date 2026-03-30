@@ -2607,3 +2607,14 @@
 - [x] Panel only visible on sub-account pages (not agency/settings)
 - [x] Build: 0 TypeScript errors
 - [x] All previously passing tests still pass (12 Jarvis tests, 0 new failures)
+
+## Jarvis Enhancements: Streaming + Mobile + Dynamic Suggestions
+- [x] SSE streaming: add streaming chat endpoint on server
+- [x] SSE streaming: update jarvisService to support token-by-token streaming
+- [x] SSE streaming: update JarvisPanel chat UI to consume SSE stream
+- [x] Mobile responsive: add bottom-sheet/drawer variant for mobile/tablet viewports
+- [x] Mobile responsive: auto-detect viewport and switch between side panel and bottom-sheet
+- [x] Dynamic LLM suggestions: replace static page-context suggestion map with LLM call
+- [x] Dynamic LLM suggestions: analyze user's actual CRM data for personalized recommendations
+- [x] Build: 0 TypeScript errors
+- [x] All previously passing tests still pass (12 Jarvis + 1 auth)
