@@ -329,8 +329,81 @@ export type StreamEvent =
   | { type: "tool_start"; data: { name: string; displayName: string } }
   | { type: "tool_result"; data: { name: string; displayName: string; success: boolean } }
   | { type: "text_delta"; data: { content: string } }
+  | { type: "confirmation_required"; data: { requestId: string; name: string; displayName: string; summary: string; args: Record<string, unknown> } }
+  | { type: "confirmation_result"; data: { requestId: string; approved: boolean; name: string; displayName: string } }
   | { type: "done"; data: { toolsUsed: string[] } }
   | { type: "error"; data: { message: string } };
+
+// ── Critical tools that require user confirmation before execution ──
+const CRITICAL_TOOLS = new Set([
+  "send_sms",
+  "send_email",
+  "move_deal_stage",
+  "enroll_in_sequence",
+  "trigger_workflow",
+  "create_contact",
+  "update_contact",
+  "schedule_appointment",
+]);
+
+/**
+ * Human-readable summary for confirmation cards.
+ * Parses the tool args and returns a short description.
+ */
+function buildConfirmationSummary(toolName: string, args: Record<string, unknown>): string {
+  switch (toolName) {
+    case "send_sms":
+      return `Send SMS to contact #${args.contactId}${args.body ? `: "${String(args.body).substring(0, 60)}${String(args.body).length > 60 ? "..." : ""}"` : ""}`;
+    case "send_email":
+      return `Send email to contact #${args.contactId}${args.subject ? ` — Subject: "${args.subject}"` : ""}`;
+    case "move_deal_stage":
+      return `Move deal #${args.dealId} to stage #${args.stageId}`;
+    case "enroll_in_sequence":
+      return `Enroll contact #${args.contactId} in sequence #${args.sequenceId}`;
+    case "trigger_workflow":
+      return `Trigger workflow #${args.workflowId} for contact #${args.contactId}`;
+    case "create_contact":
+      return `Create new contact: ${args.firstName || ""} ${args.lastName || ""}${args.email ? ` (${args.email})` : ""}`.trim();
+    case "update_contact":
+      return `Update contact #${args.contactId}: ${Object.keys(args).filter(k => k !== "contactId").join(", ")}`;
+    case "schedule_appointment":
+      return `Schedule appointment for contact #${args.contactId}${args.startTime ? ` at ${args.startTime}` : ""}`;
+    default:
+      return `Execute ${TOOL_DISPLAY[toolName] || toolName}`;
+  }
+}
+
+// ── Pending confirmation store (keyed by requestId) ──
+const pendingConfirmations = new Map<string, {
+  resolve: (approved: boolean) => void;
+  timer: ReturnType<typeof setTimeout>;
+}>();
+
+/** Called by the /api/jarvis/confirm endpoint */
+export function resolveConfirmation(requestId: string, approved: boolean): boolean {
+  const pending = pendingConfirmations.get(requestId);
+  if (!pending) return false;
+  clearTimeout(pending.timer);
+  pendingConfirmations.delete(requestId);
+  pending.resolve(approved);
+  return true;
+}
+
+/** Wait for user to approve/reject. Times out after 120s → auto-reject. */
+function waitForConfirmation(requestId: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      pendingConfirmations.delete(requestId);
+      resolve(false); // auto-reject on timeout
+    }, 120_000);
+    pendingConfirmations.set(requestId, { resolve, timer });
+  });
+}
+
+let confirmationCounter = 0;
+function nextRequestId(): string {
+  return `confirm_${Date.now()}_${++confirmationCounter}`;
+}
 
 export async function* chatStream(
   sessionId: number,
@@ -414,12 +487,40 @@ export async function* chatStream(
       const displayName = TOOL_DISPLAY[toolName] || toolName;
       toolsUsed.push(toolName);
 
+      const args = JSON.parse(tc.function.arguments || "{}");
+
+      // ── Confirmation gate for critical tools ──
+      if (CRITICAL_TOOLS.has(toolName)) {
+        const requestId = nextRequestId();
+        const summary = buildConfirmationSummary(toolName, args);
+
+        yield {
+          type: "confirmation_required",
+          data: { requestId, name: toolName, displayName, summary, args },
+        };
+
+        // Pause the generator until user approves or rejects (or 120s timeout)
+        const approved = await waitForConfirmation(requestId);
+
+        yield {
+          type: "confirmation_result",
+          data: { requestId, approved, name: toolName, displayName },
+        };
+
+        if (!approved) {
+          // User rejected — tell the LLM the action was cancelled
+          const rejectedResult = JSON.stringify({ cancelled: true, reason: "User rejected this action" });
+          history.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id, timestamp: Date.now() });
+          llmMessages.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id } as any);
+          continue;
+        }
+      }
+
       yield { type: "tool_start", data: { name: toolName, displayName } };
 
       let toolResult: unknown;
       let success = true;
       try {
-        const args = JSON.parse(tc.function.arguments || "{}");
         toolResult = await executeTool(toolName, args, {
           accountId: ctx.accountId,
           userId: ctx.userId,

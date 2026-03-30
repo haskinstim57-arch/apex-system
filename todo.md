@@ -2618,3 +2618,14 @@
 - [x] Dynamic LLM suggestions: analyze user's actual CRM data for personalized recommendations
 - [x] Build: 0 TypeScript errors
 - [x] All previously passing tests still pass (12 Jarvis + 1 auth)
+
+## Jarvis Action Confirmations
+- [x] Define list of critical tools requiring confirmation (send_sms, send_email, move_deal_stage, enroll_in_sequence, trigger_workflow, create_contact, update_contact, schedule_appointment)
+- [x] Server: emit confirmation_required SSE event with tool name, args, and human-readable summary before executing critical tools
+- [x] Server: add /api/jarvis/confirm endpoint to approve or reject a pending action
+- [x] Server: on approval, execute the tool and stream the result; on rejection, skip and inform the LLM
+- [x] UI: render confirmation card with action summary, approve (green) and reject (red) buttons
+- [x] UI: disable chat input while confirmation is pending
+- [x] UI: show result of confirmed action or cancellation message after user decision
+- [x] Build: 0 TypeScript errors
+- [x] All previously passing tests still pass (12 Jarvis + 1 auth)

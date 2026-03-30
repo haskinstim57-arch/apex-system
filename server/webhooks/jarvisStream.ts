@@ -15,10 +15,36 @@
 import { Router, Request, Response } from "express";
 import { sdk } from "../_core/sdk";
 import { requireAccountMember } from "../routers/contacts";
-import { chatStream } from "../services/jarvisService";
+import { chatStream, resolveConfirmation } from "../services/jarvisService";
 
 export const jarvisStreamRouter = Router();
 
+// ── Confirmation endpoint ──
+jarvisStreamRouter.post("/api/jarvis/confirm", async (req: Request, res: Response) => {
+  // Auth check
+  try {
+    await sdk.authenticateRequest(req);
+  } catch {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const { requestId, approved } = req.body || {};
+  if (!requestId || typeof approved !== "boolean") {
+    res.status(400).json({ error: "Missing requestId or approved" });
+    return;
+  }
+
+  const resolved = resolveConfirmation(requestId, approved);
+  if (!resolved) {
+    res.status(404).json({ error: "No pending confirmation found (may have timed out)" });
+    return;
+  }
+
+  res.json({ ok: true });
+});
+
+// ── SSE streaming endpoint ──
 jarvisStreamRouter.post("/api/jarvis/stream", async (req: Request, res: Response) => {
   // ── Auth ──
   let user;

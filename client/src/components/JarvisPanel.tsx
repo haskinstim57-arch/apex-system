@@ -23,6 +23,10 @@ import {
   ArrowRight,
   History,
   X,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldX,
+  Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -50,6 +54,15 @@ interface ToolEvent {
   displayName: string;
   success?: boolean;
   status: "running" | "done" | "error";
+}
+
+interface PendingConfirmation {
+  requestId: string;
+  name: string;
+  displayName: string;
+  summary: string;
+  args: Record<string, unknown>;
+  timestamp: number;
 }
 
 type PanelMode = "suggestions" | "chat";
@@ -95,6 +108,8 @@ interface StreamCallbacks {
   onToolStart: (name: string, displayName: string) => void;
   onToolResult: (name: string, displayName: string, success: boolean) => void;
   onTextDelta: (content: string) => void;
+  onConfirmationRequired: (data: { requestId: string; name: string; displayName: string; summary: string; args: Record<string, unknown> }) => void;
+  onConfirmationResult: (data: { requestId: string; approved: boolean; name: string; displayName: string }) => void;
   onDone: (toolsUsed: string[]) => void;
   onError: (message: string) => void;
 }
@@ -159,6 +174,12 @@ async function streamChat(
             case "error":
               callbacks.onError(data.message);
               break;
+            case "confirmation_required":
+              callbacks.onConfirmationRequired(data);
+              break;
+            case "confirmation_result":
+              callbacks.onConfirmationResult(data);
+              break;
           }
         } catch {}
         eventType = "";
@@ -192,9 +213,26 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
   const [activeTools, setActiveTools] = useState<ToolEvent[]>([]);
   const [lastToolsUsed, setLastToolsUsed] = useState<string[]>([]);
   const [showTools, setShowTools] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
+  const [resolvedConfirmations, setResolvedConfirmations] = useState<Array<{ requestId: string; approved: boolean; name: string; displayName: string }>>([]); 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // ── Confirm/Reject handler ──
+  const handleConfirm = useCallback(async (requestId: string, approved: boolean) => {
+    try {
+      await fetch("/api/jarvis/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, approved }),
+        credentials: "include",
+      });
+      setPendingConfirmation(null);
+    } catch {
+      toast.error("Failed to send confirmation");
+    }
+  }, []);
 
   // Persist collapsed state (desktop only)
   useEffect(() => {
@@ -268,6 +306,8 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
     setActiveTools([]);
     setLastToolsUsed([]);
     setShowTools(false);
+    setPendingConfirmation(null);
+    setResolvedConfirmations([]);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -293,6 +333,13 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
           onTextDelta: (content) => {
             setStreamingText((prev) => prev + content);
           },
+          onConfirmationRequired: (data) => {
+            setPendingConfirmation({ ...data, timestamp: Date.now() });
+          },
+          onConfirmationResult: (data) => {
+            setPendingConfirmation(null);
+            setResolvedConfirmations((prev) => [...prev, data]);
+          },
           onDone: (toolsUsed) => {
             setLastToolsUsed(toolsUsed);
             setShowTools(toolsUsed.length > 0);
@@ -314,6 +361,7 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
       setIsThinking(false);
       setStreamingText("");
       setActiveTools([]);
+      setPendingConfirmation(null);
       abortRef.current = null;
       inputRef.current?.focus();
     }
@@ -347,6 +395,8 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
         setActiveTools([]);
         setLastToolsUsed([]);
         setShowTools(false);
+        setPendingConfirmation(null);
+        setResolvedConfirmations([]);
 
         const controller = new AbortController();
         abortRef.current = controller;
@@ -371,6 +421,13 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
             onTextDelta: (content) => {
               setStreamingText((prev) => prev + content);
             },
+            onConfirmationRequired: (data) => {
+              setPendingConfirmation({ ...data, timestamp: Date.now() });
+            },
+            onConfirmationResult: (data) => {
+              setPendingConfirmation(null);
+              setResolvedConfirmations((prev) => [...prev, data]);
+            },
             onDone: (toolsUsed) => {
               setLastToolsUsed(toolsUsed);
               setShowTools(toolsUsed.length > 0);
@@ -391,6 +448,7 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
         setIsThinking(false);
         setStreamingText("");
         setActiveTools([]);
+        setPendingConfirmation(null);
         abortRef.current = null;
       }
     },
@@ -549,6 +607,9 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
                 handleResumeSession={handleResumeSession}
                 createSessionPending={createSession.isPending}
                 pageContext={pageContext}
+                pendingConfirmation={pendingConfirmation}
+                resolvedConfirmations={resolvedConfirmations}
+                handleConfirm={handleConfirm}
               />
             </div>
           </div>
@@ -653,8 +714,11 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
         handleSuggestionClick={handleSuggestionClick}
         handleDelete={handleDelete}
         handleResumeSession={handleResumeSession}
-        createSessionPending={createSession.isPending}
-        pageContext={pageContext}
+                createSessionPending={createSession.isPending}
+                pageContext={pageContext}
+                pendingConfirmation={pendingConfirmation}
+                resolvedConfirmations={resolvedConfirmations}
+                handleConfirm={handleConfirm}
       />
     </div>
   );
@@ -695,6 +759,9 @@ interface PanelContentProps {
   handleResumeSession: (sessionId: number) => void;
   createSessionPending: boolean;
   pageContext: string;
+  pendingConfirmation: PendingConfirmation | null;
+  resolvedConfirmations: Array<{ requestId: string; approved: boolean; name: string; displayName: string }>;
+  handleConfirm: (requestId: string, approved: boolean) => void;
 }
 
 function PanelContent(props: PanelContentProps) {
@@ -706,6 +773,7 @@ function PanelContent(props: PanelContentProps) {
     input, setInput, inputRef, messagesEndRef,
     handleSend, handleKeyDown, handleNewChat, handleSuggestionClick,
     handleDelete, handleResumeSession, createSessionPending, pageContext,
+    pendingConfirmation, resolvedConfirmations, handleConfirm,
   } = props;
 
   return (
@@ -865,6 +933,19 @@ function PanelContent(props: PanelContentProps) {
                 {/* Live tool execution cards */}
                 {activeTools.length > 0 && (
                   <LiveToolCards tools={activeTools} />
+                )}
+
+                {/* Resolved confirmation cards */}
+                {resolvedConfirmations.map((rc) => (
+                  <ResolvedConfirmationCard key={rc.requestId} data={rc} />
+                ))}
+
+                {/* Pending confirmation card */}
+                {pendingConfirmation && (
+                  <ConfirmationCard
+                    confirmation={pendingConfirmation}
+                    onConfirm={handleConfirm}
+                  />
                 )}
 
                 {/* Streaming text */}
@@ -1097,6 +1178,137 @@ function ThinkingIndicator() {
           <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "300ms" }} />
         </div>
         <span className="text-[11px] text-muted-foreground">Jarvis is thinking...</span>
+      </div>
+    </div>
+  );
+}
+
+/** Confirmation card — pauses execution until user approves or rejects */
+function ConfirmationCard({
+  confirmation,
+  onConfirm,
+}: {
+  confirmation: PendingConfirmation;
+  onConfirm: (requestId: string, approved: boolean) => void;
+}) {
+  const [deciding, setDeciding] = useState(false);
+
+  const handleAction = async (approved: boolean) => {
+    setDeciding(true);
+    await onConfirm(confirmation.requestId, approved);
+  };
+
+  // Format args for display
+  const argEntries = Object.entries(confirmation.args).filter(
+    ([, v]) => v !== undefined && v !== null && v !== ""
+  );
+
+  return (
+    <div className="ml-8 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      <div className="rounded-lg border-2 border-amber-500/40 bg-amber-500/5 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border-b border-amber-500/20">
+          <ShieldAlert className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+            Confirmation Required
+          </span>
+        </div>
+
+        {/* Body */}
+        <div className="px-3 py-2.5 space-y-2">
+          <p className="text-xs text-foreground font-medium">
+            {confirmation.summary}
+          </p>
+
+          {/* Action details */}
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+            <Zap className="h-3 w-3 text-primary shrink-0" />
+            <span>{confirmation.displayName}</span>
+          </div>
+
+          {/* Args preview */}
+          {argEntries.length > 0 && (
+            <div className="bg-muted/40 rounded-md px-2.5 py-2 space-y-1">
+              {argEntries.slice(0, 5).map(([key, value]) => (
+                <div key={key} className="flex items-start gap-2 text-[10px]">
+                  <span className="text-muted-foreground font-medium shrink-0 min-w-[60px]">
+                    {key.replace(/_/g, " ")}:
+                  </span>
+                  <span className="text-foreground truncate">
+                    {typeof value === "string" ? value : JSON.stringify(value)}
+                  </span>
+                </div>
+              ))}
+              {argEntries.length > 5 && (
+                <p className="text-[10px] text-muted-foreground">
+                  +{argEntries.length - 5} more parameters
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 pt-1">
+            <Button
+              size="sm"
+              variant="default"
+              className="h-7 text-xs flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={() => handleAction(true)}
+              disabled={deciding}
+            >
+              {deciding ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <ShieldCheck className="h-3 w-3 mr-1" />
+              )}
+              Approve
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs flex-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+              onClick={() => handleAction(false)}
+              disabled={deciding}
+            >
+              <ShieldX className="h-3 w-3 mr-1" />
+              Reject
+            </Button>
+          </div>
+
+          {/* Timer hint */}
+          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Clock className="h-3 w-3" />
+            <span>Waiting for your decision — Jarvis is paused</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Resolved confirmation card — shows after user approved/rejected */
+function ResolvedConfirmationCard({
+  data,
+}: {
+  data: { requestId: string; approved: boolean; name: string; displayName: string };
+}) {
+  return (
+    <div className="ml-8">
+      <div
+        className={`flex items-center gap-1.5 text-[10px] rounded px-2 py-1 ${
+          data.approved
+            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+            : "bg-destructive/10 text-destructive"
+        }`}
+      >
+        {data.approved ? (
+          <ShieldCheck className="h-3 w-3 shrink-0" />
+        ) : (
+          <ShieldX className="h-3 w-3 shrink-0" />
+        )}
+        <span className="font-medium">
+          {data.approved ? "Approved" : "Rejected"}: {data.displayName}
+        </span>
       </div>
     </div>
   );
