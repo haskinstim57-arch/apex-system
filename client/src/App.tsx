@@ -48,12 +48,10 @@ import PageEditor from "./pages/PageEditor";
 import FunnelsPage from "./pages/Funnels";
 import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
-const Jarvis = lazy(() => import("./pages/Jarvis"));
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 import { AccountProvider } from "./contexts/AccountContext";
-import { AiAdvisorProvider } from "./contexts/AiAdvisorContext";
 import { AdminRoute } from "./components/AdminRoute";
 import { RequireAccount } from "./components/RequireAccount";
 
@@ -315,15 +313,6 @@ function Router() {
           </RequireAccount>
         </DashboardLayout>
       </Route>
-      <Route path="/jarvis">
-        <DashboardLayout>
-          <RequireAccount>
-            <Suspense fallback={<LazyFallback />}>
-              <Jarvis />
-            </Suspense>
-          </RequireAccount>
-        </DashboardLayout>
-      </Route>
 
       {/* Settings — accessible to all authenticated users */}
       <Route path="/settings">
@@ -383,9 +372,7 @@ function App() {
           <ImpersonationBanner />
           <PwaInstallPrompt />
           <AccountProvider>
-            <AiAdvisorProvider>
               <Router />
-            </AiAdvisorProvider>
           </AccountProvider>
         </TooltipProvider>
       </ThemeProvider>

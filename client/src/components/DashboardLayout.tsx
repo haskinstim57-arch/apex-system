@@ -53,7 +53,7 @@ import {
   Clock,
   Bot,
 } from "lucide-react";
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
@@ -62,9 +62,7 @@ import { trpc } from "@/lib/trpc";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { useAccount } from "@/contexts/AccountContext";
 import { NotificationCenter } from "./NotificationCenter";
-import { useAiAdvisor } from "@/contexts/AiAdvisorContext";
-import { AiAdvisorCard } from "./AiAdvisorCard";
-import { AiAdvisorMobileDrawer } from "./AiAdvisorMobileDrawer";
+import { JarvisPanel } from "./JarvisPanel";
 
 /**
  * Sub-account pages — only shown when a specific account is selected.
@@ -88,7 +86,7 @@ const subAccountMenuItems = [
   { icon: ClipboardList, label: "Forms", path: "/forms" },
   { icon: Star, label: "Reputation", path: "/reputation" },
   { icon: Clock, label: "Message Queue", path: "/message-queue" },
-  { icon: Bot, label: "Jarvis AI", path: "/jarvis" },
+
 ];
 
 /**
@@ -231,12 +229,8 @@ function DashboardLayoutContent({
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const { currentAccountId, isAdmin, isImpersonating, isAgencyScope } = useAccount();
-  const { setPageContext, pageContext } = useAiAdvisor();
-
-  // Sync current route to AI Advisor so it can give page-relevant suggestions.
-  // Each entry maps an exact route path to a stable context key that the server
-  // uses to focus its system prompt on the right page.
-  useEffect(() => {
+  // ── Page context for Jarvis panel ──
+  const pageContext = useMemo(() => {
     const exactPageMap: Record<string, string> = {
       "/": "dashboard",
       "/contacts": "contacts",
@@ -257,13 +251,7 @@ function DashboardLayoutContent({
       "/settings/facebook-pages": "settings",
       "/accounts": "accounts",
     };
-
-    if (exactPageMap[location]) {
-      setPageContext(exactPageMap[location]);
-      return;
-    }
-
-    // Handle dynamic sub-paths (e.g. /campaigns/123, /contacts/456)
+    if (exactPageMap[location]) return exactPageMap[location];
     const prefixMap: Array<[string, string]> = [
       ["/campaigns/", "campaigns"],
       ["/contacts/", "contacts"],
@@ -272,18 +260,14 @@ function DashboardLayoutContent({
       ["/ai-calls/", "ai-calls"],
       ["/pipeline/", "pipeline"],
     ];
-
     for (const [prefix, ctx] of prefixMap) {
-      if (location.startsWith(prefix)) {
-        setPageContext(ctx);
-        return;
-      }
+      if (location.startsWith(prefix)) return ctx;
     }
+    return location.replace(/^\//, "") || "dashboard";
+  }, [location]);
 
-    // Final fallback: strip leading slash and use as-is
-    const fallback = location.replace(/^\//, "") || "dashboard";
-    setPageContext(fallback);
-  }, [location, setPageContext]);
+  // Show Jarvis panel on sub-account pages only (not agency-level or settings)
+  const showJarvis = !!currentAccountId && !isAgencyScope && !location.startsWith("/settings");
 
   // Unread message count for inbox badge
   const { data: unreadData } = trpc.inbox.getUnreadCount.useQuery(
@@ -570,25 +554,13 @@ function DashboardLayoutContent({
         </div>
         <div className="flex flex-1 min-h-0">
           <main className="flex-1 min-w-0 overflow-y-auto">
-            {/* Wrap page content + advisor card side-by-side at the top */}
-            {currentAccountId && !location.startsWith("/settings") ? (
-              <div className="p-4 md:p-6">
-                <div className="flex items-start gap-4">
-                  {/* Page content takes all remaining space */}
-                  <div className="flex-1 min-w-0">{children}</div>
-                  {/* AI Advisor — small card, top-aligned, does not stretch */}
-                  <div className="hidden xl:block w-48 shrink-0 self-start">
-                    <AiAdvisorCard pageContext={pageContext} title="AI Advisor" />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-4 md:p-6">{children}</div>
-            )}
+            <div className="p-4 md:p-6">{children}</div>
           </main>
+          {showJarvis && (
+            <JarvisPanel pageContext={pageContext} />
+          )}
         </div>
       </SidebarInset>
-      <AiAdvisorMobileDrawer />
     </>
   );
 }

@@ -2579,3 +2579,31 @@
 - [x] Vitest: 9 tests — listSessions, createSession (default + custom title), getSession (success + forbidden), chat (success + empty rejection), deleteSession (success + forbidden)
 - [x] TypeScript: 0 errors, all 9 Jarvis tests passing
 - [x] Checkpoint saved
+
+## Jarvis Visibility Fix + AI Advisor Removal
+- [x] Remove ALL AI Advisor references project-wide (imports, components, router, context, sidebar entries)
+- [x] Remove Jarvis from sidebar navigation
+- [x] Remove Jarvis route from App.tsx
+- [x] Replaced floating trigger with persistent right-side panel (better UX per redesign)
+- [x] Add persistent right-side panel (380px wide) with Jarvis chat interface
+- [x] Render JarvisPanel inside DashboardLayout (sub-account pages only, not agency/settings)
+- [x] Tool execution visibility: collapsible cards below messages showing which CRM tools were used
+- [x] Suggested prompts: 2-3 context-aware quick-action chips after each Jarvis response
+- [x] Thinking indicator: animated "Jarvis is thinking..." while response loads
+- [x] Build verification: 0 TypeScript errors
+- [x] All previously passing tests still pass (12 Jarvis tests, 0 new failures)
+
+## Jarvis Persistent Panel Redesign
+- [x] Remove ALL AI Advisor references project-wide
+- [x] Remove Jarvis from sidebar navigation
+- [x] Remove Jarvis lazy route from App.tsx
+- [x] Remove floating JarvisButton if it exists
+- [x] Add pageContext param to getRecommendations in jarvis.ts router
+- [x] Rewrite Jarvis.tsx as persistent right-side panel with Suggestions/Chat toggle
+- [x] Suggestions mode: page-context-aware cards with priority dots and Execute button
+- [x] Chat mode: full conversation interface with thinking indicator, tool cards, suggestion chips
+- [x] Modify DashboardLayout.tsx for 3-column layout (sidebar + content + Jarvis panel)
+- [x] Collapse/expand toggle with localStorage persistence
+- [x] Panel only visible on sub-account pages (not agency/settings)
+- [x] Build: 0 TypeScript errors
+- [x] All previously passing tests still pass (12 Jarvis tests, 0 new failures)

@@ -26,7 +26,6 @@ import { twilioPhoneNumberRouter } from "./routers/twilioPhoneNumber";
 import { analyticsRouter } from "./routers/analytics";
 import { powerDialerRouter } from "./routers/powerDialer";
 import { leadRoutingRouter } from "./routers/leadRouting";
-import { aiAdvisorRouter } from "./routers/aiAdvisor";
 import { formsRouter } from "./routers/forms";
 import { reputationRouter } from "./routers/reputation";
 import { webhooksRouter } from "./routers/webhooks";
@@ -84,7 +83,6 @@ export const appRouter = router({
   analytics: analyticsRouter,
   powerDialer: powerDialerRouter,
   leadRouting: leadRoutingRouter,
-  aiAdvisor: aiAdvisorRouter,
   forms: formsRouter,
   reputation: reputationRouter,
   webhooks: webhooksRouter,

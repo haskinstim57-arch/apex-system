@@ -177,6 +177,45 @@ describe("jarvis router", () => {
     });
   });
 
+  describe("jarvis.getRecommendations", () => {
+    it("returns page-context-aware suggestions for dashboard", async () => {
+      const ctx = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+      const result = await caller.jarvis.getRecommendations({
+        accountId: 100,
+        pageContext: "dashboard",
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+      expect(result[0]).toHaveProperty("title");
+      expect(result[0]).toHaveProperty("description");
+      expect(result[0]).toHaveProperty("prompt");
+      expect(result[0]).toHaveProperty("priority");
+    });
+
+    it("returns suggestions for contacts page", async () => {
+      const ctx = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+      const result = await caller.jarvis.getRecommendations({
+        accountId: 100,
+        pageContext: "contacts",
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+    });
+
+    it("returns fallback suggestions for unknown page context", async () => {
+      const ctx = createAuthContext();
+      const caller = appRouter.createCaller(ctx);
+      const result = await caller.jarvis.getRecommendations({
+        accountId: 100,
+        pageContext: "unknown-page",
+      });
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+    });
+  });
+
   describe("jarvis.deleteSession", () => {
     it("deletes a session successfully", async () => {
       const ctx = createAuthContext();
