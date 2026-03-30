@@ -479,14 +479,37 @@ export async function executeTool(
 
     // ── Contact Management ──
     case "search_contacts": {
-      const result = await listContacts({
+      const searchTerm = (args.search as string | undefined) || "";
+      const searchLimit = Math.min((args.limit as number) || 20, 50);
+      const baseFilters = {
         accountId,
-        search: args.search as string | undefined,
         status: args.status as string | undefined,
         tag: args.tag as string | undefined,
-        limit: Math.min((args.limit as number) || 20, 50),
+        limit: searchLimit,
         offset: 0,
-      });
+      };
+
+      // Retry strategy: full term → individual words (for multi-word queries)
+      let result = await listContacts({ ...baseFilters, search: searchTerm || undefined });
+
+      // If no results and search has multiple words, try each word separately
+      if (result.data.length === 0 && searchTerm.trim().includes(" ")) {
+        const words = searchTerm.trim().split(/\s+/);
+        const seenIds = new Set<number>();
+        const combined: typeof result.data = [];
+        for (const word of words) {
+          if (word.length < 2) continue;
+          const partial = await listContacts({ ...baseFilters, search: word });
+          for (const c of partial.data) {
+            if (!seenIds.has(c.id)) {
+              seenIds.add(c.id);
+              combined.push(c);
+            }
+          }
+        }
+        result = { data: combined.slice(0, searchLimit), total: combined.length };
+      }
+
       let filtered = result.data;
       // Client-side date filter if createdAfterDays is provided
       if (args.createdAfterDays) {

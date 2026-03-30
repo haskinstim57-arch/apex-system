@@ -809,14 +809,15 @@ export async function listContacts(filters: ContactListFilters) {
     conditions.push(eq(contacts.assignedUserId, filters.assignedUserId));
   }
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const lowerTerm = `%${filters.search.toLowerCase()}%`;
     conditions.push(
       or(
-        like(contacts.firstName, term),
-        like(contacts.lastName, term),
-        like(contacts.email, term),
-        like(contacts.phone, term),
-        like(contacts.company, term)
+        sql`LOWER(${contacts.firstName}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.lastName}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.email}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.phone}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.company}) LIKE ${lowerTerm}`,
+        sql`LOWER(CONCAT(COALESCE(${contacts.firstName}, ''), ' ', COALESCE(${contacts.lastName}, ''))) LIKE ${lowerTerm}`
       )!
     );
   }
@@ -3879,14 +3880,15 @@ export async function getContactIdsByFilter(
     conditions.push(isNull(contacts.assignedUserId));
   }
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const lowerTerm = `%${filters.search.toLowerCase()}%`;
     conditions.push(
       or(
-        like(contacts.firstName, term),
-        like(contacts.lastName, term),
-        like(contacts.email, term),
-        like(contacts.phone, term),
-        like(contacts.company, term)
+        sql`LOWER(${contacts.firstName}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.lastName}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.email}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.phone}) LIKE ${lowerTerm}`,
+        sql`LOWER(${contacts.company}) LIKE ${lowerTerm}`,
+        sql`LOWER(CONCAT(COALESCE(${contacts.firstName}, ''), ' ', COALESCE(${contacts.lastName}, ''))) LIKE ${lowerTerm}`
       )!
     );
   }

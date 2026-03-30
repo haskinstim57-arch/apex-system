@@ -778,7 +778,7 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
 
   if (collapsed) {
     return (
-      <div className="w-10 border-l border-border bg-muted/20 flex flex-col items-center py-3 shrink-0">
+      <div className="w-10 h-full border-l border-border bg-muted/20 flex flex-col items-center py-3 shrink-0">
         <button
           onClick={() => setCollapsed(false)}
           className="group flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
@@ -933,7 +933,7 @@ function PanelContent(props: PanelContentProps) {
   } = props;
 
   return (
-    <>
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* ═══════════════════════════════════════════════ */}
       {/* SUGGESTIONS MODE */}
       {/* ═══════════════════════════════════════════════ */}
@@ -1043,7 +1043,7 @@ function PanelContent(props: PanelContentProps) {
       {/* CHAT MODE */}
       {/* ═══════════════════════════════════════════════ */}
       {mode === "chat" && (
-        <div className="flex flex-col flex-1 min-h-0">
+        <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Chat header bar */}
           <div className="h-10 border-b border-border flex items-center justify-between px-3 shrink-0 bg-muted/20">
             <div className="flex items-center gap-2 min-w-0">
@@ -1093,7 +1093,7 @@ function PanelContent(props: PanelContentProps) {
           )}
 
           {/* Messages area */}
-          <div className="flex-1 overflow-y-auto px-3 py-4">
+          <div className="flex-1 overflow-y-auto min-h-0 px-3 py-4">
             {!activeSessionId ? (
               <ChatEmptyState onNewChat={handleNewChat} isCreating={createSessionPending} />
             ) : (
@@ -1204,7 +1204,7 @@ function PanelContent(props: PanelContentProps) {
           )}
         </div>
       )}
-    </>
+    </div>
   );
 }
 

@@ -70,7 +70,14 @@ Guidelines:
 - Use markdown formatting for readability.
 - If you need to look up a contact before performing an action, do so automatically.
 - Never make up data — always use tools to fetch real information.
-- Chain multiple tool calls when needed — e.g., search for a contact first, then send them a message.`;
+- Chain multiple tool calls when needed — e.g., search for a contact first, then send them a message.
+
+CONTACT SEARCH STRATEGY:
+- When searching for contacts, always use partial name matching. The search is fuzzy and case-insensitive.
+- If the user says a name like "test thailer", search for the full phrase first. If that returns 0 results, the system will automatically retry with each word separately ("test" and "thailer").
+- If you still get 0 results, try searching with just the first name or just the last name as separate calls.
+- Never give up after one search attempt — try at least 2-3 variations before telling the user you can't find the contact.
+- Common misspellings happen — try partial matches (e.g., if "thailer" fails, try "thai" or "thail").`;
 }
 
 // ═══════════════════════════════════════════════

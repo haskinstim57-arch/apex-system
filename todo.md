@@ -2719,3 +2719,13 @@
 - [ ] Restore clean error handling after fix
 - [ ] All Jarvis tests pass
 >>>>>>> Stashed changes
+
+## Jarvis Issue Fixes — Round 3
+- [x] Issue 1: Input bar still at bottom of page — restructured flex layout: SidebarProvider h-svh overflow-hidden, SidebarInset h-full overflow-hidden, PanelContent uses div instead of fragment, chat mode flex-col min-h-0, messages area min-h-0
+- [x] Issue 1: Verified input is only rendered inside JarvisPanel JSX, not in DashboardLayout separately
+- [x] Issue 2: Contact search uses case-insensitive LOWER() + LIKE with full name concatenation
+- [x] Issue 2: Added retry logic — search full term first, then individual words for multi-word queries
+- [x] Issue 2: Updated system prompt to instruct Jarvis on partial name matching strategy
+- [x] Issue 3: Main content area properly constrained — overflow-hidden on flex container, h-full on collapsed/expanded panel states
+- [x] Build: 0 TypeScript errors
+- [x] All Jarvis tests pass
