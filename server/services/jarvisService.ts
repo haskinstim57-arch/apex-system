@@ -359,11 +359,14 @@ export type StreamEvent =
 const CRITICAL_TOOLS = new Set([
   "send_sms",
   "send_email",
+  "bulk_send_sms",
   "move_deal_stage",
   "enroll_in_sequence",
   "trigger_workflow",
   "create_contact",
   "update_contact",
+  "manage_contact_tags",
+  "add_contact_note",
   "schedule_appointment",
 ]);
 
@@ -386,6 +389,12 @@ function buildConfirmationSummary(toolName: string, args: Record<string, unknown
       return `Create new contact: ${args.firstName || ""} ${args.lastName || ""}${args.email ? ` (${args.email})` : ""}`.trim();
     case "update_contact":
       return `Update contact #${args.contactId}: ${Object.keys(args).filter(k => k !== "contactId").join(", ")}`;
+    case "bulk_send_sms":
+      return `Send bulk SMS to ${(args.contactIds as number[])?.length ?? 0} contacts: "${String(args.body || "").substring(0, 60)}${String(args.body || "").length > 60 ? "..." : ""}"`;
+    case "manage_contact_tags":
+      return `${args.action === "add" ? "Add" : "Remove"} tag "${args.tag}" ${args.action === "add" ? "to" : "from"} contact #${args.contactId}`;
+    case "add_contact_note":
+      return `Add note to contact #${args.contactId}: "${String(args.content || "").substring(0, 60)}${String(args.content || "").length > 60 ? "..." : ""}"`;
     case "schedule_appointment":
       return `Schedule appointment for contact #${args.contactId}${args.startTime ? ` at ${args.startTime}` : ""}`;
     default:

@@ -2692,3 +2692,11 @@
 - [x] Frontend: 4 summary cards (requests, tokens, cost, success rate) + daily breakdown table
 - [x] Frontend: AI Usage Monitor card added to Settings page for admin users
 - [x] All 15 Jarvis tests pass (including 3 new getUsageStats tests)
+
+## Fix 4 Jarvis UI Issues (ALL FIXED)
+- [x] Issue 1: Open Chat button race condition fixed (justCreatedSessionRef prevents validation from resetting mode)
+- [x] Issue 2: Input bar CSS containment fixed (h-full on desktop panel, flex wrapper for chat mode)
+- [x] Issue 3: Page scroll on reply fixed (scrollIntoView uses block: "nearest")
+- [x] Issue 4: Confirmation before write actions — 11 critical tools in CRITICAL_TOOLS set, ConfirmationCard UI with Approve/Reject
+- [x] All 15 Jarvis tests pass
+- [x] Verified all 4 fixes in browser

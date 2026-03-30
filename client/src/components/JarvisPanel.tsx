@@ -322,6 +322,7 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const justCreatedSessionRef = useRef<number | null>(null);
 
   // ── Confirm/Reject handler ──
   const handleConfirm = useCallback(async (requestId: string, approved: boolean) => {
@@ -371,8 +372,18 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
   );
 
   // Validate restored session still exists — if not, fall back to suggestions
+  // Skip validation for sessions that were just created (race condition with invalidation)
   useEffect(() => {
     if (activeSessionId && sessionsQuery.data && Array.isArray(sessionsQuery.data)) {
+      // Skip validation if this session was just created — the list may not be updated yet
+      if (justCreatedSessionRef.current === activeSessionId) {
+        const exists = sessionsQuery.data.some((s: any) => s.id === activeSessionId);
+        if (exists) {
+          // Session appeared in the list, clear the ref
+          justCreatedSessionRef.current = null;
+        }
+        return; // Don't reset — we know this session is valid
+      }
       const exists = sessionsQuery.data.some((s: any) => s.id === activeSessionId);
       if (!exists) {
         setActiveSessionId(null);
@@ -388,10 +399,13 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
   const createSession = trpc.jarvis.createSession.useMutation({
     onSuccess: (data) => {
       if (data?.id) {
+        justCreatedSessionRef.current = data.id; // Prevent validation race condition
         setActiveSessionId(data.id);
         setMode("chat");
         setShowHistory(false);
         utils.jarvis.listSessions.invalidate({ accountId });
+        // Focus input after React re-renders the chat view
+        setTimeout(() => inputRef.current?.focus(), 150);
       }
     },
   });
@@ -429,7 +443,7 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
 
   // ── Auto-scroll ──
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [messages, isThinking, streamingText, activeTools]);
 
   // ── Build stream callbacks (shared between handleSend and handleSuggestionClick) ──
@@ -761,7 +775,7 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
 
   return (
     <div
-      className="border-l border-border bg-background flex flex-col shrink-0 overflow-hidden"
+      className="border-l border-border bg-background flex flex-col shrink-0 overflow-hidden h-full"
       style={{ width: PANEL_WIDTH }}
     >
       {/* Panel Header */}
@@ -986,7 +1000,12 @@ function PanelContent(props: PanelContentProps) {
               className="w-full text-xs"
               onClick={() => {
                 setMode("chat");
-                if (!activeSessionId) handleNewChat();
+                if (!activeSessionId) {
+                  handleNewChat();
+                } else {
+                  // Focus input after React re-renders the chat view
+                  setTimeout(() => inputRef.current?.focus(), 100);
+                }
               }}
             >
               <MessageSquare className="h-3.5 w-3.5 mr-1.5" />
@@ -1000,7 +1019,7 @@ function PanelContent(props: PanelContentProps) {
       {/* CHAT MODE */}
       {/* ═══════════════════════════════════════════════ */}
       {mode === "chat" && (
-        <>
+        <div className="flex flex-col flex-1 min-h-0">
           {/* Chat header bar */}
           <div className="h-10 border-b border-border flex items-center justify-between px-3 shrink-0 bg-muted/20">
             <div className="flex items-center gap-2 min-w-0">
@@ -1159,7 +1178,7 @@ function PanelContent(props: PanelContentProps) {
               </div>
             </div>
           )}
-        </>
+        </div>
       )}
     </>
   );
