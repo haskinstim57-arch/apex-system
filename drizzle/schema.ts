@@ -2314,3 +2314,19 @@ export const pushNotificationBatch = mysqlTable("push_notification_batch", {
 
 export type PushNotificationBatch = typeof pushNotificationBatch.$inferSelect;
 export type InsertPushNotificationBatch = typeof pushNotificationBatch.$inferInsert;
+
+// ═══════════════════════════════════════════════
+// JARVIS AI SESSIONS — conversation history
+// ═══════════════════════════════════════════════
+export const jarvisSessions = mysqlTable("jarvis_sessions", {
+  id: int("id").primaryKey().autoincrement(),
+  accountId: int("account_id").notNull(),
+  userId: int("user_id").notNull(),
+  title: varchar("title", { length: 255 }).default("New conversation").notNull(),
+  /** JSON-serialized array of JarvisMessage objects */
+  messages: text("messages").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type JarvisSessionRow = typeof jarvisSessions.$inferSelect;
+export type InsertJarvisSession = typeof jarvisSessions.$inferInsert;

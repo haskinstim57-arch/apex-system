@@ -51,6 +51,7 @@ import {
   ListOrdered,
   FileText,
   Clock,
+  Bot,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -87,6 +88,7 @@ const subAccountMenuItems = [
   { icon: ClipboardList, label: "Forms", path: "/forms" },
   { icon: Star, label: "Reputation", path: "/reputation" },
   { icon: Clock, label: "Message Queue", path: "/message-queue" },
+  { icon: Bot, label: "Jarvis AI", path: "/jarvis" },
 ];
 
 /**

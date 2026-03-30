@@ -105,6 +105,8 @@ import {
   type InsertScheduledReport,
   queuedMessages,
   type InsertQueuedMessage,
+  jarvisSessions,
+  type InsertJarvisSession,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -5594,4 +5596,62 @@ export async function retryQueuedMessage(id: number, accountId: number) {
     .update(queuedMessages)
     .set({ status: "pending", lastError: null, nextAttemptAt: null })
     .where(and(eq(queuedMessages.id, id), eq(queuedMessages.accountId, accountId), eq(queuedMessages.status, "failed")));
+}
+
+
+// ═══════════════════════════════════════════════
+// JARVIS AI SESSION HELPERS
+// ═══════════════════════════════════════════════
+
+export async function createJarvisSession(data: InsertJarvisSession) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const result = await db.insert(jarvisSessions).values(data);
+  return { id: result[0].insertId };
+}
+
+export async function getJarvisSession(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(jarvisSessions)
+    .where(and(eq(jarvisSessions.id, id), eq(jarvisSessions.accountId, accountId)))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function updateJarvisSession(
+  id: number,
+  accountId: number,
+  data: { messages?: string; title?: string }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(jarvisSessions)
+    .set(data)
+    .where(and(eq(jarvisSessions.id, id), eq(jarvisSessions.accountId, accountId)));
+}
+
+export async function listJarvisSessions(accountId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: jarvisSessions.id,
+      title: jarvisSessions.title,
+      updatedAt: jarvisSessions.updatedAt,
+    })
+    .from(jarvisSessions)
+    .where(and(eq(jarvisSessions.accountId, accountId), eq(jarvisSessions.userId, userId)))
+    .orderBy(desc(jarvisSessions.updatedAt));
+}
+
+export async function deleteJarvisSession(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(jarvisSessions)
+    .where(and(eq(jarvisSessions.id, id), eq(jarvisSessions.accountId, accountId)));
 }

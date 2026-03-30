@@ -263,6 +263,9 @@ export default defineConfig({
           if (id.includes('/pages/Automations')) return 'page-automations';
           if (id.includes('/pages/Analytics')) return 'page-analytics';
           if (id.includes('/pages/PowerDialer')) return 'page-power-dialer';
+          if (id.includes('/pages/Jarvis')) return 'page-jarvis';
+          if (id.includes('node_modules/streamdown')) return 'vendor-streamdown';
+          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
         },
       },
     },

@@ -48,6 +48,7 @@ import PageEditor from "./pages/PageEditor";
 import FunnelsPage from "./pages/Funnels";
 import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
+const Jarvis = lazy(() => import("./pages/Jarvis"));
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -311,6 +312,15 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <MessageQueue />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/jarvis">
+        <DashboardLayout>
+          <RequireAccount>
+            <Suspense fallback={<LazyFallback />}>
+              <Jarvis />
+            </Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>

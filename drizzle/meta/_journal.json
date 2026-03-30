@@ -470,6 +470,13 @@
       "when": 1774823126353,
       "tag": "0066_unknown_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "5",
+      "when": 1774834219142,
+      "tag": "0067_slippery_warbound",
+      "breakpoints": true
     }
   ]
 }

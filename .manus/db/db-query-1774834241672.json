@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE jarvis_sessions MODIFY COLUMN title varchar(255) NOT NULL DEFAULT 'New conversation', MODIFY COLUMN messages text NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute ALTER TABLE jarvis_sessions MODIFY COLUMN title varchar(255) NOT NULL DEFAULT 'New conversation', MODIFY COLUMN messages text NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 388
+}

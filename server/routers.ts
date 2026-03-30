@@ -46,6 +46,7 @@ import { webchatRouter } from "./routers/webchat";
 import { scheduledReportsRouter } from "./routers/scheduledReports";
 import { smsComplianceRouter } from "./routers/smsCompliance";
 import { messageQueueRouter } from "./routers/messageQueue";
+import { jarvisRouter } from "./routers/jarvis";
 
 export const appRouter = router({
   system: systemRouter,
@@ -103,6 +104,7 @@ export const appRouter = router({
   scheduledReports: scheduledReportsRouter,
   smsCompliance: smsComplianceRouter,
   messageQueue: messageQueueRouter,
+  jarvis: jarvisRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -2565,3 +2565,17 @@
 - [x] Vitest: 30 tests — parsePreferences, isEventTypeEnabled, isWithinQuietHours (overnight, same-day, timezone, boundary), buildBatchNotification (single, grouped, names, empty), integration
 - [x] TypeScript: 0 errors, 193 total tests passing
 - [x] Checkpoint saved
+
+## Jarvis AI Assistant
+- [x] Schema: jarvisSessions table (id, accountId, userId, title, messages JSON, timestamps)
+- [x] Migration: Push Drizzle migration for jarvisSessions table
+- [x] Backend: Jarvis DB helpers (createJarvisSession, getJarvisSession, updateJarvisSession, listJarvisSessions, deleteJarvisSession)
+- [x] Backend: jarvisTools.ts — 23 CRM tools (search_contacts, get_contact_details, create_contact, update_contact, get_dashboard_stats, get_contact_stats, get_message_stats, get_campaign_stats, list_recent_messages, send_sms, send_email, add_note, list_campaigns, list_deals, pipeline_overview, move_deal_stage, list_workflows, trigger_workflow, list_segments, list_sequences, enroll_in_sequence, list_appointments, schedule_appointment)
+- [x] Backend: jarvisService.ts — conversation management, LLM orchestration with multi-turn tool calling (max 5 iterations), auto-title generation, message persistence
+- [x] Backend: jarvis.ts tRPC router — listSessions, createSession, getSession, chat, deleteSession (all with tenant isolation + user ownership checks)
+- [x] Frontend: Jarvis.tsx — chat UI with conversation sidebar, message bubbles, Streamdown markdown rendering, empty state with example prompts, auto-scroll, keyboard shortcuts
+- [x] Frontend: Jarvis AI added to sidebar navigation (Bot icon)
+- [x] Frontend: Route /jarvis added to App.tsx with lazy loading
+- [x] Vitest: 9 tests — listSessions, createSession (default + custom title), getSession (success + forbidden), chat (success + empty rejection), deleteSession (success + forbidden)
+- [x] TypeScript: 0 errors, all 9 Jarvis tests passing
+- [x] Checkpoint saved
