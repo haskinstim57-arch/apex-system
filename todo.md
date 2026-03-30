@@ -2729,3 +2729,12 @@
 - [x] Issue 3: Main content area properly constrained — overflow-hidden on flex container, h-full on collapsed/expanded panel states
 - [x] Build: 0 TypeScript errors
 - [x] All Jarvis tests pass
+
+## Jarvis Enhancements — Mobile Input + Autocomplete
+- [x] Fix mobile Jarvis input bar positioning in sheet/drawer view — ensure input stays pinned at bottom
+- [x] Mobile sheet layout: flex-col with messages flex-1 overflow-y-auto min-h-0, input shrink-0 + dvh + safe-area-inset-bottom
+- [x] Add contact name autocomplete dropdown to Jarvis chat input
+- [x] Autocomplete: trigger on @ followed by 2+ chars, search contacts via tRPC, show dropdown above input
+- [x] Autocomplete: clicking a suggestion inserts the contact name into the input field
+- [x] TypeScript: 0 errors after changes
+- [x] Tests pass after changes (1801 passed, 15 pre-existing failures unchanged)

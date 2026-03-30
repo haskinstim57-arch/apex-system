@@ -685,15 +685,15 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
 
         {/* Bottom sheet overlay */}
         {mobileOpen && (
-          <div className="fixed inset-0 z-50 flex flex-col">
+          <div className="fixed inset-0 z-50 flex flex-col" style={{ height: "100dvh" }}>
             {/* Backdrop */}
             <div
-              className="flex-shrink-0 bg-black/40 backdrop-blur-sm"
-              style={{ height: "10vh" }}
+              className="shrink-0 bg-black/40 backdrop-blur-sm"
+              style={{ height: "10dvh" }}
               onClick={() => setMobileOpen(false)}
             />
             {/* Sheet */}
-            <div className="flex-1 bg-background rounded-t-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
+            <div className="flex-1 min-h-0 bg-background rounded-t-2xl shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-300">
               {/* Handle + header */}
               <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-border shrink-0">
                 <div className="flex items-center gap-2">
@@ -733,6 +733,7 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
                 mode={mode}
                 setMode={setMode}
                 collapsed={false}
+                accountId={accountId}
                 suggestions={suggestions}
                 recommendationsLoading={recommendationsQuery.isLoading}
                 recommendationsError={recommendationsQuery.isError}
@@ -843,6 +844,7 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
         mode={mode}
         setMode={setMode}
         collapsed={collapsed}
+        accountId={accountId}
         suggestions={suggestions}
         recommendationsLoading={recommendationsQuery.isLoading}
         recommendationsError={recommendationsQuery.isError}
@@ -887,6 +889,7 @@ interface PanelContentProps {
   mode: PanelMode;
   setMode: (m: PanelMode) => void;
   collapsed: boolean;
+  accountId: number;
   suggestions: Suggestion[];
   recommendationsLoading: boolean;
   recommendationsError: boolean;
@@ -922,7 +925,7 @@ interface PanelContentProps {
 
 function PanelContent(props: PanelContentProps) {
   const {
-    mode, setMode, suggestions, recommendationsLoading, recommendationsError, sessions,
+    mode, setMode, accountId, suggestions, recommendationsLoading, recommendationsError, sessions,
     showHistory, setShowHistory, activeSessionId, sessionQuery,
     messages, isThinking, streamingText, activeTools,
     lastToolsUsed, showTools, setShowTools, followUpPrompts,
@@ -931,6 +934,86 @@ function PanelContent(props: PanelContentProps) {
     handleDelete, handleResumeSession, createSessionPending, pageContext,
     pendingConfirmation, resolvedConfirmations, handleConfirm,
   } = props;
+
+  // ── Contact autocomplete state ──
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autocompleteQuery, setAutocompleteQuery] = useState("");
+  const [selectedAutocompleteIdx, setSelectedAutocompleteIdx] = useState(0);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
+
+  // Detect @mention trigger in input
+  const mentionMatch = useMemo(() => {
+    if (!input) return null;
+    // Find the last @ that isn't preceded by a word char
+    const match = input.match(/@([\w\s]{2,30})$/);
+    return match ? match[1].trim() : null;
+  }, [input]);
+
+  // Show autocomplete when we have a mention match
+  useEffect(() => {
+    if (mentionMatch && mentionMatch.length >= 2) {
+      setAutocompleteQuery(mentionMatch);
+      setShowAutocomplete(true);
+      setSelectedAutocompleteIdx(0);
+    } else {
+      setShowAutocomplete(false);
+      setAutocompleteQuery("");
+    }
+  }, [mentionMatch]);
+
+  // Query contacts for autocomplete
+  const autocompleteResults = trpc.contacts.list.useQuery(
+    { accountId, search: autocompleteQuery, limit: 6, offset: 0 },
+    { enabled: showAutocomplete && autocompleteQuery.length >= 2 }
+  );
+
+  const autocompleteContacts = useMemo(() => {
+    if (!autocompleteResults.data?.data) return [];
+    return autocompleteResults.data.data.map((c: any) => ({
+      id: c.id,
+      name: [c.firstName, c.lastName].filter(Boolean).join(" "),
+      email: c.email,
+      phone: c.phone,
+    }));
+  }, [autocompleteResults.data]);
+
+  // Insert selected contact into input
+  const handleAutocompleteSelect = useCallback((contactName: string) => {
+    // Replace the @query with the contact name
+    const newInput = input.replace(/@[\w\s]{2,30}$/, contactName);
+    setInput(newInput);
+    setShowAutocomplete(false);
+    setAutocompleteQuery("");
+    inputRef.current?.focus();
+  }, [input, setInput, inputRef]);
+
+  // Enhanced keydown handler for autocomplete navigation
+  const handleInputKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (showAutocomplete && autocompleteContacts.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedAutocompleteIdx((prev) => Math.min(prev + 1, autocompleteContacts.length - 1));
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedAutocompleteIdx((prev) => Math.max(prev - 1, 0));
+        return;
+      }
+      if (e.key === "Tab" || (e.key === "Enter" && !e.shiftKey)) {
+        e.preventDefault();
+        handleAutocompleteSelect(autocompleteContacts[selectedAutocompleteIdx].name);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowAutocomplete(false);
+        return;
+      }
+    }
+    // Fall through to normal key handling
+    handleKeyDown(e);
+  }, [showAutocomplete, autocompleteContacts, selectedAutocompleteIdx, handleAutocompleteSelect, handleKeyDown]);
 
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -1176,7 +1259,7 @@ function PanelContent(props: PanelContentProps) {
 
           {/* Input area */}
           {activeSessionId && (
-            <div className="border-t border-border p-2.5 shrink-0">
+            <div className="border-t border-border p-2.5 shrink-0" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
               {/* Show disabled state hint when thinking */}
               {isThinking && (
                 <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1.5 px-1">
@@ -1184,13 +1267,77 @@ function PanelContent(props: PanelContentProps) {
                   <span>Jarvis is working{pendingConfirmation ? " — waiting for your approval" : ""}...</span>
                 </div>
               )}
+
+              {/* Contact autocomplete dropdown */}
+              {showAutocomplete && autocompleteContacts.length > 0 && (
+                <div
+                  ref={autocompleteRef}
+                  className="mb-1.5 rounded-lg border border-border bg-popover text-popover-foreground shadow-lg overflow-hidden"
+                >
+                  <div className="px-2.5 py-1.5 border-b border-border bg-muted/30">
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Contacts</span>
+                  </div>
+                  <div className="max-h-[180px] overflow-y-auto">
+                    {autocompleteContacts.map((contact: { id: number; name: string; email: string | null; phone: string | null }, idx: number) => (
+                      <button
+                        key={contact.id}
+                        className={`w-full text-left px-2.5 py-2 flex items-center gap-2.5 transition-colors ${
+                          idx === selectedAutocompleteIdx
+                            ? "bg-primary/10 text-primary"
+                            : "hover:bg-muted/50 text-foreground"
+                        }`}
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // Prevent input blur
+                          handleAutocompleteSelect(contact.name);
+                        }}
+                        onMouseEnter={() => setSelectedAutocompleteIdx(idx)}
+                      >
+                        <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-semibold text-primary">
+                            {contact.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{contact.name}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {contact.email || contact.phone || "No contact info"}
+                          </p>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="px-2.5 py-1 border-t border-border bg-muted/20">
+                    <span className="text-[9px] text-muted-foreground">↑↓ navigate · Enter/Tab select · Esc dismiss</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Autocomplete loading state */}
+              {showAutocomplete && autocompleteResults.isLoading && (
+                <div className="mb-1.5 rounded-lg border border-border bg-popover p-3 flex items-center gap-2">
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <span className="text-[10px] text-muted-foreground">Searching contacts...</span>
+                </div>
+              )}
+
+              {/* Autocomplete no results */}
+              {showAutocomplete && !autocompleteResults.isLoading && autocompleteContacts.length === 0 && autocompleteQuery.length >= 2 && (
+                <div className="mb-1.5 rounded-lg border border-border bg-popover p-3">
+                  <span className="text-[10px] text-muted-foreground">No contacts found for “{autocompleteQuery}”</span>
+                </div>
+              )}
+
               <div className="flex gap-1.5">
                 <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder={isThinking ? "Waiting for Jarvis..." : "Ask Jarvis..."}
+                  onKeyDown={handleInputKeyDown}
+                  onBlur={() => {
+                    // Delay hiding to allow click on autocomplete item
+                    setTimeout(() => setShowAutocomplete(false), 200);
+                  }}
+                  placeholder={isThinking ? "Waiting for Jarvis..." : "Ask Jarvis... (type @ to mention a contact)"}
                   rows={1}
                   className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 placeholder:text-muted-foreground min-h-[36px] max-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isThinking}
