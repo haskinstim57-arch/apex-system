@@ -2659,6 +2659,7 @@
 - [x] Contacts page loads without crash, Jarvis panel renders correctly
 - [x] All 13 Jarvis + auth tests pass
 
+<<<<<<< Updated upstream
 ## URGENT: Jarvis Chat Failing — Gemini SDK Migration (FIXED)
 - [x] Exposed real error: 412 "usage exhausted" from built-in Manus LLM API
 - [x] Root cause: invokeLLM quota exhausted, not a code bug
@@ -2706,3 +2707,15 @@
 - [x] Issue 2: New Chat button clears everything — handleNewChat aborts in-flight stream, clears all state (messages, tools, input, streaming), createSession.onSuccess invalidates getSession cache, shows fresh empty state
 - [x] All 15 Jarvis tests pass
 - [x] Verified both fixes in browser
+=======
+## URGENT: Jarvis Chat Failing — Every Request Returns Generic Error
+- [ ] Expose real error: add debug logging to all Jarvis catch blocks (show actual error in chat)
+- [ ] Check LLM invocation: verify invokeLLM supports tool/function calling
+- [ ] Check API key: verify BUILT_IN_FORGE_API_KEY is set and working
+- [ ] Check tool declarations format: verify JARVIS_TOOLS schema is valid
+- [ ] Check jarvis_sessions table exists in DB
+- [ ] Fix root cause of Jarvis failure
+- [ ] Verify Jarvis chat works end-to-end in browser
+- [ ] Restore clean error handling after fix
+- [ ] All Jarvis tests pass
+>>>>>>> Stashed changes
