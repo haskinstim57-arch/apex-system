@@ -210,17 +210,17 @@ export async function chat(
       break;
     }
 
-    const choice = result.choices[0];
+    const choice = result?.choices?.[0];
     if (!choice) {
       finalReply = "I encountered an issue processing your request. Please try again.";
       break;
     }
 
     const assistantMsg = choice.message;
-    const toolCalls = assistantMsg.tool_calls;
+    const toolCalls = assistantMsg?.tool_calls;
 
     if (!toolCalls || toolCalls.length === 0) {
-      finalReply = (typeof assistantMsg.content === "string" ? assistantMsg.content : "") || "";
+      finalReply = (typeof assistantMsg?.content === "string" ? assistantMsg.content : "") || "";
       history.push({
         role: "assistant",
         content: finalReply,
@@ -229,7 +229,7 @@ export async function chat(
       break;
     }
 
-    const rawContent = assistantMsg.content;
+    const rawContent = assistantMsg?.content;
     const contentStr = typeof rawContent === "string" ? rawContent : "";
     const assistantHistoryMsg: JarvisMessage = {
       role: "assistant",
@@ -285,7 +285,7 @@ export async function chat(
       } catch {
         finalResult = { choices: [{ message: { content: "I completed the requested actions." } }] } as any;
       }
-      const lastContent = finalResult.choices[0]?.message?.content;
+      const lastContent = finalResult?.choices?.[0]?.message?.content;
       finalReply = (typeof lastContent === "string" ? lastContent : "") || "I completed the requested actions.";
       history.push({
         role: "assistant",
@@ -499,7 +499,7 @@ export async function* chatStream(
       return;
     }
 
-    const choice = result.choices[0];
+    const choice = result?.choices?.[0];
     if (!choice) {
       finalReply = "I encountered an issue processing your request. Please try again.";
       yield { type: "text_delta", data: { content: finalReply } };
@@ -508,11 +508,11 @@ export async function* chatStream(
     }
 
     const assistantMsg = choice.message;
-    const toolCalls = assistantMsg.tool_calls;
+    const toolCalls = assistantMsg?.tool_calls;
 
     if (!toolCalls || toolCalls.length === 0) {
       // ── Final text response — stream it via SSE ──
-      finalReply = (typeof assistantMsg.content === "string" ? assistantMsg.content : "") || "";
+      finalReply = (typeof assistantMsg?.content === "string" ? assistantMsg.content : "") || "";
 
       // Stream the final text in chunks for a typing effect
       const chunkSize = 12;
@@ -525,7 +525,7 @@ export async function* chatStream(
     }
 
     // ── Tool calling round ──
-    const rawContent = assistantMsg.content;
+    const rawContent = assistantMsg?.content;
     const contentStr = typeof rawContent === "string" ? rawContent : "";
     history.push({ role: "assistant", content: contentStr, tool_calls: toolCalls, timestamp: Date.now() });
     llmMessages.push({ role: "assistant", content: contentStr, tool_calls: toolCalls } as any);
@@ -597,7 +597,7 @@ export async function* chatStream(
       } catch {
         finalResult = { choices: [{ message: { content: "I completed the requested actions." } }] } as any;
       }
-      const lastContent = finalResult.choices[0]?.message?.content;
+      const lastContent = finalResult?.choices?.[0]?.message?.content;
       finalReply = (typeof lastContent === "string" ? lastContent : "") || "I completed the requested actions.";
 
       const chunkSize = 12;

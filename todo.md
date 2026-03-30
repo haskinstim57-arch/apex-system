@@ -2646,3 +2646,15 @@
 - [x] Fix Issue 4: Loading state — disable input, show active tool name during execution
 - [x] Build: 0 TypeScript errors
 - [x] All previously passing tests still pass (12 Jarvis + 1 auth = 13 passed)
+
+## Jarvis Crash Root Cause Fix (Page Load)
+- [x] Audit: grep all [0] access without optional chaining in Jarvis files
+- [x] Fix: JarvisErrorBoundary wraps entire Jarvis panel including data fetching
+- [x] Fix: getRecommendations query has enabled: !!accountId, retry: 1, swallow errors
+- [x] Fix: server getRecommendations always returns fallback suggestions on failure
+- [x] Fix: server chat always returns valid shape, never throws unhandled
+- [x] Fix: every rendered state has fallback (array ?? []).map()
+- [x] Fix: all result.choices[0] access uses optional chaining (result?.choices?.[0])
+- [x] Build: 0 TypeScript errors
+- [x] Contacts page loads without crash, Jarvis panel renders correctly
+- [x] All 13 Jarvis + auth tests pass

@@ -184,7 +184,7 @@ Generate 4 suggestions as JSON array.`,
           },
         });
 
-        const content = result.choices[0]?.message?.content;
+        const content = result?.choices?.[0]?.message?.content;
         if (content) {
           const parsed = JSON.parse(typeof content === "string" ? content : "");
           if (parsed.suggestions && Array.isArray(parsed.suggestions)) {
