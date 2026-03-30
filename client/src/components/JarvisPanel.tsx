@@ -29,6 +29,9 @@ import {
   Clock,
   AlertTriangle,
   RefreshCw,
+  Mic,
+  MicOff,
+  Square,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -1015,6 +1018,142 @@ function PanelContent(props: PanelContentProps) {
     handleKeyDown(e);
   }, [showAutocomplete, autocompleteContacts, selectedAutocompleteIdx, handleAutocompleteSelect, handleKeyDown]);
 
+  // ── Voice recording state ──
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const transcribeMutation = trpc.jarvis.transcribeVoice.useMutation({
+    onSuccess: (data) => {
+      if (data.text) {
+        // Append transcribed text to existing input
+        const currentVal = inputRef.current?.value ?? input;
+        const trimmed = currentVal.trim();
+        setInput(trimmed ? `${trimmed} ${data.text}` : data.text);
+        toast.success(`Transcribed ${data.duration ? `${Math.round(data.duration)}s of audio` : "audio"}`);
+        inputRef.current?.focus();
+      } else {
+        toast.error("No speech detected. Please try again.");
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Transcription failed. Please try again.");
+    },
+  });
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
+
+  const startRecording = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/mp4";
+
+      const recorder = new MediaRecorder(stream, { mimeType });
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.onstop = async () => {
+        // Stop all tracks to release the mic
+        stream.getTracks().forEach((t) => t.stop());
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: mimeType.split(";")[0] });
+        if (audioBlob.size < 1000) {
+          toast.error("Recording too short. Please hold longer.");
+          setIsRecording(false);
+          setRecordingDuration(0);
+          return;
+        }
+
+        setIsTranscribing(true);
+        setIsRecording(false);
+        setRecordingDuration(0);
+
+        try {
+          // Convert blob to base64
+          const arrayBuffer = await audioBlob.arrayBuffer();
+          const base64 = btoa(
+            new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+          );
+          await transcribeMutation.mutateAsync({
+            audioBase64: base64,
+            mimeType: mimeType.split(";")[0],
+          });
+        } catch {
+          // Error handled by mutation onError
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
+
+      recorder.start(250); // Collect data every 250ms
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+      setRecordingDuration(0);
+
+      // Start duration timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err: any) {
+      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+        toast.error("Microphone access denied. Please allow microphone permissions.");
+      } else {
+        toast.error("Could not access microphone. Please check your device.");
+      }
+    }
+  }, [transcribeMutation]);
+
+  const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.stop();
+    }
+  }, []);
+
+  const cancelRecording = useCallback(() => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      // Remove the onstop handler to prevent transcription
+      mediaRecorderRef.current.onstop = () => {
+        mediaRecorderRef.current?.stream?.getTracks().forEach((t) => t.stop());
+      };
+      mediaRecorderRef.current.stop();
+    }
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setRecordingDuration(0);
+  }, []);
+
+  const formatDuration = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* ═══════════════════════════════════════════════ */}
@@ -1327,25 +1466,96 @@ function PanelContent(props: PanelContentProps) {
                 </div>
               )}
 
+              {/* Recording state UI */}
+              {isRecording && (
+                <div className="flex items-center gap-2 mb-1.5 px-1">
+                  <div className="relative flex items-center justify-center">
+                    <span className="absolute h-3 w-3 rounded-full bg-red-500 animate-ping opacity-50" />
+                    <span className="relative h-2.5 w-2.5 rounded-full bg-red-500" />
+                  </div>
+                  <span className="text-[11px] font-medium text-red-500">Recording {formatDuration(recordingDuration)}</span>
+                  <div className="flex-1" />
+                  <button
+                    onClick={cancelRecording}
+                    className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {/* Transcribing state UI */}
+              {isTranscribing && (
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1.5 px-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Transcribing audio...</span>
+                </div>
+              )}
+
               <div className="flex gap-1.5">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleInputKeyDown}
-                  onBlur={() => {
-                    // Delay hiding to allow click on autocomplete item
-                    setTimeout(() => setShowAutocomplete(false), 200);
-                  }}
-                  placeholder={isThinking ? "Waiting for Jarvis..." : "Ask Jarvis... (type @ to mention a contact)"}
-                  rows={1}
-                  className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 placeholder:text-muted-foreground min-h-[36px] max-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isThinking}
-                  style={{ overflow: "auto" }}
-                />
-                <Button onClick={handleSend} disabled={!input.trim() || isThinking} size="icon" className="h-9 w-9 shrink-0">
-                  {isThinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                </Button>
+                {isRecording ? (
+                  /* During recording: show stop button instead of textarea */
+                  <>
+                    <div className="flex-1 flex items-center justify-center rounded-lg border border-red-500/30 bg-red-500/5 min-h-[36px]">
+                      <div className="flex items-center gap-1">
+                        {[0, 1, 2, 3, 4].map((i) => (
+                          <div
+                            key={i}
+                            className="w-0.5 bg-red-500 rounded-full animate-pulse"
+                            style={{
+                              height: `${8 + Math.random() * 12}px`,
+                              animationDelay: `${i * 0.15}s`,
+                              animationDuration: "0.6s",
+                            }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      onClick={stopRecording}
+                      size="icon"
+                      className="h-9 w-9 shrink-0 bg-red-500 hover:bg-red-600 text-white"
+                    >
+                      <Square className="h-3 w-3 fill-current" />
+                    </Button>
+                  </>
+                ) : (
+                  /* Normal state: textarea + mic + send */
+                  <>
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={handleInputKeyDown}
+                      onBlur={() => {
+                        // Delay hiding to allow click on autocomplete item
+                        setTimeout(() => setShowAutocomplete(false), 200);
+                      }}
+                      placeholder={isThinking ? "Waiting for Jarvis..." : "Ask Jarvis... (type @ to mention a contact)"}
+                      rows={1}
+                      className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 placeholder:text-muted-foreground min-h-[36px] max-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isThinking || isTranscribing}
+                      style={{ overflow: "auto" }}
+                    />
+                    <Button
+                      onClick={startRecording}
+                      disabled={isThinking || isTranscribing}
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 shrink-0 hover:bg-primary/10 hover:text-primary hover:border-primary/30 transition-all"
+                      title="Voice input"
+                    >
+                      {isTranscribing ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Mic className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                    <Button onClick={handleSend} disabled={!input.trim() || isThinking || isTranscribing} size="icon" className="h-9 w-9 shrink-0">
+                      {isThinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           )}

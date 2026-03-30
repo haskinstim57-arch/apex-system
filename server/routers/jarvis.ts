@@ -9,6 +9,8 @@ import {
   deleteSession,
   chat,
 } from "../services/jarvisService";
+import { transcribeAudio } from "../_core/voiceTranscription";
+import { storagePut } from "../storage";
 import { invokeGeminiWithRetry } from "../services/gemini";
 import {
   getAccountDashboardStats,
@@ -252,5 +254,47 @@ Generate 4 suggestions as JSON array.`,
         accountId: input.accountId,
         days: input.days,
       });
+    }),
+
+  /** Transcribe voice audio to text */
+  transcribeVoice: protectedProcedure
+    .input(z.object({
+      audioBase64: z.string().min(1),
+      mimeType: z.string().default("audio/webm"),
+      language: z.string().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      // Decode base64 to buffer
+      const audioBuffer = Buffer.from(input.audioBase64, "base64");
+
+      // Check size (16MB limit)
+      const sizeMB = audioBuffer.length / (1024 * 1024);
+      if (sizeMB > 16) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Audio file is ${sizeMB.toFixed(1)}MB — maximum is 16MB`,
+        });
+      }
+
+      // Upload to S3 with a unique key
+      const ext = input.mimeType === "audio/webm" ? "webm" : input.mimeType === "audio/mp4" ? "m4a" : "webm";
+      const fileKey = `voice-transcriptions/${ctx.user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { url: audioUrl } = await storagePut(fileKey, audioBuffer, input.mimeType);
+
+      // Transcribe
+      const result = await transcribeAudio({
+        audioUrl,
+        language: input.language,
+        prompt: "Transcribe the user's voice message for a CRM assistant",
+      });
+
+      if ("error" in result) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: result.error,
+        });
+      }
+
+      return { text: result.text, language: result.language, duration: result.duration };
     }),
 });

@@ -2738,3 +2738,12 @@
 - [x] Autocomplete: clicking a suggestion inserts the contact name into the input field
 - [x] TypeScript: 0 errors after changes
 - [x] Tests pass after changes (1801 passed, 15 pre-existing failures unchanged)
+
+## Jarvis Voice Input Feature
+- [x] Add microphone button next to send button in Jarvis chat input
+- [x] Frontend: record audio via MediaRecorder API (webm format), show recording state with animation
+- [x] Backend: create tRPC endpoint (jarvis.transcribeVoice) to accept base64 audio, upload to S3, transcribe via voiceTranscription helper
+- [x] Frontend: upload recorded audio to backend, receive transcription, insert text into input field
+- [x] Handle errors gracefully (mic permission denied, transcription failure, too short recording, etc.)
+- [x] TypeScript: 0 errors after changes
+- [x] Tests pass after changes (5 voice tests passed)
