@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Component, type ReactNode } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAccount } from "@/contexts/AccountContext";
 import { Button } from "@/components/ui/button";
@@ -27,8 +27,63 @@ import {
   ShieldCheck,
   ShieldX,
   Clock,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+
+// ═══════════════════════════════════════════════
+// ERROR BOUNDARY
+// ═══════════════════════════════════════════════
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class JarvisErrorBoundary extends Component<
+  { children: ReactNode; onRetry?: () => void },
+  ErrorBoundaryState
+> {
+  constructor(props: { children: ReactNode; onRetry?: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[JarvisPanel] Error caught by boundary:", error, info);
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+    this.props.onRetry?.();
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+          <div className="h-12 w-12 rounded-xl bg-destructive/10 flex items-center justify-center mb-3">
+            <AlertTriangle className="h-6 w-6 text-destructive" />
+          </div>
+          <h3 className="text-sm font-semibold mb-1">Jarvis encountered an error</h3>
+          <p className="text-[11px] text-muted-foreground mb-4 max-w-[240px] leading-relaxed">
+            Something went wrong. Click below to retry.
+          </p>
+          <Button size="sm" onClick={this.handleRetry} className="text-xs">
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            Retry
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ═══════════════════════════════════════════════
 // TYPES
@@ -79,25 +134,31 @@ const TOOL_DISPLAY: Record<string, string> = {
   get_contact_detail: "Fetched contact details",
   create_contact: "Created a contact",
   update_contact: "Updated contact info",
-  add_contact_note: "Added a note",
-  add_contact_tag: "Tagged a contact",
-  send_sms: "Sent an SMS",
-  send_email: "Sent an email",
-  get_dashboard_stats: "Pulled dashboard stats",
-  get_contact_stats: "Pulled contact stats",
-  get_message_stats: "Pulled message stats",
-  get_campaign_stats: "Pulled campaign stats",
+  get_communication_history: "Fetched messages",
+  send_sms: "Sent SMS",
+  send_email: "Sent email",
+  get_pipeline_overview: "Checked pipeline",
+  move_deal_stage: "Moved deal stage",
+  get_dashboard_stats: "Fetched dashboard stats",
+  get_contact_stats: "Fetched contact stats",
+  get_message_stats: "Fetched message stats",
+  get_campaign_stats: "Fetched campaign stats",
   list_campaigns: "Listed campaigns",
-  pipeline_overview: "Checked pipeline",
-  list_pipeline_stages: "Listed pipeline stages",
-  move_deal_stage: "Moved a deal",
-  create_deal: "Created a deal",
   list_workflows: "Listed workflows",
-  trigger_workflow: "Triggered a workflow",
-  list_segments: "Listed segments",
+  trigger_workflow: "Triggered workflow",
   list_sequences: "Listed sequences",
   enroll_in_sequence: "Enrolled in sequence",
-  get_calendar_appointments: "Checked appointments",
+  get_tags: "Fetched tags",
+  list_segments: "Listed segments",
+  get_appointments: "Fetched appointments",
+  get_available_slots: "Checked availability",
+  schedule_appointment: "Scheduled appointment",
+  add_contact_note: "Added note",
+  log_activity: "Logged activity",
+  get_contacts_by_filter: "Filtered contacts",
+  get_analytics: "Fetched analytics",
+  bulk_send_sms: "Sent bulk SMS",
+  trigger_automation: "Triggered automation",
 };
 
 // ═══════════════════════════════════════════════
@@ -121,16 +182,23 @@ async function streamChat(
   callbacks: StreamCallbacks,
   signal?: AbortSignal
 ) {
-  const res = await fetch("/api/jarvis/stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ accountId, sessionId, message }),
-    credentials: "include",
-    signal,
-  });
+  let res: Response;
+  try {
+    res = await fetch("/api/jarvis/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accountId, sessionId, message }),
+      credentials: "include",
+      signal,
+    });
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw err;
+    callbacks.onError("Network error. Please check your connection and try again.");
+    return;
+  }
 
   if (!res.ok) {
-    callbacks.onError(`Request failed: ${res.status}`);
+    callbacks.onError(`Request failed (${res.status}). Please try again.`);
     return;
   }
 
@@ -143,50 +211,68 @@ async function streamChat(
   const decoder = new TextDecoder();
   let buffer = "";
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() || "";
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
 
-    let eventType = "";
-    for (const line of lines) {
-      if (line.startsWith("event: ")) {
-        eventType = line.slice(7).trim();
-      } else if (line.startsWith("data: ") && eventType) {
-        try {
-          const data = JSON.parse(line.slice(6));
-          switch (eventType) {
-            case "tool_start":
-              callbacks.onToolStart(data.name, data.displayName);
-              break;
-            case "tool_result":
-              callbacks.onToolResult(data.name, data.displayName, data.success);
-              break;
-            case "text_delta":
-              callbacks.onTextDelta(data.content);
-              break;
-            case "done":
-              callbacks.onDone(data.toolsUsed);
-              break;
-            case "error":
-              callbacks.onError(data.message);
-              break;
-            case "confirmation_required":
-              callbacks.onConfirmationRequired(data);
-              break;
-            case "confirmation_result":
-              callbacks.onConfirmationResult(data);
-              break;
+      let eventType = "";
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7).trim();
+        } else if (line.startsWith("data: ") && eventType) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            switch (eventType) {
+              case "tool_start":
+                callbacks.onToolStart(data?.name ?? "unknown", data?.displayName ?? "Processing...");
+                break;
+              case "tool_result":
+                callbacks.onToolResult(data?.name ?? "unknown", data?.displayName ?? "Done", data?.success ?? false);
+                break;
+              case "text_delta":
+                callbacks.onTextDelta(data?.content ?? "");
+                break;
+              case "done":
+                callbacks.onDone(data?.toolsUsed ?? []);
+                break;
+              case "error":
+                callbacks.onError(data?.message ?? "An unknown error occurred");
+                break;
+              case "confirmation_required":
+                callbacks.onConfirmationRequired({
+                  requestId: data?.requestId ?? "",
+                  name: data?.name ?? "unknown",
+                  displayName: data?.displayName ?? "Action",
+                  summary: data?.summary ?? "Confirm this action?",
+                  args: data?.args ?? {},
+                });
+                break;
+              case "confirmation_result":
+                callbacks.onConfirmationResult({
+                  requestId: data?.requestId ?? "",
+                  approved: data?.approved ?? false,
+                  name: data?.name ?? "unknown",
+                  displayName: data?.displayName ?? "Action",
+                });
+                break;
+            }
+          } catch {
+            // Ignore malformed JSON lines
           }
-        } catch {}
-        eventType = "";
-      } else if (line === "") {
-        eventType = "";
+          eventType = "";
+        } else if (line === "") {
+          eventType = "";
+        }
       }
     }
+  } catch (err: any) {
+    if (err?.name === "AbortError") throw err;
+    callbacks.onError("Stream interrupted. Please try again.");
   }
 }
 
@@ -195,6 +281,14 @@ async function streamChat(
 // ═══════════════════════════════════════════════
 
 export function JarvisPanel({ pageContext }: { pageContext: string }) {
+  return (
+    <JarvisErrorBoundary>
+      <JarvisPanelInner pageContext={pageContext} />
+    </JarvisErrorBoundary>
+  );
+}
+
+function JarvisPanelInner({ pageContext }: { pageContext: string }) {
   const { currentAccountId } = useAccount();
   const accountId = currentAccountId!;
   const isMobile = useIsMobile();
@@ -214,7 +308,7 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
   const [lastToolsUsed, setLastToolsUsed] = useState<string[]>([]);
   const [showTools, setShowTools] = useState(false);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
-  const [resolvedConfirmations, setResolvedConfirmations] = useState<Array<{ requestId: string; approved: boolean; name: string; displayName: string }>>([]); 
+  const [resolvedConfirmations, setResolvedConfirmations] = useState<Array<{ requestId: string; approved: boolean; name: string; displayName: string }>>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -244,17 +338,17 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
   // ── Queries ──
   const recommendationsQuery = trpc.jarvis.getRecommendations.useQuery(
     { accountId, pageContext },
-    { enabled: !!accountId && mode === "suggestions" && (!collapsed || mobileOpen) }
+    { enabled: !!accountId && mode === "suggestions" && (!collapsed || mobileOpen), retry: 1 }
   );
 
   const sessionsQuery = trpc.jarvis.listSessions.useQuery(
     { accountId },
-    { enabled: !!accountId && (!collapsed || mobileOpen) }
+    { enabled: !!accountId && (!collapsed || mobileOpen), retry: 1 }
   );
 
   const sessionQuery = trpc.jarvis.getSession.useQuery(
     { accountId, sessionId: activeSessionId! },
-    { enabled: !!accountId && !!activeSessionId && mode === "chat" && (!collapsed || mobileOpen) }
+    { enabled: !!accountId && !!activeSessionId && mode === "chat" && (!collapsed || mobileOpen), retry: 1 }
   );
 
   const utils = trpc.useUtils();
@@ -262,16 +356,18 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
   // ── Mutations ──
   const createSession = trpc.jarvis.createSession.useMutation({
     onSuccess: (data) => {
-      setActiveSessionId(data.id);
-      setMode("chat");
-      setShowHistory(false);
-      utils.jarvis.listSessions.invalidate({ accountId });
+      if (data?.id) {
+        setActiveSessionId(data.id);
+        setMode("chat");
+        setShowHistory(false);
+        utils.jarvis.listSessions.invalidate({ accountId });
+      }
     },
   });
 
   const deleteSession = trpc.jarvis.deleteSession.useMutation({
     onSuccess: (_, vars) => {
-      if (activeSessionId === vars.sessionId) {
+      if (activeSessionId === vars?.sessionId) {
         setActiveSessionId(null);
         setMode("suggestions");
       }
@@ -279,21 +375,70 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
     },
   });
 
-  // ── Derived state ──
+  // ── Derived state with null safety ──
   const messages: JarvisMessage[] = useMemo(() => {
-    if (!sessionQuery.data?.messages) return [];
-    return sessionQuery.data.messages.filter(
-      (m: JarvisMessage) => m.role === "user" || m.role === "assistant"
+    const raw = sessionQuery.data?.messages;
+    if (!raw || !Array.isArray(raw)) return [];
+    return raw.filter(
+      (m: JarvisMessage) => m?.role === "user" || m?.role === "assistant"
     );
   }, [sessionQuery.data?.messages]);
 
-  const suggestions: Suggestion[] = recommendationsQuery.data ?? [];
-  const sessions = sessionsQuery.data ?? [];
+  const suggestions: Suggestion[] = useMemo(() => {
+    const data = recommendationsQuery.data;
+    if (!data || !Array.isArray(data)) return [];
+    return data;
+  }, [recommendationsQuery.data]);
+
+  const sessions = useMemo(() => {
+    const data = sessionsQuery.data;
+    if (!data || !Array.isArray(data)) return [];
+    return data;
+  }, [sessionsQuery.data]);
 
   // ── Auto-scroll ──
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isThinking, streamingText, activeTools]);
+
+  // ── Build stream callbacks (shared between handleSend and handleSuggestionClick) ──
+  const buildStreamCallbacks = useCallback(
+    (targetSessionId: number): StreamCallbacks => ({
+      onToolStart: (name, displayName) => {
+        setActiveTools((prev) => [...prev, { name, displayName, status: "running" }]);
+      },
+      onToolResult: (name, displayName, success) => {
+        setActiveTools((prev) =>
+          (prev ?? []).map((t) =>
+            t.name === name && t.status === "running"
+              ? { ...t, success, status: success ? "done" : "error" }
+              : t
+          )
+        );
+      },
+      onTextDelta: (content) => {
+        setStreamingText((prev) => (prev ?? "") + (content ?? ""));
+      },
+      onConfirmationRequired: (data) => {
+        setPendingConfirmation({ ...data, timestamp: Date.now() });
+      },
+      onConfirmationResult: (data) => {
+        setPendingConfirmation(null);
+        setResolvedConfirmations((prev) => [...(prev ?? []), data]);
+      },
+      onDone: (toolsUsed) => {
+        setLastToolsUsed(toolsUsed ?? []);
+        setShowTools((toolsUsed ?? []).length > 0);
+        utils.jarvis.getSession.invalidate({ accountId, sessionId: targetSessionId });
+        utils.jarvis.listSessions.invalidate({ accountId });
+      },
+      onError: (message) => {
+        // Show error as an assistant message in the chat instead of a toast
+        toast.error(message || "Failed to get response");
+      },
+    }),
+    [accountId, utils]
+  );
 
   // ── Streaming send handler ──
   const handleSend = useCallback(async () => {
@@ -317,44 +462,11 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
         accountId,
         activeSessionId,
         trimmed,
-        {
-          onToolStart: (name, displayName) => {
-            setActiveTools((prev) => [...prev, { name, displayName, status: "running" }]);
-          },
-          onToolResult: (name, displayName, success) => {
-            setActiveTools((prev) =>
-              prev.map((t) =>
-                t.name === name && t.status === "running"
-                  ? { ...t, success, status: success ? "done" : "error" }
-                  : t
-              )
-            );
-          },
-          onTextDelta: (content) => {
-            setStreamingText((prev) => prev + content);
-          },
-          onConfirmationRequired: (data) => {
-            setPendingConfirmation({ ...data, timestamp: Date.now() });
-          },
-          onConfirmationResult: (data) => {
-            setPendingConfirmation(null);
-            setResolvedConfirmations((prev) => [...prev, data]);
-          },
-          onDone: (toolsUsed) => {
-            setLastToolsUsed(toolsUsed);
-            setShowTools(toolsUsed.length > 0);
-            // Refresh the session to get the persisted messages
-            utils.jarvis.getSession.invalidate({ accountId, sessionId: activeSessionId });
-            utils.jarvis.listSessions.invalidate({ accountId });
-          },
-          onError: (message) => {
-            toast.error(message || "Failed to get response");
-          },
-        },
+        buildStreamCallbacks(activeSessionId),
         controller.signal
       );
     } catch (err: any) {
-      if (err.name !== "AbortError") {
+      if (err?.name !== "AbortError") {
         toast.error("Failed to get response. Please try again.");
       }
     } finally {
@@ -365,7 +477,7 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
       abortRef.current = null;
       inputRef.current?.focus();
     }
-  }, [input, activeSessionId, isThinking, accountId, utils]);
+  }, [input, activeSessionId, isThinking, accountId, buildStreamCallbacks]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -389,6 +501,10 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
     async (prompt: string) => {
       try {
         const session = await createSession.mutateAsync({ accountId });
+        if (!session?.id) {
+          toast.error("Failed to create conversation");
+          return;
+        }
         setInput("");
         setIsThinking(true);
         setStreamingText("");
@@ -405,43 +521,11 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
           accountId,
           session.id,
           prompt,
-          {
-            onToolStart: (name, displayName) => {
-              setActiveTools((prev) => [...prev, { name, displayName, status: "running" }]);
-            },
-            onToolResult: (name, displayName, success) => {
-              setActiveTools((prev) =>
-                prev.map((t) =>
-                  t.name === name && t.status === "running"
-                    ? { ...t, success, status: success ? "done" : "error" }
-                    : t
-                )
-              );
-            },
-            onTextDelta: (content) => {
-              setStreamingText((prev) => prev + content);
-            },
-            onConfirmationRequired: (data) => {
-              setPendingConfirmation({ ...data, timestamp: Date.now() });
-            },
-            onConfirmationResult: (data) => {
-              setPendingConfirmation(null);
-              setResolvedConfirmations((prev) => [...prev, data]);
-            },
-            onDone: (toolsUsed) => {
-              setLastToolsUsed(toolsUsed);
-              setShowTools(toolsUsed.length > 0);
-              utils.jarvis.getSession.invalidate({ accountId, sessionId: session.id });
-              utils.jarvis.listSessions.invalidate({ accountId });
-            },
-            onError: (message) => {
-              toast.error(message || "Failed to get response");
-            },
-          },
+          buildStreamCallbacks(session.id),
           controller.signal
         );
       } catch (err: any) {
-        if (err.name !== "AbortError") {
+        if (err?.name !== "AbortError") {
           toast.error("Failed to start conversation");
         }
       } finally {
@@ -452,7 +536,7 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
         abortRef.current = null;
       }
     },
-    [accountId, createSession, utils]
+    [accountId, createSession, buildStreamCallbacks]
   );
 
   const handleDelete = useCallback(
@@ -479,10 +563,10 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
 
   // ── Suggested follow-up prompts based on last response ──
   const followUpPrompts = useMemo(() => {
-    if (messages.length === 0) return [];
-    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
-    if (!lastAssistant) return [];
-    const content = lastAssistant.content.toLowerCase();
+    if (!messages || messages.length === 0) return [];
+    const lastAssistant = [...messages].reverse().find((m) => m?.role === "assistant");
+    if (!lastAssistant?.content) return [];
+    const content = (lastAssistant.content ?? "").toLowerCase();
 
     const prompts: string[] = [];
     if (content.includes("contact") || content.includes("lead")) {
@@ -575,13 +659,14 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
                 </div>
               </div>
 
-              {/* Content — reuse the same panel content */}
+              {/* Content */}
               <PanelContent
                 mode={mode}
                 setMode={setMode}
                 collapsed={false}
                 suggestions={suggestions}
                 recommendationsLoading={recommendationsQuery.isLoading}
+                recommendationsError={recommendationsQuery.isError}
                 sessions={sessions}
                 showHistory={showHistory}
                 setShowHistory={setShowHistory}
@@ -691,6 +776,7 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
         collapsed={collapsed}
         suggestions={suggestions}
         recommendationsLoading={recommendationsQuery.isLoading}
+        recommendationsError={recommendationsQuery.isError}
         sessions={sessions}
         showHistory={showHistory}
         setShowHistory={setShowHistory}
@@ -714,11 +800,11 @@ export function JarvisPanel({ pageContext }: { pageContext: string }) {
         handleSuggestionClick={handleSuggestionClick}
         handleDelete={handleDelete}
         handleResumeSession={handleResumeSession}
-                createSessionPending={createSession.isPending}
-                pageContext={pageContext}
-                pendingConfirmation={pendingConfirmation}
-                resolvedConfirmations={resolvedConfirmations}
-                handleConfirm={handleConfirm}
+        createSessionPending={createSession.isPending}
+        pageContext={pageContext}
+        pendingConfirmation={pendingConfirmation}
+        resolvedConfirmations={resolvedConfirmations}
+        handleConfirm={handleConfirm}
       />
     </div>
   );
@@ -734,6 +820,7 @@ interface PanelContentProps {
   collapsed: boolean;
   suggestions: Suggestion[];
   recommendationsLoading: boolean;
+  recommendationsError: boolean;
   sessions: Array<{ id: number; title: string; updatedAt: Date }>;
   showHistory: boolean;
   setShowHistory: (v: boolean) => void;
@@ -766,7 +853,7 @@ interface PanelContentProps {
 
 function PanelContent(props: PanelContentProps) {
   const {
-    mode, setMode, suggestions, recommendationsLoading, sessions,
+    mode, setMode, suggestions, recommendationsLoading, recommendationsError, sessions,
     showHistory, setShowHistory, activeSessionId, sessionQuery,
     messages, isThinking, streamingText, activeTools,
     lastToolsUsed, showTools, setShowTools, followUpPrompts,
@@ -791,47 +878,65 @@ function PanelContent(props: PanelContentProps) {
 
           <div className="px-3 space-y-2 pb-3">
             {recommendationsLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              /* Skeleton loading cards */
+              <div className="space-y-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="w-full p-3 rounded-lg border border-border bg-card animate-pulse">
+                    <div className="flex items-start gap-2.5">
+                      <div className="h-2 w-2 rounded-full mt-1.5 shrink-0 bg-muted-foreground/20" />
+                      <div className="flex-1 min-w-0 space-y-2">
+                        <div className="h-3 bg-muted-foreground/20 rounded w-3/4" />
+                        <div className="h-2.5 bg-muted-foreground/10 rounded w-full" />
+                        <div className="h-2.5 bg-muted-foreground/10 rounded w-2/3" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ) : suggestions.length === 0 ? (
+            ) : recommendationsError ? (
+              <div className="text-center py-8">
+                <AlertTriangle className="h-5 w-5 mx-auto text-muted-foreground/40 mb-2" />
+                <p className="text-xs text-muted-foreground">Could not load recommendations</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-1">Try switching pages or refreshing</p>
+              </div>
+            ) : (suggestions ?? []).length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-8">
                 No suggestions for this page
               </p>
             ) : (
-              suggestions.map((s, i) => (
+              (suggestions ?? []).map((s, i) => (
                 <SuggestionCard
                   key={i}
                   suggestion={s}
-                  onClick={() => handleSuggestionClick(s.prompt)}
+                  onClick={() => handleSuggestionClick(s?.prompt ?? "")}
                   isLoading={createSessionPending || isThinking}
                 />
               ))
             )}
           </div>
 
-          {sessions.length > 0 && (
+          {(sessions ?? []).length > 0 && (
             <div className="border-t border-border px-3 py-3">
               <button
                 onClick={() => setShowHistory(!showHistory)}
                 className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors w-full"
               >
                 <History className="h-3 w-3" />
-                Recent conversations ({sessions.length})
+                Recent conversations ({(sessions ?? []).length})
                 {showHistory ? <ChevronUp className="h-3 w-3 ml-auto" /> : <ChevronDown className="h-3 w-3 ml-auto" />}
               </button>
               {showHistory && (
                 <div className="mt-2 space-y-1">
-                  {sessions.slice(0, 5).map((s) => (
+                  {(sessions ?? []).slice(0, 5).map((s) => (
                     <div
-                      key={s.id}
+                      key={s?.id}
                       className="group flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer text-xs hover:bg-muted transition-colors"
-                      onClick={() => handleResumeSession(s.id)}
+                      onClick={() => handleResumeSession(s?.id)}
                     >
                       <MessageSquare className="h-3 w-3 text-muted-foreground shrink-0" />
-                      <span className="truncate flex-1 text-foreground">{s.title}</span>
+                      <span className="truncate flex-1 text-foreground">{s?.title ?? "Untitled"}</span>
                       <button
-                        onClick={(e) => handleDelete(s.id, e)}
+                        onClick={(e) => handleDelete(s?.id, e)}
                         className="opacity-0 group-hover:opacity-100 transition-opacity"
                       >
                         <Trash2 className="h-3 w-3 text-destructive" />
@@ -870,7 +975,7 @@ function PanelContent(props: PanelContentProps) {
             <div className="flex items-center gap-2 min-w-0">
               {activeSessionId && sessionQuery.data ? (
                 <span className="text-xs text-muted-foreground truncate">
-                  {sessionQuery.data.title}
+                  {sessionQuery.data?.title ?? "Conversation"}
                 </span>
               ) : (
                 <span className="text-xs text-muted-foreground">No active conversation</span>
@@ -890,20 +995,20 @@ function PanelContent(props: PanelContentProps) {
           {showHistory && (
             <div className="border-b border-border bg-muted/30 max-h-48 overflow-y-auto">
               <div className="p-2 space-y-0.5">
-                {sessions.length === 0 ? (
+                {(sessions ?? []).length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-3">No conversations yet</p>
                 ) : (
-                  sessions.map((s) => (
+                  (sessions ?? []).map((s) => (
                     <div
-                      key={s.id}
+                      key={s?.id}
                       className={`group flex items-center gap-2 px-2 py-1.5 rounded cursor-pointer text-xs transition-colors ${
-                        activeSessionId === s.id ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted text-foreground"
+                        activeSessionId === s?.id ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted text-foreground"
                       }`}
-                      onClick={() => handleResumeSession(s.id)}
+                      onClick={() => handleResumeSession(s?.id)}
                     >
                       <MessageSquare className="h-3 w-3 shrink-0 opacity-60" />
-                      <span className="truncate flex-1">{s.title}</span>
-                      <button onClick={(e) => handleDelete(s.id, e)} className="opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="truncate flex-1">{s?.title ?? "Untitled"}</span>
+                      <button onClick={(e) => handleDelete(s?.id, e)} className="opacity-0 group-hover:opacity-100 transition-opacity">
                         <Trash2 className="h-3 w-3 text-destructive" />
                       </button>
                     </div>
@@ -919,25 +1024,25 @@ function PanelContent(props: PanelContentProps) {
               <ChatEmptyState onNewChat={handleNewChat} isCreating={createSessionPending} />
             ) : (
               <div className="space-y-3">
-                {messages.length === 0 && !isThinking && !streamingText && (
+                {(messages ?? []).length === 0 && !isThinking && !streamingText && (
                   <div className="text-center py-8">
                     <Bot className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
                     <p className="text-xs text-muted-foreground">Ask me anything about your CRM data.</p>
                   </div>
                 )}
 
-                {messages.map((msg, i) => (
+                {(messages ?? []).map((msg, i) => (
                   <ChatBubble key={i} message={msg} />
                 ))}
 
                 {/* Live tool execution cards */}
-                {activeTools.length > 0 && (
-                  <LiveToolCards tools={activeTools} />
+                {(activeTools ?? []).length > 0 && (
+                  <LiveToolCards tools={activeTools ?? []} />
                 )}
 
                 {/* Resolved confirmation cards */}
-                {resolvedConfirmations.map((rc) => (
-                  <ResolvedConfirmationCard key={rc.requestId} data={rc} />
+                {(resolvedConfirmations ?? []).map((rc) => (
+                  <ResolvedConfirmationCard key={rc?.requestId} data={rc} />
                 ))}
 
                 {/* Pending confirmation card */}
@@ -963,17 +1068,19 @@ function PanelContent(props: PanelContentProps) {
                 )}
 
                 {/* Tool execution cards (after response complete) */}
-                {!isThinking && showTools && lastToolsUsed.length > 0 && (
-                  <ToolCards tools={lastToolsUsed} onDismiss={() => setShowTools(false)} />
+                {!isThinking && showTools && (lastToolsUsed ?? []).length > 0 && (
+                  <ToolCards tools={lastToolsUsed ?? []} onDismiss={() => setShowTools(false)} />
                 )}
 
-                {/* Thinking indicator */}
-                {isThinking && !streamingText && activeTools.length === 0 && <ThinkingIndicator />}
+                {/* Thinking indicator with active tool name */}
+                {isThinking && !streamingText && (
+                  <ThinkingIndicator activeTool={(activeTools ?? []).find((t) => t?.status === "running")} />
+                )}
 
                 {/* Suggested follow-up prompts */}
-                {!isThinking && followUpPrompts.length > 0 && messages.length > 0 && (
+                {!isThinking && (followUpPrompts ?? []).length > 0 && (messages ?? []).length > 0 && (
                   <div className="flex flex-wrap gap-1.5 pt-1">
-                    {followUpPrompts.map((prompt, i) => (
+                    {(followUpPrompts ?? []).map((prompt, i) => (
                       <button
                         key={i}
                         onClick={() => {
@@ -996,20 +1103,27 @@ function PanelContent(props: PanelContentProps) {
           {/* Input area */}
           {activeSessionId && (
             <div className="border-t border-border p-2.5 shrink-0">
+              {/* Show disabled state hint when thinking */}
+              {isThinking && (
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground mb-1.5 px-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <span>Jarvis is working{pendingConfirmation ? " — waiting for your approval" : ""}...</span>
+                </div>
+              )}
               <div className="flex gap-1.5">
                 <textarea
                   ref={inputRef}
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask Jarvis..."
+                  placeholder={isThinking ? "Waiting for Jarvis..." : "Ask Jarvis..."}
                   rows={1}
-                  className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 placeholder:text-muted-foreground min-h-[36px] max-h-[80px]"
+                  className="flex-1 resize-none rounded-lg border border-input bg-background px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 placeholder:text-muted-foreground min-h-[36px] max-h-[80px] disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isThinking}
                   style={{ overflow: "auto" }}
                 />
                 <Button onClick={handleSend} disabled={!input.trim() || isThinking} size="icon" className="h-9 w-9 shrink-0">
-                  <Send className="h-3.5 w-3.5" />
+                  {isThinking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
                 </Button>
               </div>
             </div>
@@ -1037,7 +1151,7 @@ function SuggestionCard({
     high: "bg-red-500",
     medium: "bg-amber-500",
     low: "bg-emerald-500",
-  }[suggestion.priority];
+  }[suggestion?.priority ?? "low"] ?? "bg-emerald-500";
 
   return (
     <button
@@ -1049,11 +1163,11 @@ function SuggestionCard({
         <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${priorityDot}`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold text-foreground truncate">{suggestion.title}</p>
+            <p className="text-xs font-semibold text-foreground truncate">{suggestion?.title ?? "Suggestion"}</p>
             <ArrowRight className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
           </div>
           <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-relaxed">
-            {suggestion.description}
+            {suggestion?.description ?? ""}
           </p>
         </div>
       </div>
@@ -1080,7 +1194,8 @@ function ChatEmptyState({ onNewChat, isCreating }: { onNewChat: () => void; isCr
 }
 
 function ChatBubble({ message }: { message: JarvisMessage }) {
-  const isUser = message.role === "user";
+  const isUser = message?.role === "user";
+  const content = message?.content ?? "";
 
   return (
     <div className={`flex items-start gap-2 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -1101,10 +1216,10 @@ function ChatBubble({ message }: { message: JarvisMessage }) {
         }`}
       >
         {isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
+          <p className="whitespace-pre-wrap">{content}</p>
         ) : (
           <div className="prose prose-xs dark:prose-invert max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:text-xs [&_li]:text-xs [&_h1]:text-sm [&_h2]:text-xs [&_h3]:text-xs [&_code]:text-[10px] [&_table]:text-[10px]">
-            <Streamdown>{message.content}</Streamdown>
+            <Streamdown>{content}</Streamdown>
           </div>
         )}
       </div>
@@ -1116,20 +1231,20 @@ function ChatBubble({ message }: { message: JarvisMessage }) {
 function LiveToolCards({ tools }: { tools: ToolEvent[] }) {
   return (
     <div className="ml-8 space-y-1">
-      {tools.map((tool, i) => (
+      {(tools ?? []).map((tool, i) => (
         <div
           key={i}
           className="flex items-center gap-1.5 text-[10px] bg-muted/40 rounded px-2 py-1 animate-in fade-in duration-300"
         >
-          {tool.status === "running" ? (
+          {tool?.status === "running" ? (
             <Loader2 className="h-3 w-3 text-primary animate-spin shrink-0" />
-          ) : tool.status === "done" ? (
+          ) : tool?.status === "done" ? (
             <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
           ) : (
             <XCircle className="h-3 w-3 text-destructive shrink-0" />
           )}
-          <span className={tool.status === "running" ? "text-foreground" : "text-muted-foreground"}>
-            {tool.displayName}
+          <span className={tool?.status === "running" ? "text-foreground" : "text-muted-foreground"}>
+            {tool?.displayName ?? "Processing..."}
           </span>
         </div>
       ))}
@@ -1148,15 +1263,15 @@ function ToolCards({ tools, onDismiss }: { tools: string[]; onDismiss: () => voi
         className="flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
         <Zap className="h-3 w-3 text-primary" />
-        {tools.length} tool{tools.length !== 1 ? "s" : ""} used
+        {(tools ?? []).length} tool{(tools ?? []).length !== 1 ? "s" : ""} used
         {expanded ? <ChevronUp className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
       </button>
       {expanded && (
         <div className="mt-1.5 space-y-1">
-          {tools.map((tool, i) => (
+          {(tools ?? []).map((tool, i) => (
             <div key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground bg-muted/40 rounded px-2 py-1">
               <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />
-              <span>{TOOL_DISPLAY[tool] || tool}</span>
+              <span>{TOOL_DISPLAY[tool] ?? tool ?? "Unknown tool"}</span>
             </div>
           ))}
         </div>
@@ -1165,7 +1280,7 @@ function ToolCards({ tools, onDismiss }: { tools: string[]; onDismiss: () => voi
   );
 }
 
-function ThinkingIndicator() {
+function ThinkingIndicator({ activeTool }: { activeTool?: ToolEvent }) {
   return (
     <div className="flex items-start gap-2">
       <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
@@ -1177,7 +1292,11 @@ function ThinkingIndicator() {
           <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "150ms" }} />
           <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "300ms" }} />
         </div>
-        <span className="text-[11px] text-muted-foreground">Jarvis is thinking...</span>
+        <span className="text-[11px] text-muted-foreground">
+          {activeTool?.displayName
+            ? `${activeTool.displayName}...`
+            : "Jarvis is thinking..."}
+        </span>
       </div>
     </div>
   );
@@ -1195,11 +1314,11 @@ function ConfirmationCard({
 
   const handleAction = async (approved: boolean) => {
     setDeciding(true);
-    await onConfirm(confirmation.requestId, approved);
+    await onConfirm(confirmation?.requestId ?? "", approved);
   };
 
-  // Format args for display
-  const argEntries = Object.entries(confirmation.args).filter(
+  // Format args for display — with null safety
+  const argEntries = Object.entries(confirmation?.args ?? {}).filter(
     ([, v]) => v !== undefined && v !== null && v !== ""
   );
 
@@ -1217,13 +1336,13 @@ function ConfirmationCard({
         {/* Body */}
         <div className="px-3 py-2.5 space-y-2">
           <p className="text-xs text-foreground font-medium">
-            {confirmation.summary}
+            {confirmation?.summary ?? "Confirm this action?"}
           </p>
 
           {/* Action details */}
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <Zap className="h-3 w-3 text-primary shrink-0" />
-            <span>{confirmation.displayName}</span>
+            <span>{confirmation?.displayName ?? "Action"}</span>
           </div>
 
           {/* Args preview */}
@@ -1296,18 +1415,18 @@ function ResolvedConfirmationCard({
     <div className="ml-8">
       <div
         className={`flex items-center gap-1.5 text-[10px] rounded px-2 py-1 ${
-          data.approved
+          data?.approved
             ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
             : "bg-destructive/10 text-destructive"
         }`}
       >
-        {data.approved ? (
+        {data?.approved ? (
           <ShieldCheck className="h-3 w-3 shrink-0" />
         ) : (
           <ShieldX className="h-3 w-3 shrink-0" />
         )}
         <span className="font-medium">
-          {data.approved ? "Approved" : "Rejected"}: {data.displayName}
+          {data?.approved ? "Approved" : "Rejected"}: {data?.displayName ?? "Action"}
         </span>
       </div>
     </div>

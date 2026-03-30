@@ -6,6 +6,7 @@
  * passed directly to invokeLLM({ tools }).
  */
 import type { Tool } from "../_core/llm";
+import { and, eq, desc, sql, gte, count } from "drizzle-orm";
 import {
   getAccountDashboardStats,
   getContactStats,
@@ -39,7 +40,15 @@ import {
   getAvailableSlots,
   createAppointment,
   logContactActivity,
+  getDb,
 } from "../db";
+import {
+  contacts,
+  messages,
+  aiCalls,
+  campaigns,
+  deals,
+} from "../../drizzle/schema";
 import { dispatchSMS, dispatchEmail } from "./messaging";
 import { triggerWorkflow } from "./workflowEngine";
 
@@ -94,7 +103,31 @@ export const JARVIS_TOOLS: Tool[] = [
           search: { type: "string", description: "Free-text search across name, email, phone, company" },
           status: { type: "string", enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost", "nurture"] },
           tag: { type: "string", description: "Filter by tag" },
+          createdAfterDays: { type: "number", description: "Only contacts created in the last N days" },
           limit: { type: "number", description: "Max results (default 20)" },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_contacts_by_filter",
+      description: "Advanced contact filter. Find contacts by creation date, message history, call activity, tags, assignment, and status. Use this for queries like 'contacts created in last 7 days with no messages'.",
+      parameters: {
+        type: "object",
+        properties: {
+          createdAfterDays: { type: "number", description: "Contacts created in the last N days" },
+          createdBeforeDays: { type: "number", description: "Contacts created more than N days ago" },
+          hasNoMessages: { type: "boolean", description: "Only contacts with zero messages" },
+          hasNoCallActivity: { type: "boolean", description: "Only contacts with zero AI calls" },
+          hasTag: { type: "string", description: "Must have this tag" },
+          doesNotHaveTag: { type: "string", description: "Must NOT have this tag" },
+          assignedToUserId: { type: "number", description: "Assigned to this user ID" },
+          status: { type: "string", enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost", "nurture"] },
+          limit: { type: "number", description: "Max results (default 50, max 200)" },
         },
         required: [],
         additionalProperties: false,
@@ -195,6 +228,38 @@ export const JARVIS_TOOLS: Tool[] = [
           content: { type: "string", description: "Note text" },
         },
         required: ["contactId", "content"],
+        additionalProperties: false,
+      },
+    },
+  },
+
+  // ── Analytics ──
+  {
+    type: "function",
+    function: {
+      name: "get_analytics",
+      description: "Get real-time analytics for the last 7 days: new contacts, messages sent, AI calls made, active campaigns, total pipeline value, and reply rate.",
+      parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
+    },
+  },
+
+  // ── Bulk Messaging ──
+  {
+    type: "function",
+    function: {
+      name: "bulk_send_sms",
+      description: "Send the same SMS message to multiple contacts at once. Provide an array of contact IDs and the message body.",
+      parameters: {
+        type: "object",
+        properties: {
+          contactIds: {
+            type: "array",
+            items: { type: "number" },
+            description: "Array of contact IDs to send SMS to",
+          },
+          body: { type: "string", description: "SMS message text" },
+        },
+        required: ["contactIds", "body"],
         additionalProperties: false,
       },
     },
@@ -422,11 +487,18 @@ export async function executeTool(
         limit: Math.min((args.limit as number) || 20, 50),
         offset: 0,
       });
-      return { contacts: result.data.map(c => ({
+      let filtered = result.data;
+      // Client-side date filter if createdAfterDays is provided
+      if (args.createdAfterDays) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - (args.createdAfterDays as number));
+        filtered = filtered.filter(c => new Date(c.createdAt) >= cutoff);
+      }
+      return { contacts: filtered.map(c => ({
         id: c.id, firstName: c.firstName, lastName: c.lastName,
         email: c.email, phone: c.phone, status: c.status,
-        company: c.company, leadSource: c.leadSource,
-      })), total: result.total };
+        company: c.company, leadSource: c.leadSource, createdAt: c.createdAt,
+      })), total: filtered.length };
     }
 
     case "get_contact_detail": {
@@ -692,6 +764,204 @@ export async function executeTool(
         id: a.id, guestName: a.guestName, startTime: a.startTime,
         endTime: a.endTime, status: a.status, notes: a.notes,
       }));
+    }
+
+    // ── Advanced Contact Filter ──
+    case "get_contacts_by_filter": {
+      const db = await getDb();
+      if (!db) return { error: "Database unavailable" };
+
+      const conditions: any[] = [eq(contacts.accountId, accountId)];
+
+      if (args.createdAfterDays) {
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - (args.createdAfterDays as number));
+        conditions.push(gte(contacts.createdAt, cutoff));
+      }
+      if (args.status) {
+        conditions.push(eq(contacts.status, args.status as any));
+      }
+      if (args.assignedToUserId) {
+        conditions.push(eq(contacts.assignedUserId, args.assignedToUserId as number));
+      }
+
+      const limit = Math.min((args.limit as number) || 50, 200);
+      let rows = await db
+        .select()
+        .from(contacts)
+        .where(and(...conditions))
+        .orderBy(desc(contacts.createdAt))
+        .limit(limit);
+
+      // Post-query filters that require subqueries
+      if (args.hasNoMessages) {
+        const contactsWithMsgs = await db
+          .select({ contactId: messages.contactId })
+          .from(messages)
+          .where(eq(messages.accountId, accountId))
+          .groupBy(messages.contactId);
+        const withMsgIds = new Set(contactsWithMsgs.map(r => r.contactId));
+        rows = rows.filter(c => !withMsgIds.has(c.id));
+      }
+
+      if (args.hasNoCallActivity) {
+        const contactsWithCalls = await db
+          .select({ contactId: aiCalls.contactId })
+          .from(aiCalls)
+          .where(eq(aiCalls.accountId, accountId))
+          .groupBy(aiCalls.contactId);
+        const withCallIds = new Set(contactsWithCalls.map(r => r.contactId));
+        rows = rows.filter(c => !withCallIds.has(c.id));
+      }
+
+      // Tag filters (post-query since tags are in a separate table)
+      if (args.hasTag || args.doesNotHaveTag) {
+        const filteredRows = [];
+        for (const c of rows) {
+          const tags = await getContactTags(c.id);
+          const tagNames = tags.map(t => t.tag);
+          if (args.hasTag && !tagNames.includes(args.hasTag as string)) continue;
+          if (args.doesNotHaveTag && tagNames.includes(args.doesNotHaveTag as string)) continue;
+          filteredRows.push(c);
+        }
+        rows = filteredRows;
+      }
+
+      return {
+        contacts: rows.map(c => ({
+          id: c.id, firstName: c.firstName, lastName: c.lastName,
+          email: c.email, phone: c.phone, status: c.status,
+          company: c.company, leadSource: c.leadSource, createdAt: c.createdAt,
+        })),
+        total: rows.length,
+      };
+    }
+
+    // ── Analytics ──
+    case "get_analytics": {
+      const db = await getDb();
+      if (!db) return { error: "Database unavailable" };
+
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const [newContacts] = await db
+        .select({ count: count() })
+        .from(contacts)
+        .where(and(eq(contacts.accountId, accountId), gte(contacts.createdAt, sevenDaysAgo)));
+
+      const [msgsSent] = await db
+        .select({ count: count() })
+        .from(messages)
+        .where(and(
+          eq(messages.accountId, accountId),
+          eq(messages.direction, "outbound"),
+          gte(messages.createdAt, sevenDaysAgo),
+        ));
+
+      const [msgsReceived] = await db
+        .select({ count: count() })
+        .from(messages)
+        .where(and(
+          eq(messages.accountId, accountId),
+          eq(messages.direction, "inbound"),
+          gte(messages.createdAt, sevenDaysAgo),
+        ));
+
+      const [callsMade] = await db
+        .select({ count: count() })
+        .from(aiCalls)
+        .where(and(eq(aiCalls.accountId, accountId), gte(aiCalls.createdAt, sevenDaysAgo)));
+
+      const [activeCampaigns] = await db
+        .select({ count: count() })
+        .from(campaigns)
+        .where(and(
+          eq(campaigns.accountId, accountId),
+          eq(campaigns.status, "sending"),
+        ));
+
+      const pipelineValue = await db
+        .select({ total: sql<number>`COALESCE(SUM(${deals.value}), 0)` })
+        .from(deals)
+        .where(eq(deals.accountId, accountId));
+
+      const replyRate = msgsSent.count > 0
+        ? Math.round((msgsReceived.count / msgsSent.count) * 100)
+        : 0;
+
+      return {
+        period: "Last 7 days",
+        newContacts: newContacts.count,
+        messagesSent: msgsSent.count,
+        messagesReceived: msgsReceived.count,
+        replyRate: `${replyRate}%`,
+        aiCallsMade: callsMade.count,
+        activeCampaigns: activeCampaigns.count,
+        totalPipelineValue: pipelineValue[0]?.total ?? 0,
+      };
+    }
+
+    // ── Bulk SMS ──
+    case "bulk_send_sms": {
+      const contactIds = args.contactIds as number[];
+      const body = args.body as string;
+      if (!contactIds || contactIds.length === 0) return { error: "No contact IDs provided" };
+      if (contactIds.length > 100) return { error: "Maximum 100 contacts per bulk send" };
+
+      let sent = 0;
+      let failed = 0;
+      const errors: string[] = [];
+
+      for (const cid of contactIds) {
+        try {
+          const contact = await getContactById(cid, accountId);
+          if (!contact) { failed++; errors.push(`Contact ${cid} not found`); continue; }
+          if (!contact.phone) { failed++; errors.push(`${contact.firstName} ${contact.lastName} has no phone`); continue; }
+
+          const smsResult = await dispatchSMS({
+            to: contact.phone,
+            body,
+            accountId,
+            contactId: contact.id,
+          });
+
+          await createMessage({
+            accountId,
+            contactId: contact.id,
+            userId,
+            type: "sms",
+            direction: "outbound",
+            status: smsResult.success ? "sent" : "failed",
+            body,
+            toAddress: contact.phone,
+            errorMessage: smsResult.error || undefined,
+          });
+
+          if (smsResult.success) {
+            sent++;
+            logContactActivity({
+              contactId: contact.id, accountId,
+              activityType: "message_sent",
+              description: "Bulk SMS sent by Jarvis AI",
+            });
+          } else {
+            failed++;
+            errors.push(`${contact.firstName}: ${smsResult.error}`);
+          }
+        } catch (e: any) {
+          failed++;
+          errors.push(`Contact ${cid}: ${e.message}`);
+        }
+      }
+
+      return {
+        success: true,
+        sent,
+        failed,
+        total: contactIds.length,
+        errors: errors.length > 0 ? errors.slice(0, 10) : undefined,
+      };
     }
 
     default:

@@ -2629,3 +2629,20 @@
 - [x] UI: show result of confirmed action or cancellation message after user decision
 - [x] Build: 0 TypeScript errors
 - [x] All previously passing tests still pass (12 Jarvis + 1 auth)
+
+## URGENT: Jarvis Crash Fix + Tool Execution Fixes
+- [x] Fix null safety crash: add optional chaining on all array index access in JarvisPanel.tsx
+- [x] Add null checks: wrap all .map() calls with (array ?? []).map(...)
+- [x] Add JarvisErrorBoundary class component with retry fallback UI
+- [x] Add fallback empty array for getRecommendations query
+- [x] Add skeleton loading cards and error state for recommendations
+- [x] Fix Issue 1: API error handling with try/catch, timeout, retry, user-friendly error messages
+- [x] Fix Issue 2: Tool execution loop — LLM must call tools not describe actions (system prompt + loop fix)
+- [x] Fix Issue 3: Enhanced get_contacts_by_filter (date filters, message/call history filters)
+- [x] Fix Issue 3: Enhanced search_contacts with createdAfterDays
+- [x] Fix Issue 3: Real analytics in get_analytics tool
+- [x] Fix Issue 3: Wire bulk_send_sms to real send function
+- [x] Fix Issue 3: Wire trigger_automation to triggerWorkflow
+- [x] Fix Issue 4: Loading state — disable input, show active tool name during execution
+- [x] Build: 0 TypeScript errors
+- [x] All previously passing tests still pass (12 Jarvis + 1 auth = 13 passed)

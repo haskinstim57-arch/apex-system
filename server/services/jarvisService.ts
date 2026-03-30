@@ -47,24 +47,27 @@ Current user: ${ctx.userName}
 Account ID: ${ctx.accountId}
 
 Your capabilities:
-- Search and manage contacts (create, update, tag, add notes)
-- Send SMS and email messages to contacts
-- View dashboard stats, contact stats, message stats, campaign stats
+- Search and manage contacts (create, update, tag, add notes, filter by date/messages/calls)
+- Send SMS and email messages to contacts (individual and bulk)
+- View dashboard stats, contact stats, message stats, campaign stats, analytics
 - View and manage the sales pipeline (deals, stages)
 - List and trigger workflows/automations
 - List segments and sequences, enroll contacts in sequences
 - View calendars and appointments
 
+CRITICAL: You MUST use your tools to answer questions. Never describe what you would do — just do it. If asked to find contacts, call search_contacts or get_contacts_by_filter immediately. If asked to send an SMS, call send_sms immediately. If asked for analytics, call get_analytics immediately. You have real tools connected to a live CRM database. Use them. NEVER say "I would need to..." or "I can help you by..." — instead, CALL THE TOOL and return the real results.
+
 Guidelines:
 - Be concise and action-oriented. Loan officers are busy.
-- When asked to do something, use the appropriate tool immediately.
+- When asked to do something, use the appropriate tool IMMEDIATELY — do not describe what you would do.
 - When showing contact info, format it clearly with names, emails, phones.
-- When showing stats, present them in a readable format.
+- When showing stats, present them in a readable format with markdown tables.
 - If a tool returns an error, explain it clearly and suggest alternatives.
-- Always confirm before sending messages (SMS/email) or making changes.
+- The system handles confirmation for destructive actions — just call the tool.
 - Use markdown formatting for readability.
 - If you need to look up a contact before performing an action, do so automatically.
-- Never make up data — always use tools to fetch real information.`;
+- Never make up data — always use tools to fetch real information.
+- Chain multiple tool calls when needed — e.g., search for a contact first, then send them a message.`;
 }
 
 // ═══════════════════════════════════════════════
@@ -140,7 +143,7 @@ export async function deleteSession(
 // CHAT — LLM + Tool Orchestration
 // ═══════════════════════════════════════════════
 
-const MAX_TOOL_ROUNDS = 6;
+const MAX_TOOL_ROUNDS = 10;
 
 export async function chat(
   sessionId: number,
@@ -194,11 +197,18 @@ export async function chat(
   let finalReply = "";
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    const result: InvokeResult = await invokeLLM({
-      messages: llmMessages,
-      tools: JARVIS_TOOLS,
-      tool_choice: "auto",
-    });
+    let result: InvokeResult;
+    try {
+      result = await invokeLLMWithRetry({
+        messages: llmMessages,
+        tools: JARVIS_TOOLS,
+        tool_choice: "auto",
+      });
+    } catch (err: any) {
+      finalReply = "I ran into an issue processing that request. Please try again.";
+      history.push({ role: "assistant", content: finalReply, timestamp: Date.now() });
+      break;
+    }
 
     const choice = result.choices[0];
     if (!choice) {
@@ -265,11 +275,16 @@ export async function chat(
     }
 
     if (round === MAX_TOOL_ROUNDS - 1) {
-      const finalResult = await invokeLLM({
-        messages: llmMessages,
-        tools: JARVIS_TOOLS,
-        tool_choice: "none",
-      });
+      let finalResult: InvokeResult;
+      try {
+        finalResult = await invokeLLMWithRetry({
+          messages: llmMessages,
+          tools: JARVIS_TOOLS,
+          tool_choice: "none",
+        });
+      } catch {
+        finalResult = { choices: [{ message: { content: "I completed the requested actions." } }] } as any;
+      }
       const lastContent = finalResult.choices[0]?.message?.content;
       finalReply = (typeof lastContent === "string" ? lastContent : "") || "I completed the requested actions.";
       history.push({
@@ -405,6 +420,26 @@ function nextRequestId(): string {
   return `confirm_${Date.now()}_${++confirmationCounter}`;
 }
 
+/** Invoke LLM with retry (1 retry after 2s) and 30s timeout */
+async function invokeLLMWithRetry(params: Parameters<typeof invokeLLM>[0]): Promise<ReturnType<typeof invokeLLM> extends Promise<infer R> ? R : never> {
+  const callWithTimeout = () => {
+    return Promise.race([
+      invokeLLM(params),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("LLM request timed out after 30 seconds")), 30_000)
+      ),
+    ]);
+  };
+
+  try {
+    return await callWithTimeout() as any;
+  } catch (err: any) {
+    // Retry once after 2 seconds
+    await new Promise(r => setTimeout(r, 2000));
+    return await callWithTimeout() as any;
+  }
+}
+
 export async function* chatStream(
   sessionId: number,
   userMessage: string,
@@ -445,11 +480,24 @@ export async function* chatStream(
     // tool_calls array before executing tools. Only the final text response streams.
     const isLastRound = round === MAX_TOOL_ROUNDS - 1;
 
-    const result: InvokeResult = await invokeLLM({
-      messages: llmMessages,
-      tools: JARVIS_TOOLS,
-      tool_choice: isLastRound ? "none" : "auto",
-    });
+    let result: InvokeResult;
+    try {
+      result = await invokeLLMWithRetry({
+        messages: llmMessages,
+        tools: JARVIS_TOOLS,
+        tool_choice: isLastRound ? "none" : "auto",
+      });
+    } catch (err: any) {
+      const errorMsg = "I ran into an issue processing that request. Please try again.";
+      yield { type: "text_delta", data: { content: errorMsg } };
+      history.push({ role: "assistant", content: errorMsg, timestamp: Date.now() });
+      await db.updateJarvisSession(sessionId, ctx.accountId, {
+        messages: JSON.stringify(history),
+        title: session.title,
+      });
+      yield { type: "done", data: { toolsUsed: [] } };
+      return;
+    }
 
     const choice = result.choices[0];
     if (!choice) {
@@ -539,11 +587,16 @@ export async function* chatStream(
 
     // If this was the last round, force a final text response
     if (isLastRound) {
-      const finalResult = await invokeLLM({
-        messages: llmMessages,
-        tools: JARVIS_TOOLS,
-        tool_choice: "none",
-      });
+      let finalResult: InvokeResult;
+      try {
+        finalResult = await invokeLLMWithRetry({
+          messages: llmMessages,
+          tools: JARVIS_TOOLS,
+          tool_choice: "none",
+        });
+      } catch {
+        finalResult = { choices: [{ message: { content: "I completed the requested actions." } }] } as any;
+      }
       const lastContent = finalResult.choices[0]?.message?.content;
       finalReply = (typeof lastContent === "string" ? lastContent : "") || "I completed the requested actions.";
 
