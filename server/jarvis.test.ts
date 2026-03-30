@@ -34,16 +34,44 @@ vi.mock("./db", async (importOriginal) => {
   };
 });
 
-// ── Mock LLM to avoid real API calls ──
-vi.mock("./_core/llm", () => ({
-  invokeLLM: vi.fn().mockResolvedValue({
+// ── Mock Gemini to avoid real API calls ──
+vi.mock("./services/gemini", () => ({
+  invokeGemini: vi.fn().mockResolvedValue({
+    id: "gemini-test",
+    created: Date.now(),
+    model: "gemini-2.5-flash",
     choices: [
       {
+        index: 0,
         message: {
           role: "assistant",
           content: "Hello! I'm Jarvis, your AI assistant. How can I help you today?",
           tool_calls: undefined,
         },
+        finish_reason: "stop",
+      },
+    ],
+  }),
+  invokeGeminiWithRetry: vi.fn().mockResolvedValue({
+    id: "gemini-test",
+    created: Date.now(),
+    model: "gemini-2.5-flash",
+    choices: [
+      {
+        index: 0,
+        message: {
+          role: "assistant",
+          content: JSON.stringify({
+            suggestions: [
+              { title: "Check Pipeline", description: "Review your deals", prompt: "Show pipeline", priority: "high" },
+              { title: "Follow Up", description: "Contact stale leads", prompt: "Show stale leads", priority: "high" },
+              { title: "Campaign Stats", description: "Review campaigns", prompt: "Show campaigns", priority: "medium" },
+              { title: "New Contacts", description: "See recent leads", prompt: "Show new contacts", priority: "medium" },
+            ],
+          }),
+          tool_calls: undefined,
+        },
+        finish_reason: "stop",
       },
     ],
   }),

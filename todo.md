@@ -2658,3 +2658,17 @@
 - [x] Build: 0 TypeScript errors
 - [x] Contacts page loads without crash, Jarvis panel renders correctly
 - [x] All 13 Jarvis + auth tests pass
+
+## URGENT: Jarvis Chat Failing — Gemini SDK Migration (FIXED)
+- [x] Exposed real error: 412 "usage exhausted" from built-in Manus LLM API
+- [x] Root cause: invokeLLM quota exhausted, not a code bug
+- [x] Fix: Migrated Jarvis from invokeLLM to direct Google Gemini SDK (@google/generative-ai)
+- [x] Stored user's GEMINI_API_KEY via webdev_request_secrets
+- [x] Built gemini.ts wrapper with full function calling support (invokeGemini, invokeGeminiWithRetry)
+- [x] Rewired jarvisService.ts chat() to use invokeGeminiWithRetry instead of invokeLLM
+- [x] Rewired jarvis.ts getRecommendations to use invokeGeminiWithRetry
+- [x] Fixed model name: gemini-2.0-flash deprecated → switched to gemini-2.5-flash
+- [x] Verified: Jarvis chat works end-to-end (function calling + tool execution confirmed)
+- [x] Verified: Jarvis suggestions panel loads correctly
+- [x] Updated test mocks to mock services/gemini instead of _core/llm
+- [x] All 12 Jarvis tests pass

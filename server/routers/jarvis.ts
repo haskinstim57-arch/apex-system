@@ -9,7 +9,7 @@ import {
   deleteSession,
   chat,
 } from "../services/jarvisService";
-import { invokeLLM } from "../_core/llm";
+import { invokeGeminiWithRetry } from "../services/gemini";
 import {
   getAccountDashboardStats,
   getContactStats,
@@ -127,7 +127,7 @@ export const jarvisRouter = router({
 
       // ── Ask LLM to generate personalized suggestions ──
       try {
-        const result = await invokeLLM({
+        const result = await invokeGeminiWithRetry({
           messages: [
             {
               role: "system",

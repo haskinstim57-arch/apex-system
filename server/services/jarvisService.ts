@@ -3,8 +3,11 @@
  *
  * Manages conversations, orchestrates LLM calls with tool-calling,
  * and persists chat history to the jarvis_sessions table.
+ *
+ * Uses the Google Gemini SDK directly (via gemini.ts) for all LLM calls,
+ * bypassing the built-in invokeLLM wrapper.
  */
-import { invokeLLM } from "../_core/llm";
+import { invokeGeminiWithRetry } from "./gemini";
 import type { Message, ToolCall, InvokeResult } from "../_core/llm";
 import { JARVIS_TOOLS, executeTool } from "./jarvisTools";
 
@@ -140,7 +143,7 @@ export async function deleteSession(
 }
 
 // ═══════════════════════════════════════════════
-// CHAT — LLM + Tool Orchestration
+// CHAT — Gemini + Tool Orchestration
 // ═══════════════════════════════════════════════
 
 const MAX_TOOL_ROUNDS = 10;
@@ -199,13 +202,14 @@ export async function chat(
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     let result: InvokeResult;
     try {
-      result = await invokeLLMWithRetry({
+      result = await invokeGeminiWithRetry({
         messages: llmMessages,
         tools: JARVIS_TOOLS,
         tool_choice: "auto",
       });
     } catch (err: any) {
-      finalReply = "I ran into an issue processing that request. Please try again.";
+      console.error("[Jarvis] Gemini chat error:", err.message || err);
+      finalReply = `I ran into an issue: ${err.message || "Unknown error"}. Please try again.`;
       history.push({ role: "assistant", content: finalReply, timestamp: Date.now() });
       break;
     }
@@ -277,7 +281,7 @@ export async function chat(
     if (round === MAX_TOOL_ROUNDS - 1) {
       let finalResult: InvokeResult;
       try {
-        finalResult = await invokeLLMWithRetry({
+        finalResult = await invokeGeminiWithRetry({
           messages: llmMessages,
           tools: JARVIS_TOOLS,
           tool_choice: "none",
@@ -363,7 +367,6 @@ const CRITICAL_TOOLS = new Set([
 
 /**
  * Human-readable summary for confirmation cards.
- * Parses the tool args and returns a short description.
  */
 function buildConfirmationSummary(toolName: string, args: Record<string, unknown>): string {
   switch (toolName) {
@@ -420,26 +423,6 @@ function nextRequestId(): string {
   return `confirm_${Date.now()}_${++confirmationCounter}`;
 }
 
-/** Invoke LLM with retry (1 retry after 2s) and 30s timeout */
-async function invokeLLMWithRetry(params: Parameters<typeof invokeLLM>[0]): Promise<ReturnType<typeof invokeLLM> extends Promise<infer R> ? R : never> {
-  const callWithTimeout = () => {
-    return Promise.race([
-      invokeLLM(params),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("LLM request timed out after 30 seconds")), 30_000)
-      ),
-    ]);
-  };
-
-  try {
-    return await callWithTimeout() as any;
-  } catch (err: any) {
-    // Retry once after 2 seconds
-    await new Promise(r => setTimeout(r, 2000));
-    return await callWithTimeout() as any;
-  }
-}
-
 export async function* chatStream(
   sessionId: number,
   userMessage: string,
@@ -475,20 +458,18 @@ export async function* chatStream(
   let finalReply = "";
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-    // ── Non-streaming call for tool rounds, streaming for final text ──
-    // We use non-streaming for tool-calling rounds because we need the full
-    // tool_calls array before executing tools. Only the final text response streams.
     const isLastRound = round === MAX_TOOL_ROUNDS - 1;
 
     let result: InvokeResult;
     try {
-      result = await invokeLLMWithRetry({
+      result = await invokeGeminiWithRetry({
         messages: llmMessages,
         tools: JARVIS_TOOLS,
         tool_choice: isLastRound ? "none" : "auto",
       });
     } catch (err: any) {
-      const errorMsg = "I ran into an issue processing that request. Please try again.";
+      console.error("[Jarvis] Gemini stream error:", err.message || err);
+      const errorMsg = `I ran into an issue: ${err.message || "Unknown error"}. Please try again.`;
       yield { type: "text_delta", data: { content: errorMsg } };
       history.push({ role: "assistant", content: errorMsg, timestamp: Date.now() });
       await db.updateJarvisSession(sessionId, ctx.accountId, {
@@ -556,7 +537,6 @@ export async function* chatStream(
         };
 
         if (!approved) {
-          // User rejected — tell the LLM the action was cancelled
           const rejectedResult = JSON.stringify({ cancelled: true, reason: "User rejected this action" });
           history.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id, timestamp: Date.now() });
           llmMessages.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id } as any);
@@ -589,7 +569,7 @@ export async function* chatStream(
     if (isLastRound) {
       let finalResult: InvokeResult;
       try {
-        finalResult = await invokeLLMWithRetry({
+        finalResult = await invokeGeminiWithRetry({
           messages: llmMessages,
           tools: JARVIS_TOOLS,
           tool_choice: "none",
