@@ -15,6 +15,7 @@ import {
   getContactStats,
   getMessageStats,
   listCampaigns,
+  getGeminiUsageStats,
 } from "../db";
 
 export const jarvisRouter = router({
@@ -182,6 +183,7 @@ Generate 4 suggestions as JSON array.`,
               },
             },
           },
+          _tracking: { accountId: input.accountId, userId: ctx.user.id, endpoint: "recommendations" },
         });
 
         const content = result?.choices?.[0]?.message?.content;
@@ -233,5 +235,22 @@ Generate 4 suggestions as JSON array.`,
         { title: "Recent Contacts", description: "See your newest leads", prompt: "Show me the 5 most recently created contacts", priority: "medium" as const },
         { title: "Send a Message", description: "Reach out to a contact", prompt: "Help me send a message to a contact", priority: "medium" as const },
       ];
+    }),
+
+  // ── Gemini API Usage Stats (admin only) ──
+  getUsageStats: protectedProcedure
+    .input(z.object({
+      accountId: z.number().optional(),
+      days: z.number().optional().default(30),
+    }))
+    .query(async ({ ctx, input }) => {
+      // Only admin can view usage stats
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      return getGeminiUsageStats({
+        accountId: input.accountId,
+        days: input.days,
+      });
     }),
 });

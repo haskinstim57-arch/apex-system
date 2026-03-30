@@ -2672,3 +2672,23 @@
 - [x] Verified: Jarvis suggestions panel loads correctly
 - [x] Updated test mocks to mock services/gemini instead of _core/llm
 - [x] All 12 Jarvis tests pass
+
+## Jarvis Conversation Memory Across Page Navigations
+- [x] Persist active session ID in localStorage per account (survives page switches)
+- [x] On JarvisPanel mount, restore the last active session from localStorage
+- [x] Validate restored session exists in session list; fall back to suggestions if deleted
+- [x] Show session title in the chat header
+- [x] Auto-create a new session only if no previous session exists
+- [x] Verified: navigate between pages, Jarvis retains the same conversation thread
+
+## Gemini API Usage Monitoring
+- [x] Schema: gemini_usage_logs table (id, accountId, userId, endpoint, model, promptTokens, completionTokens, totalTokens, estimatedCostUsd, success, errorMessage, durationMs, createdAt)
+- [x] DB table created via SQL (drizzle migration conflict resolved)
+- [x] Backend: logGeminiUsage() called on every Gemini API call (success + failure)
+- [x] Backend: _tracking context added to all 5 invokeGeminiWithRetry call sites
+- [x] Backend: getGeminiUsageStats() returns aggregated stats with daily breakdown
+- [x] Backend: admin-only tRPC query jarvis.getUsageStats
+- [x] Frontend: GeminiUsage.tsx page at /settings/ai-usage (admin only)
+- [x] Frontend: 4 summary cards (requests, tokens, cost, success rate) + daily breakdown table
+- [x] Frontend: AI Usage Monitor card added to Settings page for admin users
+- [x] All 15 Jarvis tests pass (including 3 new getUsageStats tests)

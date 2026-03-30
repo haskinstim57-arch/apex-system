@@ -16,6 +16,7 @@ import {
 } from "@google/generative-ai";
 import { ENV } from "../_core/env";
 import type { Message, Tool, ToolCall, InvokeResult } from "../_core/llm";
+import { logGeminiUsage } from "../db";
 
 // ═══════════════════════════════════════════════
 // INIT
@@ -265,6 +266,12 @@ export interface GeminiInvokeParams {
       schema: Record<string, unknown>;
     };
   };
+  /** Tracking context for usage logging */
+  _tracking?: {
+    accountId?: number;
+    userId?: number;
+    endpoint: string;
+  };
 }
 
 export async function invokeGemini(params: GeminiInvokeParams): Promise<InvokeResult> {
@@ -305,10 +312,51 @@ export async function invokeGemini(params: GeminiInvokeParams): Promise<InvokeRe
     contents.push({ role: "user", parts: [{ text: "Hello" }] });
   }
 
+  const startTime = Date.now();
   try {
     const result = await model.generateContent({ contents });
-    return convertGeminiResultToInvokeResult(result);
+    const invokeResult = convertGeminiResultToInvokeResult(result);
+
+    // Log successful usage
+    const usage = invokeResult.usage;
+    if (params._tracking) {
+      const promptTokens = usage?.prompt_tokens ?? 0;
+      const completionTokens = usage?.completion_tokens ?? 0;
+      const totalTokens = usage?.total_tokens ?? 0;
+      // Gemini 2.5 Flash pricing: $0.15/1M input, $0.60/1M output (as of 2025)
+      const costUsd = (promptTokens * 0.00000015) + (completionTokens * 0.0000006);
+      logGeminiUsage({
+        accountId: params._tracking.accountId ?? null,
+        userId: params._tracking.userId ?? null,
+        endpoint: params._tracking.endpoint,
+        model: "gemini-2.5-flash",
+        promptTokens,
+        completionTokens,
+        totalTokens,
+        estimatedCostUsd: costUsd.toFixed(6),
+        success: true,
+        durationMs: Date.now() - startTime,
+      });
+    }
+
+    return invokeResult;
   } catch (err: any) {
+    // Log failed usage
+    if (params._tracking) {
+      logGeminiUsage({
+        accountId: params._tracking.accountId ?? null,
+        userId: params._tracking.userId ?? null,
+        endpoint: params._tracking.endpoint,
+        model: "gemini-2.5-flash",
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        estimatedCostUsd: "0",
+        success: false,
+        errorMessage: err.message || String(err),
+        durationMs: Date.now() - startTime,
+      });
+    }
     console.error("[Jarvis] Gemini API error:", err.message || err);
     throw new Error(`Gemini API call failed: ${err.message || String(err)}`);
   }

@@ -206,6 +206,7 @@ export async function chat(
         messages: llmMessages,
         tools: JARVIS_TOOLS,
         tool_choice: "auto",
+        _tracking: { accountId: ctx.accountId, userId: ctx.userId, endpoint: "chat" },
       });
     } catch (err: any) {
       console.error("[Jarvis] Gemini chat error:", err.message || err);
@@ -285,6 +286,7 @@ export async function chat(
           messages: llmMessages,
           tools: JARVIS_TOOLS,
           tool_choice: "none",
+          _tracking: { accountId: ctx.accountId, userId: ctx.userId, endpoint: "chat_final" },
         });
       } catch {
         finalResult = { choices: [{ message: { content: "I completed the requested actions." } }] } as any;
@@ -466,6 +468,7 @@ export async function* chatStream(
         messages: llmMessages,
         tools: JARVIS_TOOLS,
         tool_choice: isLastRound ? "none" : "auto",
+        _tracking: { accountId: ctx.accountId, userId: ctx.userId, endpoint: "chat_stream" },
       });
     } catch (err: any) {
       console.error("[Jarvis] Gemini stream error:", err.message || err);
@@ -573,6 +576,7 @@ export async function* chatStream(
           messages: llmMessages,
           tools: JARVIS_TOOLS,
           tool_choice: "none",
+          _tracking: { accountId: ctx.accountId, userId: ctx.userId, endpoint: "chat_stream_final" },
         });
       } catch {
         finalResult = { choices: [{ message: { content: "I completed the requested actions." } }] } as any;

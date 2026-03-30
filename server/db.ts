@@ -107,6 +107,8 @@ import {
   type InsertQueuedMessage,
   jarvisSessions,
   type InsertJarvisSession,
+  geminiUsageLogs,
+  type InsertGeminiUsageLog,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -5654,4 +5656,84 @@ export async function deleteJarvisSession(id: number, accountId: number) {
   await db
     .delete(jarvisSessions)
     .where(and(eq(jarvisSessions.id, id), eq(jarvisSessions.accountId, accountId)));
+}
+
+
+// ─────────────────────────────────────────────
+// GEMINI USAGE LOG HELPERS
+// ─────────────────────────────────────────────
+
+export async function logGeminiUsage(data: InsertGeminiUsageLog) {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    await db.insert(geminiUsageLogs).values(data);
+  } catch (err) {
+    console.error("[GeminiUsage] Failed to log usage:", err);
+  }
+}
+
+export async function getGeminiUsageStats(opts?: { accountId?: number; days?: number }) {
+  const db = await getDb();
+  if (!db) return { totalRequests: 0, totalTokens: 0, totalCost: "0", dailyBreakdown: [] };
+
+  const conditions: any[] = [];
+  if (opts?.accountId) {
+    conditions.push(eq(geminiUsageLogs.accountId, opts.accountId));
+  }
+  if (opts?.days) {
+    const since = new Date(Date.now() - opts.days * 86400000);
+    conditions.push(gte(geminiUsageLogs.createdAt, since));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  // Aggregate stats
+  const rows = await db
+    .select()
+    .from(geminiUsageLogs)
+    .where(whereClause)
+    .orderBy(desc(geminiUsageLogs.createdAt))
+    .limit(10000);
+
+  let totalRequests = rows.length;
+  let totalPromptTokens = 0;
+  let totalCompletionTokens = 0;
+  let totalTokens = 0;
+  let totalCost = 0;
+  let successCount = 0;
+  let failCount = 0;
+
+  const dailyMap = new Map<string, { requests: number; tokens: number; cost: number }>();
+
+  for (const row of rows) {
+    totalPromptTokens += row.promptTokens ?? 0;
+    totalCompletionTokens += row.completionTokens ?? 0;
+    totalTokens += row.totalTokens ?? 0;
+    totalCost += parseFloat(String(row.estimatedCostUsd ?? "0"));
+    if (row.success) successCount++;
+    else failCount++;
+
+    const day = row.createdAt.toISOString().slice(0, 10);
+    const existing = dailyMap.get(day) ?? { requests: 0, tokens: 0, cost: 0 };
+    existing.requests++;
+    existing.tokens += row.totalTokens ?? 0;
+    existing.cost += parseFloat(String(row.estimatedCostUsd ?? "0"));
+    dailyMap.set(day, existing);
+  }
+
+  const dailyBreakdown = Array.from(dailyMap.entries())
+    .map(([date, stats]) => ({ date, ...stats, cost: stats.cost.toFixed(6) }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+
+  return {
+    totalRequests,
+    totalPromptTokens,
+    totalCompletionTokens,
+    totalTokens,
+    totalCost: totalCost.toFixed(6),
+    successCount,
+    failCount,
+    dailyBreakdown,
+  };
 }

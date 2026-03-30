@@ -2330,3 +2330,29 @@ export const jarvisSessions = mysqlTable("jarvis_sessions", {
 });
 export type JarvisSessionRow = typeof jarvisSessions.$inferSelect;
 export type InsertJarvisSession = typeof jarvisSessions.$inferInsert;
+
+// ─────────────────────────────────────────────
+// GEMINI USAGE LOGS — Track API token usage and costs
+// ─────────────────────────────────────────────
+export const geminiUsageLogs = mysqlTable("gemini_usage_logs", {
+  id: int("id").primaryKey().autoincrement(),
+  accountId: int("account_id"),
+  userId: int("user_id"),
+  /** Which endpoint triggered this call: 'chat', 'recommendations', 'chat_stream' */
+  endpoint: varchar("endpoint", { length: 100 }).notNull(),
+  model: varchar("model", { length: 100 }).notNull().default("gemini-2.5-flash"),
+  promptTokens: int("prompt_tokens").notNull().default(0),
+  completionTokens: int("completion_tokens").notNull().default(0),
+  totalTokens: int("total_tokens").notNull().default(0),
+  /** Estimated cost in USD (Gemini 2.5 Flash: $0.15/1M input, $0.60/1M output) */
+  estimatedCostUsd: decimal("estimated_cost_usd", { precision: 10, scale: 6 }).notNull().default("0"),
+  /** Whether the call succeeded or failed */
+  success: boolean("success").notNull().default(true),
+  /** Error message if failed */
+  errorMessage: text("error_message"),
+  /** Duration in milliseconds */
+  durationMs: int("duration_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type GeminiUsageLog = typeof geminiUsageLogs.$inferSelect;
+export type InsertGeminiUsageLog = typeof geminiUsageLogs.$inferInsert;

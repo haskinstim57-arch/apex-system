@@ -477,6 +477,13 @@
       "when": 1774834219142,
       "tag": "0067_slippery_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "5",
+      "when": 1774881116826,
+      "tag": "0068_icy_black_cat",
+      "breakpoints": true
     }
   ]
 }

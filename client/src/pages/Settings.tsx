@@ -440,6 +440,22 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        {isAdmin && (
+          <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/ai-usage'}>
+            <CardContent className="pt-5 pb-4 px-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">AI Usage Monitor</p>
+                  <p className="text-xs text-muted-foreground">Track Gemini API tokens & costs</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

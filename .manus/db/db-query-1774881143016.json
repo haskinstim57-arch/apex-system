@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `gemini_usage_logs` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `account_id` int,\n  `user_id` int,\n  `endpoint` varchar(100) NOT NULL,\n  `model` varchar(100) NOT NULL DEFAULT 'gemini-2.5-flash',\n  `prompt_tokens` int NOT NULL DEFAULT 0,\n  `completion_tokens` int NOT NULL DEFAULT 0,\n  `total_tokens` int NOT NULL DEFAULT 0,\n  `estimated_cost_usd` decimal(10,6) NOT NULL DEFAULT '0',\n  `success` boolean NOT NULL DEFAULT true,\n  `error_message` text,\n  `duration_ms` int,\n  `created_at` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `gemini_usage_logs_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute CREATE TABLE IF NOT EXISTS `gemini_usage_logs` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `account_id` int,\n  `user_id` int,\n  `endpoint` varchar(100) NOT NULL,\n  `model` varchar(100) NOT NULL DEFAULT 'gemini-2.5-flash',\n  `prompt_tokens` int NOT NULL DEFAULT 0,\n  `completion_tokens` int NOT NULL DEFAULT 0,\n  `total_tokens` int NOT NULL DEFAULT 0,\n  `estimated_cost_usd` decimal(10,6) NOT NULL DEFAULT '0',\n  `success` boolean NOT NULL DEFAULT true,\n  `error_message` text,\n  `duration_ms` int,\n  `created_at` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `gemini_usage_logs_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 322
+}

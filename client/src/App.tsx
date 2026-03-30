@@ -48,6 +48,7 @@ import PageEditor from "./pages/PageEditor";
 import FunnelsPage from "./pages/Funnels";
 import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
+import GeminiUsage from "./pages/GeminiUsage";
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -345,6 +346,13 @@ function Router() {
         <DashboardLayout>
           <AdminRoute>
             <FacebookPages />
+          </AdminRoute>
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings/ai-usage">
+        <DashboardLayout>
+          <AdminRoute>
+            <GeminiUsage />
           </AdminRoute>
         </DashboardLayout>
       </Route>

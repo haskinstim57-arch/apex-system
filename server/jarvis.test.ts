@@ -24,6 +24,21 @@ vi.mock("./db", async (importOriginal) => {
       { id: 2, title: "Another chat", updatedAt: new Date() },
     ]),
     deleteJarvisSession: vi.fn().mockResolvedValue(undefined),
+    // Gemini usage helpers
+    logGeminiUsage: vi.fn().mockResolvedValue(undefined),
+    getGeminiUsageStats: vi.fn().mockResolvedValue({
+      totalRequests: 42,
+      totalPromptTokens: 12000,
+      totalCompletionTokens: 8000,
+      totalTokens: 20000,
+      totalCost: "0.005400",
+      successCount: 40,
+      failCount: 2,
+      dailyBreakdown: [
+        { date: "2026-03-30", requests: 10, tokens: 5000, cost: "0.001350" },
+        { date: "2026-03-29", requests: 8, tokens: 4000, cost: "0.001080" },
+      ],
+    }),
     // Account member check
     getMember: vi.fn().mockResolvedValue({
       userId: 1,
@@ -272,6 +287,36 @@ describe("jarvis router", () => {
       await expect(
         caller.jarvis.deleteSession({ accountId: 100, sessionId: 1 })
       ).rejects.toThrow("Not your session");
+    });
+  });
+
+  describe("jarvis.getUsageStats", () => {
+    it("returns usage stats for admin users", async () => {
+      const ctx = createAuthContext({ role: "admin" });
+      const caller = appRouter.createCaller(ctx);
+      const result = await caller.jarvis.getUsageStats({ days: 30 });
+      expect(result).toHaveProperty("totalRequests", 42);
+      expect(result).toHaveProperty("totalTokens", 20000);
+      expect(result).toHaveProperty("totalCost", "0.005400");
+      expect(result).toHaveProperty("successCount", 40);
+      expect(result).toHaveProperty("failCount", 2);
+      expect(result).toHaveProperty("dailyBreakdown");
+      expect(result.dailyBreakdown).toHaveLength(2);
+    });
+
+    it("rejects non-admin users", async () => {
+      const ctx = createAuthContext({ role: "user" });
+      const caller = appRouter.createCaller(ctx);
+      await expect(
+        caller.jarvis.getUsageStats({ days: 30 })
+      ).rejects.toThrow("Admin access required");
+    });
+
+    it("accepts optional accountId filter", async () => {
+      const ctx = createAuthContext({ role: "admin" });
+      const caller = appRouter.createCaller(ctx);
+      const result = await caller.jarvis.getUsageStats({ accountId: 100, days: 7 });
+      expect(result).toHaveProperty("totalRequests");
     });
   });
 });

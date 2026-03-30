@@ -123,6 +123,7 @@ interface PendingConfirmation {
 type PanelMode = "suggestions" | "chat";
 
 const PANEL_COLLAPSED_KEY = "jarvis-panel-collapsed";
+const ACTIVE_SESSION_KEY = "jarvis-active-session";
 const PANEL_WIDTH = 380;
 
 // ═══════════════════════════════════════════════
@@ -298,8 +299,17 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
     return localStorage.getItem(PANEL_COLLAPSED_KEY) === "true";
   });
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [mode, setMode] = useState<PanelMode>("suggestions");
-  const [activeSessionId, setActiveSessionId] = useState<number | null>(null);
+  // ── Restore active session from localStorage ──
+  const [mode, setMode] = useState<PanelMode>(() => {
+    if (typeof window === "undefined") return "suggestions";
+    const stored = localStorage.getItem(`${ACTIVE_SESSION_KEY}-${accountId}`);
+    return stored ? "chat" : "suggestions";
+  });
+  const [activeSessionId, setActiveSessionId] = useState<number | null>(() => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem(`${ACTIVE_SESSION_KEY}-${accountId}`);
+    return stored ? parseInt(stored, 10) : null;
+  });
   const [showHistory, setShowHistory] = useState(false);
   const [input, setInput] = useState("");
   const [isThinking, setIsThinking] = useState(false);
@@ -335,6 +345,15 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
     }
   }, [collapsed, isMobile]);
 
+  // Persist active session ID to localStorage
+  useEffect(() => {
+    if (activeSessionId) {
+      localStorage.setItem(`${ACTIVE_SESSION_KEY}-${accountId}`, String(activeSessionId));
+    } else {
+      localStorage.removeItem(`${ACTIVE_SESSION_KEY}-${accountId}`);
+    }
+  }, [activeSessionId, accountId]);
+
   // ── Queries ──
   const recommendationsQuery = trpc.jarvis.getRecommendations.useQuery(
     { accountId, pageContext },
@@ -350,6 +369,18 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
     { accountId, sessionId: activeSessionId! },
     { enabled: !!accountId && !!activeSessionId && mode === "chat" && (!collapsed || mobileOpen), retry: 1 }
   );
+
+  // Validate restored session still exists — if not, fall back to suggestions
+  useEffect(() => {
+    if (activeSessionId && sessionsQuery.data && Array.isArray(sessionsQuery.data)) {
+      const exists = sessionsQuery.data.some((s: any) => s.id === activeSessionId);
+      if (!exists) {
+        setActiveSessionId(null);
+        setMode("suggestions");
+        localStorage.removeItem(`${ACTIVE_SESSION_KEY}-${accountId}`);
+      }
+    }
+  }, [activeSessionId, sessionsQuery.data, accountId]);
 
   const utils = trpc.useUtils();
 
