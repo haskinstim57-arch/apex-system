@@ -2901,3 +2901,12 @@
 - [x] Add VITE_SQUARE_ENVIRONMENT=sandbox env var
 - [x] No static Square script in client/index.html (confirmed clean)
 - [x] Verify 0 TS errors and card iframe renders
+
+## Fix: Square Card Tokenization — SDK iframe not generating nonce
+- [x] Confirmed: no manual card input fields in SquareCardForm — only empty div for SDK iframe
+- [x] Confirmed: card container is empty div with id=card-container, SDK fills it with secure iframe
+- [x] Confirmed: tokenize() sends result.token as sourceId to addPaymentMethod
+- [x] Confirmed: billing router addPaymentMethod passes sourceId to saveCardOnFile correctly
+- [x] ROOT CAUSE FIXED: VITE_SQUARE_ENVIRONMENT was 'production' but access token is sandbox — changed to 'sandbox'
+- [x] Server restarted to pick up new env var
+- [x] 0 TS errors, 29/30 tests pass (1 flaky timeout, pre-existing)
