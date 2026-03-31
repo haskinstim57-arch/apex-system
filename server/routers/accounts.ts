@@ -485,25 +485,47 @@ export const accountsRouter = router({
 
   // ─── White-Label / Agency Branding ───
 
-  /** Get branding settings for an account */
+  /** Get branding settings for an account (cascades to parent agency if sub-account has no override) */
   getBranding: protectedProcedure
     .input(z.object({ accountId: z.number().int().positive() }))
     .query(async ({ input, ctx }) => {
       if (ctx.user.role !== "admin") {
-        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager"]);
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager", "employee"]);
       }
       const account = await db.getAccountById(input.accountId);
       if (!account) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Account not found" });
       }
+
+      // Check if this sub-account has its own branding set
+      const hasBranding = account.brandName || account.logoUrl || account.primaryColor !== "#d4a843";
+
+      // If sub-account has no branding and has a parent, cascade from parent agency
+      let effectiveBranding = account;
+      if (!hasBranding && account.parentId) {
+        const parent = await db.getAccountById(account.parentId);
+        if (parent) {
+          effectiveBranding = {
+            ...account,
+            brandName: account.brandName || parent.brandName,
+            primaryColor: (account.primaryColor && account.primaryColor !== "#d4a843") ? account.primaryColor : (parent.primaryColor || "#d4a843"),
+            logoUrl: account.logoUrl || parent.logoUrl,
+            faviconUrl: account.faviconUrl || parent.faviconUrl,
+            customDomain: account.customDomain || parent.customDomain,
+            fromEmailDomain: account.fromEmailDomain || parent.fromEmailDomain,
+            emailDomainVerified: account.fromEmailDomain ? account.emailDomainVerified : (parent.emailDomainVerified ?? false),
+          };
+        }
+      }
+
       return {
-        logoUrl: (account as any).logoUrl ?? null,
-        faviconUrl: (account as any).faviconUrl ?? null,
-        brandName: (account as any).brandName ?? null,
-        primaryColor: (account as any).primaryColor ?? "#d4a843",
-        customDomain: (account as any).customDomain ?? null,
-        fromEmailDomain: (account as any).fromEmailDomain ?? null,
-        emailDomainVerified: (account as any).emailDomainVerified ?? false,
+        logoUrl: effectiveBranding.logoUrl ?? null,
+        faviconUrl: effectiveBranding.faviconUrl ?? null,
+        brandName: effectiveBranding.brandName ?? null,
+        primaryColor: effectiveBranding.primaryColor ?? "#d4a843",
+        customDomain: effectiveBranding.customDomain ?? null,
+        fromEmailDomain: effectiveBranding.fromEmailDomain ?? null,
+        emailDomainVerified: effectiveBranding.emailDomainVerified ?? false,
       };
     }),
 

@@ -54,6 +54,7 @@ import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
 import { AccountProvider } from "./contexts/AccountContext";
+import { BrandingProvider } from "./contexts/BrandingContext";
 import { AdminRoute } from "./components/AdminRoute";
 import { RequireAccount } from "./components/RequireAccount";
 
@@ -388,7 +389,9 @@ function App() {
           <ImpersonationBanner />
           <PwaInstallPrompt />
           <AccountProvider>
+            <BrandingProvider>
               <Router />
+            </BrandingProvider>
           </AccountProvider>
         </TooltipProvider>
       </ThemeProvider>

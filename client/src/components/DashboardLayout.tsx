@@ -61,6 +61,7 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { useAccount } from "@/contexts/AccountContext";
+import { useBranding } from "@/contexts/BrandingContext";
 import { NotificationCenter } from "./NotificationCenter";
 import { JarvisPanel } from "./JarvisPanel";
 
@@ -117,6 +118,70 @@ const hiddenMenuItems = [
   { icon: Mail, label: "Email Templates", path: "/email-templates" },
   { icon: Globe, label: "Websites", path: "/websites", placeholder: true },
 ];
+
+/**
+ * SidebarLogo — renders the branded logo in the sidebar header.
+ * Uses branding context to show custom logo/name or falls back to defaults.
+ */
+function SidebarLogo({ isCollapsed }: { isCollapsed: boolean }) {
+  const { brandName, logoUrl } = useBranding();
+  return (
+    <div className="flex items-center gap-2 px-3 py-2">
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt={brandName || "Logo"}
+          className="h-8 w-8 rounded-lg object-contain shrink-0"
+          onError={(e) => {
+            // Fallback to default icon if image fails to load
+            (e.target as HTMLImageElement).style.display = "none";
+            (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+          }}
+        />
+      ) : null}
+      <div className={`h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0 ${logoUrl ? "hidden" : ""}`}>
+        <span className="text-sm font-bold text-primary-foreground">
+          {(brandName || "A").charAt(0).toUpperCase()}
+        </span>
+      </div>
+      {!isCollapsed && (
+        <span className="text-[15px] font-bold tracking-tight text-foreground truncate">
+          {brandName || (<>Apex<span className="font-extrabold">System</span></>)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * MobileLogo — renders the branded logo in the mobile top bar.
+ */
+function MobileLogo() {
+  const { brandName, logoUrl } = useBranding();
+  return (
+    <div className="flex items-center gap-1.5">
+      {logoUrl ? (
+        <img
+          src={logoUrl}
+          alt={brandName || "Logo"}
+          className="h-7 w-7 rounded-md object-contain"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = "none";
+            (e.target as HTMLImageElement).nextElementSibling?.classList.remove("hidden");
+          }}
+        />
+      ) : null}
+      <div className={`h-7 w-7 rounded-md bg-primary flex items-center justify-center ${logoUrl ? "hidden" : ""}`}>
+        <span className="text-xs font-bold text-primary-foreground">
+          {(brandName || "A").charAt(0).toUpperCase()}
+        </span>
+      </div>
+      <span className="text-sm font-bold tracking-tight text-foreground truncate">
+        {brandName || (<>Apex<span className="font-extrabold">System</span></>)}
+      </span>
+    </div>
+  );
+}
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 220;
@@ -346,17 +411,8 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar collapsible="icon">
           <SidebarHeader className="border-b border-sidebar-border">
-            {/* Logo row — always visible, collapses to icon when sidebar is collapsed */}
-            <div className="flex items-center gap-2 px-3 py-2">
-              <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold text-primary-foreground">A</span>
-              </div>
-              {!isCollapsed && (
-                <span className="text-[15px] font-bold tracking-tight text-foreground">
-                  Apex<span className="font-extrabold">System</span>
-                </span>
-              )}
-            </div>
+            {/* Logo row — uses branding if available, collapses to icon when sidebar is collapsed */}
+            <SidebarLogo isCollapsed={isCollapsed} />
             {/* Account switcher below logo */}
             {!isCollapsed && (
               <div className="px-2 pb-2">
@@ -466,16 +522,7 @@ function DashboardLayoutContent({
             <SidebarTrigger className="-ml-1 min-h-[44px] min-w-[44px] touch-manipulation" />
 
             {/* Mobile: centered logo */}
-            {isMobile && (
-              <div className="flex items-center gap-1.5">
-                <div className="h-7 w-7 rounded-md bg-primary flex items-center justify-center">
-                  <span className="text-xs font-bold text-primary-foreground">A</span>
-                </div>
-                <span className="text-sm font-bold tracking-tight text-foreground">
-                  Apex<span className="font-extrabold">System</span>
-                </span>
-              </div>
-            )}
+            {isMobile && <MobileLogo />}
 
             {/* Desktop: Breadcrumb / page title */}
             {!isMobile && (

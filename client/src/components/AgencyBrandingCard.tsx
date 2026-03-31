@@ -223,6 +223,9 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
                   placeholder="https://cdn.example.com/logo.png"
                   className="h-9 text-sm"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Use a direct image URL ending in .png, .jpg, or .svg. Google Drive links won't work — try Imgur or Cloudinary for free hosting.
+                </p>
                 {logoUrl && (
                   <div className="mt-2 p-2 bg-muted rounded-lg flex items-center justify-center">
                     <img

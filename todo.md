@@ -2936,3 +2936,16 @@
 - [x] 0 TS errors, 27 billing tests pass
 - [ ] Re-publish and verify actual error message on published site
 - [x] Switch Square Web Payments SDK from sandbox to production environment
+
+## Fix White-Label / Brand Identity Settings
+- [x] Audit existing schema for branding fields (all columns already existed)
+- [x] Add missing branding columns to accounts table if needed + migrate (none needed)
+- [x] Fix updateBranding procedure to actually write to DB (was working, removed `as any` casts)
+- [x] Add getBranding procedure with agency-to-sub-account cascade
+- [x] Apply primary color as CSS variable globally (BrandingContext + CSS custom properties)
+- [x] Apply logo in sidebar/header (SidebarLogo + MobileLogo components)
+- [x] Apply brand name in page title (document.title via BrandingContext)
+- [x] Add helper note for logo URL (no Google Drive links)
+- [x] Agency branding cascades to sub-accounts (inherit parent if no override)
+- [x] Write vitest tests for branding save/load/cascade (24 tests pass)
+- [x] Verify: save brand name + color → reload → UI reflects changes

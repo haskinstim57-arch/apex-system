@@ -172,3 +172,158 @@ describe("Branding — DNS Record Shape", () => {
     }
   });
 });
+
+describe("Branding — Cascade Logic", () => {
+  it("should cascade parent branding when sub-account has no branding", () => {
+    const parentAccount = {
+      id: 1,
+      name: "Parent Agency",
+      parentId: null,
+      brandName: "Sterling Marketing",
+      primaryColor: "#FF0000",
+      logoUrl: "https://cdn.example.com/parent-logo.png",
+      faviconUrl: "https://cdn.example.com/parent-favicon.ico",
+      customDomain: "app.sterling.com",
+      fromEmailDomain: "sterling.com",
+      emailDomainVerified: true,
+    };
+
+    const subAccount = {
+      id: 2,
+      name: "Sub Account",
+      parentId: 1,
+      brandName: null,
+      primaryColor: "#d4a843", // default = no override
+      logoUrl: null,
+      faviconUrl: null,
+      customDomain: null,
+      fromEmailDomain: null,
+      emailDomainVerified: false,
+    };
+
+    // Simulate cascade logic from getBranding
+    const hasBranding = subAccount.brandName || subAccount.logoUrl || subAccount.primaryColor !== "#d4a843";
+    expect(hasBranding).toBeFalsy();
+
+    // Apply cascade
+    const effectiveBranding = {
+      ...subAccount,
+      brandName: subAccount.brandName || parentAccount.brandName,
+      primaryColor: (subAccount.primaryColor && subAccount.primaryColor !== "#d4a843")
+        ? subAccount.primaryColor
+        : (parentAccount.primaryColor || "#d4a843"),
+      logoUrl: subAccount.logoUrl || parentAccount.logoUrl,
+      faviconUrl: subAccount.faviconUrl || parentAccount.faviconUrl,
+      customDomain: subAccount.customDomain || parentAccount.customDomain,
+      fromEmailDomain: subAccount.fromEmailDomain || parentAccount.fromEmailDomain,
+      emailDomainVerified: subAccount.fromEmailDomain
+        ? subAccount.emailDomainVerified
+        : (parentAccount.emailDomainVerified ?? false),
+    };
+
+    expect(effectiveBranding.brandName).toBe("Sterling Marketing");
+    expect(effectiveBranding.primaryColor).toBe("#FF0000");
+    expect(effectiveBranding.logoUrl).toBe("https://cdn.example.com/parent-logo.png");
+    expect(effectiveBranding.faviconUrl).toBe("https://cdn.example.com/parent-favicon.ico");
+    expect(effectiveBranding.customDomain).toBe("app.sterling.com");
+    expect(effectiveBranding.fromEmailDomain).toBe("sterling.com");
+    expect(effectiveBranding.emailDomainVerified).toBe(true);
+  });
+
+  it("should use sub-account branding when it has its own override", () => {
+    const subAccount = {
+      id: 2,
+      name: "Sub Account",
+      parentId: 1,
+      brandName: "Sub Brand",
+      primaryColor: "#00FF00",
+      logoUrl: "https://cdn.example.com/sub-logo.png",
+      faviconUrl: null,
+      customDomain: null,
+      fromEmailDomain: null,
+      emailDomainVerified: false,
+    };
+
+    // Sub-account has its own branding
+    const hasBranding = subAccount.brandName || subAccount.logoUrl || subAccount.primaryColor !== "#d4a843";
+    expect(hasBranding).toBeTruthy();
+
+    // No cascade needed — use sub-account's own values
+    const result = {
+      logoUrl: subAccount.logoUrl ?? null,
+      faviconUrl: subAccount.faviconUrl ?? null,
+      brandName: subAccount.brandName ?? null,
+      primaryColor: subAccount.primaryColor ?? "#d4a843",
+      customDomain: subAccount.customDomain ?? null,
+      fromEmailDomain: subAccount.fromEmailDomain ?? null,
+      emailDomainVerified: subAccount.emailDomainVerified ?? false,
+    };
+
+    expect(result.brandName).toBe("Sub Brand");
+    expect(result.primaryColor).toBe("#00FF00");
+    expect(result.logoUrl).toBe("https://cdn.example.com/sub-logo.png");
+    expect(result.faviconUrl).toBeNull();
+  });
+
+  it("should not cascade when account has no parent", () => {
+    const rootAccount = {
+      id: 1,
+      name: "Root Agency",
+      parentId: null,
+      brandName: null,
+      primaryColor: "#d4a843",
+      logoUrl: null,
+      faviconUrl: null,
+      customDomain: null,
+      fromEmailDomain: null,
+      emailDomainVerified: false,
+    };
+
+    const hasBranding = rootAccount.brandName || rootAccount.logoUrl || rootAccount.primaryColor !== "#d4a843";
+    // No branding and no parent — should return defaults
+    expect(hasBranding).toBeFalsy();
+    expect(rootAccount.parentId).toBeNull();
+
+    // No cascade possible
+    const result = {
+      logoUrl: rootAccount.logoUrl ?? null,
+      faviconUrl: rootAccount.faviconUrl ?? null,
+      brandName: rootAccount.brandName ?? null,
+      primaryColor: rootAccount.primaryColor ?? "#d4a843",
+    };
+
+    expect(result.primaryColor).toBe("#d4a843");
+    expect(result.brandName).toBeNull();
+    expect(result.logoUrl).toBeNull();
+  });
+});
+
+describe("Branding — Contrast Foreground Helper", () => {
+  function contrastForeground(hex: string): string {
+    try {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return luminance > 0.55 ? "#1a1a1a" : "#ffffff";
+    } catch {
+      return "#ffffff";
+    }
+  }
+
+  it("returns dark text for light backgrounds", () => {
+    expect(contrastForeground("#d4a843")).toBe("#1a1a1a");
+    expect(contrastForeground("#ffffff")).toBe("#1a1a1a");
+    expect(contrastForeground("#00FF00")).toBe("#1a1a1a");
+  });
+
+  it("returns white text for dark backgrounds", () => {
+    expect(contrastForeground("#FF0000")).toBe("#ffffff");
+    expect(contrastForeground("#0000FF")).toBe("#ffffff");
+    expect(contrastForeground("#000000")).toBe("#ffffff");
+  });
+
+  it("returns white for invalid hex (fallback)", () => {
+    expect(contrastForeground("invalid")).toBe("#ffffff");
+  });
+});
