@@ -2935,3 +2935,4 @@
 - [x] Added console.error logging for AppId, LocationId, Environment on failure
 - [x] 0 TS errors, 27 billing tests pass
 - [ ] Re-publish and verify actual error message on published site
+- [x] Switch Square Web Payments SDK from sandbox to production environment

@@ -24,7 +24,7 @@ function getSquareClient(): SquareClient {
     }
     _client = new SquareClient({
       token: ENV.squareAccessToken,
-      environment: ENV.squareAccessToken.startsWith("sandbox-")
+      environment: ENV.squareEnvironment === "sandbox"
         ? SquareEnvironment.Sandbox
         : SquareEnvironment.Production,
     });

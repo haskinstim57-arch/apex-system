@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 describe("Square Environment Variables", () => {
-  it("VITE_SQUARE_ENVIRONMENT is set", () => {
+  it("VITE_SQUARE_ENVIRONMENT is set to a valid value", () => {
     const env = process.env.VITE_SQUARE_ENVIRONMENT;
     expect(env).toBeDefined();
     expect(["sandbox", "production"]).toContain(env);
