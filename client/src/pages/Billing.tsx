@@ -152,7 +152,7 @@ function SquareCardForm({
   const cardRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [cardError, setCardError] = useState<string | null>(null);
   const [cardholderName, setCardholderName] = useState("");
 
   const addPaymentMethod = trpc.billing.addPaymentMethod.useMutation({
@@ -161,47 +161,77 @@ function SquareCardForm({
       onSuccess();
     },
     onError: (err) => {
-      setError(err.message);
+      setCardError(err.message);
       setSubmitting(false);
     },
   });
 
+  // Dynamically load Square Web Payments SDK and initialize card form
   useEffect(() => {
     let mounted = true;
-    async function initCard() {
-      try {
-        if (!window.Square) {
-          setError("Square SDK not loaded. Please refresh the page.");
-          setLoading(false);
-          return;
+
+    const loadSquareSDK = async () => {
+      // Remove any existing Square script to avoid duplicates
+      const existing = document.getElementById("square-sdk");
+      if (existing) existing.remove();
+
+      const script = document.createElement("script");
+      script.id = "square-sdk";
+
+      // Use sandbox URL for non-production
+      const isProd = import.meta.env.VITE_SQUARE_ENVIRONMENT === "production";
+      script.src = isProd
+        ? "https://web.squarecdn.com/v1/square.js"
+        : "https://sandbox.web.squarecdn.com/v1/square.js";
+
+      script.onload = async () => {
+        if (!mounted) return;
+        try {
+          if (!window.Square) {
+            setCardError("Square SDK failed to initialize");
+            setLoading(false);
+            return;
+          }
+
+          const appId = import.meta.env.VITE_SQUARE_APPLICATION_ID;
+          const locationId = import.meta.env.VITE_SQUARE_LOCATION_ID;
+
+          if (!appId || !locationId) {
+            setCardError("Square configuration missing (Application ID or Location ID).");
+            setLoading(false);
+            return;
+          }
+
+          const payments = await window.Square.payments(appId, locationId);
+          const card = await payments.card();
+
+          if (mounted && cardContainerRef.current) {
+            await card.attach(cardContainerRef.current);
+            cardRef.current = card;
+            setCardError(null);
+            setLoading(false);
+          }
+        } catch (err: any) {
+          if (mounted) {
+            setCardError("Failed to initialize card form. Please refresh.");
+            setLoading(false);
+            console.error("[Square]", err);
+          }
         }
+      };
 
-        const appId = import.meta.env.VITE_SQUARE_APPLICATION_ID;
-        const locationId = import.meta.env.VITE_SQUARE_LOCATION_ID;
-
-        if (!appId || !locationId) {
-          setError("Square configuration missing.");
-          setLoading(false);
-          return;
-        }
-
-        const payments = await window.Square.payments(appId, locationId);
-        const card = await payments.card();
-
-        if (mounted && cardContainerRef.current) {
-          await card.attach(cardContainerRef.current);
-          cardRef.current = card;
-          setLoading(false);
-        }
-      } catch (err: any) {
+      script.onerror = () => {
         if (mounted) {
-          setError(err.message || "Failed to initialize card form");
+          setCardError("Failed to load Square SDK. Check your internet connection.");
           setLoading(false);
         }
-      }
-    }
+      };
 
-    initCard();
+      document.head.appendChild(script);
+    };
+
+    loadSquareSDK();
+
     return () => {
       mounted = false;
       if (cardRef.current) {
@@ -213,7 +243,7 @@ function SquareCardForm({
   const handleSubmit = useCallback(async () => {
     if (!cardRef.current) return;
     setSubmitting(true);
-    setError(null);
+    setCardError(null);
 
     try {
       const result = await cardRef.current.tokenize();
@@ -225,11 +255,11 @@ function SquareCardForm({
           setAsDefault: true,
         });
       } else {
-        setError(result.errors?.[0]?.message || "Card tokenization failed");
+        setCardError(result.errors?.[0]?.message || "Card tokenization failed");
         setSubmitting(false);
       }
     } catch (err: any) {
-      setError(err.message || "Failed to process card");
+      setCardError(err.message || "Failed to process card");
       setSubmitting(false);
     }
   }, [accountId, cardholderName, addPaymentMethod]);
@@ -249,7 +279,8 @@ function SquareCardForm({
         <Label>Card Details</Label>
         <div
           ref={cardContainerRef}
-          className="min-h-[50px] rounded-md border border-input bg-background p-2"
+          id="card-container"
+          className="min-h-[89px] rounded-md border border-input bg-background p-2"
         />
         {loading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -259,10 +290,10 @@ function SquareCardForm({
         )}
       </div>
 
-      {error && (
+      {cardError && (
         <div className="text-sm text-destructive flex items-center gap-1">
           <AlertCircle className="h-4 w-4" />
-          {error}
+          {cardError}
         </div>
       )}
 

@@ -2893,3 +2893,11 @@
 - [x] Test: removePaymentMethod requires paymentMethodId and accountId
 - [x] All 27 billing tests pass
 - [x] TypeScript: 0 errors
+
+## Fix: Square SDK Not Loading on Billing Page
+- [x] Replace static Square SDK script tag with dynamic loading in Billing.tsx
+- [x] Use correct sandbox/production URL based on VITE_SQUARE_ENVIRONMENT
+- [x] Ensure card container div exists before card.attach() is called
+- [x] Add VITE_SQUARE_ENVIRONMENT=sandbox env var
+- [x] No static Square script in client/index.html (confirmed clean)
+- [x] Verify 0 TS errors and card iframe renders
