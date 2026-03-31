@@ -2842,3 +2842,54 @@
 - [x] Vitest: 18 billing tests (usageTracker, invoiceService, Square service, billing router)
 - [x] Fixed vapiBooking.test.ts getNextSunday() UTC bug (pre-existing flaky test)
 - [x] Full test suite: 84 files passed, 1842 tests passed, 0 failures
+
+## Card-on-File Billing Transition
+
+### Square Service — Card-on-File Functions
+- [x] Add saveCardOnFile() to server/services/square.ts (tokenize card via Square Cards API)
+- [x] Add chargeCard() to server/services/square.ts (charge saved card via Square Payments API)
+- [x] Add removeCard() to server/services/square.ts (disable card via Square Cards API)
+
+### Schema Updates
+- [x] Add paymentMethods table (accountId, squareCardId, brand, last4, expMonth, expYear, cardholderName, isDefault)
+- [x] Add billingPastDue boolean to accountBilling table
+- [x] Add chargeAttempts, lastChargeError, squareReceiptUrl to billingInvoices table
+- [x] DB migration pushed (table created via SQL)
+
+### Billing Router — Card-on-File Endpoints
+- [x] addPaymentMethod: tokenize card via Square SDK, save to paymentMethods table, create Square customer if needed
+- [x] getPaymentMethods: list all cards on file for an account
+- [x] removePaymentMethod: disable card in Square + delete from DB
+- [x] setDefaultPaymentMethod: set a card as the default payment method
+- [x] getBillingStatus: return billing status including pastDue flag and overdue count
+- [x] chargeInvoice: charge an invoice using the default card on file
+
+### Invoice Service — Auto-Charge
+- [x] Add chargeInvoice() function to invoiceService (charge default card, mark paid, notify owner)
+- [x] Update checkAutoInvoice() to try auto-charging card on file before falling back to payment link
+
+### Square Webhook Updates
+- [x] Handle card.created and card.disabled events (already handled in existing webhook)
+
+### Billing UI — Card-on-File
+- [x] Add Square Web Payments SDK script to client/index.html
+- [x] Add SquareCardForm component (tokenize card in browser, submit to addPaymentMethod)
+- [x] Add PastDueBanner component (shows when billingPastDue is true)
+- [x] Update SubAccountBilling: Payment Methods section with add/remove/set default
+- [x] Update SubAccountBilling: "Pay Now" button uses chargeInvoice (card on file) instead of payment link
+- [x] Update SubAccountBilling: fallback to payment link when no card on file
+- [x] Set VITE_SQUARE_APPLICATION_ID and VITE_SQUARE_LOCATION_ID env vars
+
+### Tests
+- [x] Update billing.test.ts: add mocks for saveCardOnFile, chargeCard, removeCard
+- [x] Test: chargeInvoice exported from invoiceService
+- [x] Test: chargeInvoice throws when db unavailable
+- [x] Test: chargeInvoice throws when Square not configured
+- [x] Test: saveCardOnFile, chargeCard, removeCard callable with expected shapes
+- [x] Test: createSquareCustomer returns customer ID
+- [x] Test: billing router has all new card-on-file procedure names
+- [x] Test: addPaymentMethod requires accountId and sourceId
+- [x] Test: chargeInvoice requires invoiceId
+- [x] Test: removePaymentMethod requires paymentMethodId and accountId
+- [x] All 27 billing tests pass
+- [x] TypeScript: 0 errors

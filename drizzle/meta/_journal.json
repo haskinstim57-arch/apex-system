@@ -498,6 +498,13 @@
       "when": 1774923170022,
       "tag": "0070_absent_rogue",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "5",
+      "when": 1774963774412,
+      "tag": "0071_perpetual_solo",
+      "breakpoints": true
     }
   ]
 }

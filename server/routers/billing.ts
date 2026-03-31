@@ -19,6 +19,7 @@ import {
   billingRates,
   accountBilling,
   accounts,
+  paymentMethods,
   type BillingRate,
   type BillingInvoice,
   type AccountBillingRow,
@@ -31,7 +32,7 @@ import {
   markInvoicePaid,
   voidInvoice,
 } from "../services/invoiceService";
-import { isSquareConfigured } from "../services/square";
+import { isSquareConfigured, saveCardOnFile, chargeCard, removeCard } from "../services/square";
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -534,5 +535,331 @@ export const billingRouter = router({
         lineItems: row.invoice.lineItems ? JSON.parse(row.invoice.lineItems) : [],
         accountName: row.accountName,
       }));
+    }),
+
+  // ═══════════════════════════════════════════
+  // CARD-ON-FILE ENDPOINTS
+  // ═══════════════════════════════════════════
+
+  /**
+   * Add a payment method (card on file) for a sub-account.
+   * Accepts a Square Web Payments SDK nonce.
+   */
+  addPaymentMethod: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        sourceId: z.string().min(1),
+        cardholderName: z.string().optional(),
+        setAsDefault: z.boolean().default(true),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      if (!isSquareConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Square payments are not configured" });
+      }
+
+      // Ensure the account has a Square customer ID
+      const billingRows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+
+      let billing = billingRows[0];
+      let squareCustomerId = billing?.squareCustomerId;
+
+      if (!squareCustomerId) {
+        // Get account info to create Square customer
+        const acctRows = await db
+          .select({ name: accounts.name, email: accounts.email })
+          .from(accounts)
+          .where(eq(accounts.id, input.accountId));
+        const acct = acctRows[0];
+
+        const { createSquareCustomer } = await import("../services/square");
+        squareCustomerId = await createSquareCustomer({
+          email: acct?.email || "billing@apex-system.com",
+          companyName: acct?.name || undefined,
+          referenceId: String(input.accountId),
+        });
+
+        if (billing) {
+          await db
+            .update(accountBilling)
+            .set({ squareCustomerId })
+            .where(eq(accountBilling.accountId, input.accountId));
+        } else {
+          // Create billing record with default rate
+          const defaultRates: import("../../drizzle/schema").BillingRate[] = await db
+            .select()
+            .from(billingRates)
+            .limit(1);
+          const rateId = defaultRates[0]?.id || 1;
+
+          await db.insert(accountBilling).values({
+            accountId: input.accountId,
+            billingRateId: rateId,
+            squareCustomerId,
+          });
+        }
+      }
+
+      // Save card on file via Square
+      const card = await saveCardOnFile({
+        customerId: squareCustomerId,
+        sourceId: input.sourceId,
+        cardholderName: input.cardholderName,
+      });
+
+      // If setAsDefault, unset other defaults first
+      if (input.setAsDefault) {
+        await db
+          .update(paymentMethods)
+          .set({ isDefault: false })
+          .where(eq(paymentMethods.accountId, input.accountId));
+      }
+
+      // Save to our DB
+      const [inserted] = await db.insert(paymentMethods).values({
+        accountId: input.accountId,
+        squareCardId: card.cardId,
+        brand: card.brand,
+        last4: card.last4,
+        expMonth: card.expMonth,
+        expYear: card.expYear,
+        cardholderName: card.cardholderName || null,
+        isDefault: input.setAsDefault,
+      });
+
+      return {
+        id: inserted.insertId,
+        squareCardId: card.cardId,
+        brand: card.brand,
+        last4: card.last4,
+        expMonth: card.expMonth,
+        expYear: card.expYear,
+        isDefault: input.setAsDefault,
+      };
+    }),
+
+  /**
+   * Get all payment methods for a sub-account.
+   */
+  getPaymentMethods: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const rows = await db
+        .select()
+        .from(paymentMethods)
+        .where(eq(paymentMethods.accountId, input.accountId))
+        .orderBy(desc(paymentMethods.createdAt));
+
+      return rows;
+    }),
+
+  /**
+   * Remove a payment method.
+   */
+  removePaymentMethod: protectedProcedure
+    .input(z.object({ paymentMethodId: z.number(), accountId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // Get the payment method
+      const rows = await db
+        .select()
+        .from(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.id, input.paymentMethodId),
+            eq(paymentMethods.accountId, input.accountId)
+          )
+        );
+      const pm = rows[0];
+      if (!pm) throw new TRPCError({ code: "NOT_FOUND", message: "Payment method not found" });
+
+      // Disable in Square
+      try {
+        await removeCard(pm.squareCardId);
+      } catch (err) {
+        console.warn("[Billing] Failed to disable card in Square:", err);
+      }
+
+      // Delete from our DB
+      await db
+        .delete(paymentMethods)
+        .where(eq(paymentMethods.id, input.paymentMethodId));
+
+      // If this was the default, promote the next card
+      if (pm.isDefault) {
+        const remaining = await db
+          .select()
+          .from(paymentMethods)
+          .where(eq(paymentMethods.accountId, input.accountId))
+          .orderBy(desc(paymentMethods.createdAt))
+          .limit(1);
+        if (remaining[0]) {
+          await db
+            .update(paymentMethods)
+            .set({ isDefault: true })
+            .where(eq(paymentMethods.id, remaining[0].id));
+        }
+      }
+
+      return { success: true };
+    }),
+
+  /**
+   * Set a payment method as the default.
+   */
+  setDefaultPaymentMethod: protectedProcedure
+    .input(z.object({ paymentMethodId: z.number(), accountId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // Verify the payment method belongs to this account
+      const rows = await db
+        .select()
+        .from(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.id, input.paymentMethodId),
+            eq(paymentMethods.accountId, input.accountId)
+          )
+        );
+      if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "Payment method not found" });
+
+      // Unset all defaults for this account
+      await db
+        .update(paymentMethods)
+        .set({ isDefault: false })
+        .where(eq(paymentMethods.accountId, input.accountId));
+
+      // Set the new default
+      await db
+        .update(paymentMethods)
+        .set({ isDefault: true })
+        .where(eq(paymentMethods.id, input.paymentMethodId));
+
+      return { success: true };
+    }),
+
+  /**
+   * Get billing status for a sub-account (balance, past due, card on file).
+   */
+  getBillingStatus: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const billingRows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+      const billing = billingRows[0];
+
+      // Check for overdue invoices
+      const overdueRows = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(billingInvoices)
+        .where(
+          and(
+            eq(billingInvoices.accountId, input.accountId),
+            eq(billingInvoices.status, "overdue")
+          )
+        );
+      const overdueCount = Number(overdueRows[0]?.count || 0);
+
+      // Check for cards on file
+      const cardRows = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(paymentMethods)
+        .where(eq(paymentMethods.accountId, input.accountId));
+      const cardCount = Number(cardRows[0]?.count || 0);
+
+      return {
+        hasCardOnFile: cardCount > 0,
+        cardCount,
+        billingPastDue: overdueCount > 0,
+        overdueCount,
+        currentBalance: billing ? Number(billing.currentBalance) : 0,
+        squareCustomerId: billing?.squareCustomerId || null,
+      };
+    }),
+
+  /**
+   * Charge an invoice using the account's default card on file.
+   */
+  chargeInvoice: protectedProcedure
+    .input(z.object({ invoiceId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      if (!isSquareConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Square payments are not configured" });
+      }
+
+      // Get the invoice
+      const invoiceRows: BillingInvoice[] = await db
+        .select()
+        .from(billingInvoices)
+        .where(eq(billingInvoices.id, input.invoiceId));
+      const invoice = invoiceRows[0];
+      if (!invoice) throw new TRPCError({ code: "NOT_FOUND", message: "Invoice not found" });
+      if (invoice.status === "paid") throw new TRPCError({ code: "BAD_REQUEST", message: "Invoice is already paid" });
+      if (invoice.status === "void") throw new TRPCError({ code: "BAD_REQUEST", message: "Invoice has been voided" });
+
+      // Get default card
+      const cardRows = await db
+        .select()
+        .from(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.accountId, invoice.accountId),
+            eq(paymentMethods.isDefault, true)
+          )
+        )
+        .limit(1);
+      const card = cardRows[0];
+      if (!card) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No default payment method on file" });
+
+      // Get Square customer ID
+      const billingRows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, invoice.accountId));
+      const billing = billingRows[0];
+      if (!billing?.squareCustomerId) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No Square customer ID" });
+      }
+
+      const amountCents = Math.round(Number(invoice.amount) * 100);
+
+      const result = await chargeCard({
+        cardId: card.squareCardId,
+        customerId: billing.squareCustomerId,
+        amountCents,
+        referenceId: `billing-invoice-${invoice.id}`,
+        note: `Apex System Invoice #${invoice.id}`,
+      });
+
+      // Mark invoice as paid
+      await markInvoicePaid(invoice.id, result.paymentId);
+
+      return {
+        success: true,
+        paymentId: result.paymentId,
+        receiptUrl: result.receiptUrl,
+      };
     }),
 });

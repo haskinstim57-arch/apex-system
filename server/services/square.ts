@@ -159,6 +159,112 @@ export async function getOrder(orderId: string) {
 }
 
 // ─────────────────────────────────────────────
+// CARD ON FILE
+// ─────────────────────────────────────────────
+
+interface SaveCardOnFileParams {
+  customerId: string;
+  sourceId: string; // nonce from Web Payments SDK
+  cardholderName?: string;
+}
+
+export interface SavedCard {
+  cardId: string;
+  brand: string;
+  last4: string;
+  expMonth: number;
+  expYear: number;
+  cardholderName?: string;
+}
+
+/**
+ * Save a card on file for a Square customer.
+ * The sourceId is the nonce obtained from the Square Web Payments SDK.
+ */
+export async function saveCardOnFile(
+  params: SaveCardOnFileParams
+): Promise<SavedCard> {
+  const client = getSquareClient();
+
+  const response = await client.cards.create({
+    idempotencyKey: crypto.randomUUID(),
+    sourceId: params.sourceId,
+    card: {
+      customerId: params.customerId,
+      cardholderName: params.cardholderName,
+    },
+  });
+
+  const card = response.card;
+  if (!card || !card.id) {
+    throw new Error("[Square] Failed to save card on file");
+  }
+
+  return {
+    cardId: card.id,
+    brand: card.cardBrand || "UNKNOWN",
+    last4: card.last4 || "0000",
+    expMonth: Number(card.expMonth) || 0,
+    expYear: Number(card.expYear) || 0,
+    cardholderName: card.cardholderName || undefined,
+  };
+}
+
+interface ChargeCardParams {
+  cardId: string;
+  customerId: string;
+  amountCents: number;
+  referenceId: string;
+  note?: string;
+}
+
+interface ChargeCardResult {
+  paymentId: string;
+  receiptUrl?: string;
+}
+
+/**
+ * Charge a saved card on file.
+ */
+export async function chargeCard(
+  params: ChargeCardParams
+): Promise<ChargeCardResult> {
+  const client = getSquareClient();
+
+  const response = await client.payments.create({
+    idempotencyKey: crypto.randomUUID(),
+    sourceId: params.cardId,
+    customerId: params.customerId,
+    amountMoney: {
+      amount: BigInt(params.amountCents),
+      currency: "USD",
+    },
+    locationId: ENV.squareLocationId,
+    referenceId: params.referenceId,
+    note: params.note,
+    autocomplete: true,
+  });
+
+  const payment = response.payment;
+  if (!payment || !payment.id) {
+    throw new Error("[Square] Payment failed — no payment returned");
+  }
+
+  return {
+    paymentId: payment.id,
+    receiptUrl: payment.receiptUrl || undefined,
+  };
+}
+
+/**
+ * Disable (remove) a saved card from Square.
+ */
+export async function removeCard(cardId: string): Promise<void> {
+  const client = getSquareClient();
+  await client.cards.disable({ cardId });
+}
+
+// ─────────────────────────────────────────────
 // WEBHOOK VERIFICATION
 // ─────────────────────────────────────────────
 

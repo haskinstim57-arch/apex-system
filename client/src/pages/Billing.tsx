@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useAccount } from "@/contexts/AccountContext";
 import { trpc } from "@/lib/trpc";
@@ -46,6 +46,10 @@ import {
   Loader2,
   Building2,
   Settings2,
+  Plus,
+  Trash2,
+  Star,
+  ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -99,6 +103,186 @@ function statusBadge(status: string) {
 }
 
 // ─────────────────────────────────────────────
+// SQUARE WEB PAYMENTS SDK TYPES
+// ─────────────────────────────────────────────
+
+declare global {
+  interface Window {
+    Square?: {
+      payments: (appId: string, locationId: string) => Promise<any>;
+    };
+  }
+}
+
+// ─────────────────────────────────────────────
+// PAST DUE BANNER
+// ─────────────────────────────────────────────
+
+function PastDueBanner({ overdueCount }: { overdueCount: number }) {
+  if (overdueCount <= 0) return null;
+  return (
+    <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 flex items-start gap-3">
+      <ShieldAlert className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="font-semibold text-destructive">
+          {overdueCount} overdue invoice{overdueCount > 1 ? "s" : ""}
+        </p>
+        <p className="text-sm text-muted-foreground mt-1">
+          Please add a payment method and pay outstanding invoices to avoid service interruption.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// SQUARE CARD FORM COMPONENT
+// ─────────────────────────────────────────────
+
+function SquareCardForm({
+  accountId,
+  onSuccess,
+  onCancel,
+}: {
+  accountId: number;
+  onSuccess: () => void;
+  onCancel: () => void;
+}) {
+  const cardContainerRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cardholderName, setCardholderName] = useState("");
+
+  const addPaymentMethod = trpc.billing.addPaymentMethod.useMutation({
+    onSuccess: () => {
+      toast.success("Card added successfully");
+      onSuccess();
+    },
+    onError: (err) => {
+      setError(err.message);
+      setSubmitting(false);
+    },
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    async function initCard() {
+      try {
+        if (!window.Square) {
+          setError("Square SDK not loaded. Please refresh the page.");
+          setLoading(false);
+          return;
+        }
+
+        const appId = import.meta.env.VITE_SQUARE_APPLICATION_ID;
+        const locationId = import.meta.env.VITE_SQUARE_LOCATION_ID;
+
+        if (!appId || !locationId) {
+          setError("Square configuration missing.");
+          setLoading(false);
+          return;
+        }
+
+        const payments = await window.Square.payments(appId, locationId);
+        const card = await payments.card();
+
+        if (mounted && cardContainerRef.current) {
+          await card.attach(cardContainerRef.current);
+          cardRef.current = card;
+          setLoading(false);
+        }
+      } catch (err: any) {
+        if (mounted) {
+          setError(err.message || "Failed to initialize card form");
+          setLoading(false);
+        }
+      }
+    }
+
+    initCard();
+    return () => {
+      mounted = false;
+      if (cardRef.current) {
+        try { cardRef.current.destroy(); } catch {}
+      }
+    };
+  }, []);
+
+  const handleSubmit = useCallback(async () => {
+    if (!cardRef.current) return;
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const result = await cardRef.current.tokenize();
+      if (result.status === "OK" && result.token) {
+        addPaymentMethod.mutate({
+          accountId,
+          sourceId: result.token,
+          cardholderName: cardholderName || undefined,
+          setAsDefault: true,
+        });
+      } else {
+        setError(result.errors?.[0]?.message || "Card tokenization failed");
+        setSubmitting(false);
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to process card");
+      setSubmitting(false);
+    }
+  }, [accountId, cardholderName, addPaymentMethod]);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Cardholder Name</Label>
+        <Input
+          value={cardholderName}
+          onChange={(e) => setCardholderName(e.target.value)}
+          placeholder="Name on card"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Card Details</Label>
+        <div
+          ref={cardContainerRef}
+          className="min-h-[50px] rounded-md border border-input bg-background p-2"
+        />
+        {loading && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading card form...
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="text-sm text-destructive flex items-center gap-1">
+          <AlertCircle className="h-4 w-4" />
+          {error}
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={onCancel} disabled={submitting}>
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} disabled={loading || submitting}>
+          {submitting ? (
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving...</>
+          ) : (
+            <><CreditCard className="h-4 w-4 mr-2" /> Save Card</>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // SUB-ACCOUNT BILLING VIEW
 // ─────────────────────────────────────────────
 
@@ -107,8 +291,19 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [billingEmail, setBillingEmail] = useState("");
   const [threshold, setThreshold] = useState("");
+  const [addCardOpen, setAddCardOpen] = useState(false);
 
   const { data: summary, isLoading: summaryLoading } = trpc.billing.getUsageSummary.useQuery(
+    { accountId },
+    { retry: 1 }
+  );
+
+  const { data: billingStatus } = trpc.billing.getBillingStatus.useQuery(
+    { accountId },
+    { retry: 1 }
+  );
+
+  const { data: paymentMethodsList } = trpc.billing.getPaymentMethods.useQuery(
     { accountId },
     { retry: 1 }
   );
@@ -123,6 +318,16 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
     { retry: 1 }
   );
 
+  const chargeInvoiceMut = trpc.billing.chargeInvoice.useMutation({
+    onSuccess: (data) => {
+      toast.success("Payment successful!");
+      utils.billing.getInvoices.invalidate();
+      utils.billing.getBillingStatus.invalidate();
+      utils.billing.getUsageSummary.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const payInvoice = trpc.billing.payInvoice.useMutation({
     onSuccess: (data) => {
       if (data.paymentLinkUrl) {
@@ -130,6 +335,23 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
         toast.success("Payment link opened in new tab");
       }
       utils.billing.getInvoices.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const removePaymentMethodMut = trpc.billing.removePaymentMethod.useMutation({
+    onSuccess: () => {
+      toast.success("Card removed");
+      utils.billing.getPaymentMethods.invalidate();
+      utils.billing.getBillingStatus.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const setDefaultMut = trpc.billing.setDefaultPaymentMethod.useMutation({
+    onSuccess: () => {
+      toast.success("Default card updated");
+      utils.billing.getPaymentMethods.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
@@ -143,6 +365,12 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
     onError: (err) => toast.error(err.message),
   });
 
+  const handleCardAdded = useCallback(() => {
+    setAddCardOpen(false);
+    utils.billing.getPaymentMethods.invalidate();
+    utils.billing.getBillingStatus.invalidate();
+  }, [utils]);
+
   if (summaryLoading) {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
@@ -151,13 +379,20 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
     );
   }
 
+  const hasCards = (paymentMethodsList?.length || 0) > 0;
+
   return (
     <div className="space-y-6">
+      {/* Past Due Banner */}
+      {billingStatus?.billingPastDue && (
+        <PastDueBanner overdueCount={billingStatus.overdueCount} />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Billing & Usage</h1>
-          <p className="text-muted-foreground">Track your usage and manage invoices</p>
+          <p className="text-muted-foreground">Track your usage, manage payment methods, and view invoices</p>
         </div>
         <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
           <DialogTrigger asChild>
@@ -265,16 +500,110 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {summary?.squareConfigured ? "Square" : "Not Set"}
+              {hasCards ? `${paymentMethodsList!.length} card${paymentMethodsList!.length > 1 ? "s" : ""}` : "None"}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {summary?.squareCustomerId
-                ? "Square customer linked"
-                : "Pay via invoice payment links"}
+              {hasCards
+                ? "Card on file — invoices auto-charged"
+                : "Add a card to enable auto-pay"}
             </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Payment Methods */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Payment Methods</CardTitle>
+              <CardDescription>Manage your cards on file for automatic payments</CardDescription>
+            </div>
+            {!addCardOpen && (
+              <Button size="sm" onClick={() => setAddCardOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Card
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {addCardOpen ? (
+            <SquareCardForm
+              accountId={accountId}
+              onSuccess={handleCardAdded}
+              onCancel={() => setAddCardOpen(false)}
+            />
+          ) : !paymentMethodsList?.length ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CreditCard className="h-10 w-10 mx-auto mb-2 opacity-50" />
+              <p>No payment methods on file.</p>
+              <p className="text-sm mt-1">Add a card to enable automatic invoice payments.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {paymentMethodsList.map((pm) => (
+                <div
+                  key={pm.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                >
+                  <div className="flex items-center gap-3">
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">
+                          {pm.brand} ****{pm.last4}
+                        </span>
+                        {pm.isDefault && (
+                          <Badge variant="secondary" className="text-xs gap-1">
+                            <Star className="h-3 w-3" />
+                            Default
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Expires {String(pm.expMonth).padStart(2, "0")}/{pm.expYear}
+                        {pm.cardholderName ? ` · ${pm.cardholderName}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    {!pm.isDefault && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() =>
+                          setDefaultMut.mutate({
+                            paymentMethodId: pm.id,
+                            accountId,
+                          })
+                        }
+                        disabled={setDefaultMut.isPending}
+                      >
+                        Set Default
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() =>
+                        removePaymentMethodMut.mutate({
+                          paymentMethodId: pm.id,
+                          accountId,
+                        })
+                      }
+                      disabled={removePaymentMethodMut.isPending}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Usage Breakdown */}
       {summary?.breakdown && summary.breakdown.length > 0 && (
@@ -357,26 +686,41 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
                     <TableCell className="font-medium">{formatCurrency(inv.amount)}</TableCell>
                     <TableCell>{statusBadge(inv.status)}</TableCell>
                     <TableCell className="text-right">
-                      {(inv.status === "sent" || inv.status === "overdue") && inv.squarePaymentLinkUrl ? (
+                      {(inv.status === "sent" || inv.status === "overdue") && hasCards ? (
                         <Button
                           size="sm"
+                          onClick={() => chargeInvoiceMut.mutate({ invoiceId: inv.id })}
+                          disabled={chargeInvoiceMut.isPending}
+                        >
+                          {chargeInvoiceMut.isPending ? (
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                          ) : (
+                            <CreditCard className="h-3 w-3 mr-1" />
+                          )}
+                          Pay Now
+                        </Button>
+                      ) : (inv.status === "sent" || inv.status === "overdue") && inv.squarePaymentLinkUrl ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
                           onClick={() => window.open(inv.squarePaymentLinkUrl!, "_blank")}
                         >
                           <ExternalLink className="h-3 w-3 mr-1" />
-                          Pay Now
+                          Pay via Link
                         </Button>
-                      ) : (inv.status === "sent" || inv.status === "overdue") && !inv.squarePaymentLinkUrl ? (
+                      ) : (inv.status === "sent" || inv.status === "overdue") ? (
                         <Button
                           size="sm"
+                          variant="outline"
                           onClick={() => payInvoice.mutate({ invoiceId: inv.id })}
                           disabled={payInvoice.isPending}
                         >
                           {payInvoice.isPending ? (
                             <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                           ) : (
-                            <CreditCard className="h-3 w-3 mr-1" />
+                            <ExternalLink className="h-3 w-3 mr-1" />
                           )}
-                          Generate Link
+                          Get Payment Link
                         </Button>
                       ) : null}
                     </TableCell>

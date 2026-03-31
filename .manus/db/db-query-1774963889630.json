@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `payment_methods` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `account_id` int NOT NULL,\n  `square_card_id` varchar(255) NOT NULL,\n  `brand` varchar(50) NOT NULL,\n  `last4` varchar(4) NOT NULL,\n  `exp_month` int NOT NULL,\n  `exp_year` int NOT NULL,\n  `cardholder_name` varchar(255),\n  `is_default` boolean NOT NULL DEFAULT false,\n  `created_at` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `payment_methods_id` PRIMARY KEY(`id`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute CREATE TABLE IF NOT EXISTS `payment_methods` (\n  `id` int AUTO_INCREMENT NOT NULL,\n  `account_id` int NOT NULL,\n  `square_card_id` varchar(255) NOT NULL,\n  `brand` varchar(50) NOT NULL,\n  `last4` varchar(4) NOT NULL,\n  `exp_month` int NOT NULL,\n  `exp_year` int NOT NULL,\n  `cardholder_name` varchar(255),\n  `is_default` boolean NOT NULL DEFAULT false,\n  `created_at` timestamp NOT NULL DEFAULT (now()),\n  CONSTRAINT `payment_methods_id` PRIMARY KEY(`id`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 402
+}

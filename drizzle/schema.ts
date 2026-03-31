@@ -2440,3 +2440,20 @@ export const billingInvoices = mysqlTable("billing_invoices", {
 });
 export type BillingInvoice = typeof billingInvoices.$inferSelect;
 export type InsertBillingInvoice = typeof billingInvoices.$inferInsert;
+
+
+// ─── Payment Methods (cards on file) ───
+export const paymentMethods = mysqlTable("payment_methods", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  squareCardId: varchar("square_card_id", { length: 255 }).notNull(),
+  brand: varchar("brand", { length: 50 }).notNull(),
+  last4: varchar("last4", { length: 4 }).notNull(),
+  expMonth: int("exp_month").notNull(),
+  expYear: int("exp_year").notNull(),
+  cardholderName: varchar("cardholder_name", { length: 255 }),
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type InsertPaymentMethod = typeof paymentMethods.$inferInsert;

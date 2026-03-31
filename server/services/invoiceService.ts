@@ -16,9 +16,10 @@ import {
   type BillingInvoice,
   type InsertBillingInvoice,
   type UsageEvent,
+  paymentMethods,
 } from "../../drizzle/schema";
 import { eq, and, sql } from "drizzle-orm";
-import { createPaymentLink, isSquareConfigured } from "./square";
+import { createPaymentLink, isSquareConfigured, chargeCard } from "./square";
 import { notifyOwner } from "../_core/notification";
 
 // ─────────────────────────────────────────────
@@ -410,11 +411,99 @@ export async function checkAutoInvoice(accountId: number): Promise<void> {
 
     const result = await generateInvoice(accountId, "Auto-generated invoice — balance threshold reached");
     if (result && isSquareConfigured()) {
+      // Try to auto-charge the card on file first
       try {
-        await sendInvoice(result.invoice.id);
-      } catch (err) {
-        console.error(`[InvoiceService] Auto-send failed for invoice #${result.invoice.id}:`, err);
+        await chargeInvoice(result.invoice.id);
+        console.log(`[InvoiceService] Auto-charged invoice #${result.invoice.id} for account ${accountId}`);
+      } catch (chargeErr) {
+        console.warn(`[InvoiceService] Auto-charge failed for invoice #${result.invoice.id}, falling back to payment link:`, chargeErr);
+        try {
+          await sendInvoice(result.invoice.id);
+        } catch (err) {
+          console.error(`[InvoiceService] Auto-send also failed for invoice #${result.invoice.id}:`, err);
+        }
       }
     }
   }
+}
+
+// ─────────────────────────────────────────────
+// CHARGE INVOICE (card on file)
+// ─────────────────────────────────────────────
+
+/**
+ * Charge an invoice using the account's default card on file.
+ * Returns the payment result or throws if no card / charge fails.
+ */
+export async function chargeInvoice(
+  invoiceId: number
+): Promise<{ paymentId: string; receiptUrl?: string }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (!isSquareConfigured()) {
+    throw new Error("Square is not configured");
+  }
+
+  // Get invoice
+  const invoiceRows: BillingInvoice[] = await db
+    .select()
+    .from(billingInvoices)
+    .where(eq(billingInvoices.id, invoiceId));
+  const invoice = invoiceRows[0];
+  if (!invoice) throw new Error(`Invoice ${invoiceId} not found`);
+  if (invoice.status === "paid") throw new Error("Invoice is already paid");
+  if (invoice.status === "void") throw new Error("Invoice has been voided");
+
+  // Get default card for this account
+  const cardRows = await db
+    .select()
+    .from(paymentMethods)
+    .where(
+      and(
+        eq(paymentMethods.accountId, invoice.accountId),
+        eq(paymentMethods.isDefault, true)
+      )
+    )
+    .limit(1);
+  const card = cardRows[0];
+  if (!card) throw new Error(`No default payment method for account ${invoice.accountId}`);
+
+  // Get Square customer ID
+  const billingRows = await db
+    .select()
+    .from(accountBilling)
+    .where(eq(accountBilling.accountId, invoice.accountId));
+  const billing = billingRows[0];
+  if (!billing?.squareCustomerId) {
+    throw new Error(`No Square customer ID for account ${invoice.accountId}`);
+  }
+
+  const amountCents = Math.round(Number(invoice.amount) * 100);
+
+  // Get account name for the note
+  const acctRows = await db
+    .select({ name: accounts.name })
+    .from(accounts)
+    .where(eq(accounts.id, invoice.accountId));
+  const accountName = acctRows[0]?.name || `Account #${invoice.accountId}`;
+
+  const result = await chargeCard({
+    cardId: card.squareCardId,
+    customerId: billing.squareCustomerId,
+    amountCents,
+    referenceId: `billing-invoice-${invoiceId}`,
+    note: `Apex System Invoice #${invoiceId} — ${accountName}`,
+  });
+
+  // Mark invoice as paid
+  await markInvoicePaid(invoiceId, result.paymentId);
+
+  // Notify owner
+  notifyOwner({
+    title: `Invoice #${invoiceId} auto-charged`,
+    content: `Amount: $${Number(invoice.amount).toFixed(2)}\nCard: ${card.brand} ****${card.last4}\nAccount: ${accountName}`,
+  }).catch(() => {});
+
+  return result;
 }
