@@ -2917,3 +2917,13 @@
 - [x] Fix: Added skipWaiting, clientsClaim, cleanupOutdatedCaches to workbox config; removed tRPC runtime cache
 - [x] Cleaned up debug logs from main.tsx
 - [ ] Verify site loads after re-publish
+
+## Bug: Published site still blank after SW fix
+- [x] Run production build and verify dist output
+- [x] Check for JS errors in browser console on published site
+- [x] ROOT CAUSE: manualChunks in vite.config.ts created circular dependencies (vendor-react imported from page-analytics)
+- [x] Fix: Removed manualChunks config, let Vite handle chunk splitting automatically
+- [x] Reduced PWA precache from 380 entries (18MB) to 18 entries
+- [x] Rebuilt — single main bundle (5.6MB) with no circular imports
+- [x] 27 billing tests pass, 0 TS errors
+- [ ] Verify site loads after re-publish

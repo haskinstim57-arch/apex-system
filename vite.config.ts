@@ -200,7 +200,8 @@ const plugins = [
       ],
     },
     workbox: {
-      globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
+      // Only precache the essential shell — let code-split chunks load on-demand
+      globPatterns: ["index.html", "assets/index-*.js", "assets/*.css", "icons/*.png"],
       maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MB — large SPA bundle
       importScripts: ["/sw-push.js"],
       navigateFallback: "/index.html",
@@ -209,6 +210,24 @@ const plugins = [
       skipWaiting: true,
       clientsClaim: true,
       runtimeCaching: [
+        {
+          // Cache page-level chunks on first use
+          urlPattern: /\/assets\/page-.*\.js$/i,
+          handler: "StaleWhileRevalidate",
+          options: {
+            cacheName: "page-chunks",
+            expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
+          },
+        },
+        {
+          // Cache other JS chunks (mermaid, streamdown, etc.) on first use
+          urlPattern: /\/assets\/.*\.js$/i,
+          handler: "StaleWhileRevalidate",
+          options: {
+            cacheName: "lazy-chunks",
+            expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+          },
+        },
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
           handler: "CacheFirst",
@@ -245,25 +264,8 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes('node_modules/react-dom') || id.includes('node_modules/react/')) {
-            return 'vendor-react';
-          }
-          if (id.includes('node_modules/@trpc') || id.includes('node_modules/@tanstack/react-query')) {
-            return 'vendor-trpc';
-          }
-          if (id.includes('/pages/Calendar')) return 'page-calendar';
-          if (id.includes('/pages/Automations')) return 'page-automations';
-          if (id.includes('/pages/Analytics')) return 'page-analytics';
-          if (id.includes('/pages/PowerDialer')) return 'page-power-dialer';
-          if (id.includes('/pages/Jarvis')) return 'page-jarvis';
-          if (id.includes('node_modules/streamdown')) return 'vendor-streamdown';
-          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
-        },
-      },
-    },
+    // Let Vite/Rollup handle chunk splitting automatically to avoid circular dependencies
+    // Manual chunks were causing vendor-react to import from page-analytics, creating a hang
   },
   server: {
     host: true,
