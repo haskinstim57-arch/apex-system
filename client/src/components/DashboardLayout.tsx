@@ -86,7 +86,7 @@ const subAccountMenuItems = [
   { icon: ClipboardList, label: "Forms", path: "/forms" },
   { icon: Star, label: "Reputation", path: "/reputation" },
   { icon: Clock, label: "Message Queue", path: "/message-queue" },
-
+  { icon: CreditCard, label: "Billing", path: "/billing" },
 ];
 
 /**
@@ -97,7 +97,7 @@ const agencyMenuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Building2, label: "Sub-Accounts", path: "/accounts" },
   { icon: Users, label: "Users", path: "/team", placeholder: true },
-  { icon: CreditCard, label: "Billing", path: "/billing", placeholder: true },
+  { icon: CreditCard, label: "Billing", path: "/billing" },
 ];
 
 /**

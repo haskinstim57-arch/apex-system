@@ -1,0 +1,1 @@
+ALTER TABLE `billing_invoices` ADD `invoice_number` varchar(30);

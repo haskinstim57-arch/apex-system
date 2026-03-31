@@ -852,11 +852,17 @@ function getNextMonday(): string {
 }
 
 function getNextSunday(): string {
+  // The handler parses dates as UTC (date + 'T12:00:00Z'), so we must
+  // compute the next Sunday using UTC day-of-week to match.
   const now = new Date();
-  now.setDate(now.getDate() + 30);
-  const day = now.getDay();
-  const diff = day === 0 ? 7 : 7 - day;
-  now.setDate(now.getDate() + diff);
+  now.setUTCDate(now.getUTCDate() + 30);
+  const day = now.getUTCDay(); // 0=Sunday
+  const diff = day === 0 ? 0 : 7 - day; // 0 if already Sunday, else days until Sunday
+  if (diff === 0 && now.getTime() < Date.now()) {
+    now.setUTCDate(now.getUTCDate() + 7); // skip to next Sunday if in the past
+  } else {
+    now.setUTCDate(now.getUTCDate() + diff);
+  }
   return now.toISOString().split("T")[0];
 }
 

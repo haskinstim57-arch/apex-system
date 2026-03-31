@@ -10,6 +10,7 @@
 import { invokeGeminiWithRetry } from "./gemini";
 import type { Message, ToolCall, InvokeResult } from "../_core/llm";
 import { JARVIS_TOOLS, executeTool } from "./jarvisTools";
+import { trackUsage } from "./usageTracker";
 
 // ═══════════════════════════════════════════════
 // TYPES
@@ -320,6 +321,16 @@ export async function chat(
 
   const uniqueTools = Array.from(new Set(toolsUsed));
 
+  // Track LLM usage (fire-and-forget) — count each LLM round as 1 request
+  const llmRoundsUsed = toolsUsed.length > 0 ? toolsUsed.length + 1 : 1;
+  trackUsage({
+    accountId: ctx.accountId,
+    userId: ctx.userId,
+    eventType: "llm_request",
+    quantity: llmRoundsUsed,
+    metadata: { sessionId, toolsUsed: uniqueTools },
+  }).catch(() => {});
+
   return { reply: finalReply, toolsUsed: uniqueTools };
 }
 
@@ -621,5 +632,16 @@ export async function* chatStream(
   });
 
   const uniqueTools = Array.from(new Set(toolsUsed));
+
+  // Track LLM usage (fire-and-forget) — count each LLM round as 1 request
+  const llmRoundsUsed = toolsUsed.length > 0 ? toolsUsed.length + 1 : 1;
+  trackUsage({
+    accountId: ctx.accountId,
+    userId: ctx.userId,
+    eventType: "llm_request",
+    quantity: llmRoundsUsed,
+    metadata: { sessionId, toolsUsed: uniqueTools },
+  }).catch(() => {});
+
   yield { type: "done", data: { toolsUsed: uniqueTools } };
 }

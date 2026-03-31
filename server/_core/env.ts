@@ -27,4 +27,7 @@ export const ENV = {
   vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ?? "",
   vapidSubject: process.env.VAPID_SUBJECT ?? "",
   geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  squareAccessToken: process.env.SQUARE_ACCESS_TOKEN ?? "",
+  squareLocationId: process.env.SQUARE_LOCATION_ID ?? "",
+  squareWebhookSignatureKey: process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ?? "",
 };

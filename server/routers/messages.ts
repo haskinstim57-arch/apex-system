@@ -15,6 +15,7 @@ import {
   logContactActivity,
 } from "../db";
 import { dispatchSMS, dispatchEmail } from "../services/messaging";
+import { trackUsage } from "../services/usageTracker";
 
 // ─── Tenant guard: verify user is a member of the account ───
 // Platform admins (role='admin' on users table) bypass this check
@@ -134,6 +135,15 @@ export const messagesRouter = router({
           });
         }
       })();
+
+      // Track billable usage (fire-and-forget)
+      trackUsage({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        eventType: input.type === "sms" ? "sms_sent" : "email_sent",
+        quantity: 1,
+        metadata: { contactId: input.contactId, messageId: id },
+      }).catch(() => {});
 
       // Log the action
       await createAuditLog({

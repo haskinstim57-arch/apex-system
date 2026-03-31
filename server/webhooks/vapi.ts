@@ -16,6 +16,7 @@ import {
 } from "../db";
 import { mapVapiStatus, mapVapiEndedReason } from "../services/vapi";
 import { sendPushNotificationToAccount } from "../services/webPush";
+import { trackUsage } from "../services/usageTracker";
 import {
   parseBusinessHoursJson,
   resolveBusinessHoursSchedule,
@@ -666,6 +667,17 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
   if (Object.keys(updateData).length > 0) {
     await updateAICall(call.id, updateData);
     console.log(`[VAPI Webhook] Updated call ${call.id}: type=${message.type}`);
+  }
+
+  // Track billable AI call minutes
+  if (message.type === "end-of-call-report" && call.accountId && updateData.durationSeconds) {
+    const minutes = Math.max(Math.ceil(updateData.durationSeconds / 60), 1);
+    trackUsage({
+      accountId: call.accountId,
+      eventType: "ai_call_minute",
+      quantity: minutes,
+      metadata: { callId: call.id, contactId: call.contactId, durationSeconds: updateData.durationSeconds },
+    }).catch(() => {});
   }
 
   // Fire call_completed automation trigger when call ends

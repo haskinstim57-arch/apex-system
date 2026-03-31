@@ -2754,3 +2754,91 @@
 - [x] Fix power-dialer test failures — added getAccountById, messageQueue, and businessHours mocks
 - [x] Fix voice-agents test failures — updated assistant name assertion, relaxed voiceAgentEnabled to typeof boolean
 - [x] Full test suite: 82 files passed, 1821 tests passed, 0 failures
+
+## Module: Usage-Based Billing System with Square
+
+### Step 1 — Schema + Migration
+- [x] Schema: usageEvents table (accountId, userId, eventType enum, quantity, unitCost, totalCost, metadata, createdAt)
+- [x] Schema: billingRates table (name, isDefault, smsCostPerUnit, emailCostPerUnit, aiCallCostPerMinute, voiceCallCostPerMinute, llmCostPerRequest, powerDialerCostPerCall)
+- [x] Schema: accountBilling table (accountId unique, billingRateId, currentBalance, squareCustomerId, autoInvoiceThreshold, billingEmail)
+- [x] Schema: billingInvoices table (renamed to avoid conflict with existing invoices table) (accountId, amount, status enum, squarePaymentLinkId, squarePaymentId, squareInvoiceId, lineItems JSON, periodStart, periodEnd, dueDate, paidAt, notes)
+- [x] DB migration pushed (tables created via SQL)
+- [x] Insert default billingRates row with sensible defaults (Standard rate)
+
+### Step 2 — Usage Tracking Service
+- [x] Create server/services/usageTracker.ts with trackUsage() function
+- [x] trackUsage: lookup account billing rate, calculate cost, insert usageEvent, increment balance
+- [x] trackUsage: auto-generate invoice when balance >= threshold (wired via checkAutoInvoice)
+- [x] Wire into server/routers/messages.ts — sms_sent after SMS send
+- [x] Wire into server/routers/messages.ts — email_sent after email send
+- [x] Wire into server/webhooks/vapi.ts — ai_call_minute on end-of-call-report
+- [x] Wire into server/webhooks/twilioVoiceStatus.ts — voice_call_minute (handled via VAPI webhook instead)
+- [x] Wire into server/services/jarvisService.ts — llm_request after chat + chatStream
+- [x] Wire into server/routers/powerDialer.ts — power_dialer_call after initiateCall
+
+### Step 3 — Square Integration
+- [x] Install square npm package
+- [x] Create server/services/square.ts with Square client
+- [x] createSquareCustomer() function
+- [x] createPaymentLink() function
+- [x] getPayment() + getOrder() functions
+- [x] verifyWebhookSignature() function
+- [x] Add SQUARE_ACCESS_TOKEN, SQUARE_LOCATION_ID, SQUARE_WEBHOOK_SIGNATURE_KEY env vars
+- [x] Validated credentials — location "Apex Systems" (L412HSQHGDVRF) found
+
+### Step 4 — Invoice Service
+- [x] Create server/services/invoiceService.ts
+- [x] generateInvoice(): gather unbilled events, group by type, create invoice, reset balance
+- [x] sendInvoice(): create Square payment link, update invoice status, notify account owner
+- [x] markInvoicePaid(): mark invoice paid from Square webhook
+- [x] markInvoiceOverdue(): mark invoice overdue from payment failure
+- [x] voidInvoice(): void invoice and restore balance
+- [x] checkAutoInvoice(): auto-generate + send when balance >= threshold
+- [x] Wire checkAutoInvoice into usageTracker (dynamic import to avoid circular deps)
+
+### Step 5 — Billing Router
+- [x] Create server/routers/billing.ts with all endpoints
+- [x] getUsageSummary (sub-account: current balance + usage breakdown)
+- [x] getInvoices + getInvoice (sub-account: invoice list + detail)
+- [x] payInvoice (sub-account: generate Square payment link)
+- [x] getUsageEvents (sub-account: activity log with filtering)
+- [x] updateBillingSettings (sub-account: billing email + threshold)
+- [x] getAgencyOverview (admin: all accounts billing overview with totals)
+- [x] getBillingRates + upsertBillingRate (admin: configure pricing)
+- [x] assignBillingRate (admin: assign rate to account)
+- [x] generateAndSendInvoice (admin: manually invoice an account)
+- [x] markPaid + voidInvoice (admin: manual invoice management)
+- [x] getAllInvoices (admin: cross-account invoice list with filtering)
+- [x] Register billingRouter in server/routers.ts
+- [x] TypeScript: 0 errors
+
+#### Step 6 — Square Webhook Endpoint
+- [x] Create server/webhooks/square.ts
+- [x] Verify Square webhook signature
+- [x] Handle payment.completed → markInvoicePaid
+- [x] Handle payment.failed → markInvoiceOverdue
+- [x] Handle order.updated as fallback
+- [x] Register in server/_core/index.ts Express app
+- [x] TypeScript: 0 errors
+
+### Step 7 — Billing UI
+- [x] Sub-account Billing page: current usage card with balance + breakdown table
+- [x] Sub-account Billing page: "Pay Now" button → Square payment link (opens in new tab)
+- [x] Sub-account Billing page: invoice history table with status badges
+- [x] Sub-account Billing page: billing settings dialog (email + threshold)
+- [x] Sub-account Billing page: recent activity log (last 10 events)
+- [x] Agency admin: pricing configuration form (create/edit rates with all 6 cost types)
+- [x] Agency admin: billing overview table (all accounts, balances, revenue)
+- [x] Agency admin: "Generate Invoice" button per account (draft or send immediately)
+- [x] Agency admin: all invoices table with status filter + mark paid / void actions
+- [x] Agency admin: assign billing rate to account via dropdown
+- [x] Add Billing to sub-account sidebar navigation
+- [x] Add Billing to agency sidebar navigation (removed placeholder flag)
+- [x] Register /billing route in App.tsx
+- [x] Added invoiceNumber column to billingInvoices schema + DB
+
+### Verification
+- [x] TypeScript build: 0 errors
+- [x] Vitest: 18 billing tests (usageTracker, invoiceService, Square service, billing router)
+- [x] Fixed vapiBooking.test.ts getNextSunday() UTC bug (pre-existing flaky test)
+- [x] Full test suite: 84 files passed, 1842 tests passed, 0 failures

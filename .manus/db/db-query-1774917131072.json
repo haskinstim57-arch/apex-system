@@ -1,0 +1,9 @@
+{
+  "query": "SHOW TABLES LIKE 'billing%'; SHOW TABLES LIKE 'usage_events'; SHOW TABLES LIKE 'account_billing';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute SHOW TABLES LIKE 'billing%'; SHOW TABLES LIKE 'usage_events'; SHOW TABLES LIKE 'account_billing';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 528
+}

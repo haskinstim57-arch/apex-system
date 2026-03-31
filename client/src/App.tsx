@@ -49,6 +49,7 @@ import FunnelsPage from "./pages/Funnels";
 import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
 import GeminiUsage from "./pages/GeminiUsage";
+import Billing from "./pages/Billing";
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -312,6 +313,13 @@ function Router() {
           <RequireAccount>
             <MessageQueue />
           </RequireAccount>
+        </DashboardLayout>
+      </Route>
+
+      {/* Billing — shows agency overview or sub-account billing depending on context */}
+      <Route path="/billing">
+        <DashboardLayout>
+          <Billing />
         </DashboardLayout>
       </Route>
 

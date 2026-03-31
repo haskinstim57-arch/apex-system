@@ -2356,3 +2356,87 @@ export const geminiUsageLogs = mysqlTable("gemini_usage_logs", {
 });
 export type GeminiUsageLog = typeof geminiUsageLogs.$inferSelect;
 export type InsertGeminiUsageLog = typeof geminiUsageLogs.$inferInsert;
+
+// ═══════════════════════════════════════════════
+// BILLING — Usage-based billing system
+// ═══════════════════════════════════════════════
+
+// Agency-configurable pricing per unit type
+export const billingRates = mysqlTable("billing_rates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 100 }).notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
+  smsCostPerUnit: decimal("sms_cost_per_unit", { precision: 10, scale: 6 }).notNull().default("0.015000"),
+  emailCostPerUnit: decimal("email_cost_per_unit", { precision: 10, scale: 6 }).notNull().default("0.003000"),
+  aiCallCostPerMinute: decimal("ai_call_cost_per_minute", { precision: 10, scale: 6 }).notNull().default("0.150000"),
+  voiceCallCostPerMinute: decimal("voice_call_cost_per_minute", { precision: 10, scale: 6 }).notNull().default("0.050000"),
+  llmCostPerRequest: decimal("llm_cost_per_request", { precision: 10, scale: 6 }).notNull().default("0.020000"),
+  powerDialerCostPerCall: decimal("power_dialer_cost_per_call", { precision: 10, scale: 6 }).notNull().default("0.030000"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type BillingRate = typeof billingRates.$inferSelect;
+export type InsertBillingRate = typeof billingRates.$inferInsert;
+
+// Per-account billing configuration
+export const accountBilling = mysqlTable("account_billing", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull().unique(),
+  billingRateId: int("billing_rate_id").notNull(),
+  currentBalance: decimal("current_balance", { precision: 10, scale: 4 }).notNull().default("0.0000"),
+  squareCustomerId: varchar("square_customer_id", { length: 255 }),
+  autoInvoiceThreshold: decimal("auto_invoice_threshold", { precision: 10, scale: 4 }).notNull().default("50.0000"),
+  billingEmail: varchar("billing_email", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type AccountBillingRow = typeof accountBilling.$inferSelect;
+export type InsertAccountBilling = typeof accountBilling.$inferInsert;
+
+// Tracks every billable action
+export const usageEvents = mysqlTable("usage_events", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  userId: int("user_id"),
+  eventType: mysqlEnum("event_type", [
+    "sms_sent",
+    "email_sent",
+    "ai_call_minute",
+    "voice_call_minute",
+    "llm_request",
+    "power_dialer_call",
+  ]).notNull(),
+  quantity: decimal("quantity", { precision: 10, scale: 4 }).notNull(),
+  unitCost: decimal("unit_cost", { precision: 10, scale: 6 }).notNull(),
+  totalCost: decimal("total_cost", { precision: 10, scale: 4 }).notNull(),
+  /** JSON metadata — contactId, messageId, callId, etc. */
+  metadata: text("metadata"),
+  /** Whether this event has been included in an invoice */
+  invoiced: boolean("invoiced").default(false).notNull(),
+  invoiceId: int("invoice_id"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type UsageEvent = typeof usageEvents.$inferSelect;
+export type InsertUsageEvent = typeof usageEvents.$inferInsert;
+
+// Billing invoices sent to sub-accounts for platform usage
+export const billingInvoices = mysqlTable("billing_invoices", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  invoiceNumber: varchar("invoice_number", { length: 30 }),
+  amount: decimal("amount", { precision: 10, scale: 4 }).notNull(),
+  status: mysqlEnum("status", ["draft", "sent", "paid", "overdue", "void"]).default("draft").notNull(),
+  squarePaymentLinkId: varchar("square_payment_link_id", { length: 255 }),
+  squarePaymentLinkUrl: varchar("square_payment_link_url", { length: 1000 }),
+  squarePaymentId: varchar("square_payment_id", { length: 255 }),
+  squareInvoiceId: varchar("square_invoice_id", { length: 255 }),
+  /** JSON array of { description, quantity, unitCost, total } */
+  lineItems: text("line_items"),
+  periodStart: timestamp("period_start"),
+  periodEnd: timestamp("period_end"),
+  dueDate: timestamp("due_date"),
+  paidAt: timestamp("paid_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type BillingInvoice = typeof billingInvoices.$inferSelect;
+export type InsertBillingInvoice = typeof billingInvoices.$inferInsert;

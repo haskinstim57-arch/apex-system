@@ -28,6 +28,7 @@ import {
   mapVapiStatus,
   VapiApiError,
 } from "../services/vapi";
+import { trackUsage } from "../services/usageTracker";
 import { isWithinBusinessHours, getBusinessHoursBlockMessage, type BusinessHoursConfig } from "../utils/businessHours";
 import { enqueueMessage } from "../services/messageQueue";
 
@@ -260,6 +261,15 @@ export const powerDialerRouter = router({
             status: mappedStatus,
           }),
         });
+
+        // Track billable power dialer call (fire-and-forget)
+        trackUsage({
+          accountId: input.accountId,
+          userId: ctx.user.id,
+          eventType: "power_dialer_call",
+          quantity: 1,
+          metadata: { callId, sessionId: input.sessionId, contactId: input.contactId },
+        }).catch(() => {});
 
         return {
           callId,

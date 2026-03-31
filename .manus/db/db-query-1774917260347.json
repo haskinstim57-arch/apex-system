@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO billing_rates (name, is_default, sms_cost_per_unit, email_cost_per_unit, ai_call_cost_per_minute, voice_call_cost_per_minute, llm_cost_per_request, power_dialer_cost_per_call) VALUES ('Standard', true, 0.015000, 0.003000, 0.150000, 0.050000, 0.020000, 0.030000);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user nUtjHxifDnrEvTS.bc571705cde8 --database KNXKWFANWEUxWWEfuwT2Hr --execute INSERT INTO billing_rates (name, is_default, sms_cost_per_unit, email_cost_per_unit, ai_call_cost_per_minute, voice_call_cost_per_minute, llm_cost_per_request, power_dialer_cost_per_call) VALUES ('Standard', true, 0.015000, 0.003000, 0.150000, 0.050000, 0.020000, 0.030000);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 394
+}
