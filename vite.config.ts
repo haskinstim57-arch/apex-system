@@ -205,6 +205,9 @@ const plugins = [
       importScripts: ["/sw-push.js"],
       navigateFallback: "/index.html",
       navigateFallbackDenylist: [/^\/api/],
+      cleanupOutdatedCaches: true,
+      skipWaiting: true,
+      clientsClaim: true,
       runtimeCaching: [
         {
           urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -220,14 +223,6 @@ const plugins = [
           options: {
             cacheName: "google-fonts-webfonts",
             expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-          },
-        },
-        {
-          urlPattern: /\/api\/trpc\/.*/i,
-          handler: "NetworkFirst",
-          options: {
-            cacheName: "trpc-cache",
-            expiration: { maxEntries: 50, maxAgeSeconds: 60 * 5 },
           },
         },
       ],

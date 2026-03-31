@@ -8,8 +8,6 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
-console.log('[APEX] main.tsx entry point executing');
-
 const queryClient = new QueryClient();
 
 const redirectToLoginIfUnauthorized = (error: unknown) => {
@@ -54,16 +52,10 @@ const trpcClient = trpc.createClient({
   ],
 });
 
-console.log('[APEX] About to call createRoot, root element:', document.getElementById('root'));
-try {
-  createRoot(document.getElementById("root")!).render(
-    <trpc.Provider client={trpcClient} queryClient={queryClient}>
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
-    </trpc.Provider>
-  );
-  console.log('[APEX] createRoot.render() called successfully');
-} catch (err) {
-  console.error('[APEX] createRoot failed:', err);
-}
+createRoot(document.getElementById("root")!).render(
+  <trpc.Provider client={trpcClient} queryClient={queryClient}>
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  </trpc.Provider>
+);

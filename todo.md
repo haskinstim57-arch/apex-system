@@ -2912,6 +2912,8 @@
 - [x] 0 TS errors, 29/30 tests pass (1 flaky timeout, pre-existing)
 
 ## Bug: Published site shows blank page
-- [ ] Diagnose blank page on apexcrm-knxkwfan.manus.space
-- [ ] Fix root cause
-- [ ] Verify site loads after fix
+- [x] Diagnose blank page on apexcrm-knxkwfan.manus.space
+- [x] Root cause: stale PWA service worker cache serving old assets; missing skipWaiting/clientsClaim/cleanupOutdatedCaches
+- [x] Fix: Added skipWaiting, clientsClaim, cleanupOutdatedCaches to workbox config; removed tRPC runtime cache
+- [x] Cleaned up debug logs from main.tsx
+- [ ] Verify site loads after re-publish
