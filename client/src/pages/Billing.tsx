@@ -161,7 +161,7 @@ function SquareCardForm({
       onSuccess();
     },
     onError: (err) => {
-      setCardError(err.message);
+      setCardError(`Server error: ${err.message}`);
       setSubmitting(false);
     },
   });
@@ -213,17 +213,25 @@ function SquareCardForm({
           }
         } catch (err: any) {
           if (mounted) {
-            setCardError("Failed to initialize card form. Please refresh.");
+            const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+            const envAppId = import.meta.env.VITE_SQUARE_APPLICATION_ID;
+            const envLocId = import.meta.env.VITE_SQUARE_LOCATION_ID;
+            const envEnv = import.meta.env.VITE_SQUARE_ENVIRONMENT;
+            setCardError(`Failed to initialize card form: ${msg} [AppId: ${envAppId?.substring(0, 10)}..., Loc: ${envLocId}, Env: ${envEnv}]`);
             setLoading(false);
-            console.error("[Square]", err);
+            console.error("[Square] Init error:", err);
+            console.error("[Square] AppId:", envAppId);
+            console.error("[Square] LocationId:", envLocId);
+            console.error("[Square] Environment:", envEnv);
           }
         }
       };
 
-      script.onerror = () => {
+      script.onerror = (e) => {
         if (mounted) {
-          setCardError("Failed to load Square SDK. Check your internet connection.");
+          setCardError(`Failed to load Square SDK: ${e?.toString() || 'Network error'}. Check your internet connection.`);
           setLoading(false);
+          console.error("[Square] Script load error:", e);
         }
       };
 
@@ -259,7 +267,8 @@ function SquareCardForm({
         setSubmitting(false);
       }
     } catch (err: any) {
-      setCardError(err.message || "Failed to process card");
+      const msg = err?.message || (typeof err === 'string' ? err : JSON.stringify(err));
+      setCardError(`Failed to process card: ${msg}`);
       setSubmitting(false);
     }
   }, [accountId, cardholderName, addPaymentMethod]);
@@ -280,7 +289,8 @@ function SquareCardForm({
         <div
           ref={cardContainerRef}
           id="card-container"
-          className="min-h-[89px] rounded-md border border-input bg-background p-2"
+          className="rounded-md border border-input bg-background p-2"
+          style={{ minHeight: '89px', minWidth: '200px' }}
         />
         {loading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">

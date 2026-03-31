@@ -2927,3 +2927,11 @@
 - [x] Rebuilt — single main bundle (5.6MB) with no circular imports
 - [x] 27 billing tests pass, 0 TS errors
 - [ ] Verify site loads after re-publish
+
+## Fix: Square card form initialization — SDK loads but card fails to render
+- [x] Verified VITE_SQUARE_APPLICATION_ID (sq0idp-KZ_Qgi1T9F-18lkelkO3Xw), VITE_SQUARE_LOCATION_ID (L412HSQHGDVRF), VITE_SQUARE_ENVIRONMENT (sandbox)
+- [x] Improved error display: shows actual err.message + env var values in the UI error
+- [x] Added minHeight: 89px, minWidth: 200px to #card-container via inline style
+- [x] Added console.error logging for AppId, LocationId, Environment on failure
+- [x] 0 TS errors, 27 billing tests pass
+- [ ] Re-publish and verify actual error message on published site
