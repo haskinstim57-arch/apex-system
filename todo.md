@@ -2910,3 +2910,8 @@
 - [x] ROOT CAUSE FIXED: VITE_SQUARE_ENVIRONMENT was 'production' but access token is sandbox — changed to 'sandbox'
 - [x] Server restarted to pick up new env var
 - [x] 0 TS errors, 29/30 tests pass (1 flaky timeout, pre-existing)
+
+## Bug: Published site shows blank page
+- [ ] Diagnose blank page on apexcrm-knxkwfan.manus.space
+- [ ] Fix root cause
+- [ ] Verify site loads after fix
