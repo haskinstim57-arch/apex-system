@@ -52,6 +52,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { toast } from "sonner";
+import RebillingSettings from "@/components/RebillingSettings";
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -819,6 +820,9 @@ function AgencyBilling() {
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [invoiceFilter, setInvoiceFilter] = useState<string>("all");
+  const [rebillingDialogOpen, setRebillingDialogOpen] = useState(false);
+  const [rebillingAccountId, setRebillingAccountId] = useState<number | null>(null);
+  const [rebillingAccountName, setRebillingAccountName] = useState<string>("");
 
   // Rate form state
   const [rateName, setRateName] = useState("Standard");
@@ -1073,6 +1077,7 @@ function AgencyBilling() {
                   <TableHead className="text-right">Paid</TableHead>
                   <TableHead className="text-right">Outstanding</TableHead>
                   <TableHead>Rate</TableHead>
+                  <TableHead className="text-center">Markup</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -1116,6 +1121,20 @@ function AgencyBilling() {
                           ))}
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setRebillingAccountId(acct.accountId);
+                          setRebillingAccountName(acct.accountName);
+                          setRebillingDialogOpen(true);
+                        }}
+                      >
+                        <Settings2 className="h-3 w-3 mr-1" />
+                        Configure
+                      </Button>
                     </TableCell>
                     <TableCell className="text-right">
                       <Button
@@ -1343,6 +1362,24 @@ function AgencyBilling() {
               Generate & Send
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Rebilling Settings Dialog */}
+      <Dialog open={rebillingDialogOpen} onOpenChange={setRebillingDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Rebilling Settings</DialogTitle>
+            <DialogDescription>
+              Configure markup multipliers for {rebillingAccountName || "this account"}
+            </DialogDescription>
+          </DialogHeader>
+          {rebillingAccountId && (
+            <RebillingSettings
+              accountId={rebillingAccountId}
+              accountName={rebillingAccountName}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

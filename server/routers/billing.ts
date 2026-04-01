@@ -862,4 +862,136 @@ export const billingRouter = router({
         receiptUrl: result.receiptUrl,
       };
     }),
+
+  // ─────────────────────────────────────────────
+  // REBILLING SETTINGS (Agency Admin)
+  // ─────────────────────────────────────────────
+
+  /**
+   * Get rebilling (markup) settings for a sub-account.
+   */
+  getRebillingSettings: adminProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const rows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+      const billing = rows[0];
+
+      if (!billing) {
+        // Return defaults if no billing row exists yet
+        return {
+          smsMarkup: 1.1,
+          emailMarkup: 1.1,
+          aiCallMarkup: 1.1,
+          voiceCallMarkup: 1.1,
+          llmMarkup: 1.1,
+          dialerMarkup: 1.1,
+          smsRebillingEnabled: true,
+          emailRebillingEnabled: true,
+          aiCallRebillingEnabled: true,
+          voiceCallRebillingEnabled: true,
+          llmRebillingEnabled: true,
+          dialerRebillingEnabled: true,
+        };
+      }
+
+      return {
+        smsMarkup: Number(billing.smsMarkup),
+        emailMarkup: Number(billing.emailMarkup),
+        aiCallMarkup: Number(billing.aiCallMarkup),
+        voiceCallMarkup: Number(billing.voiceCallMarkup),
+        llmMarkup: Number(billing.llmMarkup),
+        dialerMarkup: Number(billing.dialerMarkup),
+        smsRebillingEnabled: !!billing.smsRebillingEnabled,
+        emailRebillingEnabled: !!billing.emailRebillingEnabled,
+        aiCallRebillingEnabled: !!billing.aiCallRebillingEnabled,
+        voiceCallRebillingEnabled: !!billing.voiceCallRebillingEnabled,
+        llmRebillingEnabled: !!billing.llmRebillingEnabled,
+        dialerRebillingEnabled: !!billing.dialerRebillingEnabled,
+      };
+    }),
+
+  /**
+   * Update rebilling (markup) settings for a sub-account.
+   * Agency admin only.
+   */
+  updateRebillingSettings: adminProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        smsMarkup: z.number().min(1).max(10).optional(),
+        emailMarkup: z.number().min(1).max(10).optional(),
+        aiCallMarkup: z.number().min(1).max(10).optional(),
+        voiceCallMarkup: z.number().min(1).max(10).optional(),
+        llmMarkup: z.number().min(1).max(10).optional(),
+        dialerMarkup: z.number().min(1).max(10).optional(),
+        smsRebillingEnabled: z.boolean().optional(),
+        emailRebillingEnabled: z.boolean().optional(),
+        aiCallRebillingEnabled: z.boolean().optional(),
+        voiceCallRebillingEnabled: z.boolean().optional(),
+        llmRebillingEnabled: z.boolean().optional(),
+        dialerRebillingEnabled: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const { accountId, ...settings } = input;
+
+      // Build update object with only provided fields
+      const updateData: Record<string, unknown> = {};
+      if (settings.smsMarkup !== undefined) updateData.smsMarkup = settings.smsMarkup.toFixed(3);
+      if (settings.emailMarkup !== undefined) updateData.emailMarkup = settings.emailMarkup.toFixed(3);
+      if (settings.aiCallMarkup !== undefined) updateData.aiCallMarkup = settings.aiCallMarkup.toFixed(3);
+      if (settings.voiceCallMarkup !== undefined) updateData.voiceCallMarkup = settings.voiceCallMarkup.toFixed(3);
+      if (settings.llmMarkup !== undefined) updateData.llmMarkup = settings.llmMarkup.toFixed(3);
+      if (settings.dialerMarkup !== undefined) updateData.dialerMarkup = settings.dialerMarkup.toFixed(3);
+      if (settings.smsRebillingEnabled !== undefined) updateData.smsRebillingEnabled = settings.smsRebillingEnabled;
+      if (settings.emailRebillingEnabled !== undefined) updateData.emailRebillingEnabled = settings.emailRebillingEnabled;
+      if (settings.aiCallRebillingEnabled !== undefined) updateData.aiCallRebillingEnabled = settings.aiCallRebillingEnabled;
+      if (settings.voiceCallRebillingEnabled !== undefined) updateData.voiceCallRebillingEnabled = settings.voiceCallRebillingEnabled;
+      if (settings.llmRebillingEnabled !== undefined) updateData.llmRebillingEnabled = settings.llmRebillingEnabled;
+      if (settings.dialerRebillingEnabled !== undefined) updateData.dialerRebillingEnabled = settings.dialerRebillingEnabled;
+
+      if (Object.keys(updateData).length === 0) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No settings to update" });
+      }
+
+      // Ensure billing row exists
+      const existing: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, accountId));
+
+      if (!existing[0]) {
+        // Auto-create with defaults
+        const defaultRateRows: BillingRate[] = await db
+          .select()
+          .from(billingRates)
+          .where(eq(billingRates.isDefault, true));
+        const defaultRate = defaultRateRows[0];
+        if (!defaultRate) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "No default billing rate" });
+
+        await db.insert(accountBilling).values({
+          accountId,
+          billingRateId: defaultRate.id,
+          currentBalance: "0.0000",
+          autoInvoiceThreshold: "50.0000",
+          ...updateData,
+        });
+      } else {
+        await db
+          .update(accountBilling)
+          .set(updateData)
+          .where(eq(accountBilling.accountId, accountId));
+      }
+
+      return { success: true };
+    }),
 });

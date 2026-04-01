@@ -33,6 +33,19 @@ const RATE_COLUMN_MAP: Record<UsageEventType, keyof BillingRate> = {
   power_dialer_call: "powerDialerCostPerCall",
 };
 
+/**
+ * Maps each event type to the corresponding markup multiplier column
+ * and rebilling enabled column on the accountBilling row.
+ */
+const MARKUP_COLUMN_MAP: Record<UsageEventType, { markup: keyof AccountBillingRow; enabled: keyof AccountBillingRow }> = {
+  sms_sent: { markup: "smsMarkup", enabled: "smsRebillingEnabled" },
+  email_sent: { markup: "emailMarkup", enabled: "emailRebillingEnabled" },
+  ai_call_minute: { markup: "aiCallMarkup", enabled: "aiCallRebillingEnabled" },
+  voice_call_minute: { markup: "voiceCallMarkup", enabled: "voiceCallRebillingEnabled" },
+  llm_request: { markup: "llmMarkup", enabled: "llmRebillingEnabled" },
+  power_dialer_call: { markup: "dialerMarkup", enabled: "dialerRebillingEnabled" },
+};
+
 interface TrackUsageParams {
   accountId: number;
   userId?: number;
@@ -116,8 +129,19 @@ export async function trackUsage(params: TrackUsageParams) {
       return null;
     }
 
+    // ── 2b. Check if rebilling is enabled for this service ────────
+    const markupConfig = MARKUP_COLUMN_MAP[eventType];
+    const rebillingEnabled = billing[markupConfig.enabled];
+    if (rebillingEnabled === false || rebillingEnabled === 0) {
+      console.log(`[usageTracker] Rebilling disabled for ${eventType} on account ${accountId} — skipping`);
+      return null;
+    }
+
+    // ── 2c. Apply markup multiplier to base cost ────────────────
     const rateColumn = RATE_COLUMN_MAP[eventType];
-    const unitCost = Number(rate[rateColumn]);
+    const baseCost = Number(rate[rateColumn]);
+    const markup = Number(billing[markupConfig.markup]) || 1.10;
+    const unitCost = Math.round(baseCost * markup * 1000000) / 1000000; // 6 decimal places
     const totalCost = Math.round(quantity * unitCost * 10000) / 10000; // 4 decimal places
 
     // ── 3. Insert usage event ────────────────────────────────────────

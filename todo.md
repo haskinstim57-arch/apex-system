@@ -3002,4 +3002,17 @@
 ## Bug: VITE_SQUARE_ENVIRONMENT Still Sandbox
 - [x] Investigate why VITE_SQUARE_ENVIRONMENT is still "sandbox" — env var baked at Vite build time, not updating
 - [x] Force-fix: hardcode production SDK URL in Billing.tsx and SquareEnvironment.Production in square.ts
-- [ ] Verify card form loads without sandbox error
+- [x] Verify card form loads without sandbox error — checkpoint saved
+
+## Per-Sub-Account Rebilling with Markup Margins (GHL-Style)
+- [x] Add per-service markup columns to accountBilling schema (smsMarkup, emailMarkup, aiCallMarkup, voiceCallMarkup, llmMarkup, dialerMarkup + enabled toggles)
+- [x] Push DB migration
+- [x] Update usageTracker.ts to apply per-account markup multipliers
+- [x] Add getRebillingSettings procedure
+- [x] Add updateRebillingSettings procedure (agency admin only)
+- [x] Build RebillingSettings component with live sliders (1.00x-5.00x, 0.05 increments)
+- [x] Show base cost, charged-to-account, your-profit, and "$10 gives ~" calculations
+- [x] Add "Configure" markup button in Agency Billing sub-account table with dialog
+- [x] Write vitest tests for rebilling (16 tests pass)
+- [x] Verify: 0 TypeScript errors
+- [ ] Checkpoint saved

@@ -2388,6 +2388,23 @@ export const accountBilling = mysqlTable("account_billing", {
   squareCustomerId: varchar("square_customer_id", { length: 255 }),
   autoInvoiceThreshold: decimal("auto_invoice_threshold", { precision: 10, scale: 4 }).notNull().default("50.0000"),
   billingEmail: varchar("billing_email", { length: 255 }),
+
+  // Per-service markup multipliers (1.00 = no markup, 1.10 = 10% markup)
+  smsMarkup: decimal("sms_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
+  emailMarkup: decimal("email_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
+  aiCallMarkup: decimal("ai_call_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
+  voiceCallMarkup: decimal("voice_call_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
+  llmMarkup: decimal("llm_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
+  dialerMarkup: decimal("dialer_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
+
+  // Per-service rebilling toggles
+  smsRebillingEnabled: boolean("sms_rebilling_enabled").notNull().default(true),
+  emailRebillingEnabled: boolean("email_rebilling_enabled").notNull().default(true),
+  aiCallRebillingEnabled: boolean("ai_call_rebilling_enabled").notNull().default(true),
+  voiceCallRebillingEnabled: boolean("voice_call_rebilling_enabled").notNull().default(true),
+  llmRebillingEnabled: boolean("llm_rebilling_enabled").notNull().default(true),
+  dialerRebillingEnabled: boolean("dialer_rebilling_enabled").notNull().default(true),
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
