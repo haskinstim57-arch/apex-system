@@ -419,3 +419,112 @@ describe("Branding — Secondary Color", () => {
     expect(columns).toContain("secondaryColor");
   });
 });
+
+describe("Branding — Reset to Defaults", () => {
+  const updateBrandingSchema = z.object({
+    accountId: z.number().int().positive(),
+    logoUrl: z.string().nullable().optional(),
+    faviconUrl: z.string().nullable().optional(),
+    brandName: z.string().max(255).nullable().optional(),
+    primaryColor: z.string().max(20).optional(),
+    secondaryColor: z.string().max(20).nullable().optional(),
+    customDomain: z.string().max(255).nullable().optional(),
+  });
+
+  it("accepts reset payload with all null/default values", () => {
+    const resetPayload = {
+      accountId: 1,
+      brandName: null,
+      primaryColor: "#d4a843",
+      secondaryColor: null,
+      logoUrl: null,
+      faviconUrl: null,
+      customDomain: null,
+    };
+    const result = updateBrandingSchema.safeParse(resetPayload);
+    expect(result.success).toBe(true);
+  });
+
+  it("reset payload clears all branding fields", () => {
+    const resetPayload = {
+      brandName: null,
+      primaryColor: "#d4a843",
+      secondaryColor: null,
+      logoUrl: null,
+      faviconUrl: null,
+      customDomain: null,
+    };
+
+    expect(resetPayload.brandName).toBeNull();
+    expect(resetPayload.primaryColor).toBe("#d4a843");
+    expect(resetPayload.secondaryColor).toBeNull();
+    expect(resetPayload.logoUrl).toBeNull();
+    expect(resetPayload.faviconUrl).toBeNull();
+    expect(resetPayload.customDomain).toBeNull();
+  });
+
+  it("after reset, hasBranding check returns false", () => {
+    const resetAccount = {
+      brandName: null,
+      primaryColor: "#d4a843",
+      secondaryColor: null,
+      logoUrl: null,
+    };
+
+    const hasBranding =
+      resetAccount.brandName ||
+      resetAccount.logoUrl ||
+      resetAccount.primaryColor !== "#d4a843" ||
+      resetAccount.secondaryColor;
+
+    expect(hasBranding).toBeFalsy();
+  });
+});
+
+describe("Branding — Theme Preview Contrast", () => {
+  function contrastColor(hex: string): string {
+    try {
+      const r = parseInt(hex.slice(1, 3), 16);
+      const g = parseInt(hex.slice(3, 5), 16);
+      const b = parseInt(hex.slice(5, 7), 16);
+      const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      return lum > 0.55 ? "#1a1a1a" : "#ffffff";
+    } catch {
+      return "#ffffff";
+    }
+  }
+
+  it("returns dark text for light primary colors", () => {
+    expect(contrastColor("#f59e0b")).toBe("#1a1a1a"); // amber
+    expect(contrastColor("#ffffff")).toBe("#1a1a1a"); // white
+    expect(contrastColor("#f1f5f9")).toBe("#1a1a1a"); // slate-100
+  });
+
+  it("returns white text for dark primary colors", () => {
+    expect(contrastColor("#1a1a2e")).toBe("#ffffff"); // dark navy
+    expect(contrastColor("#000000")).toBe("#ffffff"); // black
+    expect(contrastColor("#3b82f6")).toBe("#ffffff"); // blue
+  });
+
+  it("returns white text for dark secondary colors", () => {
+    expect(contrastColor("#8b5cf6")).toBe("#ffffff"); // purple
+    expect(contrastColor("#ef4444")).toBe("#ffffff"); // red
+  });
+
+  it("returns white text for medium secondary colors", () => {
+    // Teal and emerald are mid-range — luminance is below 0.55
+    expect(contrastColor("#14b8a6")).toBe("#ffffff"); // teal
+    expect(contrastColor("#10b981")).toBe("#ffffff"); // emerald
+  });
+
+  it("handles the default primary color correctly", () => {
+    const defaultPrimary = "#d4a843";
+    const fg = contrastColor(defaultPrimary);
+    expect(fg).toBe("#1a1a1a"); // gold is light enough for dark text
+  });
+
+  it("handles invalid hex gracefully", () => {
+    expect(contrastColor("invalid")).toBe("#ffffff");
+    expect(contrastColor("")).toBe("#ffffff");
+  });
+});

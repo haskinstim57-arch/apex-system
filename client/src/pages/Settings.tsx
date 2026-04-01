@@ -107,6 +107,7 @@ import { WebhookConditionsEditor, WebhookConditionsBadges } from "@/components/W
 import type { WebhookCondition } from "@/components/WebhookConditionsEditor";
 import { ApiKeysCard } from "@/components/ApiKeysCard";
 import { AgencyBrandingCard } from "@/components/AgencyBrandingCard";
+import { ThemePreview } from "@/components/ThemePreview";
 import { WebchatWidgetsCard } from "@/components/WebchatWidgetsCard";
 import { CustomFieldsCard } from "@/components/CustomFieldsCard";
 import { ScheduledReportsCard } from "@/components/ScheduledReportsCard";
@@ -379,7 +380,10 @@ export default function SettingsPage() {
 
       {/* Agency Branding — visible to account owners and admins with an account selected */}
       {currentAccountId && (
-        <AgencyBrandingCard accountId={currentAccountId} />
+        <>
+          <AgencyBrandingCard accountId={currentAccountId} />
+          <ThemePreviewWrapper accountId={currentAccountId} />
+        </>
       )}
 
       {/* Scheduled Reports — visible to anyone with an account selected */}
@@ -3818,5 +3822,18 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+
+/** Wrapper that fetches branding and passes it to ThemePreview */
+function ThemePreviewWrapper({ accountId }: { accountId: number }) {
+  const { data: branding } = trpc.accounts.getBranding.useQuery({ accountId });
+  return (
+    <ThemePreview
+      primaryColor={branding?.primaryColor ?? "#d4a843"}
+      secondaryColor={branding?.secondaryColor ?? ""}
+      brandName={branding?.brandName ?? ""}
+    />
   );
 }

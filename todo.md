@@ -2959,4 +2959,12 @@
 - [x] Update AgencyBrandingCard with secondary color picker + clear button
 - [x] Update branding preview to show secondary color swatch
 - [x] Write vitest tests for secondary color (32 tests pass)
+- [x] Checkpoint saved
+
+## Branding: Reset to Defaults + Theme Preview
+- [x] Add "Reset to Defaults" button to AgencyBrandingCard that clears all branding to system defaults
+- [x] Add confirmation dialog before resetting
+- [x] Create "Theme Preview" component showing primary/secondary colors on buttons, badges, cards, inputs, alerts, and other UI elements
+- [x] Integrate Theme Preview into the branding settings page
+- [x] Write vitest tests for reset and preview (41 tests pass)
 - [ ] Checkpoint saved

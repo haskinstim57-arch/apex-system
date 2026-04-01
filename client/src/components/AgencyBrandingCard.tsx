@@ -28,6 +28,7 @@ import {
   ExternalLink,
   Upload,
   ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,6 +65,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
   const [showDnsDialog, setShowDnsDialog] = useState(false);
   const [dnsRecords, setDnsRecords] = useState<Array<{ type: string; host: string; data: string }>>([]);
   const [sendgridDomainId, setSendgridDomainId] = useState<string | null>(null);
+  const [showResetDialog, setShowResetDialog] = useState(false);
 
   // Sync branding data to form
   useEffect(() => {
@@ -123,6 +125,33 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
       faviconUrl: faviconUrl || null,
       customDomain: customDomain || null,
     });
+  };
+
+  const handleResetToDefaults = () => {
+    updateBranding.mutate(
+      {
+        accountId,
+        brandName: null,
+        primaryColor: "#d4a843",
+        secondaryColor: null,
+        logoUrl: null,
+        faviconUrl: null,
+        customDomain: null,
+      },
+      {
+        onSuccess: () => {
+          setBrandName("");
+          setPrimaryColor("#d4a843");
+          setSecondaryColor("");
+          setLogoUrl("");
+          setFaviconUrl("");
+          setCustomDomain("");
+          setShowResetDialog(false);
+          toast.success("Branding reset to defaults");
+          utils.accounts.getBranding.invalidate({ accountId });
+        },
+      }
+    );
   };
 
   const handleSetEmailDomain = () => {
@@ -353,20 +382,31 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
             </div>
           </div>
 
-          {/* Save Branding Button */}
-          <Button
-            onClick={handleSaveBranding}
-            disabled={updateBranding.isPending}
-            className="w-full sm:w-auto"
-            size="sm"
-          >
-            {updateBranding.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            Save Branding
-          </Button>
+          {/* Save / Reset Buttons */}
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={handleSaveBranding}
+              disabled={updateBranding.isPending}
+              size="sm"
+            >
+              {updateBranding.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Branding
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowResetDialog(true)}
+              disabled={updateBranding.isPending}
+              className="text-muted-foreground hover:text-destructive hover:border-destructive"
+            >
+              <RotateCcw className="h-4 w-4 mr-2" />
+              Reset to Defaults
+            </Button>
+          </div>
 
           <Separator className="bg-border/50" />
 
@@ -492,6 +532,39 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Reset Confirmation Dialog */}
+      <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" />
+              Reset Branding to Defaults
+            </DialogTitle>
+            <DialogDescription>
+              This will clear all branding customizations (brand name, colors, logo, favicon, and custom domain) and revert to the Apex System defaults. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setShowResetDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={handleResetToDefaults}
+              disabled={updateBranding.isPending}
+            >
+              {updateBranding.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <RotateCcw className="h-4 w-4 mr-2" />
+              )}
+              Reset Everything
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* DNS Records Dialog */}
       <Dialog open={showDnsDialog} onOpenChange={setShowDnsDialog}>
