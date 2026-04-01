@@ -3048,3 +3048,16 @@
 - [x] Find and replace all remaining "ApexSystem" references in codebase (email domains, ICS UIDs)
 - [x] Investigate why published site shows old branding - stale build from March 31, needs re-publish
 - [ ] Verify fix on published site after new checkpoint and re-publish
+
+## Bug Fix: PWA Issues
+- [ ] Fix PWA homescreen icon/name still showing old ApexSystem branding
+- [ ] Fix PWA in-app branding still showing old branding inside CRM
+- [ ] Fix PWA account switcher - cannot switch from Agency Overview to sub-accounts (works on desktop)
+- [x] Fix PWA homescreen icon: regenerated all icons with Sterling Marketing S mark
+- [x] Fix PWA homescreen title: manifest already has correct name, updated theme_color
+- [x] Fix in-app logo: S mark icon is correct for sidebar size, brand name text shows next to it
+- [x] Regenerate PWA icons from Sterling Marketing logo (S mark centered, white bg)
+- [x] Generate pwa-192x192.png, pwa-512x512.png, apple-touch-icon.png, favicon.ico, masked-icon.svg
+- [x] Update vite.config.ts manifest with new theme_color, background_color, and icon entries
+- [x] Update index.html apple-touch-icon and theme-color meta tags
+- [x] Rebuild and save checkpoint for republish
