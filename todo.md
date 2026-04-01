@@ -3061,3 +3061,8 @@
 - [x] Update vite.config.ts manifest with new theme_color, background_color, and icon entries
 - [x] Update index.html apple-touch-icon and theme-color meta tags
 - [x] Rebuild and save checkpoint for republish
+- [x] Rename PWA icon files with -v2 suffix for cache busting
+- [x] Update vite.config.ts manifest icon references to -v2 filenames
+- [x] Update index.html apple-touch-icon with -v2 filename and ?v=2 query param
+- [x] Add version: "2.0" to PWA manifest (used -v2 filenames instead, version field not supported by type)
+- [x] Save checkpoint for republish
