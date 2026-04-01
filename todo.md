@@ -2995,4 +2995,6 @@
 - [x] Fix: Account list not rendering inside popover on mobile
 - [x] Replace Popover with mobile-friendly Drawer (bottom sheet) on small screens
 - [x] Added touch-manipulation and min-h-[40px] for better tap targets
-- [ ] Verify fix on mobile viewport
+- [x] Verify fix on mobile viewport — checkpoint saved
+- [x] Fix: Drawer inside Sheet doesn't render on mobile — z-index conflict between portals
+- [x] Replace Drawer with inline expandable list when on mobile sidebar (no portal needed)

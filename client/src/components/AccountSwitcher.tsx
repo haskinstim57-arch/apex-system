@@ -1,25 +1,20 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useAccount } from "@/contexts/AccountContext";
-import { Building2, Search, Clock, ChevronDown, Check } from "lucide-react";
+import { Building2, Search, Clock, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/useMobile";
 
 /**
  * AccountSwitcher — admin-only dropdown to switch between sub-accounts.
  * Features: search/filter, recently viewed accounts, Agency Overview toggle.
- * On mobile/PWA: uses a bottom Drawer instead of Popover for better UX.
+ * On mobile/PWA: expands inline within the sidebar (no portal/overlay)
+ * to avoid z-index conflicts with the sidebar Sheet.
+ * On desktop: uses a Popover dropdown.
  * Clients never see this component.
  */
 export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
@@ -37,6 +32,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
+  const mobileSearchRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
 
   // Only admins see the account switcher
@@ -56,10 +52,16 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
     return recentAccounts.filter((a) => a.name.toLowerCase().includes(q));
   }, [recentAccounts, search]);
 
-  // Focus search input when popover opens (desktop only)
+  // Focus search input when opened
   useEffect(() => {
-    if (open && !isMobile) {
-      setTimeout(() => searchRef.current?.focus(), 50);
+    if (open) {
+      setTimeout(() => {
+        if (isMobile) {
+          mobileSearchRef.current?.focus();
+        } else {
+          searchRef.current?.focus();
+        }
+      }, 100);
     }
     if (!open) {
       setSearch("");
@@ -89,14 +91,6 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
     setOpen(false);
   };
 
-  const triggerButton = (
-    <button className="w-full h-8 text-xs bg-sidebar-accent/30 border border-sidebar-border/50 rounded-md px-2.5 flex items-center gap-2 hover:bg-sidebar-accent/50 transition-colors text-left">
-      <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
-      <span className="truncate flex-1">{displayName}</span>
-      <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
-    </button>
-  );
-
   const accountListContent = (
     <>
       {/* Search input */}
@@ -104,7 +98,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            ref={searchRef}
+            ref={isMobile ? mobileSearchRef : searchRef}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search accounts..."
@@ -113,12 +107,12 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
         </div>
       </div>
 
-      <div className={`overflow-y-auto ${isMobile ? "max-h-[60vh]" : "max-h-80"}`}>
+      <div className="overflow-y-auto max-h-80">
         {/* Agency Overview option */}
         {!search.trim() && (
           <div className="p-1">
             <button
-              className={`w-full text-left text-xs px-2.5 py-2.5 rounded-md flex items-center gap-2 transition-colors touch-manipulation ${
+              className={`w-full text-left text-xs px-2.5 py-2.5 rounded-md flex items-center gap-2 transition-colors touch-manipulation min-h-[40px] ${
                 !currentAccountId
                   ? "bg-primary/10 text-primary"
                   : "hover:bg-accent active:bg-accent"
@@ -163,7 +157,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
           )}
           {filteredAccounts.length === 0 ? (
             <p className="text-xs text-muted-foreground px-2.5 py-3 text-center">
-              No accounts match "{search}"
+              No accounts match &ldquo;{search}&rdquo;
             </p>
           ) : (
             filteredAccounts.map((account) => (
@@ -180,24 +174,45 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
     </>
   );
 
-  // Mobile: use Drawer (bottom sheet) for better touch UX
+  // Mobile: expand inline within the sidebar (no portal/overlay to avoid z-index conflicts with Sheet)
   if (isMobile) {
     return (
       <div className="px-3 py-2">
         <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60 mb-1.5 px-0.5">
           Active Account
         </p>
-        <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerTrigger asChild disabled={isImpersonating}>
-            {triggerButton}
-          </DrawerTrigger>
-          <DrawerContent className="max-h-[85vh]">
-            <DrawerHeader className="pb-0">
-              <DrawerTitle className="text-sm font-semibold">Switch Account</DrawerTitle>
-            </DrawerHeader>
+        <button
+          className="w-full h-8 text-xs bg-sidebar-accent/30 border border-sidebar-border/50 rounded-md px-2.5 flex items-center gap-2 hover:bg-sidebar-accent/50 active:bg-sidebar-accent/60 transition-colors text-left touch-manipulation"
+          onClick={() => !isImpersonating && setOpen(!open)}
+          disabled={isImpersonating}
+        >
+          <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+          <span className="truncate flex-1">{displayName}</span>
+          {open ? (
+            <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" />
+          ) : (
+            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+          )}
+        </button>
+
+        {/* Inline expandable account list */}
+        {open && (
+          <div className="mt-1 rounded-md border border-sidebar-border/50 bg-sidebar overflow-hidden animate-in slide-in-from-top-2 duration-200">
+            {/* Close button header */}
+            <div className="flex items-center justify-between px-2.5 pt-2 pb-0">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Switch Account
+              </span>
+              <button
+                className="h-6 w-6 rounded-md flex items-center justify-center hover:bg-accent active:bg-accent transition-colors touch-manipulation"
+                onClick={() => setOpen(false)}
+              >
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </div>
             {accountListContent}
-          </DrawerContent>
-        </Drawer>
+          </div>
+        )}
       </div>
     );
   }
@@ -210,7 +225,11 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
       </p>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild disabled={isImpersonating}>
-          {triggerButton}
+          <button className="w-full h-8 text-xs bg-sidebar-accent/30 border border-sidebar-border/50 rounded-md px-2.5 flex items-center gap-2 hover:bg-sidebar-accent/50 transition-colors text-left">
+            <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
+            <span className="truncate flex-1">{displayName}</span>
+            <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
+          </button>
         </PopoverTrigger>
         <PopoverContent
           className="w-72 p-0"
