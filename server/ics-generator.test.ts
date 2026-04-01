@@ -3,7 +3,7 @@ import { generateICSEvent, generateICSBase64 } from "./utils/icsGenerator";
 
 describe("ICS Calendar File Generator", () => {
   const baseParams = {
-    uid: "appointment-42@apexsystem",
+    uid: "appointment-42@sterlingmarketing",
     summary: "Appointment: Consultation Call",
     startTime: new Date("2026-04-15T14:00:00Z"),
     endTime: new Date("2026-04-15T14:30:00Z"),
@@ -25,7 +25,7 @@ describe("ICS Calendar File Generator", () => {
 
     it("should include the correct UID", () => {
       const ics = generateICSEvent(baseParams);
-      expect(ics).toContain("UID:appointment-42@apexsystem");
+      expect(ics).toContain("UID:appointment-42@sterlingmarketing");
     });
 
     it("should format DTSTART and DTEND in UTC iCalendar format", () => {
@@ -179,7 +179,7 @@ describe("ICS Calendar File Generator", () => {
       expect(decoded).toContain("BEGIN:VCALENDAR");
       expect(decoded).toContain("END:VCALENDAR");
       expect(decoded).toContain("BEGIN:VEVENT");
-      expect(decoded).toContain("UID:appointment-42@apexsystem");
+      expect(decoded).toContain("UID:appointment-42@sterlingmarketing");
     });
 
     it("should produce non-empty output", () => {

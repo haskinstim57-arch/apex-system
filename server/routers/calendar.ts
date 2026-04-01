@@ -812,7 +812,7 @@ export const calendarRouter = router({
 
       // Generate ICS calendar file for email attachments
       const icsBase64 = generateICSBase64({
-        uid: `appointment-${result.id}@apexsystem`,
+        uid: `appointment-${result.id}@sterlingmarketing`,
         summary: `Appointment: ${calendar.name}`,
         description: `Appointment with ${input.guestName}${input.notes ? `. Notes: ${input.notes}` : ""}`,
         startTime: startTimeDate,

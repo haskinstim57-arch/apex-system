@@ -225,11 +225,13 @@ export default function DashboardLayout({
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="flex flex-col items-center gap-2">
             <div className="flex items-center gap-2 mb-4">
-              <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-lg font-bold text-primary-foreground">A</span>
-              </div>
+              <img
+                src="https://d2xsxph8kpxj0f.cloudfront.net/310519663346016577/KNXKWFANWEUxWWEfuwT2Hr/SterlingLogo_4a16d233.png"
+                alt="Sterling Marketing"
+                className="h-12 w-12 rounded-lg object-contain"
+              />
               <span className="text-2xl font-bold tracking-tight text-foreground">
-                Apex<span className="font-extrabold">System</span>
+                Sterling <span className="font-extrabold">Marketing</span>
               </span>
             </div>
             <p className="text-sm text-muted-foreground text-center max-w-sm">

@@ -3041,3 +3041,10 @@
 - [x] Fix branding: Update account 450002 (Apex System) with correct Sterling Marketing branding
 - [x] Fix branding: Update BrandingContext defaults to use logo blue/green colors
 - [x] Fix branding: Verify branding displays correctly on the live site
+
+## Bug Fix: Published Site Still Shows ApexSystem
+- [x] Fix login page: Still shows "ApexSystem" with old "A" logo and gold color
+- [x] Fix dashboard sidebar: Already fixed in code - published site needs re-publish
+- [x] Find and replace all remaining "ApexSystem" references in codebase (email domains, ICS UIDs)
+- [x] Investigate why published site shows old branding - stale build from March 31, needs re-publish
+- [ ] Verify fix on published site after new checkpoint and re-publish

@@ -445,7 +445,7 @@ export const campaignsRouter = router({
         if (campaign.type === "email") {
           result = await sendCampaignEmail({
             to: recipient.toAddress,
-            from: campaign.fromAddress || "noreply@apexsystem.com",
+            from: campaign.fromAddress || "noreply@sterlingmarketing.com",
             subject: campaign.subject || campaign.name,
             body: mergedBody,
             contactFirstName: recipient.contactFirstName || undefined,

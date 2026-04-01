@@ -581,7 +581,7 @@ export const billingRouter = router({
 
         const { createSquareCustomer } = await import("../services/square");
         squareCustomerId = await createSquareCustomer({
-          email: acct?.email || "billing@apex-system.com",
+          email: acct?.email || "billing@sterlingmarketing.com",
           companyName: acct?.name || undefined,
           referenceId: String(input.accountId),
         });

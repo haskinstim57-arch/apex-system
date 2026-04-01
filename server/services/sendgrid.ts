@@ -25,7 +25,7 @@ function ensureGlobalInitialized() {
   }
 }
 
-const FALLBACK_FROM_EMAIL = "noreply@apexsystem.io";
+const FALLBACK_FROM_EMAIL = "noreply@sterlingmarketing.com";
 
 function getGlobalFromEmail(): string {
   const from = process.env.SENDGRID_FROM_EMAIL;
