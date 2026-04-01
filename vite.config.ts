@@ -173,7 +173,7 @@ const plugins = [
       icons: [
         { src: "/icons/pwa-192x192-v2.png", sizes: "192x192", type: "image/png" },
         { src: "/icons/pwa-512x512-v2.png", sizes: "512x512", type: "image/png" },
-        { src: "/icons/pwa-512x512-v2.png", sizes: "512x512", type: "image/png", purpose: "any maskable" },
+        { src: "/icons/pwa-512x512-v2.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
       ],
       shortcuts: [
         {

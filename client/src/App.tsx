@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { Suspense, lazy } from "react";
+import { useRegisterSW } from "virtual:pwa-register/react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
@@ -380,6 +381,19 @@ function Router() {
   );
 }
 
+function PwaUpdater() {
+  const { updateServiceWorker } = useRegisterSW({
+    onNeedRefresh() {
+      // Auto-update without asking user — forces new SW activation
+      updateServiceWorker(true);
+    },
+    onOfflineReady() {
+      console.log("App ready to work offline");
+    },
+  });
+  return null;
+}
+
 function App() {
   return (
     <ErrorBoundary>
@@ -397,6 +411,7 @@ function App() {
           />
           <ImpersonationBanner />
           <PwaInstallPrompt />
+          <PwaUpdater />
           <AccountProvider>
             <BrandingProvider>
               <Router />

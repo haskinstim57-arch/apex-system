@@ -3095,3 +3095,11 @@
 - [x] Wire LLM usage tracking in generatePost (tracked via invokeLLM internally)
 - [x] Write vitest tests for contentGenerator.ts (10 tests, all passing)
 - [x] Verify build with 0 TypeScript errors
+
+## Bug Fix: PWA Icon Caching for Existing Users
+- [x] Fix 1: skipWaiting, clientsClaim, cleanupOutdatedCaches already present in workbox config
+- [x] Fix 2: Using -v2 filenames for cache busting (version field not valid in ManifestOptions type)
+- [x] Fix 3: Added cache-busting ?v=3 to ALL icon references in index.html
+- [x] Fix 4: Added PwaUpdater component with useRegisterSW auto-update handler
+- [x] Fix 5: Generated maskable icons with 20% safe zone padding, separate maskable purpose
+- [x] Rebuild and save checkpoint
