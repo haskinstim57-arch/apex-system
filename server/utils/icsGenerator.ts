@@ -61,7 +61,7 @@ export function generateICSEvent(params: ICSEventParams): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Apex System//Booking Calendar//EN",
+    "PRODID:-//Sterling Marketing//Booking Calendar//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:REQUEST",
     "BEGIN:VEVENT",

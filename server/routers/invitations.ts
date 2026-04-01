@@ -110,7 +110,7 @@ export const invitationsRouter = router({
           body: [
             `Hi,`,
             ``,
-            `${inviterName} has invited you to join ${account.name} on Apex System as a${input.role === "owner" ? "n" : ""} ${input.role}.`,
+            `${inviterName} has invited you to join ${account.name} on Sterling Marketing as a${input.role === "owner" ? "n" : ""} ${input.role}.`,
             ``,
             input.message ? `Message from ${inviterName}: "${input.message}"` : "",
             input.message ? "" : "",
@@ -119,7 +119,7 @@ export const invitationsRouter = router({
             ``,
             `This invitation expires in 7 days.`,
             ``,
-            `\u2014 Apex System`,
+            `\u2014 Sterling Marketing`,
           ]
             .filter((line) => line !== "" || true)
             .join("\n"),
@@ -317,11 +317,11 @@ export const invitationsRouter = router({
         );
         const emailResult = await dispatchEmail({
           to: pendingInvite.email,
-          subject: `Reminder: You've been invited to join ${account.name} on Apex System`,
+          subject: `Reminder: You've been invited to join ${account.name} on Sterling Marketing`,
           body: [
             `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
             `<h2 style="color: #d4a843;">Invitation Reminder</h2>`,
-            `<p>${inviterName} has re-sent your invitation to join <strong>${account.name}</strong> on Apex System as a${pendingInvite.role === "owner" ? "n" : ""} ${pendingInvite.role}.</p>`,
+            `<p>${inviterName} has re-sent your invitation to join <strong>${account.name}</strong> on Sterling Marketing as a${pendingInvite.role === "owner" ? "n" : ""} ${pendingInvite.role}.</p>`,
             `<p>Click the button below to accept the invitation and set up your account:</p>`,
             `<p style="text-align: center; margin: 30px 0;">`,
             `<a href="${inviteUrl}" style="background-color: #d4a843; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
@@ -329,7 +329,7 @@ export const invitationsRouter = router({
             `<p style="color: #888; font-size: 13px;">Or copy this link: ${inviteUrl}</p>`,
             `<p style="color: #888; font-size: 13px;">This invitation expires in 30 days.</p>`,
             `<hr style="border: 1px solid #333;">`,
-            `<p style="color: #888; font-size: 12px;">&mdash; Apex System</p>`,
+            `<p style="color: #888; font-size: 12px;">&mdash; Sterling Marketing</p>`,
             `</div>`,
           ].join("\n"),
         });

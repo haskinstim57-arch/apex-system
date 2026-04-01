@@ -138,7 +138,7 @@ async function executeReport(report: {
     .from(accounts)
     .where(eq(accounts.id, report.accountId));
 
-  const accountName = account?.name || "Apex System";
+  const accountName = account?.name || "Sterling Marketing";
   const brandColor = account?.primaryColor || undefined;
 
   console.log(

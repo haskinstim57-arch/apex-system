@@ -1526,7 +1526,7 @@ export type InsertWebhookDeliveryLog = typeof webhookDeliveryLogs.$inferInsert;
 
 // ─────────────────────────────────────────────
 // API KEYS — For inbound webhook authentication
-// External services use these to push data INTO Apex System
+// External services use these to push data INTO Sterling Marketing
 // ─────────────────────────────────────────────
 export const apiKeys = mysqlTable("api_keys", {
   id: int("id").autoincrement().primaryKey(),

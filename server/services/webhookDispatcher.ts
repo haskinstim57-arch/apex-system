@@ -147,7 +147,7 @@ async function deliverWebhook(
     "X-Webhook-Signature": signature,
     "X-Webhook-Event": payload.event,
     "X-Webhook-Timestamp": payload.timestamp,
-    "User-Agent": "ApexSystem-Webhooks/1.0",
+    "User-Agent": "SterlingMarketing-Webhooks/1.0",
   };
 
   const startTime = Date.now();
@@ -272,7 +272,7 @@ export async function dispatchWebhookEvent(
           "X-Webhook-Signature": "(redacted)",
           "X-Webhook-Event": payload.event,
           "X-Webhook-Timestamp": payload.timestamp,
-          "User-Agent": "ApexSystem-Webhooks/1.0",
+          "User-Agent": "SterlingMarketing-Webhooks/1.0",
         };
         await logDelivery(db, wh.id, wh.accountId, event, wh.url, headers, payload as any, result);
 
@@ -337,7 +337,7 @@ export async function retryDelivery(logId: number, accountId: number): Promise<{
     "X-Webhook-Signature": "(redacted)",
     "X-Webhook-Event": payload.event,
     "X-Webhook-Timestamp": payload.timestamp,
-    "User-Agent": "ApexSystem-Webhooks/1.0",
+    "User-Agent": "SterlingMarketing-Webhooks/1.0",
   };
   await logDelivery(db, webhook.id, webhook.accountId, log.event, webhook.url, headers, payload as any, result);
 
@@ -359,7 +359,7 @@ export async function testWebhook(
     accountId: 0,
     data: {
       _test: true,
-      message: "This is a test webhook from Apex System. If you received this, your webhook is configured correctly.",
+      message: "This is a test webhook from Sterling Marketing. If you received this, your webhook is configured correctly.",
     },
   };
 
@@ -377,7 +377,7 @@ export async function testWebhook(
         "X-Webhook-Signature": signature,
         "X-Webhook-Event": "contact_created",
         "X-Webhook-Timestamp": payload.timestamp,
-        "User-Agent": "ApexSystem-Webhooks/1.0",
+        "User-Agent": "SterlingMarketing-Webhooks/1.0",
       },
       body,
       signal: controller.signal,

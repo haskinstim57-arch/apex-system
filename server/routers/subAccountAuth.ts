@@ -391,11 +391,11 @@ export const subAccountAuthRouter = router({
       try {
         await dispatchEmail({
           to: input.email,
-          subject: "Reset Your Password — Apex System",
+          subject: "Reset Your Password — Sterling Marketing",
           body: [
             `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
             `<h2 style="color: #d4a843;">Password Reset Request</h2>`,
-            `<p>We received a request to reset the password for your Apex System account.</p>`,
+            `<p>We received a request to reset the password for your Sterling Marketing account.</p>`,
             `<p>Click the button below to set a new password:</p>`,
             `<p style="text-align: center; margin: 30px 0;">`,
             `<a href="${resetUrl}" style="background-color: #d4a843; color: #000; padding: 14px 32px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Reset Password</a>`,
@@ -404,7 +404,7 @@ export const subAccountAuthRouter = router({
             `<p style="color: #888; font-size: 13px;">This link expires in 1 hour.</p>`,
             `<p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email.</p>`,
             `<hr style="border: 1px solid #333;">`,
-            `<p style="color: #888; font-size: 12px;">&mdash; Apex System</p>`,
+            `<p style="color: #888; font-size: 12px;">&mdash; Sterling Marketing</p>`,
             `</div>`,
           ].join("\n"),
         });

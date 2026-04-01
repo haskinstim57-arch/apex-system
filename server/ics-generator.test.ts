@@ -18,7 +18,7 @@ describe("ICS Calendar File Generator", () => {
       expect(ics).toContain("BEGIN:VEVENT");
       expect(ics).toContain("END:VEVENT");
       expect(ics).toContain("VERSION:2.0");
-      expect(ics).toContain("PRODID:-//Apex System//Booking Calendar//EN");
+      expect(ics).toContain("PRODID:-//Sterling Marketing//Booking Calendar//EN");
       expect(ics).toContain("CALSCALE:GREGORIAN");
       expect(ics).toContain("METHOD:REQUEST");
     });

@@ -124,7 +124,7 @@ export async function checkExpiringTokens() {
           <div style="margin: 24px 0;">
             <p><strong>How to renew:</strong></p>
             <ol>
-              <li>Log in to your Apex System dashboard</li>
+              <li>Log in to your Sterling Marketing dashboard</li>
               <li>Go to <strong>Settings → Integrations</strong></li>
               <li>Click <strong>"Disconnect"</strong> on your current Facebook connection</li>
               <li>Click <strong>"Connect Facebook"</strong> to re-authorize</li>
@@ -132,7 +132,7 @@ export async function checkExpiringTokens() {
           </div>
           <p style="color: #666; font-size: 14px;">If you don't renew before ${expiryDateStr}, your Facebook lead capture will stop working until you reconnect.</p>
           <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
-          <p style="color: #999; font-size: 12px;">This is an automated message from Apex System. If you have questions, contact your administrator.</p>
+          <p style="color: #999; font-size: 12px;">This is an automated message from Sterling Marketing. If you have questions, contact your administrator.</p>
         </div>
       `;
 

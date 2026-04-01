@@ -246,7 +246,7 @@ export default function Onboarding() {
       // Invalidate the accounts list cache so DashboardLayout sees the updated
       // onboardingComplete flag and does NOT redirect back to /onboarding.
       await utils.accounts.list.invalidate();
-      toast.success("Onboarding complete! Welcome to Apex System.");
+      toast.success("Onboarding complete! Welcome to Sterling Marketing.");
       setLocation("/");
     } catch (err: any) {
       toast.error(err.message || "Failed to complete onboarding");
@@ -277,7 +277,7 @@ export default function Onboarding() {
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
             <span className="font-semibold tracking-tight text-sm">
-              Apex System
+              Sterling Marketing
             </span>
           </div>
           <Badge variant="outline" className="text-xs">

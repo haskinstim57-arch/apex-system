@@ -112,11 +112,11 @@ export const accountsRouter = router({
         );
         const emailResult = await dispatchEmail({
           to: input.ownerEmail,
-          subject: `You've been invited to join ${input.name} on Apex System`,
+          subject: `You've been invited to join ${input.name} on Sterling Marketing`,
           body: [
             `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
             `<h2 style="color: #d4a843;">You're Invited!</h2>`,
-            `<p>${inviterName} has invited you to join <strong>${input.name}</strong> on Apex System as an owner.</p>`,
+            `<p>${inviterName} has invited you to join <strong>${input.name}</strong> on Sterling Marketing as an owner.</p>`,
             `<p>Click the button below to accept the invitation and set up your account:</p>`,
             `<p style="text-align: center; margin: 30px 0;">`,
             `<a href="${inviteUrl}" style="background-color: #d4a843; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
@@ -124,7 +124,7 @@ export const accountsRouter = router({
             `<p style="color: #888; font-size: 13px;">Or copy this link: ${inviteUrl}</p>`,
             `<p style="color: #888; font-size: 13px;">This invitation expires in 30 days.</p>`,
             `<hr style="border: 1px solid #333;">`,
-            `<p style="color: #888; font-size: 12px;">&mdash; Apex System</p>`,
+            `<p style="color: #888; font-size: 12px;">&mdash; Sterling Marketing</p>`,
             `</div>`,
           ].join("\n"),
         });
@@ -411,12 +411,12 @@ export const accountsRouter = router({
             </div>
             <div style="background: #fff; padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
               <p style="color: #374151; font-size: 16px;">Great progress on <strong>${accountName}</strong>!</p>
-              <p style="color: #6b7280; font-size: 14px;">You've completed 50% of your onboarding checklist. Here's what you've unlocked so far, and there's even more to set up to get the full power of Apex System.</p>
+              <p style="color: #6b7280; font-size: 14px;">You've completed 50% of your onboarding checklist. Here's what you've unlocked so far, and there's even more to set up to get the full power of Sterling Marketing.</p>
               <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 4px; margin: 16px 0;">
                 <p style="color: #92400e; margin: 0; font-size: 14px;"><strong>Remaining steps:</strong> Complete the rest of your checklist to unlock AI calling, campaigns, automations, and more.</p>
               </div>
               <p style="color: #6b7280; font-size: 14px;">Keep going — you're building something great.</p>
-              <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">— The Apex System Team</p>
+              <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">— The Sterling Marketing Team</p>
             </div>
           </div>`
         : `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -437,7 +437,7 @@ export const accountsRouter = router({
                 <li>AI Voice Agent configured</li>
               </ul>
               <p style="color: #374151; font-size: 14px; font-weight: 600;">Time to start closing deals. 🚀</p>
-              <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">— The Apex System Team</p>
+              <p style="color: #9ca3af; font-size: 12px; margin-top: 24px;">— The Sterling Marketing Team</p>
             </div>
           </div>`;
 

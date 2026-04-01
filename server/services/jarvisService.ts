@@ -45,7 +45,7 @@ interface ChatContext {
 // ═══════════════════════════════════════════════
 
 function buildSystemPrompt(ctx: ChatContext): string {
-  return `You are Jarvis, an AI assistant built into the Apex System CRM platform. You help loan officers manage their contacts, communications, pipeline, and automations.
+  return `You are Jarvis, an AI assistant built into the Sterling Marketing CRM platform. You help loan officers manage their contacts, communications, pipeline, and automations.
 
 Current user: ${ctx.userName}
 Account ID: ${ctx.accountId}

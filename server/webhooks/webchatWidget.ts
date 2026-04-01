@@ -162,7 +162,7 @@ webchatWidgetRouter.get("/api/webchat/widget.js", (req, res) => {
           <textarea id="apex-input" rows="1" placeholder="Type a message..." \${state.isLoading ? 'disabled' : ''}></textarea>
           <button id="apex-send" style="background:\${brandColor};" \${state.isLoading ? 'disabled' : ''}>Send</button>
         </div>
-        <div class="apex-powered">Powered by Apex System</div>
+        <div class="apex-powered">Powered by Sterling Marketing</div>
       \`;
 
       // Scroll to bottom

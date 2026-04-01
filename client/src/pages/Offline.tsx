@@ -36,7 +36,7 @@ export default function Offline() {
             <span className="text-[10px] font-bold text-primary-foreground">A</span>
           </div>
           <span className="text-xs font-medium text-muted-foreground">
-            Apex System
+            Sterling Marketing
           </span>
         </div>
       </div>

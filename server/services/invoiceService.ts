@@ -232,7 +232,7 @@ export async function sendInvoice(
   const billingEmail = billingRows[0]?.billingEmail;
 
   const lineItems: LineItem[] = invoice.lineItems ? JSON.parse(invoice.lineItems) : [];
-  const description = `Apex System Invoice #${invoiceId} — ${accountName} (${lineItems.map((l) => l.description).join(", ")})`;
+  const description = `Sterling Marketing Invoice #${invoiceId} — ${accountName} (${lineItems.map((l) => l.description).join(", ")})`;
 
   const paymentLink = await createPaymentLink({
     referenceId: `billing-invoice-${invoiceId}`,
@@ -493,7 +493,7 @@ export async function chargeInvoice(
     customerId: billing.squareCustomerId,
     amountCents,
     referenceId: `billing-invoice-${invoiceId}`,
-    note: `Apex System Invoice #${invoiceId} — ${accountName}`,
+    note: `Sterling Marketing Invoice #${invoiceId} — ${accountName}`,
   });
 
   // Mark invoice as paid

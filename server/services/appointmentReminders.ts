@@ -136,7 +136,7 @@ async function sendReminderForAppointment(
         <p style="margin:4px 0;"><strong>Time:</strong> ${timeStr} – ${endTimeStr}</p>
       </div>
       <p>If you need to make changes, please contact us directly.</p>
-      <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Apex System</p>
+      <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Sterling Marketing</p>
     </div>`,
     accountId: appt.accountId,
   }).catch((err) =>

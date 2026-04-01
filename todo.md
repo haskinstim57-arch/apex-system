@@ -3015,4 +3015,17 @@
 - [x] Add "Configure" markup button in Agency Billing sub-account table with dialog
 - [x] Write vitest tests for rebilling (16 tests pass)
 - [x] Verify: 0 TypeScript errors
+- [x] Checkpoint saved
+
+## Full Rebrand: Sterling Marketing (Name + Logo Everywhere)
+- [x] Upload new logo to CDN
+- [x] Generate PWA icons (512, 192, 180, 32, favicon) from new logo
+- [x] Update vite.config.ts PWA manifest name/short_name
+- [x] Update client/index.html title and meta tags
+- [x] Find and replace all "Apex System" / "Apex" references in codebase (30+ files updated)
+- [x] Update DashboardLayout default brand name fallback
+- [x] Update BrandingContext default title fallback
+- [x] Update VITE_APP_TITLE secret to "Sterling Marketing" (user updated via Settings)
+- [x] Update VITE_APP_LOGO secret with CDN URL (user updated via Settings)
+- [x] Verify 0 TS errors
 - [ ] Checkpoint saved

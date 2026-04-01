@@ -746,7 +746,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
               Reset Branding to Defaults
             </DialogTitle>
             <DialogDescription>
-              This will clear all branding customizations (brand name, colors, logo, favicon, and custom domain) and revert to the Apex System defaults. This action cannot be undone.
+              This will clear all branding customizations (brand name, colors, logo, favicon, and custom domain) and revert to the Sterling Marketing defaults. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

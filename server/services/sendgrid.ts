@@ -37,7 +37,7 @@ function getGlobalFromEmail(): string {
 }
 
 function getGlobalFromName(): string {
-  return process.env.SENDGRID_FROM_NAME || "Apex System";
+  return process.env.SENDGRID_FROM_NAME || "Sterling Marketing";
 }
 
 /**
@@ -60,7 +60,7 @@ async function resolveCredentials(accountId?: number): Promise<{
         return {
           mailService: accountMailService,
           fromEmail: settings.sendgridFromEmail,
-          fromName: settings.sendgridFromName || "Apex System",
+          fromName: settings.sendgridFromName || "Sterling Marketing",
         };
       }
     } catch (err) {

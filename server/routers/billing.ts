@@ -850,7 +850,7 @@ export const billingRouter = router({
         customerId: billing.squareCustomerId,
         amountCents,
         referenceId: `billing-invoice-${invoice.id}`,
-        note: `Apex System Invoice #${invoice.id}`,
+        note: `Sterling Marketing Invoice #${invoice.id}`,
       });
 
       // Mark invoice as paid

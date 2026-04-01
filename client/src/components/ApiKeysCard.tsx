@@ -120,7 +120,7 @@ export function ApiKeysCard({ accountId }: ApiKeysCardProps) {
                 API Keys
               </CardTitle>
               <CardDescription className="text-xs mt-1">
-                Generate API keys for external services to push data into Apex System via REST endpoints.
+                Generate API keys for external services to push data into Sterling Marketing via REST endpoints.
               </CardDescription>
             </div>
             <div className="flex items-center gap-2">
@@ -214,7 +214,7 @@ export function ApiKeysCard({ accountId }: ApiKeysCardProps) {
               <Shield className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
               <p className="text-sm text-muted-foreground">No API keys created</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Create an API key to allow external services to push contacts and events into Apex System.
+                Create an API key to allow external services to push contacts and events into Sterling Marketing.
               </p>
             </div>
           ) : (

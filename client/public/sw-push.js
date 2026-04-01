@@ -12,7 +12,7 @@ self.addEventListener("push", (event) => {
     payload = event.data.json();
   } catch {
     payload = {
-      title: "Apex System",
+      title: "Sterling Marketing",
       body: event.data.text(),
     };
   }
@@ -33,7 +33,7 @@ self.addEventListener("push", (event) => {
     ],
   };
 
-  event.waitUntil(self.registration.showNotification(payload.title || "Apex System", options));
+  event.waitUntil(self.registration.showNotification(payload.title || "Sterling Marketing", options));
 });
 
 // Handle notification click

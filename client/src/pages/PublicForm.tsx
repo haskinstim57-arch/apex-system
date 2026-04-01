@@ -514,7 +514,7 @@ export default function PublicForm({ slug }: { slug: string }) {
           {/* Footer */}
           <div className="px-6 py-3 bg-gray-50 border-t text-center">
             <p className="text-[10px] text-gray-400">
-              Powered by Apex System
+              Powered by Sterling Marketing
             </p>
           </div>
         </div>

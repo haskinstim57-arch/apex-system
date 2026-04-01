@@ -207,7 +207,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
               </span>
             </div>
             <p className="text-sm text-muted-foreground">
-              Complete these steps to get the most out of Apex System
+              Complete these steps to get the most out of Sterling Marketing
             </p>
           </div>
           <div className="flex items-center gap-1">

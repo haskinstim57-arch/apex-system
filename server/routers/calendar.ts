@@ -860,7 +860,7 @@ export const calendarRouter = router({
           </div>
           <p>A calendar invite (.ics file) is attached — open it to add this appointment to your calendar.</p>
           <p>If you need to make changes, please contact us directly.</p>
-          <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Apex System</p>
+          <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Sterling Marketing</p>
         </div>`,
         accountId: calendar.accountId,
         attachments: [icsAttachment],
@@ -885,7 +885,7 @@ export const calendarRouter = router({
               ${input.notes ? `<p style="margin:4px 0;"><strong>Notes:</strong> ${input.notes}</p>` : ""}
             </div>
             <p>A calendar invite (.ics file) is attached — open it to add this appointment to your calendar.</p>
-            <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Apex System</p>
+            <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Sterling Marketing</p>
           </div>`,
           accountId: calendar.accountId,
           attachments: [icsAttachment],

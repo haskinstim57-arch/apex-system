@@ -357,7 +357,7 @@ describe("Password Setup Flow", () => {
       const { dispatchEmail } = await import("./services/messaging");
       const result = await dispatchEmail({
         to: "user@example.com",
-        subject: "Reset Your Password — Apex System",
+        subject: "Reset Your Password — Sterling Marketing",
         body: "<p>Click to reset</p>",
       });
       expect(result.success).toBe(true);

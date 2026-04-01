@@ -112,7 +112,7 @@ export function PwaInstallPrompt() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-card-foreground leading-tight">
-              Add Apex CRM to your home screen
+              Add Sterling Marketing to your home screen
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
               For the best experience on mobile

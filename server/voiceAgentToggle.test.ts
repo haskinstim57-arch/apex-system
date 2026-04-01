@@ -37,7 +37,7 @@ describe("Voice Agent Toggle", () => {
     it("should return defaults when voice agent not configured", async () => {
       const mockAccount = {
         id: 450002,
-        name: "Apex System",
+        name: "Sterling Marketing",
         voiceAgentEnabled: false,
         vapiAssistantId: null,
         vapiPhoneNumber: null,
@@ -142,7 +142,7 @@ describe("Voice Agent Toggle", () => {
   describe("All accounts disabled", () => {
     it("should verify all 3 accounts have voiceAgentEnabled=false", async () => {
       const accounts = [
-        { id: 450002, name: "Apex System", voiceAgentEnabled: false },
+        { id: 450002, name: "Sterling Marketing", voiceAgentEnabled: false },
         { id: 390025, name: "Kyle (OLS)", voiceAgentEnabled: false },
         { id: 420001, name: "PMR", voiceAgentEnabled: false },
       ];

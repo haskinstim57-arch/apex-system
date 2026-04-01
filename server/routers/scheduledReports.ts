@@ -240,7 +240,7 @@ export const scheduledReportsRouter = router({
         .from(accounts)
         .where(eq(accounts.id, input.accountId));
 
-      const accountName = account?.name || "Apex System";
+      const accountName = account?.name || "Sterling Marketing";
 
       const htmlContent = await generateReportEmailHTML({
         accountId: input.accountId,
@@ -285,7 +285,7 @@ export const scheduledReportsRouter = router({
 
       const html = await generateReportEmailHTML({
         accountId: input.accountId,
-        accountName: account?.name || "Apex System",
+        accountName: account?.name || "Sterling Marketing",
         reportName: "Preview Report",
         reportTypes: input.reportTypes,
         periodDays: input.periodDays,
