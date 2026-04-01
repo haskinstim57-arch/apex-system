@@ -2998,3 +2998,8 @@
 - [x] Verify fix on mobile viewport — checkpoint saved
 - [x] Fix: Drawer inside Sheet doesn't render on mobile — z-index conflict between portals
 - [x] Replace Drawer with inline expandable list when on mobile sidebar (no portal needed)
+
+## Bug: VITE_SQUARE_ENVIRONMENT Still Sandbox
+- [x] Investigate why VITE_SQUARE_ENVIRONMENT is still "sandbox" — env var baked at Vite build time, not updating
+- [x] Force-fix: hardcode production SDK URL in Billing.tsx and SquareEnvironment.Production in square.ts
+- [ ] Verify card form loads without sandbox error

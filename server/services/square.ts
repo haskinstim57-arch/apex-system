@@ -24,9 +24,8 @@ function getSquareClient(): SquareClient {
     }
     _client = new SquareClient({
       token: ENV.squareAccessToken,
-      environment: ENV.squareEnvironment === "sandbox"
-        ? SquareEnvironment.Sandbox
-        : SquareEnvironment.Production,
+      // All Square credentials are production
+      environment: SquareEnvironment.Production,
     });
   }
   return _client;

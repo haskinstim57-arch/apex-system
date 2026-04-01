@@ -178,11 +178,8 @@ function SquareCardForm({
       const script = document.createElement("script");
       script.id = "square-sdk";
 
-      // Use sandbox URL for non-production
-      const isProd = import.meta.env.VITE_SQUARE_ENVIRONMENT === "production";
-      script.src = isProd
-        ? "https://web.squarecdn.com/v1/square.js"
-        : "https://sandbox.web.squarecdn.com/v1/square.js";
+      // Always use production SDK — all Square credentials are production
+      script.src = "https://web.squarecdn.com/v1/square.js";
 
       script.onload = async () => {
         if (!mounted) return;
