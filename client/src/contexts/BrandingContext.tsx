@@ -148,10 +148,10 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     if (name) {
       document.title = name;
     } else {
-      document.title = "Apex System";
+      document.title = "Sterling Marketing";
     }
     return () => {
-      document.title = "Apex System";
+      document.title = "Sterling Marketing";
     };
   }, [branding?.brandName]);
 

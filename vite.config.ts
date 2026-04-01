@@ -161,9 +161,9 @@ const plugins = [
     registerType: "autoUpdate",
     includeAssets: ["favicon.ico", "icons/apple-touch-icon.png", "icons/masked-icon.svg"],
     manifest: {
-      name: "Apex Systems CRM",
-      short_name: "Apex CRM",
-      description: "AI-powered CRM platform for loan officers",
+      name: "Sterling Marketing",
+      short_name: "Sterling",
+      description: "AI-powered CRM & automation platform by Sterling Marketing",
       theme_color: "#0f172a",
       background_color: "#0f172a",
       display: "standalone",

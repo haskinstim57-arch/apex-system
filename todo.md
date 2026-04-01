@@ -2979,4 +2979,13 @@
 - [x] Show preview of uploaded logo with Replace/Remove buttons
 - [x] Also support favicon upload via same mechanism
 - [x] Write vitest tests for upload validation (27 tests pass)
+- [x] Checkpoint saved
+
+## PWA Logo Update: Sterling Marketing
+- [x] Upload Sterling Marketing logo to CDN
+- [x] Replace all PWA icon files (512, 192, 180, 32, favicon.ico) with Sterling logo
+- [x] Update PWA manifest name to "Sterling Marketing"
+- [x] Update HTML title and apple-mobile-web-app-title
+- [x] Update DashboardLayout and BrandingContext default fallbacks to "Sterling Marketing"
+- [ ] VITE_APP_LOGO — user needs to update in Settings > Secrets manually
 - [ ] Checkpoint saved

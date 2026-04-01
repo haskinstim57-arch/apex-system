@@ -141,12 +141,12 @@ function SidebarLogo({ isCollapsed }: { isCollapsed: boolean }) {
       ) : null}
       <div className={`h-8 w-8 rounded-lg bg-primary flex items-center justify-center shrink-0 ${logoUrl ? "hidden" : ""}`}>
         <span className="text-sm font-bold text-primary-foreground">
-          {(brandName || "A").charAt(0).toUpperCase()}
+          {(brandName || "S").charAt(0).toUpperCase()}
         </span>
       </div>
       {!isCollapsed && (
         <span className="text-[15px] font-bold tracking-tight text-foreground truncate">
-          {brandName || (<>Apex<span className="font-extrabold">System</span></>)}
+          {brandName || "Sterling Marketing"}
         </span>
       )}
     </div>
@@ -173,11 +173,11 @@ function MobileLogo() {
       ) : null}
       <div className={`h-7 w-7 rounded-md bg-primary flex items-center justify-center ${logoUrl ? "hidden" : ""}`}>
         <span className="text-xs font-bold text-primary-foreground">
-          {(brandName || "A").charAt(0).toUpperCase()}
+          {(brandName || "S").charAt(0).toUpperCase()}
         </span>
       </div>
       <span className="text-sm font-bold tracking-tight text-foreground truncate">
-        {brandName || (<>Apex<span className="font-extrabold">System</span></>)}
+        {brandName || "Sterling Marketing"}
       </span>
     </div>
   );
