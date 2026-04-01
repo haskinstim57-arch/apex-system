@@ -562,6 +562,73 @@ export const accountsRouter = router({
       return { success: true };
     }),
 
+  /** Upload a branding asset (logo or favicon) to S3 and return the CDN URL */
+  uploadBrandingAsset: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        /** base64-encoded file content */
+        fileBase64: z.string().min(1),
+        /** Original file name */
+        fileName: z.string().min(1).max(255),
+        /** MIME type */
+        mimeType: z.enum([
+          "image/png",
+          "image/jpeg",
+          "image/jpg",
+          "image/svg+xml",
+          "image/webp",
+          "image/x-icon",
+          "image/vnd.microsoft.icon",
+        ]),
+        /** Whether this is a logo or favicon upload */
+        assetType: z.enum(["logo", "favicon"]),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+
+      const { storagePut } = await import("../storage");
+
+      // Decode base64 to buffer
+      const fileBuffer = Buffer.from(input.fileBase64, "base64");
+
+      // Enforce 2MB limit
+      const MAX_SIZE = 2 * 1024 * 1024;
+      if (fileBuffer.length > MAX_SIZE) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "File size exceeds 2MB limit",
+        });
+      }
+
+      // Build a unique S3 key
+      const ext = input.fileName.split(".").pop() || "png";
+      const safeKey = `branding/${input.accountId}/${input.assetType}-${nanoid(8)}.${ext}`;
+
+      const { url } = await storagePut(safeKey, fileBuffer, input.mimeType);
+
+      // Auto-update the account's logoUrl or faviconUrl
+      if (input.assetType === "logo") {
+        await db.updateAccount(input.accountId, { logoUrl: url } as any);
+      } else {
+        await db.updateAccount(input.accountId, { faviconUrl: url } as any);
+      }
+
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: `account.${input.assetType}_uploaded`,
+        resourceType: "account",
+        resourceId: input.accountId,
+        metadata: JSON.stringify({ url, fileName: input.fileName }),
+      });
+
+      return { url };
+    }),
+
   /** Set custom email sender domain and initiate SendGrid domain authentication */
   setEmailDomain: protectedProcedure
     .input(

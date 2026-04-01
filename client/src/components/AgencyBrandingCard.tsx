@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ import {
   Upload,
   ShieldCheck,
   RotateCcw,
+  X,
+  ImagePlus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -66,6 +68,12 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
   const [dnsRecords, setDnsRecords] = useState<Array<{ type: string; host: string; data: string }>>([]);
   const [sendgridDomainId, setSendgridDomainId] = useState<string | null>(null);
   const [showResetDialog, setShowResetDialog] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [faviconUploading, setFaviconUploading] = useState(false);
+  const [logoDragOver, setLogoDragOver] = useState(false);
+  const [faviconDragOver, setFaviconDragOver] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const faviconInputRef = useRef<HTMLInputElement>(null);
 
   // Sync branding data to form
   useEffect(() => {
@@ -79,6 +87,80 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
       setEmailDomain(branding.fromEmailDomain ?? "");
     }
   }, [branding]);
+
+  const uploadAsset = trpc.accounts.uploadBrandingAsset.useMutation({
+    onSuccess: () => {
+      utils.accounts.getBranding.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const ALLOWED_IMAGE_TYPES = [
+    "image/png", "image/jpeg", "image/jpg", "image/svg+xml", "image/webp",
+  ] as const;
+  const ALLOWED_FAVICON_TYPES = [
+    ...ALLOWED_IMAGE_TYPES, "image/x-icon", "image/vnd.microsoft.icon",
+  ] as const;
+  const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+
+  const handleFileUpload = useCallback(async (
+    file: File,
+    assetType: "logo" | "favicon",
+  ) => {
+    const allowedTypes = assetType === "logo" ? ALLOWED_IMAGE_TYPES : ALLOWED_FAVICON_TYPES;
+    if (!allowedTypes.includes(file.type as any)) {
+      toast.error(`Invalid file type. Allowed: ${assetType === "logo" ? "PNG, JPG, SVG, WebP" : "PNG, JPG, SVG, WebP, ICO"}`);
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error("File too large. Maximum size is 2MB.");
+      return;
+    }
+
+    const setUploading = assetType === "logo" ? setLogoUploading : setFaviconUploading;
+    setUploading(true);
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+
+      const result = await uploadAsset.mutateAsync({
+        accountId,
+        fileBase64: base64,
+        fileName: file.name,
+        mimeType: file.type as any,
+        assetType,
+      });
+
+      if (assetType === "logo") {
+        setLogoUrl(result.url);
+      } else {
+        setFaviconUrl(result.url);
+      }
+      toast.success(`${assetType === "logo" ? "Logo" : "Favicon"} uploaded successfully`);
+    } catch {
+      // Error already handled by mutation onError
+    } finally {
+      setUploading(false);
+    }
+  }, [accountId, uploadAsset]);
+
+  const handleDrop = useCallback((e: React.DragEvent, assetType: "logo" | "favicon") => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (assetType === "logo") setLogoDragOver(false);
+    else setFaviconDragOver(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFileUpload(file, assetType);
+  }, [handleFileUpload]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
 
   const updateBranding = trpc.accounts.updateBranding.useMutation({
     onSuccess: () => {
@@ -306,54 +388,176 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
+              {/* Logo Upload */}
               <div className="space-y-1.5">
-                <Label htmlFor="logoUrl" className="text-xs flex items-center gap-1.5">
-                  <Image className="h-3 w-3" /> Logo URL
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Image className="h-3 w-3" /> Logo
                 </Label>
-                <Input
-                  id="logoUrl"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://cdn.example.com/logo.png"
-                  className="h-9 text-sm"
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file, "logo");
+                    e.target.value = "";
+                  }}
                 />
-                <p className="text-[11px] text-muted-foreground">
-                  Use a direct image URL ending in .png, .jpg, or .svg. Google Drive links won't work — try Imgur or Cloudinary for free hosting.
-                </p>
-                {logoUrl && (
-                  <div className="mt-2 p-2 bg-muted rounded-lg flex items-center justify-center">
-                    <img
-                      src={logoUrl}
-                      alt="Logo preview"
-                      className="max-h-12 max-w-[160px] object-contain"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
+                {logoUrl ? (
+                  <div className="relative rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="flex items-center justify-center">
+                      <img
+                        src={logoUrl}
+                        alt="Logo preview"
+                        className="max-h-16 max-w-[180px] object-contain"
+                        onError={(e) => { (e.target as HTMLImageElement).src = ""; }}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] flex-1"
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={logoUploading}
+                      >
+                        {logoUploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+                        Replace
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive"
+                        onClick={() => setLogoUrl("")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onDrop={(e) => handleDrop(e, "logo")}
+                    onDragOver={handleDragOver}
+                    onDragEnter={() => setLogoDragOver(true)}
+                    onDragLeave={() => setLogoDragOver(false)}
+                    onClick={() => logoInputRef.current?.click()}
+                    className={`relative rounded-lg border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
+                      logoDragOver
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50 hover:bg-muted/30"
+                    }`}
+                  >
+                    {logoUploading ? (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="text-[11px] text-muted-foreground">Uploading...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                        <span className="text-[11px] text-muted-foreground">
+                          <span className="font-medium text-foreground">Click to upload</span> or drag & drop
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">PNG, JPG, SVG, WebP (max 2MB)</span>
+                      </div>
+                    )}
                   </div>
                 )}
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Input
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="Or paste a URL..."
+                    className="h-7 text-[11px] flex-1"
+                  />
+                </div>
               </div>
 
+              {/* Favicon Upload */}
               <div className="space-y-1.5">
-                <Label htmlFor="faviconUrl" className="text-xs flex items-center gap-1.5">
-                  <Image className="h-3 w-3" /> Favicon URL
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Image className="h-3 w-3" /> Favicon
                 </Label>
-                <Input
-                  id="faviconUrl"
-                  value={faviconUrl}
-                  onChange={(e) => setFaviconUrl(e.target.value)}
-                  placeholder="https://cdn.example.com/favicon.ico"
-                  className="h-9 text-sm"
+                <input
+                  ref={faviconInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/svg+xml,image/webp,image/x-icon,image/vnd.microsoft.icon"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleFileUpload(file, "favicon");
+                    e.target.value = "";
+                  }}
                 />
-                {faviconUrl && (
-                  <div className="mt-2 p-2 bg-muted rounded-lg flex items-center gap-2">
-                    <img
-                      src={faviconUrl}
-                      alt="Favicon preview"
-                      className="h-6 w-6 object-contain"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                    <span className="text-xs text-muted-foreground">Favicon preview</span>
+                {faviconUrl ? (
+                  <div className="relative rounded-lg border border-border bg-muted/30 p-3">
+                    <div className="flex items-center justify-center">
+                      <img
+                        src={faviconUrl}
+                        alt="Favicon preview"
+                        className="h-10 w-10 object-contain"
+                        onError={(e) => { (e.target as HTMLImageElement).src = ""; }}
+                      />
+                    </div>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] flex-1"
+                        onClick={() => faviconInputRef.current?.click()}
+                        disabled={faviconUploading}
+                      >
+                        {faviconUploading ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+                        Replace
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-6 text-[10px] text-muted-foreground hover:text-destructive hover:border-destructive"
+                        onClick={() => setFaviconUrl("")}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onDrop={(e) => handleDrop(e, "favicon")}
+                    onDragOver={handleDragOver}
+                    onDragEnter={() => setFaviconDragOver(true)}
+                    onDragLeave={() => setFaviconDragOver(false)}
+                    onClick={() => faviconInputRef.current?.click()}
+                    className={`relative rounded-lg border-2 border-dashed p-4 text-center cursor-pointer transition-colors ${
+                      faviconDragOver
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50 hover:bg-muted/30"
+                    }`}
+                  >
+                    {faviconUploading ? (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                        <span className="text-[11px] text-muted-foreground">Uploading...</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <ImagePlus className="h-5 w-5 text-muted-foreground" />
+                        <span className="text-[11px] text-muted-foreground">
+                          <span className="font-medium text-foreground">Click to upload</span> or drag & drop
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">PNG, JPG, SVG, WebP, ICO (max 2MB)</span>
+                      </div>
+                    )}
                   </div>
                 )}
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Input
+                    value={faviconUrl}
+                    onChange={(e) => setFaviconUrl(e.target.value)}
+                    placeholder="Or paste a URL..."
+                    className="h-7 text-[11px] flex-1"
+                  />
+                </div>
               </div>
             </div>
           </div>

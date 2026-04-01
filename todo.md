@@ -2967,4 +2967,16 @@
 - [x] Create "Theme Preview" component showing primary/secondary colors on buttons, badges, cards, inputs, alerts, and other UI elements
 - [x] Integrate Theme Preview into the branding settings page
 - [x] Write vitest tests for reset and preview (41 tests pass)
+- [x] Checkpoint saved
+
+## Branding: Logo File Upload (Drag & Drop → S3)
+- [x] Add server-side tRPC procedure for logo upload (accepts base64, stores to S3 via storagePut)
+- [x] Build drag-and-drop upload zone in AgencyBrandingCard (replaces URL-only input)
+- [x] Support click-to-browse and drag-and-drop
+- [x] Show upload progress/loading state
+- [x] Validate file type (PNG, JPG, SVG, WebP) and size (max 2MB)
+- [x] Auto-populate logoUrl field after successful upload
+- [x] Show preview of uploaded logo with Replace/Remove buttons
+- [x] Also support favicon upload via same mechanism
+- [x] Write vitest tests for upload validation (27 tests pass)
 - [ ] Checkpoint saved
