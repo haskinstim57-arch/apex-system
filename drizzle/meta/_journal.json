@@ -505,6 +505,13 @@
       "when": 1774963774412,
       "tag": "0071_perpetual_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "5",
+      "when": 1775001589739,
+      "tag": "0072_small_sharon_carter",
+      "breakpoints": true
     }
   ]
 }

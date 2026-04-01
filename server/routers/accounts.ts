@@ -498,7 +498,7 @@ export const accountsRouter = router({
       }
 
       // Check if this sub-account has its own branding set
-      const hasBranding = account.brandName || account.logoUrl || account.primaryColor !== "#d4a843";
+      const hasBranding = account.brandName || account.logoUrl || account.primaryColor !== "#d4a843" || account.secondaryColor;
 
       // If sub-account has no branding and has a parent, cascade from parent agency
       let effectiveBranding = account;
@@ -509,6 +509,7 @@ export const accountsRouter = router({
             ...account,
             brandName: account.brandName || parent.brandName,
             primaryColor: (account.primaryColor && account.primaryColor !== "#d4a843") ? account.primaryColor : (parent.primaryColor || "#d4a843"),
+            secondaryColor: account.secondaryColor || parent.secondaryColor,
             logoUrl: account.logoUrl || parent.logoUrl,
             faviconUrl: account.faviconUrl || parent.faviconUrl,
             customDomain: account.customDomain || parent.customDomain,
@@ -523,6 +524,7 @@ export const accountsRouter = router({
         faviconUrl: effectiveBranding.faviconUrl ?? null,
         brandName: effectiveBranding.brandName ?? null,
         primaryColor: effectiveBranding.primaryColor ?? "#d4a843",
+        secondaryColor: effectiveBranding.secondaryColor ?? null,
         customDomain: effectiveBranding.customDomain ?? null,
         fromEmailDomain: effectiveBranding.fromEmailDomain ?? null,
         emailDomainVerified: effectiveBranding.emailDomainVerified ?? false,
@@ -538,6 +540,7 @@ export const accountsRouter = router({
         faviconUrl: z.string().nullable().optional(),
         brandName: z.string().max(255).nullable().optional(),
         primaryColor: z.string().max(20).optional(),
+        secondaryColor: z.string().max(20).nullable().optional(),
         customDomain: z.string().max(255).nullable().optional(),
       })
     )

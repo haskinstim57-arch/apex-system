@@ -2949,3 +2949,14 @@
 - [x] Agency branding cascades to sub-accounts (inherit parent if no override)
 - [x] Write vitest tests for branding save/load/cascade (24 tests pass)
 - [x] Verify: save brand name + color → reload → UI reflects changes
+
+## Branding Enhancement: Secondary Color
+- [x] Add secondaryColor column to accounts table schema
+- [x] Push DB migration
+- [x] Update getBranding and updateBranding procedures to include secondaryColor
+- [x] Update cascade logic for secondaryColor (parent → sub-account)
+- [x] Update BrandingContext to inject --secondary and --accent CSS variables
+- [x] Update AgencyBrandingCard with secondary color picker + clear button
+- [x] Update branding preview to show secondary color swatch
+- [x] Write vitest tests for secondary color (32 tests pass)
+- [ ] Checkpoint saved

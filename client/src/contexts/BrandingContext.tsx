@@ -16,6 +16,7 @@ import { useAccount } from "./AccountContext";
 type BrandingValue = {
   brandName: string | null;
   primaryColor: string;
+  secondaryColor: string | null;
   logoUrl: string | null;
   faviconUrl: string | null;
   customDomain: string | null;
@@ -25,6 +26,7 @@ type BrandingValue = {
 const defaultBranding: BrandingValue = {
   brandName: null,
   primaryColor: "#d4a843",
+  secondaryColor: null,
   logoUrl: null,
   faviconUrl: null,
   customDomain: null,
@@ -88,7 +90,6 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     root.style.setProperty("--sidebar-primary-foreground", fg);
 
     return () => {
-      // Reset to defaults when unmounting or account changes
       root.style.removeProperty("--primary");
       root.style.removeProperty("--primary-foreground");
       root.style.removeProperty("--ring");
@@ -96,6 +97,28 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       root.style.removeProperty("--sidebar-primary-foreground");
     };
   }, [branding?.primaryColor]);
+
+  // Apply secondary color as CSS variable
+  useEffect(() => {
+    const secondary = branding?.secondaryColor;
+    if (!secondary) return;
+
+    const fg = contrastForeground(secondary);
+    const root = document.documentElement;
+
+    root.style.setProperty("--secondary", secondary);
+    root.style.setProperty("--secondary-foreground", fg);
+    // Also map to accent so badges, hover states, and muted accents respond
+    root.style.setProperty("--accent", secondary);
+    root.style.setProperty("--accent-foreground", fg);
+
+    return () => {
+      root.style.removeProperty("--secondary");
+      root.style.removeProperty("--secondary-foreground");
+      root.style.removeProperty("--accent");
+      root.style.removeProperty("--accent-foreground");
+    };
+  }, [branding?.secondaryColor]);
 
   // Apply favicon
   useEffect(() => {
@@ -136,6 +159,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     () => ({
       brandName: branding?.brandName ?? null,
       primaryColor: branding?.primaryColor ?? "#d4a843",
+      secondaryColor: branding?.secondaryColor ?? null,
       logoUrl: branding?.logoUrl ?? null,
       faviconUrl: branding?.faviconUrl ?? null,
       customDomain: branding?.customDomain ?? null,

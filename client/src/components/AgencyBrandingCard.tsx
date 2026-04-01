@@ -31,6 +31,18 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+/** Quick luminance check for contrast in preview */
+function luminance(hex: string): number {
+  try {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  } catch {
+    return 0;
+  }
+}
+
 interface AgencyBrandingCardProps {
   accountId: number;
 }
@@ -42,6 +54,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
   // Local form state
   const [brandName, setBrandName] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#d4a843");
+  const [secondaryColor, setSecondaryColor] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [faviconUrl, setFaviconUrl] = useState("");
   const [customDomain, setCustomDomain] = useState("");
@@ -57,6 +70,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
     if (branding) {
       setBrandName(branding.brandName ?? "");
       setPrimaryColor(branding.primaryColor ?? "#d4a843");
+      setSecondaryColor(branding.secondaryColor ?? "");
       setLogoUrl(branding.logoUrl ?? "");
       setFaviconUrl(branding.faviconUrl ?? "");
       setCustomDomain(branding.customDomain ?? "");
@@ -104,6 +118,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
       accountId,
       brandName: brandName || null,
       primaryColor: primaryColor || "#d4a843",
+      secondaryColor: secondaryColor || null,
       logoUrl: logoUrl || null,
       faviconUrl: faviconUrl || null,
       customDomain: customDomain || null,
@@ -208,6 +223,56 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
                     />
                   ))}
                 </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Used for buttons, links, and navigation highlights.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="secondaryColor" className="text-xs">Secondary Color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="secondaryColor"
+                    value={secondaryColor || "#f1f5f9"}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    className="h-9 w-9 rounded border border-border cursor-pointer p-0.5"
+                  />
+                  <Input
+                    value={secondaryColor}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    placeholder="Optional — leave blank for default"
+                    className="h-9 text-sm font-mono flex-1"
+                    maxLength={20}
+                  />
+                </div>
+                <div className="flex gap-1 mt-1.5">
+                  {presetColors.map((c) => (
+                    <button
+                      key={`sec-${c}`}
+                      onClick={() => setSecondaryColor(c)}
+                      className={`h-5 w-5 rounded-full border-2 transition-all ${
+                        secondaryColor === c ? "border-foreground scale-110" : "border-transparent"
+                      }`}
+                      style={{ backgroundColor: c }}
+                      title={c}
+                    />
+                  ))}
+                  {secondaryColor && (
+                    <button
+                      onClick={() => setSecondaryColor("")}
+                      className="h-5 px-1.5 rounded-full border border-border text-[9px] text-muted-foreground hover:bg-muted transition-colors"
+                      title="Clear secondary color"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Used for badges, hover states, and accent backgrounds. Leave blank to use the system default.
+                </p>
               </div>
             </div>
 
@@ -394,13 +459,24 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
               <div className="px-4 py-3 bg-muted/30 space-y-1.5">
                 <div className="h-2 w-3/4 rounded bg-muted" />
                 <div className="h-2 w-1/2 rounded bg-muted" />
-                <div className="mt-2">
+                <div className="mt-2 flex items-center gap-2">
                   <span
                     className="inline-block text-[10px] text-white px-2 py-0.5 rounded font-medium"
                     style={{ backgroundColor: primaryColor }}
                   >
-                    Call to Action
+                    Primary Button
                   </span>
+                  {secondaryColor && (
+                    <span
+                      className="inline-block text-[10px] px-2 py-0.5 rounded font-medium"
+                      style={{
+                        backgroundColor: secondaryColor,
+                        color: luminance(secondaryColor) > 0.55 ? "#1a1a1a" : "#ffffff",
+                      }}
+                    >
+                      Secondary
+                    </span>
+                  )}
                 </div>
               </div>
               {/* Mini footer preview */}

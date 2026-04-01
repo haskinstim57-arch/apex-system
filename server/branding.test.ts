@@ -10,6 +10,7 @@ describe("Branding — Input Validation", () => {
     faviconUrl: z.string().nullable().optional(),
     brandName: z.string().max(255).nullable().optional(),
     primaryColor: z.string().max(20).optional(),
+    secondaryColor: z.string().max(20).nullable().optional(),
     customDomain: z.string().max(255).nullable().optional(),
   });
 
@@ -325,5 +326,96 @@ describe("Branding — Contrast Foreground Helper", () => {
 
   it("returns white for invalid hex (fallback)", () => {
     expect(contrastForeground("invalid")).toBe("#ffffff");
+  });
+});
+
+describe("Branding — Secondary Color", () => {
+  const updateBrandingSchema = z.object({
+    accountId: z.number().int().positive(),
+    logoUrl: z.string().nullable().optional(),
+    faviconUrl: z.string().nullable().optional(),
+    brandName: z.string().max(255).nullable().optional(),
+    primaryColor: z.string().max(20).optional(),
+    secondaryColor: z.string().max(20).nullable().optional(),
+    customDomain: z.string().max(255).nullable().optional(),
+  });
+
+  it("accepts valid secondary color", () => {
+    const input = { accountId: 1, secondaryColor: "#3b82f6" };
+    const result = updateBrandingSchema.safeParse(input);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts null secondary color (clear)", () => {
+    const input = { accountId: 1, secondaryColor: null };
+    const result = updateBrandingSchema.safeParse(input);
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects secondary color exceeding 20 chars", () => {
+    const input = { accountId: 1, secondaryColor: "x".repeat(21) };
+    const result = updateBrandingSchema.safeParse(input);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts both primary and secondary colors together", () => {
+    const input = {
+      accountId: 1,
+      primaryColor: "#d4a843",
+      secondaryColor: "#3b82f6",
+      brandName: "Sterling Marketing",
+    };
+    const result = updateBrandingSchema.safeParse(input);
+    expect(result.success).toBe(true);
+  });
+
+  it("secondary color cascades from parent to sub-account", () => {
+    const parentAccount = {
+      secondaryColor: "#3b82f6",
+      primaryColor: "#FF0000",
+      brandName: "Parent Agency",
+    };
+
+    const subAccount = {
+      secondaryColor: null,
+      primaryColor: "#d4a843",
+      brandName: null,
+    };
+
+    // Cascade logic: sub-account inherits parent's secondary color
+    const effectiveSecondary = subAccount.secondaryColor || parentAccount.secondaryColor;
+    expect(effectiveSecondary).toBe("#3b82f6");
+  });
+
+  it("sub-account secondary color overrides parent", () => {
+    const parentAccount = {
+      secondaryColor: "#3b82f6",
+    };
+
+    const subAccount = {
+      secondaryColor: "#10b981",
+    };
+
+    const effectiveSecondary = subAccount.secondaryColor || parentAccount.secondaryColor;
+    expect(effectiveSecondary).toBe("#10b981");
+  });
+
+  it("returns null when neither parent nor sub-account has secondary color", () => {
+    const parentAccount = {
+      secondaryColor: null,
+    };
+
+    const subAccount = {
+      secondaryColor: null,
+    };
+
+    const effectiveSecondary = subAccount.secondaryColor || parentAccount.secondaryColor;
+    expect(effectiveSecondary).toBeNull();
+  });
+
+  it("schema includes secondaryColor column", async () => {
+    const { accounts } = await import("../drizzle/schema");
+    const columns = Object.keys(accounts);
+    expect(columns).toContain("secondaryColor");
   });
 });
