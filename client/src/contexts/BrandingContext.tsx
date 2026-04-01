@@ -25,7 +25,7 @@ type BrandingValue = {
 
 const defaultBranding: BrandingValue = {
   brandName: null,
-  primaryColor: "#d4a843",
+  primaryColor: "#0c5ab0",
   secondaryColor: null,
   logoUrl: null,
   faviconUrl: null,
@@ -77,7 +77,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
 
   // Apply primary color as CSS variable
   useEffect(() => {
-    const color = branding?.primaryColor || "#d4a843";
+    const color = branding?.primaryColor || "#0c5ab0";
     const fg = contrastForeground(color);
     const root = document.documentElement;
 
@@ -158,7 +158,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<BrandingValue>(
     () => ({
       brandName: branding?.brandName ?? null,
-      primaryColor: branding?.primaryColor ?? "#d4a843",
+      primaryColor: branding?.primaryColor ?? "#0c5ab0",
       secondaryColor: branding?.secondaryColor ?? null,
       logoUrl: branding?.logoUrl ?? null,
       faviconUrl: branding?.faviconUrl ?? null,

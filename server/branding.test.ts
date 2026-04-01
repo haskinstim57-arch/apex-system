@@ -28,7 +28,7 @@ describe("Branding — Input Validation", () => {
     const input = {
       accountId: 1,
       brandName: "Sterling Marketing",
-      primaryColor: "#d4a843",
+      primaryColor: "#0c5ab0",
       logoUrl: "https://cdn.example.com/logo.png",
       faviconUrl: "https://cdn.example.com/favicon.ico",
       customDomain: "app.sterlingmarketing.com",
@@ -120,7 +120,7 @@ describe("Branding — Input Validation", () => {
 
 describe("Branding — Color Presets", () => {
   const presetColors = [
-    "#d4a843", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6",
+    "#0c5ab0", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6",
     "#f59e0b", "#ec4899", "#06b6d4", "#6366f1", "#14b8a6",
   ];
 
@@ -135,8 +135,8 @@ describe("Branding — Color Presets", () => {
     expect(presetColors).toHaveLength(10);
   });
 
-  it("default color is gold (#d4a843)", () => {
-    expect(presetColors[0]).toBe("#d4a843");
+  it("default color is gold (#0c5ab0)", () => {
+    expect(presetColors[0]).toBe("#0c5ab0");
   });
 });
 
@@ -194,7 +194,7 @@ describe("Branding — Cascade Logic", () => {
       name: "Sub Account",
       parentId: 1,
       brandName: null,
-      primaryColor: "#d4a843", // default = no override
+      primaryColor: "#0c5ab0", // default = no override
       logoUrl: null,
       faviconUrl: null,
       customDomain: null,
@@ -203,16 +203,16 @@ describe("Branding — Cascade Logic", () => {
     };
 
     // Simulate cascade logic from getBranding
-    const hasBranding = subAccount.brandName || subAccount.logoUrl || subAccount.primaryColor !== "#d4a843";
+    const hasBranding = subAccount.brandName || subAccount.logoUrl || subAccount.primaryColor !== "#0c5ab0";
     expect(hasBranding).toBeFalsy();
 
     // Apply cascade
     const effectiveBranding = {
       ...subAccount,
       brandName: subAccount.brandName || parentAccount.brandName,
-      primaryColor: (subAccount.primaryColor && subAccount.primaryColor !== "#d4a843")
+      primaryColor: (subAccount.primaryColor && subAccount.primaryColor !== "#0c5ab0")
         ? subAccount.primaryColor
-        : (parentAccount.primaryColor || "#d4a843"),
+        : (parentAccount.primaryColor || "#0c5ab0"),
       logoUrl: subAccount.logoUrl || parentAccount.logoUrl,
       faviconUrl: subAccount.faviconUrl || parentAccount.faviconUrl,
       customDomain: subAccount.customDomain || parentAccount.customDomain,
@@ -246,7 +246,7 @@ describe("Branding — Cascade Logic", () => {
     };
 
     // Sub-account has its own branding
-    const hasBranding = subAccount.brandName || subAccount.logoUrl || subAccount.primaryColor !== "#d4a843";
+    const hasBranding = subAccount.brandName || subAccount.logoUrl || subAccount.primaryColor !== "#0c5ab0";
     expect(hasBranding).toBeTruthy();
 
     // No cascade needed — use sub-account's own values
@@ -254,7 +254,7 @@ describe("Branding — Cascade Logic", () => {
       logoUrl: subAccount.logoUrl ?? null,
       faviconUrl: subAccount.faviconUrl ?? null,
       brandName: subAccount.brandName ?? null,
-      primaryColor: subAccount.primaryColor ?? "#d4a843",
+      primaryColor: subAccount.primaryColor ?? "#0c5ab0",
       customDomain: subAccount.customDomain ?? null,
       fromEmailDomain: subAccount.fromEmailDomain ?? null,
       emailDomainVerified: subAccount.emailDomainVerified ?? false,
@@ -272,7 +272,7 @@ describe("Branding — Cascade Logic", () => {
       name: "Root Agency",
       parentId: null,
       brandName: null,
-      primaryColor: "#d4a843",
+      primaryColor: "#0c5ab0",
       logoUrl: null,
       faviconUrl: null,
       customDomain: null,
@@ -280,7 +280,7 @@ describe("Branding — Cascade Logic", () => {
       emailDomainVerified: false,
     };
 
-    const hasBranding = rootAccount.brandName || rootAccount.logoUrl || rootAccount.primaryColor !== "#d4a843";
+    const hasBranding = rootAccount.brandName || rootAccount.logoUrl || rootAccount.primaryColor !== "#0c5ab0";
     // No branding and no parent — should return defaults
     expect(hasBranding).toBeFalsy();
     expect(rootAccount.parentId).toBeNull();
@@ -290,10 +290,10 @@ describe("Branding — Cascade Logic", () => {
       logoUrl: rootAccount.logoUrl ?? null,
       faviconUrl: rootAccount.faviconUrl ?? null,
       brandName: rootAccount.brandName ?? null,
-      primaryColor: rootAccount.primaryColor ?? "#d4a843",
+      primaryColor: rootAccount.primaryColor ?? "#0c5ab0",
     };
 
-    expect(result.primaryColor).toBe("#d4a843");
+    expect(result.primaryColor).toBe("#0c5ab0");
     expect(result.brandName).toBeNull();
     expect(result.logoUrl).toBeNull();
   });
@@ -313,9 +313,9 @@ describe("Branding — Contrast Foreground Helper", () => {
   }
 
   it("returns dark text for light backgrounds", () => {
-    expect(contrastForeground("#d4a843")).toBe("#1a1a1a");
     expect(contrastForeground("#ffffff")).toBe("#1a1a1a");
     expect(contrastForeground("#00FF00")).toBe("#1a1a1a");
+    expect(contrastForeground("#f0e68c")).toBe("#1a1a1a"); // khaki - light
   });
 
   it("returns white text for dark backgrounds", () => {
@@ -361,7 +361,7 @@ describe("Branding — Secondary Color", () => {
   it("accepts both primary and secondary colors together", () => {
     const input = {
       accountId: 1,
-      primaryColor: "#d4a843",
+      primaryColor: "#0c5ab0",
       secondaryColor: "#3b82f6",
       brandName: "Sterling Marketing",
     };
@@ -378,7 +378,7 @@ describe("Branding — Secondary Color", () => {
 
     const subAccount = {
       secondaryColor: null,
-      primaryColor: "#d4a843",
+      primaryColor: "#0c5ab0",
       brandName: null,
     };
 
@@ -435,7 +435,7 @@ describe("Branding — Reset to Defaults", () => {
     const resetPayload = {
       accountId: 1,
       brandName: null,
-      primaryColor: "#d4a843",
+      primaryColor: "#0c5ab0",
       secondaryColor: null,
       logoUrl: null,
       faviconUrl: null,
@@ -448,7 +448,7 @@ describe("Branding — Reset to Defaults", () => {
   it("reset payload clears all branding fields", () => {
     const resetPayload = {
       brandName: null,
-      primaryColor: "#d4a843",
+      primaryColor: "#0c5ab0",
       secondaryColor: null,
       logoUrl: null,
       faviconUrl: null,
@@ -456,7 +456,7 @@ describe("Branding — Reset to Defaults", () => {
     };
 
     expect(resetPayload.brandName).toBeNull();
-    expect(resetPayload.primaryColor).toBe("#d4a843");
+    expect(resetPayload.primaryColor).toBe("#0c5ab0");
     expect(resetPayload.secondaryColor).toBeNull();
     expect(resetPayload.logoUrl).toBeNull();
     expect(resetPayload.faviconUrl).toBeNull();
@@ -466,7 +466,7 @@ describe("Branding — Reset to Defaults", () => {
   it("after reset, hasBranding check returns false", () => {
     const resetAccount = {
       brandName: null,
-      primaryColor: "#d4a843",
+      primaryColor: "#0c5ab0",
       secondaryColor: null,
       logoUrl: null,
     };
@@ -474,7 +474,7 @@ describe("Branding — Reset to Defaults", () => {
     const hasBranding =
       resetAccount.brandName ||
       resetAccount.logoUrl ||
-      resetAccount.primaryColor !== "#d4a843" ||
+      resetAccount.primaryColor !== "#0c5ab0" ||
       resetAccount.secondaryColor;
 
     expect(hasBranding).toBeFalsy();
@@ -518,9 +518,9 @@ describe("Branding — Theme Preview Contrast", () => {
   });
 
   it("handles the default primary color correctly", () => {
-    const defaultPrimary = "#d4a843";
+    const defaultPrimary = "#0c5ab0";
     const fg = contrastColor(defaultPrimary);
-    expect(fg).toBe("#1a1a1a"); // gold is light enough for dark text
+    expect(fg).toBe("#ffffff"); // blue is dark enough for white text
   });
 
   it("handles invalid hex gracefully", () => {

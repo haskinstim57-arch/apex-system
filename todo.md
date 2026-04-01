@@ -3028,4 +3028,16 @@
 - [x] Update VITE_APP_TITLE secret to "Sterling Marketing" (user updated via Settings)
 - [x] Update VITE_APP_LOGO secret with CDN URL (user updated via Settings)
 - [x] Verify 0 TS errors
-- [ ] Checkpoint saved
+- [x] Checkpoint saved
+
+## Bug: Branding Not Updating on Live Site
+- [ ] Investigate why old branding persists after rebrand
+- [ ] Check DB branding values for the active account
+- [ ] Check what getBranding endpoint returns
+- [ ] Fix root cause
+
+## Branding Fix: Database Values Overriding Defaults
+- [x] Fix branding: Update account 420001 (Premier Mortgage Resources) with correct Sterling Marketing branding colors and CDN logo
+- [x] Fix branding: Update account 450002 (Apex System) with correct Sterling Marketing branding
+- [x] Fix branding: Update BrandingContext defaults to use logo blue/green colors
+- [x] Fix branding: Verify branding displays correctly on the live site

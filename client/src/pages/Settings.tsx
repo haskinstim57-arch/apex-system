@@ -3831,7 +3831,7 @@ function ThemePreviewWrapper({ accountId }: { accountId: number }) {
   const { data: branding } = trpc.accounts.getBranding.useQuery({ accountId });
   return (
     <ThemePreview
-      primaryColor={branding?.primaryColor ?? "#d4a843"}
+      primaryColor={branding?.primaryColor ?? "#0c5ab0"}
       secondaryColor={branding?.secondaryColor ?? ""}
       brandName={branding?.brandName ?? ""}
     />

@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` MODIFY COLUMN `primaryColor` varchar(20) DEFAULT '#0c5ab0';

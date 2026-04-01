@@ -56,7 +56,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
 
   // Local form state
   const [brandName, setBrandName] = useState("");
-  const [primaryColor, setPrimaryColor] = useState("#d4a843");
+  const [primaryColor, setPrimaryColor] = useState("#0c5ab0");
   const [secondaryColor, setSecondaryColor] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [faviconUrl, setFaviconUrl] = useState("");
@@ -79,7 +79,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
   useEffect(() => {
     if (branding) {
       setBrandName(branding.brandName ?? "");
-      setPrimaryColor(branding.primaryColor ?? "#d4a843");
+      setPrimaryColor(branding.primaryColor ?? "#0c5ab0");
       setSecondaryColor(branding.secondaryColor ?? "");
       setLogoUrl(branding.logoUrl ?? "");
       setFaviconUrl(branding.faviconUrl ?? "");
@@ -201,7 +201,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
     updateBranding.mutate({
       accountId,
       brandName: brandName || null,
-      primaryColor: primaryColor || "#d4a843",
+      primaryColor: primaryColor || "#0c5ab0",
       secondaryColor: secondaryColor || null,
       logoUrl: logoUrl || null,
       faviconUrl: faviconUrl || null,
@@ -214,7 +214,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
       {
         accountId,
         brandName: null,
-        primaryColor: "#d4a843",
+        primaryColor: "#0c5ab0",
         secondaryColor: null,
         logoUrl: null,
         faviconUrl: null,
@@ -223,7 +223,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
       {
         onSuccess: () => {
           setBrandName("");
-          setPrimaryColor("#d4a843");
+          setPrimaryColor("#0c5ab0");
           setSecondaryColor("");
           setLogoUrl("");
           setFaviconUrl("");
@@ -255,7 +255,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
 
   // Preset color palette
   const presetColors = [
-    "#d4a843", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6",
+    "#0c5ab0", "#3b82f6", "#10b981", "#ef4444", "#8b5cf6",
     "#f59e0b", "#ec4899", "#06b6d4", "#6366f1", "#14b8a6",
   ];
 
@@ -316,7 +316,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
                   <Input
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
-                    placeholder="#d4a843"
+                    placeholder="#0c5ab0"
                     className="h-9 text-sm font-mono flex-1"
                     maxLength={20}
                   />

@@ -320,11 +320,11 @@ export const invitationsRouter = router({
           subject: `Reminder: You've been invited to join ${account.name} on Sterling Marketing`,
           body: [
             `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
-            `<h2 style="color: #d4a843;">Invitation Reminder</h2>`,
+            `<h2 style="color: #0c5ab0;">Invitation Reminder</h2>`,
             `<p>${inviterName} has re-sent your invitation to join <strong>${account.name}</strong> on Sterling Marketing as a${pendingInvite.role === "owner" ? "n" : ""} ${pendingInvite.role}.</p>`,
             `<p>Click the button below to accept the invitation and set up your account:</p>`,
             `<p style="text-align: center; margin: 30px 0;">`,
-            `<a href="${inviteUrl}" style="background-color: #d4a843; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
+            `<a href="${inviteUrl}" style="background-color: #0c5ab0; color: #fff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
             `</p>`,
             `<p style="color: #888; font-size: 13px;">Or copy this link: ${inviteUrl}</p>`,
             `<p style="color: #888; font-size: 13px;">This invitation expires in 30 days.</p>`,

@@ -519,6 +519,13 @@
       "when": 1775050022976,
       "tag": "0073_powerful_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "5",
+      "when": 1775069041315,
+      "tag": "0074_pale_northstar",
+      "breakpoints": true
     }
   ]
 }

@@ -115,11 +115,11 @@ export const accountsRouter = router({
           subject: `You've been invited to join ${input.name} on Sterling Marketing`,
           body: [
             `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">`,
-            `<h2 style="color: #d4a843;">You're Invited!</h2>`,
+            `<h2 style="color: #0c5ab0;">You're Invited!</h2>`,
             `<p>${inviterName} has invited you to join <strong>${input.name}</strong> on Sterling Marketing as an owner.</p>`,
             `<p>Click the button below to accept the invitation and set up your account:</p>`,
             `<p style="text-align: center; margin: 30px 0;">`,
-            `<a href="${inviteUrl}" style="background-color: #d4a843; color: #000; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
+            `<a href="${inviteUrl}" style="background-color: #0c5ab0; color: #fff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">Accept Invitation</a>`,
             `</p>`,
             `<p style="color: #888; font-size: 13px;">Or copy this link: ${inviteUrl}</p>`,
             `<p style="color: #888; font-size: 13px;">This invitation expires in 30 days.</p>`,
@@ -498,7 +498,7 @@ export const accountsRouter = router({
       }
 
       // Check if this sub-account has its own branding set
-      const hasBranding = account.brandName || account.logoUrl || account.primaryColor !== "#d4a843" || account.secondaryColor;
+      const hasBranding = account.brandName || account.logoUrl || account.primaryColor !== "#0c5ab0" || account.secondaryColor;
 
       // If sub-account has no branding and has a parent, cascade from parent agency
       let effectiveBranding = account;
@@ -508,7 +508,7 @@ export const accountsRouter = router({
           effectiveBranding = {
             ...account,
             brandName: account.brandName || parent.brandName,
-            primaryColor: (account.primaryColor && account.primaryColor !== "#d4a843") ? account.primaryColor : (parent.primaryColor || "#d4a843"),
+            primaryColor: (account.primaryColor && account.primaryColor !== "#0c5ab0") ? account.primaryColor : (parent.primaryColor || "#0c5ab0"),
             secondaryColor: account.secondaryColor || parent.secondaryColor,
             logoUrl: account.logoUrl || parent.logoUrl,
             faviconUrl: account.faviconUrl || parent.faviconUrl,
@@ -523,7 +523,7 @@ export const accountsRouter = router({
         logoUrl: effectiveBranding.logoUrl ?? null,
         faviconUrl: effectiveBranding.faviconUrl ?? null,
         brandName: effectiveBranding.brandName ?? null,
-        primaryColor: effectiveBranding.primaryColor ?? "#d4a843",
+        primaryColor: effectiveBranding.primaryColor ?? "#0c5ab0",
         secondaryColor: effectiveBranding.secondaryColor ?? null,
         customDomain: effectiveBranding.customDomain ?? null,
         fromEmailDomain: effectiveBranding.fromEmailDomain ?? null,

@@ -35,7 +35,7 @@ interface ThemePreviewProps {
 }
 
 export function ThemePreview({ primaryColor, secondaryColor, brandName }: ThemePreviewProps) {
-  const primary = primaryColor || "#d4a843";
+  const primary = primaryColor || "#0c5ab0";
   const secondary = secondaryColor || "#f1f5f9";
   const name = brandName || "Your Agency";
   const primaryFg = contrastColor(primary);

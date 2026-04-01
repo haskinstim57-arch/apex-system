@@ -72,7 +72,7 @@ export const accounts = mysqlTable("accounts", {
   }>(),
   /** White-label / Agency Branding */
   customDomain: varchar("customDomain", { length: 255 }),
-  primaryColor: varchar("primaryColor", { length: 20 }).default("#d4a843"),
+  primaryColor: varchar("primaryColor", { length: 20 }).default("#0c5ab0"),
   /** Secondary accent color for white-label UI (badges, secondary buttons, highlights) */
   secondaryColor: varchar("secondaryColor", { length: 20 }),
   fromEmailDomain: varchar("fromEmailDomain", { length: 255 }),
