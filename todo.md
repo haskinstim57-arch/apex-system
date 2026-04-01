@@ -3066,3 +3066,32 @@
 - [x] Update index.html apple-touch-icon with -v2 filename and ?v=2 query param
 - [x] Add version: "2.0" to PWA manifest (used -v2 filenames instead, version field not supported by type)
 - [x] Save checkpoint for republish
+
+## Feature: Per-Sub-Account Rebilling with Markup Margins (GHL-Style)
+- [ ] Update accountBilling schema with per-service markup columns (smsMarkup, emailMarkup, etc.)
+- [ ] Add per-service rebillingEnabled boolean columns to accountBilling
+- [ ] Push schema migration
+- [ ] Update usageTracker.ts to apply per-account markup multipliers
+- [ ] Add getRebillingSettings query procedure
+- [ ] Add updateRebillingSettings mutation procedure (agency admin only)
+- [ ] Build Rebilling UI tab in Sub-Account detail page with toggle, slider, cost table
+- [ ] Update Agency Billing overview table with per-account effective rates
+- [ ] Write tests for rebilling logic
+- [x] Verify build with 0 TypeScript errors
+
+## Feature: Social Media Content Generation
+- [x] Create socialPosts schema table and push migration
+- [x] Create socialAccounts schema table and push migration
+- [x] Create contentBrandVoice schema table and push migration
+- [x] Build contentGenerator service (server/services/contentGenerator.ts)
+- [x] Build socialContent tRPC router with generatePost, saveDraft, getPosts, updatePost, deletePost
+- [x] Build socialContent tRPC router with getBrandVoice, updateBrandVoice, generateContentCalendar
+- [x] Build Social Media page UI - Content Generator section
+- [x] Build Social Media page UI - Content Calendar section
+- [x] Build Social Media page UI - Posts Management section
+- [x] Build Social Media page UI - Brand Voice Settings
+- [x] Add Social Media to sub-account sidebar navigation
+- [x] Add /social-media route to App.tsx
+- [x] Wire LLM usage tracking in generatePost (tracked via invokeLLM internally)
+- [x] Write vitest tests for contentGenerator.ts (10 tests, all passing)
+- [x] Verify build with 0 TypeScript errors

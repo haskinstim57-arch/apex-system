@@ -47,6 +47,7 @@ import { smsComplianceRouter } from "./routers/smsCompliance";
 import { messageQueueRouter } from "./routers/messageQueue";
 import { jarvisRouter } from "./routers/jarvis";
 import { billingRouter } from "./routers/billing";
+import { socialContentRouter } from "./routers/socialContent";
 
 export const appRouter = router({
   system: systemRouter,
@@ -105,6 +106,7 @@ export const appRouter = router({
   messageQueue: messageQueueRouter,
   jarvis: jarvisRouter,
   billing: billingRouter,
+  socialContent: socialContentRouter,
 });
 
 export type AppRouter = typeof appRouter;

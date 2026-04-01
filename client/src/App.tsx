@@ -50,6 +50,7 @@ import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
 import GeminiUsage from "./pages/GeminiUsage";
 import Billing from "./pages/Billing";
+const SocialMedia = lazy(() => import("./pages/SocialMedia"));
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -313,6 +314,14 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <MessageQueue />
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/social-media">
+        <DashboardLayout>
+          <RequireAccount>
+            <Suspense fallback={<LazyFallback />}><SocialMedia /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>

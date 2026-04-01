@@ -2476,3 +2476,60 @@ export const paymentMethods = mysqlTable("payment_methods", {
 });
 export type PaymentMethod = typeof paymentMethods.$inferSelect;
 export type InsertPaymentMethod = typeof paymentMethods.$inferInsert;
+
+// ─────────────────────────────────────────────
+// SOCIAL MEDIA — Content Generation & Scheduling
+// ─────────────────────────────────────────────
+
+export const socialPosts = mysqlTable("social_posts", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  createdByUserId: int("created_by_user_id").notNull(),
+  platform: mysqlEnum("platform", ["facebook", "instagram", "linkedin", "twitter"]).notNull(),
+  content: text("content").notNull(),
+  hashtags: text("hashtags"), // JSON array of hashtags
+  imageUrl: text("image_url"),
+  imagePrompt: text("image_prompt"),
+  status: mysqlEnum("status", ["draft", "scheduled", "published", "failed"]).notNull().default("draft"),
+  scheduledAt: timestamp("scheduled_at"),
+  publishedAt: timestamp("published_at"),
+  externalPostId: varchar("external_post_id", { length: 255 }),
+  generationPrompt: text("generation_prompt"),
+  tone: varchar("tone", { length: 50 }),
+  topic: text("topic"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type SocialPost = typeof socialPosts.$inferSelect;
+export type InsertSocialPost = typeof socialPosts.$inferInsert;
+
+export const socialAccounts = mysqlTable("social_accounts", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  platform: mysqlEnum("platform", ["facebook", "instagram", "linkedin", "twitter"]).notNull(),
+  platformAccountId: varchar("platform_account_id", { length: 255 }).notNull(),
+  platformAccountName: varchar("platform_account_name", { length: 255 }),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type SocialAccount = typeof socialAccounts.$inferSelect;
+export type InsertSocialAccount = typeof socialAccounts.$inferInsert;
+
+export const contentBrandVoice = mysqlTable("content_brand_voice", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull().unique(),
+  industry: varchar("industry", { length: 100 }),
+  targetAudience: varchar("target_audience", { length: 255 }),
+  brandPersonality: varchar("brand_personality", { length: 255 }),
+  keyMessages: text("key_messages"), // JSON array of key selling points
+  avoidTopics: text("avoid_topics"), // JSON array of topics to avoid
+  preferredTone: varchar("preferred_tone", { length: 50 }).default("professional"),
+  examplePosts: text("example_posts"), // JSON array of example good posts
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type ContentBrandVoice = typeof contentBrandVoice.$inferSelect;
+export type InsertContentBrandVoice = typeof contentBrandVoice.$inferInsert;
