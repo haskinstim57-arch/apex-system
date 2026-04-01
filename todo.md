@@ -2989,3 +2989,10 @@
 - [x] Update DashboardLayout and BrandingContext default fallbacks to "Sterling Marketing"
 - [ ] VITE_APP_LOGO — user needs to update in Settings > Secrets manually
 - [ ] Checkpoint saved
+
+## Bug: Account Switching Not Working on PWA
+- [x] Fix: Popover opens too wide on mobile/PWA viewport
+- [x] Fix: Account list not rendering inside popover on mobile
+- [x] Replace Popover with mobile-friendly Drawer (bottom sheet) on small screens
+- [x] Added touch-manipulation and min-h-[40px] for better tap targets
+- [ ] Verify fix on mobile viewport
