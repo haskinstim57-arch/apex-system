@@ -50,6 +50,7 @@ import FunnelsPage from "./pages/Funnels";
 import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
 import GeminiUsage from "./pages/GeminiUsage";
+import LeadMonitor from "./pages/LeadMonitor";
 import Billing from "./pages/Billing";
 const SocialMedia = lazy(() => import("./pages/SocialMedia"));
 import Offline from "./pages/Offline";
@@ -372,6 +373,13 @@ function Router() {
         <DashboardLayout>
           <AdminRoute>
             <GeminiUsage />
+          </AdminRoute>
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings/lead-monitor">
+        <DashboardLayout>
+          <AdminRoute>
+            <LeadMonitor />
           </AdminRoute>
         </DashboardLayout>
       </Route>

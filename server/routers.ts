@@ -48,6 +48,7 @@ import { messageQueueRouter } from "./routers/messageQueue";
 import { jarvisRouter } from "./routers/jarvis";
 import { billingRouter } from "./routers/billing";
 import { socialContentRouter } from "./routers/socialContent";
+import { leadMonitorRouter } from "./routers/leadMonitor";
 
 export const appRouter = router({
   system: systemRouter,
@@ -107,6 +108,7 @@ export const appRouter = router({
   jarvis: jarvisRouter,
   billing: billingRouter,
   socialContent: socialContentRouter,
+  leadMonitor: leadMonitorRouter,
 });
 
 export type AppRouter = typeof appRouter;

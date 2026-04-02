@@ -30,6 +30,7 @@ import { accountFacebookPages } from "../../drizzle/schema";
 import { isNotNull, and, sql } from "drizzle-orm";
 import { normalizeToE164 } from "../../shared/phone";
 import { routeLead } from "./leadRoutingEngine";
+import { logRoutingEvent } from "./leadRoutingMonitor";
 
 const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 const POLL_INTERVAL_MS = 60_000; // 60 seconds
@@ -167,11 +168,23 @@ async function pollPage(page: {
         try {
           const created = await processPolledLead(lead, page);
           if (created) totalLeadsCreated++;
-        } catch (err) {
+        } catch (err: any) {
           console.error(
             `[FacebookLeadPoller] Error processing lead ${lead.id}:`,
             err
           );
+          logRoutingEvent({
+            pageId: page.facebookPageId,
+            leadId: lead.id,
+            accountId: page.accountId,
+            contactId: null, dealId: null,
+            routingMethod: "poller",
+            status: "failure",
+            errorMessage: err?.message?.substring(0, 500) || "Poller processing error",
+            responseTimeMs: null,
+            source: "poller",
+            payloadSnippet: JSON.stringify(lead).substring(0, 500),
+          }).catch(() => {});
         }
       }
     } catch (err) {
@@ -325,6 +338,7 @@ async function processPolledLead(
     customFields: JSON.stringify(customFields),
   });
 
+  const _pollerStartTime = Date.now();
   console.log(
     `[FacebookLeadPoller] Created contact ${contactId} for account ${page.accountId}: ${firstName} ${lastName} (lead ${lead.id})`
   );
@@ -358,6 +372,21 @@ async function processPolledLead(
   }).catch((err: any) => {
     console.error(`[FacebookLeadPoller] Lead routing failed for contact ${contactId}:`, err);
   });
+
+  // Log successful routing event for poller
+  logRoutingEvent({
+    pageId: page.facebookPageId,
+    leadId: lead.id,
+    accountId: page.accountId,
+    contactId,
+    dealId,
+    routingMethod: "poller",
+    status: "success",
+    errorMessage: null,
+    responseTimeMs: Date.now() - _pollerStartTime,
+    source: "poller",
+    payloadSnippet: JSON.stringify(lead.field_data || []).substring(0, 500),
+  }).catch(() => {});
 
   // Create notification
   createNotification({

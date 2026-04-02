@@ -460,6 +460,22 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
         )}
+        {isAdmin && (
+          <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/lead-monitor'}>
+            <CardContent className="pt-5 pb-4 px-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Lead Routing Monitor</p>
+                  <p className="text-xs text-muted-foreground">Track Facebook lead routing success rates & failures</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

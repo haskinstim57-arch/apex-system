@@ -3123,3 +3123,21 @@
 - [x] Ensure pageAccessToken is still retrieved from accountFacebookPages for Graph API calls regardless of which lookup resolves the account
 - [x] Write/update tests for new routing priority (5 new tests, all 1935 tests pass)
 - [x] Save checkpoint
+
+## Facebook Lead Routing Monitoring Dashboard
+- [x] Schema: leadRoutingEvents table (eventId, pageId, leadId, accountId, routingMethod, status, errorMessage, responseTimeMs, timestamps)
+- [x] DB migration pushed
+- [x] Backend: leadRoutingMonitor service (logEvent, getStats, getRecentEvents, getFailureRate)
+- [x] Backend: tRPC router — leadMonitor (getOverview, getRecentEvents, getTimeSeries, getFailures, acknowledgeFailure)
+- [x] Backend: alert logic — notify owner on routing failures via in-app notification + push
+- [x] Wire event logging into facebookLeads.ts webhook handler (success + failure paths)
+- [x] Wire event logging into facebookLeadPoller.ts (success + failure paths)
+- [x] Frontend: Lead Routing Monitor page under agency admin Settings
+- [x] Frontend: Real-time stats cards (total leads, success rate, avg response time, failures)
+- [x] Frontend: Time-series chart (leads over time, success vs failure)
+- [x] Frontend: Recent events table with status, routing method, response time
+- [x] Frontend: Failure alerts panel with acknowledge action
+- [x] Frontend: Auto-refresh polling (30s interval)
+- [x] Add route and sidebar navigation
+- [x] Write vitest tests for monitoring module (14 tests, all 1949 pass)
+- [x] Save checkpoint

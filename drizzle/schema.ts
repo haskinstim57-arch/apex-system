@@ -2533,3 +2533,52 @@ export const contentBrandVoice = mysqlTable("content_brand_voice", {
 });
 export type ContentBrandVoice = typeof contentBrandVoice.$inferSelect;
 export type InsertContentBrandVoice = typeof contentBrandVoice.$inferInsert;
+
+// ─────────────────────────────────────────────
+// LEAD ROUTING EVENTS — Monitoring & alerting for Facebook lead routing
+// Tracks every lead routing attempt (success + failure) for real-time dashboards
+// ─────────────────────────────────────────────
+export const leadRoutingEvents = mysqlTable("lead_routing_events", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Facebook page ID that received the lead */
+  pageId: varchar("page_id", { length: 100 }),
+  /** Facebook leadgen_id */
+  leadId: varchar("lead_id", { length: 100 }),
+  /** Resolved target account ID (null if routing failed) */
+  accountId: int("account_id"),
+  /** Contact ID created from this lead (null if creation failed) */
+  contactId: int("contact_id"),
+  /** Deal ID created from this lead (null if not created) */
+  dealId: int("deal_id"),
+  /** How the account was resolved */
+  routingMethod: mysqlEnum("routing_method", [
+    "manual_mapping",    // facebookPageMappings (admin-controlled)
+    "oauth_page",        // accountFacebookPages (OAuth default)
+    "payload_explicit",  // accountId provided in webhook payload
+    "poller",            // facebookLeadPoller background job
+    "unknown",
+  ]).default("unknown").notNull(),
+  /** Outcome of the routing attempt */
+  status: mysqlEnum("status", [
+    "success",           // Lead routed and contact created
+    "failure",           // Routing failed (no mapping, DB error, etc.)
+    "partial",           // Routed but downstream step failed (e.g. deal creation)
+  ]).default("success").notNull(),
+  /** Error message if status is failure or partial */
+  errorMessage: text("error_message"),
+  /** Time in milliseconds from webhook receipt to contact creation */
+  responseTimeMs: int("response_time_ms"),
+  /** Source of the lead event */
+  source: mysqlEnum("source", [
+    "webhook_native",    // Facebook native webhook POST
+    "webhook_simplified",// n8n / simplified payload
+    "poller",            // Background poller
+  ]).default("webhook_native").notNull(),
+  /** Whether a failure alert has been acknowledged by an admin */
+  acknowledged: boolean("acknowledged").default(false).notNull(),
+  /** Raw payload snippet for debugging (first 500 chars) */
+  payloadSnippet: text("payload_snippet"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type LeadRoutingEvent = typeof leadRoutingEvents.$inferSelect;
+export type InsertLeadRoutingEvent = typeof leadRoutingEvents.$inferInsert;

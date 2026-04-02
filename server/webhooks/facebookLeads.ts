@@ -11,6 +11,7 @@ import {
 import { ENV } from "../_core/env";
 import { routeLead } from "../services/leadRoutingEngine";
 import { sendPushNotificationToAccount } from "../services/webPush";
+import { logRoutingEvent } from "../services/leadRoutingMonitor";
 
 const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 
@@ -175,6 +176,7 @@ async function fetchLeadDataFromGraph(
 
 async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
   const results: LeadResult[] = [];
+  const payloadSnippet = JSON.stringify(body).substring(0, 500);
 
   for (const entry of body.entry) {
     const changes = entry.changes || [];
@@ -195,6 +197,8 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
       const pageId = String(value.page_id || entry.id || "");
       let accountId = parseInt(String(value.accountId || entry.accountId || "0"), 10);
       let pageAccessToken: string | null = null;
+      type RoutingMethodType = "manual_mapping" | "oauth_page" | "payload_explicit" | "poller" | "unknown";
+      let _routingMethod: RoutingMethodType = "payload_explicit";
 
       if ((!accountId || accountId <= 0) && pageId) {
         // 1. Check facebookPageMappings first (admin manual routing takes priority)
@@ -203,6 +207,7 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
 
         if (mapping) {
           accountId = mapping.accountId;
+          _routingMethod = "manual_mapping";
           console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via admin facebookPageMappings)`);
 
           // Still look up accountFacebookPages to retrieve pageAccessToken for Graph API calls
@@ -217,9 +222,17 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
           if (fbPage) {
             accountId = fbPage.accountId;
             pageAccessToken = fbPage.pageAccessToken;
+            _routingMethod = "oauth_page";
             console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via accountFacebookPages OAuth fallback)`);
           } else {
             console.warn(`[FB Leads Webhook] No mapping found for page_id=${pageId}, skipping lead`);
+            logRoutingEvent({
+              pageId, leadId, accountId: null, contactId: null, dealId: null,
+              routingMethod: "unknown", status: "failure",
+              errorMessage: `No account mapping for page ${pageId}`,
+              responseTimeMs: null, source: "webhook_native",
+              payloadSnippet,
+            }).catch(() => {});
             results.push({ leadId, contactId: 0, dealId: null, success: false, error: `No account mapping for page ${pageId}` });
             continue;
           }
@@ -227,9 +240,18 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
       }
       if (!accountId || accountId <= 0) {
         console.warn(`[FB Leads Webhook] Could not determine accountId for lead ${leadId}, skipping`);
+        logRoutingEvent({
+          pageId, leadId, accountId: null, contactId: null, dealId: null,
+          routingMethod: "unknown", status: "failure",
+          errorMessage: "Could not determine account",
+          responseTimeMs: null, source: "webhook_native",
+          payloadSnippet,
+        }).catch(() => {});
         results.push({ leadId, contactId: 0, dealId: null, success: false, error: "Could not determine account" });
         continue;
       }
+
+      const _routeStartTime = Date.now();
 
       // Try to fetch full lead data from Graph API using the leadgen_id
       let fieldData: Record<string, string> = {};
@@ -278,9 +300,31 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
           adId,
           formId,
         });
+        // Log successful routing event
+        logRoutingEvent({
+          pageId, leadId, accountId,
+          contactId: result.contactId, dealId: result.dealId,
+          routingMethod: _routingMethod,
+          status: "success",
+          errorMessage: null,
+          responseTimeMs: Date.now() - _routeStartTime,
+          source: "webhook_native",
+          payloadSnippet,
+        }).catch(() => {});
         results.push({ leadId, ...result, success: true });
       } catch (err: any) {
         console.error(`[FB Leads Webhook] Error processing lead ${leadId}:`, err);
+        // Log failure routing event
+        logRoutingEvent({
+          pageId, leadId, accountId,
+          contactId: null, dealId: null,
+          routingMethod: _routingMethod,
+          status: "failure",
+          errorMessage: err.message?.substring(0, 500) || "Unknown processing error",
+          responseTimeMs: Date.now() - _routeStartTime,
+          source: "webhook_native",
+          payloadSnippet,
+        }).catch(() => {});
         results.push({ leadId, contactId: 0, dealId: null, success: false, error: err.message });
       }
     }
@@ -293,8 +337,18 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
 // Handle simplified/flat payload (from n8n)
 // ─────────────────────────────────────────────
 async function handleSimplifiedPayload(body: any) {
+  const simplifiedStartTime = Date.now();
+  const simplifiedSnippet = JSON.stringify(body).substring(0, 500);
   const accountId = parseInt(String(body.accountId || body.account_id || "0"), 10);
   if (!accountId || accountId <= 0) {
+    logRoutingEvent({
+      pageId: null, leadId: body.leadId || body.lead_id || null,
+      accountId: null, contactId: null, dealId: null,
+      routingMethod: "unknown", status: "failure",
+      errorMessage: "accountId is required (simplified payload)",
+      responseTimeMs: null, source: "webhook_simplified",
+      payloadSnippet: simplifiedSnippet,
+    }).catch(() => {});
     return { success: false, error: "accountId is required" };
   }
 
@@ -319,9 +373,27 @@ async function handleSimplifiedPayload(body: any) {
       adId,
       formId,
     });
+    logRoutingEvent({
+      pageId: null, leadId: leadId || null,
+      accountId, contactId: result.contactId, dealId: result.dealId,
+      routingMethod: "payload_explicit", status: "success",
+      errorMessage: null,
+      responseTimeMs: Date.now() - simplifiedStartTime,
+      source: "webhook_simplified",
+      payloadSnippet: simplifiedSnippet,
+    }).catch(() => {});
     return { success: true, ...result };
   } catch (err: any) {
     console.error("[FB Leads Webhook] Error processing simplified lead:", err);
+    logRoutingEvent({
+      pageId: null, leadId: leadId || null,
+      accountId, contactId: null, dealId: null,
+      routingMethod: "payload_explicit", status: "failure",
+      errorMessage: err.message?.substring(0, 500) || "Unknown error",
+      responseTimeMs: Date.now() - simplifiedStartTime,
+      source: "webhook_simplified",
+      payloadSnippet: simplifiedSnippet,
+    }).catch(() => {});
     return { success: false, error: err.message };
   }
 }
