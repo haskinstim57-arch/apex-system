@@ -257,8 +257,8 @@ describe("Facebook Lead Flow", () => {
       expect(mappingIndex).toBeGreaterThan(0);
 
       // Verify the comment documents the priority
-      expect(content).toContain("admin-controlled explicit routing");
-      expect(content).toContain("OAuth default");
+      expect(content).toContain("admin-created explicit routing takes priority");
+      expect(content).toContain("OAuth-connected pages");
     });
 
     it("admin facebookPageMappings lookup appears before OAuth fallback in handleFacebookNativePayload", async () => {
@@ -274,7 +274,7 @@ describe("Facebook Lead Flow", () => {
       );
 
       const mappingPos = resolutionBlock.indexOf("getFacebookPageMappingByPageId");
-      const oauthFallbackPos = resolutionBlock.indexOf("accountFacebookPages OAuth fallback");
+      const oauthFallbackPos = resolutionBlock.indexOf("via OAuth accountFacebookPages");
 
       expect(mappingPos).toBeGreaterThan(0);
       expect(oauthFallbackPos).toBeGreaterThan(0);
@@ -288,10 +288,10 @@ describe("Facebook Lead Flow", () => {
         require("path").resolve(__dirname, "./webhooks/facebookLeads.ts"),
         "utf-8"
       );
-      // After the manual mapping resolves the account, it should still look up
-      // accountFacebookPages to get the pageAccessToken for Graph API calls
-      expect(content).toContain("Still look up accountFacebookPages to retrieve pageAccessToken");
-      expect(content).toContain("Retrieved pageAccessToken from accountFacebookPages");
+      // After the manual mapping resolves the account, it should still try to get
+      // the page access token from accountFacebookPages for Graph API calls
+      expect(content).toContain("Still try to get page access token from accountFacebookPages for Graph API");
+      expect(content).toContain("fbPage.pageAccessToken");
     });
 
     it("falls back to accountFacebookPages when no manual mapping exists", async () => {
@@ -301,8 +301,8 @@ describe("Facebook Lead Flow", () => {
         "utf-8"
       );
       // The else branch should contain the OAuth fallback
-      expect(content).toContain("Fall back to accountFacebookPages (OAuth default)");
-      expect(content).toContain("via accountFacebookPages OAuth fallback");
+      expect(content).toContain("Fall back to accountFacebookPages (OAuth-connected pages)");
+      expect(content).toContain("via OAuth accountFacebookPages");
     });
 
     it("skips lead when neither manual mapping nor OAuth page exists", async () => {

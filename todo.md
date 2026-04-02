@@ -3141,3 +3141,8 @@
 - [x] Add route and sidebar navigation
 - [x] Write vitest tests for monitoring module (14 tests, all 1949 pass)
 - [x] Save checkpoint
+
+## Exact Code Replacement: Facebook Lead Routing Priority (User-Specified)
+- [x] Replace the routing lookup block (~line 197) with user's exact code: admin page mapping first, OAuth fallback
+- [x] Update comment on line 192 to reflect new priority order
+- [x] Run tests and save checkpoint (all 1949 pass)
