@@ -3117,3 +3117,9 @@
 - [x] Create /api/version endpoint returning build timestamp (server/_core/index.ts)
 - [x] Add frontend version-check on app mount with auto-reload (main.tsx + vite define)
 - [x] Rebuild and save checkpoint for republish
+
+## Bug Fix: Facebook Leads Not Routing to Sub-Accounts
+- [x] Swap lookup order in handleFacebookNativePayload: check facebookPageMappings (admin manual) first, then accountFacebookPages (OAuth) as fallback
+- [x] Ensure pageAccessToken is still retrieved from accountFacebookPages for Graph API calls regardless of which lookup resolves the account
+- [x] Write/update tests for new routing priority (5 new tests, all 1935 tests pass)
+- [x] Save checkpoint

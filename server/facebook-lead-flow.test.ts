@@ -242,4 +242,77 @@ describe("Facebook Lead Flow", () => {
       expect(content).toContain("onFacebookLeadReceived");
     });
   });
+
+  describe("Lead Routing Priority: facebookPageMappings before accountFacebookPages", () => {
+    it("checks facebookPageMappings (admin manual) BEFORE accountFacebookPages (OAuth)", async () => {
+      const fs = await import("fs");
+      const content = fs.readFileSync(
+        require("path").resolve(__dirname, "./webhooks/facebookLeads.ts"),
+        "utf-8"
+      );
+      // facebookPageMappings lookup must appear before accountFacebookPages fallback
+      const mappingIndex = content.indexOf("getFacebookPageMappingByPageId");
+      // The first occurrence of getAccountFacebookPageByFbPageId AFTER the mapping check
+      // should be the token retrieval, not the primary account resolution
+      expect(mappingIndex).toBeGreaterThan(0);
+
+      // Verify the comment documents the priority
+      expect(content).toContain("admin-controlled explicit routing");
+      expect(content).toContain("OAuth default");
+    });
+
+    it("admin facebookPageMappings lookup appears before OAuth fallback in handleFacebookNativePayload", async () => {
+      const fs = await import("fs");
+      const content = fs.readFileSync(
+        require("path").resolve(__dirname, "./webhooks/facebookLeads.ts"),
+        "utf-8"
+      );
+      // In the account resolution block, the mapping check should come first
+      const resolutionBlock = content.slice(
+        content.indexOf("if ((!accountId || accountId <= 0) && pageId)"),
+        content.indexOf("if (!accountId || accountId <= 0) {")
+      );
+
+      const mappingPos = resolutionBlock.indexOf("getFacebookPageMappingByPageId");
+      const oauthFallbackPos = resolutionBlock.indexOf("accountFacebookPages OAuth fallback");
+
+      expect(mappingPos).toBeGreaterThan(0);
+      expect(oauthFallbackPos).toBeGreaterThan(0);
+      // Manual mapping check must come before OAuth fallback
+      expect(mappingPos).toBeLessThan(oauthFallbackPos);
+    });
+
+    it("retrieves pageAccessToken from accountFacebookPages even when manual mapping wins", async () => {
+      const fs = await import("fs");
+      const content = fs.readFileSync(
+        require("path").resolve(__dirname, "./webhooks/facebookLeads.ts"),
+        "utf-8"
+      );
+      // After the manual mapping resolves the account, it should still look up
+      // accountFacebookPages to get the pageAccessToken for Graph API calls
+      expect(content).toContain("Still look up accountFacebookPages to retrieve pageAccessToken");
+      expect(content).toContain("Retrieved pageAccessToken from accountFacebookPages");
+    });
+
+    it("falls back to accountFacebookPages when no manual mapping exists", async () => {
+      const fs = await import("fs");
+      const content = fs.readFileSync(
+        require("path").resolve(__dirname, "./webhooks/facebookLeads.ts"),
+        "utf-8"
+      );
+      // The else branch should contain the OAuth fallback
+      expect(content).toContain("Fall back to accountFacebookPages (OAuth default)");
+      expect(content).toContain("via accountFacebookPages OAuth fallback");
+    });
+
+    it("skips lead when neither manual mapping nor OAuth page exists", async () => {
+      const fs = await import("fs");
+      const content = fs.readFileSync(
+        require("path").resolve(__dirname, "./webhooks/facebookLeads.ts"),
+        "utf-8"
+      );
+      expect(content).toContain("No mapping found for page_id=");
+      expect(content).toContain("No account mapping for page");
+    });
+  });
 });

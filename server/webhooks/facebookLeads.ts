@@ -189,25 +189,35 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
       const adId = String(value.ad_id || "");
       const formId = String(value.form_id || "");
 
-      // Determine target account via accountFacebookPages table first, then fall back to facebook_page_mappings
+      // Determine target account: check facebookPageMappings (admin-controlled explicit routing) FIRST,
+      // then fall back to accountFacebookPages (OAuth default).
+      // pageAccessToken is always retrieved from accountFacebookPages for Graph API calls.
       const pageId = String(value.page_id || entry.id || "");
       let accountId = parseInt(String(value.accountId || entry.accountId || "0"), 10);
       let pageAccessToken: string | null = null;
 
       if ((!accountId || accountId <= 0) && pageId) {
-        // Try accountFacebookPages first (from OAuth flow)
-        const fbPage = await getAccountFacebookPageByFbPageId(pageId);
-        if (fbPage) {
-          accountId = fbPage.accountId;
-          pageAccessToken = fbPage.pageAccessToken;
-          console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via accountFacebookPages)`);
+        // 1. Check facebookPageMappings first (admin manual routing takes priority)
+        const { getFacebookPageMappingByPageId } = await import("../db");
+        const mapping = await getFacebookPageMappingByPageId(pageId);
+
+        if (mapping) {
+          accountId = mapping.accountId;
+          console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via admin facebookPageMappings)`);
+
+          // Still look up accountFacebookPages to retrieve pageAccessToken for Graph API calls
+          const fbPage = await getAccountFacebookPageByFbPageId(pageId);
+          if (fbPage) {
+            pageAccessToken = fbPage.pageAccessToken;
+            console.log(`[FB Leads Webhook] Retrieved pageAccessToken from accountFacebookPages for page ${pageId}`);
+          }
         } else {
-          // Fall back to legacy facebook_page_mappings table
-          const { getFacebookPageMappingByPageId } = await import("../db");
-          const mapping = await getFacebookPageMappingByPageId(pageId);
-          if (mapping) {
-            accountId = mapping.accountId;
-            console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via legacy mappings)`);
+          // 2. Fall back to accountFacebookPages (OAuth default)
+          const fbPage = await getAccountFacebookPageByFbPageId(pageId);
+          if (fbPage) {
+            accountId = fbPage.accountId;
+            pageAccessToken = fbPage.pageAccessToken;
+            console.log(`[FB Leads Webhook] Resolved page ${pageId} → account ${accountId} (via accountFacebookPages OAuth fallback)`);
           } else {
             console.warn(`[FB Leads Webhook] No mapping found for page_id=${pageId}, skipping lead`);
             results.push({ leadId, contactId: 0, dealId: null, success: false, error: `No account mapping for page ${pageId}` });
