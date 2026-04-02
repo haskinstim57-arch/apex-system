@@ -161,7 +161,7 @@ const plugins = [
     registerType: "autoUpdate",
     // PWA version — bump on each deploy to force cache invalidation
     // @ts-ignore — version is passed through to manifest
-    version: "1.3.0",
+    version: "2.0.0",
     includeAssets: ["favicon.ico", "icons/apple-touch-icon-v2.png", "icons/masked-icon.svg"],
     manifest: {
       name: "Sterling Marketing",
@@ -256,6 +256,9 @@ const plugins = [
 
 export default defineConfig({
   plugins,
+  define: {
+    __BUILD_TIMESTAMP__: JSON.stringify(Date.now().toString()),
+  },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

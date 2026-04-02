@@ -8,6 +8,37 @@ import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
 
+// Force service worker update check on every page load
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(reg => reg.update());
+  });
+}
+
+// Hardcoded build timestamp — updated at build time via Vite define
+const FRONTEND_BUILD_VERSION = __BUILD_TIMESTAMP__;
+
+// Version-check: compare frontend build version with server version
+// If they differ, force a full reload to bust stale cache
+async function checkVersion() {
+  try {
+    const res = await fetch("/api/version", { cache: "no-store" });
+    if (!res.ok) return;
+    const { version } = await res.json();
+    const stored = sessionStorage.getItem("apex_server_version");
+    if (stored && stored !== version) {
+      // Server restarted with new build — force reload
+      sessionStorage.setItem("apex_server_version", version);
+      window.location.reload();
+      return;
+    }
+    sessionStorage.setItem("apex_server_version", version);
+  } catch {
+    // Offline or network error — skip check
+  }
+}
+checkVersion();
+
 try {
   const queryClient = new QueryClient();
 

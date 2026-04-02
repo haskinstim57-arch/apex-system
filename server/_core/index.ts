@@ -87,6 +87,15 @@ async function startServer() {
   app.use(squareWebhookRouter);
   // Public landing page serving
   app.use(publicPagesRouter);
+  // Build version endpoint — returns server start timestamp for frontend cache-busting
+  const BUILD_TIMESTAMP = Date.now().toString();
+  app.get("/api/version", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    res.json({ version: BUILD_TIMESTAMP });
+  });
+
   // Internal import endpoint (localhost only, for one-time historical imports)
   app.post("/api/internal/import-lead", async (req, res) => {
     try {

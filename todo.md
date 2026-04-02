@@ -3108,3 +3108,12 @@
 - [x] Bump PWA version to 1.3.0 in vite.config.ts (added version field + renamed cache buckets)
 - [x] Verify skipWaiting, clientsClaim, cleanupOutdatedCaches are set (already present)
 - [x] Rebuild and save checkpoint for republish (switched to NetworkFirst caching strategy)
+
+## Bug Fix: Permanent PWA Stale Cache Solution
+- [x] Verify/set workbox: skipWaiting, clientsClaim, cleanupOutdatedCaches, navigateFallback, navigateFallbackDenylist (all already present)
+- [x] Verify registerType: 'autoUpdate' in VitePWA config (already set)
+- [x] Add SW force-update registration in main.tsx (navigator.serviceWorker.getRegistrations + update)
+- [x] Bump manifest version to 2.0.0
+- [x] Create /api/version endpoint returning build timestamp (server/_core/index.ts)
+- [x] Add frontend version-check on app mount with auto-reload (main.tsx + vite define)
+- [x] Rebuild and save checkpoint for republish
