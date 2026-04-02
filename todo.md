@@ -3103,3 +3103,8 @@
 - [x] Fix 4: Added PwaUpdater component with useRegisterSW auto-update handler
 - [x] Fix 5: Generated maskable icons with 20% safe zone padding, separate maskable purpose
 - [x] Rebuild and save checkpoint
+
+## Bug Fix: PWA Stale Cache on Published Site
+- [x] Bump PWA version to 1.3.0 in vite.config.ts (added version field + renamed cache buckets)
+- [x] Verify skipWaiting, clientsClaim, cleanupOutdatedCaches are set (already present)
+- [x] Rebuild and save checkpoint for republish (switched to NetworkFirst caching strategy)

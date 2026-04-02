@@ -159,6 +159,9 @@ const plugins = [
   vitePluginManusDebugCollector(),
   VitePWA({
     registerType: "autoUpdate",
+    // PWA version — bump on each deploy to force cache invalidation
+    // @ts-ignore — version is passed through to manifest
+    version: "1.3.0",
     includeAssets: ["favicon.ico", "icons/apple-touch-icon-v2.png", "icons/masked-icon.svg"],
     manifest: {
       name: "Sterling Marketing",
@@ -211,21 +214,23 @@ const plugins = [
       clientsClaim: true,
       runtimeCaching: [
         {
-          // Cache page-level chunks on first use
+          // Cache page-level chunks — NetworkFirst ensures fresh content on deploy
           urlPattern: /\/assets\/page-.*\.js$/i,
-          handler: "StaleWhileRevalidate",
+          handler: "NetworkFirst",
           options: {
-            cacheName: "page-chunks",
+            cacheName: "page-chunks-v3",
             expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            networkTimeoutSeconds: 5,
           },
         },
         {
-          // Cache other JS chunks (mermaid, streamdown, etc.) on first use
+          // Cache other JS chunks — NetworkFirst ensures fresh content on deploy
           urlPattern: /\/assets\/.*\.js$/i,
-          handler: "StaleWhileRevalidate",
+          handler: "NetworkFirst",
           options: {
-            cacheName: "lazy-chunks",
+            cacheName: "lazy-chunks-v3",
             expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
+            networkTimeoutSeconds: 5,
           },
         },
         {
