@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Download, X, Bell } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
 import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { toast } from "sonner";
 
 const DISMISS_KEY = "pwa-install-dismissed";
 const NOTIFY_DISMISS_KEY = "pwa-notify-dismissed";
@@ -96,6 +97,7 @@ export function PwaInstallPrompt() {
       if (result) {
         // Successfully registered push subscription with backend
         setShowNotifyBanner(false);
+        toast.success("Push notifications enabled! You'll receive alerts for new leads, messages, and appointments.");
       }
     } catch (err) {
       // subscribe() throws on failure — hide banner and dismiss so it doesn't keep popping up

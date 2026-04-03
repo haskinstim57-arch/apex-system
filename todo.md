@@ -3212,3 +3212,9 @@
 - [x] Move Notification.requestPermission() to the very top of subscribe() before any await calls (iOS requires direct user interaction)
 - [x] Disable Enable button in NotificationSettings.tsx until VAPID key is loaded
 - [x] Save checkpoint
+
+## Follow-up Enhancements: Push Notifications & UX
+- [x] Add success toast when push notifications are enabled successfully
+- [x] Implement 410 Gone auto-cleanup: auto-delete expired/invalid push subscriptions from the database when sending fails (already implemented in webPush.ts)
+- [x] Add loading spinner for main content area while initial data is being fetched
+- [x] Save checkpoint

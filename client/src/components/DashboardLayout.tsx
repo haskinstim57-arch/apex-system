@@ -297,7 +297,7 @@ function DashboardLayoutContent({
   const { user, logout } = useAuth();
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
-  const { currentAccountId, isAdmin, isImpersonating, isAgencyScope } = useAccount();
+  const { currentAccountId, isAdmin, isImpersonating, isAgencyScope, isLoading: accountLoading } = useAccount();
   // ── Page context for Jarvis panel ──
   const pageContext = useMemo(() => {
     const exactPageMap: Record<string, string> = {
@@ -605,7 +605,16 @@ function DashboardLayoutContent({
         </div>
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <main className="flex-1 min-w-0 overflow-y-auto">
-            <div className="p-4 md:p-6">{children}</div>
+            {accountLoading ? (
+              <div className="flex items-center justify-center min-h-[50vh]">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 md:p-6">{children}</div>
+            )}
           </main>
           {showJarvis && (
             <JarvisPanel pageContext={pageContext} />
