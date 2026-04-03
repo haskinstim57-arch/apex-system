@@ -34,10 +34,34 @@ export function usePushNotifications(accountId?: number) {
 
     if (supported) {
       setPermission(Notification.permission);
-      // Check if already subscribed
-      const subscribed = localStorage.getItem(PUSH_SUBSCRIBED_KEY);
-      if (subscribed === "true") {
-        setIsSubscribed(true);
+
+      // Check localStorage first, then verify against actual browser subscription
+      const storedSubscribed = localStorage.getItem(PUSH_SUBSCRIBED_KEY) === "true";
+
+      if (storedSubscribed) {
+        // Verify the subscription is still valid in the browser
+        navigator.serviceWorker.ready.then((registration) => {
+          registration.pushManager.getSubscription().then((subscription) => {
+            if (subscription) {
+              // Browser has an active subscription — localStorage is correct
+              setIsSubscribed(true);
+            } else {
+              // localStorage says subscribed but browser has no active subscription — stale
+              console.warn("[Push] localStorage says subscribed but no active browser subscription found — resetting state");
+              setIsSubscribed(false);
+              localStorage.removeItem(PUSH_SUBSCRIBED_KEY);
+            }
+          }).catch((err) => {
+            console.error("[Push] Error checking browser subscription:", err);
+            // Fall back to localStorage value
+            setIsSubscribed(true);
+          });
+        }).catch((err) => {
+          console.error("[Push] Service worker not ready:", err);
+          setIsSubscribed(true);
+        });
+      } else {
+        setIsSubscribed(false);
       }
     }
   }, []);
@@ -58,7 +82,18 @@ export function usePushNotifications(accountId?: number) {
       // Get service worker registration
       const registration = await navigator.serviceWorker.ready;
 
-      // Subscribe to push
+      // Check for an existing stale subscription and unsubscribe it first
+      const existingSub = await registration.pushManager.getSubscription();
+      if (existingSub) {
+        console.log("[Push] Found existing browser subscription — unsubscribing before creating fresh one");
+        try {
+          await existingSub.unsubscribe();
+        } catch (err) {
+          console.warn("[Push] Failed to unsubscribe existing subscription:", err);
+        }
+      }
+
+      // Create a fresh subscription with the current VAPID key
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidData.publicKey),

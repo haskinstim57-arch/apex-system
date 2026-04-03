@@ -37,7 +37,7 @@ import {
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Key, Zap, Copy, Eye, EyeOff } from "lucide-react";
+import { Key, Zap, Copy, Eye, EyeOff, Trash2 } from "lucide-react";
 
 // Event type configuration
 const EVENT_TYPES = [
@@ -551,6 +551,9 @@ export default function NotificationSettings() {
 
       {/* Admin-only: Test Push Diagnostic */}
       {isAdmin && <TestPushCard />}
+
+      {/* Admin-only: Reset Subscriptions */}
+      {isAdmin && <ResetSubscriptionsCard />}
     </div>
   );
 }
@@ -677,6 +680,75 @@ function VapidConfigCard() {
             </div>
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Admin-only: Reset Subscriptions ───
+function ResetSubscriptionsCard() {
+  const { data: accounts } = trpc.accounts.list.useQuery();
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+
+  const clearMutation = trpc.notifications.clearSubscriptions.useMutation({
+    onSuccess: (data) => {
+      const acct = accounts?.find((a: any) => String(a.id) === selectedAccountId);
+      localStorage.removeItem("push-notification-subscribed");
+      toast.success(`Subscriptions cleared (${data.deleted} removed) for ${acct?.name || `Account #${selectedAccountId}`} — click Enable to re-subscribe.`);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to clear subscriptions");
+    },
+  });
+
+  return (
+    <Card className="border-0 card-shadow border-l-4 border-l-red-400">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Trash2 className="h-4 w-4 text-red-400" />
+          Reset Subscriptions
+          <Badge variant="outline" className="text-[10px] ml-1">Admin</Badge>
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Purge all push subscriptions for an account so users can re-subscribe cleanly. Use this when subscriptions become stale or invalid.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex gap-2">
+          <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+            <SelectTrigger className="h-9 flex-1">
+              <SelectValue placeholder="Select a sub-account..." />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts?.map((acct: any) => (
+                <SelectItem key={acct.id} value={String(acct.id)}>
+                  <span className="font-medium">{acct.name}</span>
+                  <span className="text-muted-foreground ml-2 text-xs">ID: {acct.id}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            onClick={() => {
+              const id = parseInt(selectedAccountId);
+              if (!id || id <= 0) {
+                toast.error("Select a sub-account first");
+                return;
+              }
+              clearMutation.mutate({ accountId: id });
+            }}
+            disabled={clearMutation.isPending || !selectedAccountId}
+            variant="destructive"
+            size="sm"
+          >
+            {clearMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
+            Reset All
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

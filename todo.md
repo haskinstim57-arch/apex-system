@@ -3190,3 +3190,9 @@
 - [x] Replace silent guard in usePushNotifications.ts with specific console.error messages for each precondition
 - [x] Add else clause to handleSubscribe in NotificationSettings.tsx to show toast on generic failure
 - [x] Save checkpoint
+
+## Fix: Push notification subscription stale handling
+- [x] Fix 1: Add clearSubscriptions adminProcedure to notifications router (delete all push_subscriptions for accountId, return { deleted })
+- [x] Fix 2: Handle stale browser subscriptions in usePushNotifications — unsubscribe existing before creating new, verify localStorage against actual browser subscription on mount
+- [x] Fix 3: Add "Reset All Subscriptions" admin button to NotificationSettings below Test Push card
+- [x] Save checkpoint

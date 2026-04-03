@@ -278,6 +278,27 @@ export const notificationsRouter = router({
       };
     }),
 
+  /** Admin-only: Clear all push subscriptions for a specific account */
+  clearSubscriptions: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const result = await db
+        .delete(pushSubscriptions)
+        .where(eq(pushSubscriptions.accountId, input.accountId));
+
+      const deleted = (result as any)[0]?.affectedRows ?? 0;
+      console.log(`[WebPush] Admin ${ctx.user.id} cleared ${deleted} subscriptions for account ${input.accountId}`);
+
+      return { deleted };
+    }),
+
   /** Update notification preferences for all of the current user's push subscriptions in an account */
   updatePreferences: protectedProcedure
     .input(
