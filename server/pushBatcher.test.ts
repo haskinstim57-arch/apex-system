@@ -31,21 +31,22 @@ describe("parseNotificationPreferences", () => {
     const prefs = parseNotificationPreferences(
       JSON.stringify({ inbound_sms: false, quiet_hours_enabled: true })
     );
-    expect(prefs.inbound_sms).toBe(false);
+    // Legacy boolean false normalizes to { push: false, sms: false, email: false }
+    expect(prefs.inbound_sms).toEqual({ push: false, sms: false, email: false });
     expect(prefs.quiet_hours_enabled).toBe(true);
     // Defaults preserved
-    expect(prefs.inbound_email).toBe(true);
-    expect(prefs.appointment_booked).toBe(true);
+    expect(prefs.inbound_email).toEqual({ push: true, sms: false, email: false });
+    expect(prefs.appointment_booked).toEqual({ push: true, sms: false, email: false });
     expect(prefs.quiet_hours_start).toBe("22:00");
   });
 
   it("parses a full preferences object", () => {
     const full: NotificationPreferences = {
-      inbound_sms: false,
-      inbound_email: false,
-      appointment_booked: true,
-      ai_call_completed: false,
-      facebook_lead: true,
+      inbound_sms: { push: false, sms: true, email: false },
+      inbound_email: { push: false, sms: false, email: true },
+      appointment_booked: { push: true, sms: false, email: false },
+      ai_call_completed: { push: false, sms: false, email: false },
+      facebook_lead: { push: true, sms: true, email: true },
       quiet_hours_enabled: true,
       quiet_hours_start: "23:00",
       quiet_hours_end: "06:00",
@@ -69,11 +70,12 @@ describe("isEventTypeEnabled", () => {
   });
 
   it("returns false for disabled event types", () => {
-    const prefs = {
+    const prefs: NotificationPreferences = {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
-      inbound_sms: false,
-      facebook_lead: false,
+      inbound_sms: { push: false, sms: false, email: false },
+      facebook_lead: { push: false, sms: true, email: true },
     };
+    // isEventTypeEnabled checks the push channel only
     expect(isEventTypeEnabled(prefs, "inbound_sms")).toBe(false);
     expect(isEventTypeEnabled(prefs, "facebook_lead")).toBe(false);
     // Others still enabled
@@ -308,7 +310,7 @@ describe("Preferences + Quiet Hours integration", () => {
   it("event disabled + outside quiet hours = should not send", () => {
     const prefs: NotificationPreferences = {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
-      inbound_sms: false,
+      inbound_sms: { push: false, sms: false, email: false },
       quiet_hours_enabled: false,
     };
     expect(isEventTypeEnabled(prefs, "inbound_sms")).toBe(false);
@@ -319,7 +321,7 @@ describe("Preferences + Quiet Hours integration", () => {
   it("event enabled + within quiet hours = should not send", () => {
     const prefs: NotificationPreferences = {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
-      inbound_sms: true,
+      inbound_sms: { push: true, sms: false, email: false },
       quiet_hours_enabled: true,
       quiet_hours_start: "00:00",
       quiet_hours_end: "23:59",
@@ -334,7 +336,7 @@ describe("Preferences + Quiet Hours integration", () => {
   it("event enabled + outside quiet hours = should send", () => {
     const prefs: NotificationPreferences = {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
-      inbound_sms: true,
+      inbound_sms: { push: true, sms: false, email: false },
       quiet_hours_enabled: true,
       quiet_hours_start: "22:00",
       quiet_hours_end: "07:00",
@@ -349,11 +351,11 @@ describe("Preferences + Quiet Hours integration", () => {
   it("all events disabled = nothing should send", () => {
     const prefs: NotificationPreferences = {
       ...DEFAULT_NOTIFICATION_PREFERENCES,
-      inbound_sms: false,
-      inbound_email: false,
-      appointment_booked: false,
-      ai_call_completed: false,
-      facebook_lead: false,
+      inbound_sms: { push: false, sms: false, email: false },
+      inbound_email: { push: false, sms: false, email: false },
+      appointment_booked: { push: false, sms: false, email: false },
+      ai_call_completed: { push: false, sms: false, email: false },
+      facebook_lead: { push: false, sms: false, email: false },
     };
     const eventTypes: PushEventType[] = [
       "inbound_sms", "inbound_email", "appointment_booked", "ai_call_completed", "facebook_lead"

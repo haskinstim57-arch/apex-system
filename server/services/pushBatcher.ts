@@ -36,24 +36,32 @@ export type PushEventType =
   | "facebook_lead";
 
 // ─── Notification Preferences ────────────────────────
+export interface ChannelPreference {
+  push: boolean;
+  sms: boolean;
+  email: boolean;
+}
+
 export interface NotificationPreferences {
-  inbound_sms: boolean;
-  inbound_email: boolean;
-  appointment_booked: boolean;
-  ai_call_completed: boolean;
-  facebook_lead: boolean;
+  inbound_sms: ChannelPreference;
+  inbound_email: ChannelPreference;
+  appointment_booked: ChannelPreference;
+  ai_call_completed: ChannelPreference;
+  facebook_lead: ChannelPreference;
   quiet_hours_enabled: boolean;
   quiet_hours_start: string; // "22:00"
   quiet_hours_end: string;   // "07:00"
   quiet_hours_timezone: string; // "America/New_York"
 }
 
+const DEFAULT_CHANNEL: ChannelPreference = { push: true, sms: false, email: false };
+
 export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  inbound_sms: true,
-  inbound_email: true,
-  appointment_booked: true,
-  ai_call_completed: true,
-  facebook_lead: true,
+  inbound_sms: { ...DEFAULT_CHANNEL },
+  inbound_email: { ...DEFAULT_CHANNEL },
+  appointment_booked: { ...DEFAULT_CHANNEL },
+  ai_call_completed: { ...DEFAULT_CHANNEL },
+  facebook_lead: { ...DEFAULT_CHANNEL },
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "07:00",
@@ -61,26 +69,73 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
 };
 
 /**
- * Parse notification preferences from a JSON string, falling back to defaults
+ * Normalize a single event type value — supports both legacy boolean and new channel object format.
+ * Legacy `true` → { push: true, sms: false, email: false }
+ * Legacy `false` → { push: false, sms: false, email: false }
+ */
+function normalizeChannel(value: unknown): ChannelPreference {
+  if (typeof value === "boolean") {
+    return { push: value, sms: false, email: false };
+  }
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>;
+    return {
+      push: typeof obj.push === "boolean" ? obj.push : true,
+      sms: typeof obj.sms === "boolean" ? obj.sms : false,
+      email: typeof obj.email === "boolean" ? obj.email : false,
+    };
+  }
+  return { ...DEFAULT_CHANNEL };
+}
+
+/**
+ * Parse notification preferences from a JSON string, falling back to defaults.
+ * Handles backward compatibility with legacy boolean format.
  */
 export function parseNotificationPreferences(json: string | null): NotificationPreferences {
-  if (!json) return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+  if (!json) return JSON.parse(JSON.stringify(DEFAULT_NOTIFICATION_PREFERENCES));
   try {
     const parsed = JSON.parse(json);
-    return { ...DEFAULT_NOTIFICATION_PREFERENCES, ...parsed };
+    return {
+      inbound_sms: normalizeChannel(parsed.inbound_sms),
+      inbound_email: normalizeChannel(parsed.inbound_email),
+      appointment_booked: normalizeChannel(parsed.appointment_booked),
+      ai_call_completed: normalizeChannel(parsed.ai_call_completed),
+      facebook_lead: normalizeChannel(parsed.facebook_lead),
+      quiet_hours_enabled: typeof parsed.quiet_hours_enabled === "boolean" ? parsed.quiet_hours_enabled : false,
+      quiet_hours_start: parsed.quiet_hours_start || "22:00",
+      quiet_hours_end: parsed.quiet_hours_end || "07:00",
+      quiet_hours_timezone: parsed.quiet_hours_timezone || "America/New_York",
+    };
   } catch {
-    return { ...DEFAULT_NOTIFICATION_PREFERENCES };
+    return JSON.parse(JSON.stringify(DEFAULT_NOTIFICATION_PREFERENCES));
   }
 }
 
 /**
- * Check if a specific event type is enabled for a given preferences config
+ * Check if a specific event type's push channel is enabled for a given preferences config.
+ * This is used by the push notification pipeline — only checks the `push` channel.
  */
 export function isEventTypeEnabled(
   prefs: NotificationPreferences,
   eventType: PushEventType
 ): boolean {
-  return prefs[eventType] ?? true;
+  const channel = prefs[eventType];
+  if (!channel || typeof channel !== "object") return true;
+  return channel.push ?? true;
+}
+
+/**
+ * Check if a specific channel is enabled for a given event type.
+ */
+export function isChannelEnabled(
+  prefs: NotificationPreferences,
+  eventType: PushEventType,
+  channel: "push" | "sms" | "email"
+): boolean {
+  const pref = prefs[eventType];
+  if (!pref || typeof pref !== "object") return channel === "push";
+  return pref[channel] ?? false;
 }
 
 /**

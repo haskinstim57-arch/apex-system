@@ -3223,3 +3223,12 @@
 - [x] Add backend procedure to count active push subscriptions per account
 - [x] Display subscription count badge in TestPushCard UI
 - [x] Save checkpoint
+
+## Fix: iOS Push + PWA Banner + Multi-Channel Notification Preferences
+- [x] Part 1: Ensure Notification.requestPermission() is the absolute first await in subscribe(), before any early returns for vapidData/accountId (already implemented)
+- [x] Part 2: Verify PwaInstallPrompt uses usePushNotifications hook and is inside AccountProvider (already implemented)
+- [x] Part 3a: Update notification preferences schema to support per-channel (push/SMS/email) settings per event type
+- [x] Part 3b: Update pushBatcher.ts isEventTypeEnabled to check prefs[eventType].push; added isChannelEnabled helper
+- [x] Part 3c: Update NotificationSettings.tsx UI to show push/SMS/email toggles per event type
+- [x] Part 3d: Update updatePreferences mutation Zod schema to handle new nested object structure
+- [x] Save checkpoint

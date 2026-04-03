@@ -104,29 +104,57 @@ const TIMEZONES = [
   "Pacific/Auckland",
 ];
 
+type ChannelPref = { push: boolean; sms: boolean; email: boolean };
+
 type PreferencesState = {
-  inbound_sms: boolean;
-  inbound_email: boolean;
-  appointment_booked: boolean;
-  ai_call_completed: boolean;
-  facebook_lead: boolean;
+  inbound_sms: ChannelPref;
+  inbound_email: ChannelPref;
+  appointment_booked: ChannelPref;
+  ai_call_completed: ChannelPref;
+  facebook_lead: ChannelPref;
   quiet_hours_enabled: boolean;
   quiet_hours_start: string;
   quiet_hours_end: string;
   quiet_hours_timezone: string;
 };
 
+const DEFAULT_CHANNEL: ChannelPref = { push: true, sms: false, email: false };
+
 const DEFAULT_PREFS: PreferencesState = {
-  inbound_sms: true,
-  inbound_email: true,
-  appointment_booked: true,
-  ai_call_completed: true,
-  facebook_lead: true,
+  inbound_sms: { ...DEFAULT_CHANNEL },
+  inbound_email: { ...DEFAULT_CHANNEL },
+  appointment_booked: { ...DEFAULT_CHANNEL },
+  ai_call_completed: { ...DEFAULT_CHANNEL },
+  facebook_lead: { ...DEFAULT_CHANNEL },
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "07:00",
   quiet_hours_timezone: "America/New_York",
 };
+
+/** Normalize legacy boolean prefs to new channel format */
+function normalizePrefs(raw: any): PreferencesState {
+  const normalize = (val: any): ChannelPref => {
+    if (typeof val === "boolean") return { push: val, sms: false, email: false };
+    if (val && typeof val === "object") return {
+      push: typeof val.push === "boolean" ? val.push : true,
+      sms: typeof val.sms === "boolean" ? val.sms : false,
+      email: typeof val.email === "boolean" ? val.email : false,
+    };
+    return { ...DEFAULT_CHANNEL };
+  };
+  return {
+    inbound_sms: normalize(raw.inbound_sms),
+    inbound_email: normalize(raw.inbound_email),
+    appointment_booked: normalize(raw.appointment_booked),
+    ai_call_completed: normalize(raw.ai_call_completed),
+    facebook_lead: normalize(raw.facebook_lead),
+    quiet_hours_enabled: typeof raw.quiet_hours_enabled === "boolean" ? raw.quiet_hours_enabled : false,
+    quiet_hours_start: raw.quiet_hours_start || "22:00",
+    quiet_hours_end: raw.quiet_hours_end || "07:00",
+    quiet_hours_timezone: raw.quiet_hours_timezone || "America/New_York",
+  };
+}
 
 export default function NotificationSettings() {
   const { currentAccountId, accounts } = useAccount();
@@ -166,18 +194,32 @@ export default function NotificationSettings() {
     },
   });
 
-  // Sync fetched preferences into local state
+  // Sync fetched preferences into local state (normalize legacy boolean format)
   useEffect(() => {
     if (prefsData?.preferences) {
-      setPrefs(prefsData.preferences as PreferencesState);
+      setPrefs(normalizePrefs(prefsData.preferences));
       setHasChanges(false);
     }
   }, [prefsData]);
 
-  const updatePref = useCallback((key: keyof PreferencesState, value: boolean | string) => {
+  const updatePref = useCallback((key: keyof PreferencesState, value: any) => {
     setPrefs((prev) => ({ ...prev, [key]: value }));
     setHasChanges(true);
   }, []);
+
+  const updateChannel = useCallback(
+    (eventKey: keyof PreferencesState, channel: "push" | "sms" | "email", value: boolean) => {
+      setPrefs((prev) => {
+        const current = prev[eventKey];
+        if (typeof current === "object" && "push" in current) {
+          return { ...prev, [eventKey]: { ...current, [channel]: value } };
+        }
+        return prev;
+      });
+      setHasChanges(true);
+    },
+    []
+  );
 
   const handleSave = useCallback(() => {
     if (!currentAccountId) return;
@@ -220,18 +262,25 @@ export default function NotificationSettings() {
     }
   }, [unsubscribe]);
 
-  const allEnabled = EVENT_TYPES.every((e) => prefs[e.key]);
-  const noneEnabled = EVENT_TYPES.every((e) => !prefs[e.key]);
+  const allEnabled = EVENT_TYPES.every((e) => {
+    const p = prefs[e.key];
+    return typeof p === "object" && p.push && p.sms && p.email;
+  });
+  const noneEnabled = EVENT_TYPES.every((e) => {
+    const p = prefs[e.key];
+    return typeof p === "object" && !p.push && !p.sms && !p.email;
+  });
 
   const toggleAll = useCallback(
     (enabled: boolean) => {
+      const ch: ChannelPref = { push: enabled, sms: enabled, email: enabled };
       setPrefs((prev) => ({
         ...prev,
-        inbound_sms: enabled,
-        inbound_email: enabled,
-        appointment_booked: enabled,
-        ai_call_completed: enabled,
-        facebook_lead: enabled,
+        inbound_sms: { ...ch },
+        inbound_email: { ...ch },
+        appointment_booked: { ...ch },
+        ai_call_completed: { ...ch },
+        facebook_lead: { ...ch },
       }));
       setHasChanges(true);
     },
@@ -378,7 +427,7 @@ export default function NotificationSettings() {
                 Notification Types
               </CardTitle>
               <CardDescription className="text-xs mt-1">
-                Choose which events send push notifications. Rapid-fire events are automatically batched.
+                Choose which channels to use for each event type. Rapid-fire events are automatically batched.
               </CardDescription>
             </div>
             <Button
@@ -392,26 +441,51 @@ export default function NotificationSettings() {
           </div>
         </CardHeader>
         <CardContent className="space-y-1">
-          {EVENT_TYPES.map((event, idx) => (
-            <React.Fragment key={event.key}>
-              {idx > 0 && <Separator className="my-1" />}
-              <div className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div className={`h-8 w-8 rounded-lg ${event.bgColor} flex items-center justify-center`}>
-                    <event.icon className={`h-4 w-4 ${event.iconColor}`} />
+          {/* Channel column headers */}
+          <div className="flex items-center justify-end gap-3 pb-1 pr-0.5">
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider w-12 text-center">Push</span>
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider w-12 text-center">SMS</span>
+            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider w-12 text-center">Email</span>
+          </div>
+          {EVENT_TYPES.map((event, idx) => {
+            const channelPref = prefs[event.key] as ChannelPref;
+            return (
+              <React.Fragment key={event.key}>
+                {idx > 0 && <Separator className="my-1" />}
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`h-8 w-8 rounded-lg ${event.bgColor} flex items-center justify-center shrink-0`}>
+                      <event.icon className={`h-4 w-4 ${event.iconColor}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium">{event.label}</p>
+                      <p className="text-xs text-muted-foreground truncate">{event.description}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium">{event.label}</p>
-                    <p className="text-xs text-muted-foreground">{event.description}</p>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <div className="w-12 flex justify-center">
+                      <Switch
+                        checked={channelPref?.push ?? true}
+                        onCheckedChange={(checked) => updateChannel(event.key, "push", checked)}
+                      />
+                    </div>
+                    <div className="w-12 flex justify-center">
+                      <Switch
+                        checked={channelPref?.sms ?? false}
+                        onCheckedChange={(checked) => updateChannel(event.key, "sms", checked)}
+                      />
+                    </div>
+                    <div className="w-12 flex justify-center">
+                      <Switch
+                        checked={channelPref?.email ?? false}
+                        onCheckedChange={(checked) => updateChannel(event.key, "email", checked)}
+                      />
+                    </div>
                   </div>
                 </div>
-                <Switch
-                  checked={prefs[event.key]}
-                  onCheckedChange={(checked) => updatePref(event.key, checked)}
-                />
-              </div>
-            </React.Fragment>
-          ))}
+              </React.Fragment>
+            );
+          })}
         </CardContent>
       </Card>
 

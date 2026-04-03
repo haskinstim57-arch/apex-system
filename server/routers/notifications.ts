@@ -324,11 +324,11 @@ export const notificationsRouter = router({
       z.object({
         accountId: z.number().int().positive(),
         preferences: z.object({
-          inbound_sms: z.boolean(),
-          inbound_email: z.boolean(),
-          appointment_booked: z.boolean(),
-          ai_call_completed: z.boolean(),
-          facebook_lead: z.boolean(),
+          inbound_sms: z.object({ push: z.boolean(), sms: z.boolean(), email: z.boolean() }),
+          inbound_email: z.object({ push: z.boolean(), sms: z.boolean(), email: z.boolean() }),
+          appointment_booked: z.object({ push: z.boolean(), sms: z.boolean(), email: z.boolean() }),
+          ai_call_completed: z.object({ push: z.boolean(), sms: z.boolean(), email: z.boolean() }),
+          facebook_lead: z.object({ push: z.boolean(), sms: z.boolean(), email: z.boolean() }),
           quiet_hours_enabled: z.boolean(),
           quiet_hours_start: z.string().regex(/^\d{2}:\d{2}$/),
           quiet_hours_end: z.string().regex(/^\d{2}:\d{2}$/),
