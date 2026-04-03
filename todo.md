@@ -3196,3 +3196,9 @@
 - [x] Fix 2: Handle stale browser subscriptions in usePushNotifications — unsubscribe existing before creating new, verify localStorage against actual browser subscription on mount
 - [x] Fix 3: Add "Reset All Subscriptions" admin button to NotificationSettings below Test Push card
 - [x] Save checkpoint
+
+## Bug Fix: Notification Settings — Three UI Bugs
+- [x] Bug 1: Admin cards (Test Push / Reset Subscriptions) only appear after page refresh — fix auth hydration timing with staleTime: 0 / refetchOnMount: true
+- [x] Bug 2: Enable button silently fails on PWA — re-throw errors from subscribe so handleSubscribe can show them in toast.error(); add SW scope/state logging
+- [x] Bug 3: getVapidPublicKey returns stale empty value — add staleTime: 0, refetchOnMount: true to the query in usePushNotifications.ts
+- [x] Save checkpoint

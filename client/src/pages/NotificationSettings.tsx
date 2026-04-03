@@ -198,16 +198,19 @@ export default function NotificationSettings() {
       if (result) {
         setJustEnabled(true);
         toast.success("Push notifications enabled!");
-      } else if (permission === "denied") {
-        toast.error("Notifications are blocked. Please enable them in your browser/device settings.");
-      } else {
-        toast.error("Failed to enable notifications. Check that VAPID keys are configured and you have a sub-account selected.");
       }
     } catch (err: any) {
       console.error("[Push] Subscribe error:", err);
-      toast.error(err?.message || "Failed to enable push notifications");
+      // Translate common DOMException names into user-friendly messages
+      let message = err?.message || "Failed to enable push notifications";
+      if (err?.name === "InvalidStateError" || message.includes("applicationServerKey")) {
+        message = "VAPID key mismatch — ask your admin to reset subscriptions and try again.";
+      } else if (err?.name === "NotAllowedError") {
+        message = "Notification permission denied. Enable notifications in your browser/device settings.";
+      }
+      toast.error(message);
     }
-  }, [subscribe, permission, pushAccountId]);
+  }, [subscribe, pushAccountId]);
 
   const handleUnsubscribe = useCallback(async () => {
     const result = await unsubscribe();
@@ -687,7 +690,7 @@ function VapidConfigCard() {
 
 // ─── Admin-only: Reset Subscriptions ───
 function ResetSubscriptionsCard() {
-  const { data: accounts } = trpc.accounts.list.useQuery();
+  const { data: accounts } = trpc.accounts.list.useQuery(undefined, { staleTime: 0, refetchOnMount: true });
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
 
   const clearMutation = trpc.notifications.clearSubscriptions.useMutation({
@@ -756,7 +759,7 @@ function ResetSubscriptionsCard() {
 
 // ─── Admin-only: Test Push Diagnostic ───
 function TestPushCard() {
-  const { data: accounts } = trpc.accounts.list.useQuery();
+  const { data: accounts } = trpc.accounts.list.useQuery(undefined, { staleTime: 0, refetchOnMount: true });
   const [selectedAccountId, setSelectedAccountId] = useState<string>("");
   const [lastResult, setLastResult] = useState<{
     sent: number;

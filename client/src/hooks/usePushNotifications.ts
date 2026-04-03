@@ -21,8 +21,11 @@ export function usePushNotifications(accountId?: number) {
   const [isSupported, setIsSupported] = useState(false);
   const [permission, setPermission] = useState<NotificationPermission>("default");
 
+  // Bug 3 fix: always fetch fresh VAPID key, never use stale cached empty string
   const { data: vapidData } = trpc.notifications.getVapidPublicKey.useQuery(undefined, {
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const subscribeMutation = trpc.notifications.subscribePush.useMutation();
@@ -41,6 +44,9 @@ export function usePushNotifications(accountId?: number) {
       if (storedSubscribed) {
         // Verify the subscription is still valid in the browser
         navigator.serviceWorker.ready.then((registration) => {
+          // Log SW scope and state for diagnostics
+          console.log("[Push] SW scope:", registration.scope, "| active state:", registration.active?.state);
+
           registration.pushManager.getSubscription().then((subscription) => {
             if (subscription) {
               // Browser has an active subscription — localStorage is correct
@@ -66,64 +72,74 @@ export function usePushNotifications(accountId?: number) {
     }
   }, []);
 
+  // Bug 2 fix: subscribe now throws on error instead of silently returning false,
+  // so the caller (handleSubscribe) can catch and show the error message in a toast
   const subscribe = useCallback(async () => {
-    if (!isSupported) { console.error("[Push] Browser does not support push notifications"); return false; }
-    if (!vapidData?.publicKey) { console.error("[Push] VAPID public key not configured — set VAPID_PUBLIC_KEY env var and restart"); return false; }
-    if (!accountId) { console.error("[Push] No account selected — switch to a sub-account first"); return false; }
-    if (!user) { console.error("[Push] User not authenticated"); return false; }
-
-    try {
-      // Request notification permission
-      const perm = await Notification.requestPermission();
-      setPermission(perm);
-
-      if (perm !== "granted") return false;
-
-      // Get service worker registration
-      const registration = await navigator.serviceWorker.ready;
-
-      // Check for an existing stale subscription and unsubscribe it first
-      const existingSub = await registration.pushManager.getSubscription();
-      if (existingSub) {
-        console.log("[Push] Found existing browser subscription — unsubscribing before creating fresh one");
-        try {
-          await existingSub.unsubscribe();
-        } catch (err) {
-          console.warn("[Push] Failed to unsubscribe existing subscription:", err);
-        }
-      }
-
-      // Create a fresh subscription with the current VAPID key
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidData.publicKey),
-      });
-
-      const json = subscription.toJSON();
-      if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
-        throw new Error("Invalid push subscription");
-      }
-
-      // Send subscription to server
-      await subscribeMutation.mutateAsync({
-        accountId,
-        subscription: {
-          endpoint: json.endpoint,
-          keys: {
-            p256dh: json.keys.p256dh,
-            auth: json.keys.auth,
-          },
-        },
-        userAgent: navigator.userAgent,
-      });
-
-      setIsSubscribed(true);
-      localStorage.setItem(PUSH_SUBSCRIBED_KEY, "true");
-      return true;
-    } catch (err) {
-      console.error("[Push] Subscribe error:", err);
-      return false;
+    if (!isSupported) {
+      throw new Error("Push notifications are not supported in this browser. Try Chrome, Edge, or Firefox.");
     }
+    if (!vapidData?.publicKey) {
+      throw new Error("VAPID public key not configured. Ask your admin to set VAPID_PUBLIC_KEY and restart the server.");
+    }
+    if (!accountId) {
+      throw new Error("No account selected. Please switch to a sub-account first.");
+    }
+    if (!user) {
+      throw new Error("You must be logged in to enable push notifications.");
+    }
+
+    // Request notification permission
+    const perm = await Notification.requestPermission();
+    setPermission(perm);
+
+    if (perm !== "granted") {
+      throw new Error("Notification permission was denied. Enable notifications in your browser/device settings.");
+    }
+
+    // Get service worker registration
+    const registration = await navigator.serviceWorker.ready;
+
+    // Log SW scope and state for diagnostics
+    console.log("[Push] SW scope:", registration.scope, "| active state:", registration.active?.state);
+
+    // Check for an existing stale subscription and unsubscribe it first
+    const existingSub = await registration.pushManager.getSubscription();
+    if (existingSub) {
+      console.log("[Push] Found existing browser subscription — unsubscribing before creating fresh one");
+      try {
+        await existingSub.unsubscribe();
+      } catch (err) {
+        console.warn("[Push] Failed to unsubscribe existing subscription:", err);
+      }
+    }
+
+    // Create a fresh subscription with the current VAPID key
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidData.publicKey),
+    });
+
+    const json = subscription.toJSON();
+    if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) {
+      throw new Error("Invalid push subscription — browser returned incomplete subscription data.");
+    }
+
+    // Send subscription to server
+    await subscribeMutation.mutateAsync({
+      accountId,
+      subscription: {
+        endpoint: json.endpoint,
+        keys: {
+          p256dh: json.keys.p256dh,
+          auth: json.keys.auth,
+        },
+      },
+      userAgent: navigator.userAgent,
+    });
+
+    setIsSubscribed(true);
+    localStorage.setItem(PUSH_SUBSCRIBED_KEY, "true");
+    return true;
   }, [isSupported, vapidData, accountId, user, subscribeMutation]);
 
   const unsubscribe = useCallback(async () => {
