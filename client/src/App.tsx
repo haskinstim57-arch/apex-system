@@ -357,9 +357,7 @@ function Router() {
       </Route>
       <Route path="/settings/notifications">
         <DashboardLayout>
-          <RequireAccount>
-            <NotificationSettings />
-          </RequireAccount>
+          <NotificationSettings />
         </DashboardLayout>
       </Route>
       <Route path="/settings/facebook-pages">

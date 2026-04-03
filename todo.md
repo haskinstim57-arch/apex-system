@@ -3153,3 +3153,6 @@
 - [x] Part 2: Add testPushNotification admin-only diagnostic endpoint to notifications router (returns sent/failed/vapidConfigured/subscriptionCount)
 - [x] Part 3: Fix inbound message createNotification calls — added console.log before all 3 createNotification calls (Twilio compliance, Twilio normal, SendGrid) showing accountId, type, contactId, assignedUserId
 - [x] Run tests and save checkpoint (all 1949 pass)
+
+## Fix: Remove RequireAccount from /settings/notifications route
+- [x] Remove RequireAccount wrapper from /settings/notifications in App.tsx so admins can access notification settings without a sub-account selected
