@@ -129,10 +129,13 @@ const DEFAULT_PREFS: PreferencesState = {
 };
 
 export default function NotificationSettings() {
-  const { currentAccountId } = useAccount();
+  const { currentAccountId, accounts } = useAccount();
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  // For push subscriptions, use currentAccountId if available,
+  // otherwise fall back to the first account (admins in agency scope)
+  const pushAccountId = currentAccountId ?? accounts?.[0]?.id ?? undefined;
   const {
     isSupported,
     isSubscribed,
@@ -140,7 +143,7 @@ export default function NotificationSettings() {
     subscribe,
     unsubscribe,
     isLoading: pushLoading,
-  } = usePushNotifications(currentAccountId ?? undefined);
+  } = usePushNotifications(pushAccountId);
 
   const [prefs, setPrefs] = useState<PreferencesState>(DEFAULT_PREFS);
   const [hasChanges, setHasChanges] = useState(false);
@@ -184,13 +187,24 @@ export default function NotificationSettings() {
   }, [currentAccountId, prefs, updatePrefsMutation]);
 
   const handleSubscribe = useCallback(async () => {
-    const result = await subscribe();
-    if (result) {
-      toast.success("Push notifications enabled");
-    } else if (permission === "denied") {
-      toast.error("Notifications are blocked. Please enable them in your browser settings.");
+    if (!pushAccountId) {
+      toast.error("No account available. Please select a sub-account first.");
+      return;
     }
-  }, [subscribe, permission]);
+    try {
+      const result = await subscribe();
+      if (result) {
+        toast.success("Push notifications enabled");
+      } else if (permission === "denied") {
+        toast.error("Notifications are blocked. Please enable them in your browser/device settings.");
+      } else {
+        toast.error("Failed to enable push notifications. Please try again.");
+      }
+    } catch (err: any) {
+      console.error("[Push] Subscribe error:", err);
+      toast.error(err?.message || "Failed to enable push notifications");
+    }
+  }, [subscribe, permission, pushAccountId]);
 
   const handleUnsubscribe = useCallback(async () => {
     const result = await unsubscribe();

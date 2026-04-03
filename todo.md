@@ -3166,3 +3166,8 @@
 - [x] Replace manual Account ID input with a dropdown that lists sub-accounts with their IDs
 - [x] Fix test push result not persisting — result now stored in component state with account name + timestamp
 - [x] Save checkpoint
+
+## Bug Fix: PWA Enable Push Notification button not working on mobile
+- [x] Investigate push subscription flow — root cause: admin in agency scope has currentAccountId=null, subscribe silently returns false
+- [x] Fix the Enable button — fall back to first available account when admin has no sub-account selected, added error toasts for all failure paths
+- [x] Save checkpoint (all 1952 tests pass)
