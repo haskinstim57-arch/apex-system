@@ -3452,6 +3452,71 @@ export async function dismissNotification(id: number, accountId: number) {
 }
 
 
+/**
+ * Get paginated notification log for a user within an account.
+ * Supports filtering by type, read status, and date range.
+ * Includes dismissed notifications (full history).
+ */
+export async function getNotificationLog(
+  accountId: number,
+  userId: number,
+  opts: {
+    page?: number;
+    pageSize?: number;
+    type?: string;
+    isRead?: boolean;
+    startDate?: Date;
+    endDate?: Date;
+  } = {}
+) {
+  const db = await getDb();
+  if (!db) return { items: [], total: 0 };
+  const { page = 1, pageSize = 25, type, isRead, startDate, endDate } = opts;
+  const offset = (page - 1) * pageSize;
+
+  const conditions = [
+    eq(notifications.accountId, accountId),
+    or(
+      eq(notifications.userId, userId),
+      sql`${notifications.userId} IS NULL`
+    ),
+  ];
+
+  if (type) {
+    conditions.push(eq(notifications.type, type as any));
+  }
+  if (isRead !== undefined) {
+    conditions.push(eq(notifications.isRead, isRead));
+  }
+  if (startDate) {
+    conditions.push(sql`${notifications.createdAt} >= ${startDate}`);
+  }
+  if (endDate) {
+    conditions.push(sql`${notifications.createdAt} <= ${endDate}`);
+  }
+
+  const whereClause = and(...conditions);
+
+  const [items, countResult] = await Promise.all([
+    db
+      .select()
+      .from(notifications)
+      .where(whereClause)
+      .orderBy(desc(notifications.createdAt))
+      .limit(pageSize)
+      .offset(offset),
+    db
+      .select({ count: count() })
+      .from(notifications)
+      .where(whereClause),
+  ]);
+
+  return {
+    items,
+    total: countResult[0]?.count ?? 0,
+  };
+}
+
 // ─────────────────────────────────────────────
 // Port Requests
 // ─────────────────────────────────────────────

@@ -431,6 +431,20 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+        <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/notification-log'}>
+          <CardContent className="pt-5 pb-4 px-5">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                <Bell className="h-4 w-4 text-blue-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium">Notification Log</p>
+                <p className="text-xs text-muted-foreground">View full notification history</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
         <Card className="bg-white border-0 card-shadow opacity-60">
           <CardContent className="pt-5 pb-4 px-5">
             <div className="flex items-center gap-3">

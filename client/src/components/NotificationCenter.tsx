@@ -238,6 +238,16 @@ export function NotificationCenter() {
               })
             )}
           </div>
+
+          {/* View all link */}
+          <div className="border-t border-border/50 px-4 py-2.5">
+            <button
+              onClick={() => { navigate("/settings/notification-log"); setIsOpen(false); }}
+              className="text-xs text-primary hover:text-primary/80 font-medium w-full text-center transition-colors"
+            >
+              View all notifications
+            </button>
+          </div>
         </div>
       )}
     </div>

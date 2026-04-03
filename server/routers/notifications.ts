@@ -3,6 +3,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import {
   getNotifications,
+  getNotificationLog,
   getUnreadNotificationCount,
   markNotificationAsRead,
   markAllNotificationsAsRead,
@@ -30,6 +31,38 @@ async function requireAccountMember(userId: number, accountId: number, userRole?
 }
 
 export const notificationsRouter = router({
+  /** Paginated notification log with filtering */
+  log: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        page: z.number().int().min(1).optional().default(1),
+        pageSize: z.number().int().min(1).max(100).optional().default(25),
+        type: z.string().optional(),
+        isRead: z.boolean().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const result = await getNotificationLog(input.accountId, ctx.user.id, {
+        page: input.page,
+        pageSize: input.pageSize,
+        type: input.type,
+        isRead: input.isRead,
+        startDate: input.startDate ? new Date(input.startDate) : undefined,
+        endDate: input.endDate ? new Date(input.endDate) : undefined,
+      });
+      return {
+        items: result.items,
+        total: result.total,
+        page: input.page,
+        pageSize: input.pageSize,
+        totalPages: Math.ceil(result.total / input.pageSize),
+      };
+    }),
+
   /** List the last N notifications for the current user in an account */
   list: protectedProcedure
     .input(

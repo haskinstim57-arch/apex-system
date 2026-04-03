@@ -3175,3 +3175,13 @@
 ## UX: Post-enable notification confirmation message
 - [x] After user enables push notifications, show a confirmation message explaining how to manage settings later
 - [x] Save checkpoint
+
+## Feature: Notification Log Page
+- [x] Investigate existing notification tables — reusing existing notifications table (no schema changes needed)
+- [x] Reusing existing notifications table with full history (including dismissed)
+- [x] Add getNotificationLog paginated query helper to db.ts (type, read status, date range filters)
+- [x] Add notifications.log tRPC procedure with pagination and filtering
+- [x] Build NotificationLog.tsx page with type/status filters, paginated list, mark-as-read, time-ago formatting
+- [x] Add route /settings/notification-log, Settings card, and "View all notifications" link in NotificationCenter dropdown
+- [x] Write vitest tests (15 tests, all 1967 pass)
+- [x] Save checkpoint
