@@ -43,7 +43,10 @@ export function usePushNotifications(accountId?: number) {
   }, []);
 
   const subscribe = useCallback(async () => {
-    if (!isSupported || !vapidData?.publicKey || !accountId || !user) return false;
+    if (!isSupported) { console.error("[Push] Browser does not support push notifications"); return false; }
+    if (!vapidData?.publicKey) { console.error("[Push] VAPID public key not configured — set VAPID_PUBLIC_KEY env var and restart"); return false; }
+    if (!accountId) { console.error("[Push] No account selected — switch to a sub-account first"); return false; }
+    if (!user) { console.error("[Push] User not authenticated"); return false; }
 
     try {
       // Request notification permission

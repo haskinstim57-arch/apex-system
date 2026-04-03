@@ -201,7 +201,7 @@ export default function NotificationSettings() {
       } else if (permission === "denied") {
         toast.error("Notifications are blocked. Please enable them in your browser/device settings.");
       } else {
-        toast.error("Failed to enable push notifications. Please try again.");
+        toast.error("Failed to enable notifications. Check that VAPID keys are configured and you have a sub-account selected.");
       }
     } catch (err: any) {
       console.error("[Push] Subscribe error:", err);

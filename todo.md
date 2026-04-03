@@ -3185,3 +3185,8 @@
 - [x] Add route /settings/notification-log, Settings card, and "View all notifications" link in NotificationCenter dropdown
 - [x] Write vitest tests (15 tests, all 1967 pass)
 - [x] Save checkpoint
+
+## Fix: Push notification subscribe error reporting
+- [x] Replace silent guard in usePushNotifications.ts with specific console.error messages for each precondition
+- [x] Add else clause to handleSubscribe in NotificationSettings.tsx to show toast on generic failure
+- [x] Save checkpoint
