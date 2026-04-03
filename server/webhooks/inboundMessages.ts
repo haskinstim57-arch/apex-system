@@ -157,6 +157,7 @@ inboundMessageRouter.post(
         if (!compliance.continueProcessing) {
           // Create notification for the assigned agent
           if (contact) {
+            console.log(`[Twilio Inbound] Creating notification: accountId=${accountId} type=inbound_message (compliance ${compliance.action}) contactId=${contact.id} assignedUserId=${contact.assignedUserId}`);
             createNotification({
               accountId,
               userId: contact.assignedUserId || null,
@@ -213,6 +214,7 @@ inboundMessageRouter.post(
       });
 
       // Create in-app notification
+      console.log(`[Twilio Inbound] Creating notification: accountId=${accountId} type=inbound_message contactId=${contact.id} assignedUserId=${contact.assignedUserId}`);
       createNotification({
         accountId,
         userId: contact.assignedUserId || null,
@@ -332,6 +334,7 @@ inboundMessageRouter.post(
       });
 
       // Create in-app notification
+      console.log(`[SendGrid Inbound] Creating notification: accountId=${accountId} type=inbound_message contactId=${contact.id} assignedUserId=${contact.assignedUserId}`);
       createNotification({
         accountId,
         userId: contact.assignedUserId || null,

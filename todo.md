@@ -3146,3 +3146,10 @@
 - [x] Replace the routing lookup block (~line 197) with user's exact code: admin page mapping first, OAuth fallback
 - [x] Update comment on line 192 to reflect new priority order
 - [x] Run tests and save checkpoint (all 1949 pass)
+
+## Fix Push Notification System (VAPID + Diagnostics + Inbound Notifications)
+- [x] Part 1: Add VAPID key generation utility to webPush.ts (generateVAPIDKeyPair + isVapidConfigured)
+- [x] Part 1: Add generateVapidKeys admin-only tRPC procedure to notifications router
+- [x] Part 2: Add testPushNotification admin-only diagnostic endpoint to notifications router (returns sent/failed/vapidConfigured/subscriptionCount)
+- [x] Part 3: Fix inbound message createNotification calls — added console.log before all 3 createNotification calls (Twilio compliance, Twilio normal, SendGrid) showing accountId, type, contactId, assignedUserId
+- [x] Run tests and save checkpoint (all 1949 pass)

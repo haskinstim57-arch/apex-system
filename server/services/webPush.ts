@@ -215,6 +215,28 @@ export async function sendPushNotificationToAccountDirect(
 }
 
 /**
+ * Generate a new VAPID key pair for push notification configuration.
+ * Returns { publicKey, privateKey } that must be set as environment variables.
+ */
+export function generateVAPIDKeyPair(): { publicKey: string; privateKey: string } {
+  const keys = webpush.generateVAPIDKeys();
+  console.log("[WebPush] Generated new VAPID key pair.");
+  console.log("[WebPush] Set these as environment variables:");
+  console.log(`  VAPID_PUBLIC_KEY=${keys.publicKey}`);
+  console.log(`  VAPID_PRIVATE_KEY=${keys.privateKey}`);
+  console.log(`  VAPID_SUBJECT=mailto:admin@yourdomain.com`);
+  return keys;
+}
+
+/**
+ * Check whether VAPID is currently configured and ready to send.
+ */
+export function isVapidConfigured(): boolean {
+  ensureVapidConfigured();
+  return vapidConfigured;
+}
+
+/**
  * Send push notification to all users in an account — SMART version.
  * Checks per-subscription notification preferences and quiet hours,
  * then routes through the batching service for grouping.

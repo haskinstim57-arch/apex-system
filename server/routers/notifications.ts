@@ -9,7 +9,7 @@ import {
   dismissNotification,
   getMember,
 } from "../db";
-import { savePushSubscription, removePushSubscription } from "../services/webPush";
+import { savePushSubscription, removePushSubscription, generateVAPIDKeyPair, isVapidConfigured, sendPushNotificationToAccountDirect } from "../services/webPush";
 import { ENV } from "../_core/env";
 import { pushSubscriptions } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
@@ -159,6 +159,89 @@ export const notificationsRouter = router({
       return {
         preferences: parseNotificationPreferences(subs[0].notificationPreferences),
         hasSubscription: true,
+      };
+    }),
+
+  /** Admin-only: Generate a new VAPID key pair for push notification configuration */
+  generateVapidKeys: protectedProcedure
+    .mutation(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      const keys = generateVAPIDKeyPair();
+      return {
+        publicKey: keys.publicKey,
+        privateKey: keys.privateKey,
+        instructions: [
+          "Set these as environment variables in your deployment:",
+          `VAPID_PUBLIC_KEY=${keys.publicKey}`,
+          `VAPID_PRIVATE_KEY=${keys.privateKey}`,
+          "VAPID_SUBJECT=mailto:admin@yourdomain.com",
+          "",
+          "After setting these, restart the server for push notifications to work.",
+        ].join("\n"),
+      };
+    }),
+
+  /** Admin-only: Test push notification delivery for a specific account */
+  testPushNotification: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+
+      const vapidReady = isVapidConfigured();
+
+      // Count subscriptions for this account
+      const db = await getDb();
+      let subscriptionCount = 0;
+      if (db) {
+        const subs = await db
+          .select()
+          .from(pushSubscriptions)
+          .where(eq(pushSubscriptions.accountId, input.accountId));
+        subscriptionCount = subs.length;
+      }
+
+      if (!vapidReady) {
+        return {
+          sent: 0,
+          failed: 0,
+          vapidConfigured: false,
+          subscriptionCount,
+          message: "VAPID keys are not configured. Push notifications are disabled. Use generateVapidKeys to create a key pair, then set VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, and VAPID_SUBJECT as environment variables.",
+        };
+      }
+
+      if (subscriptionCount === 0) {
+        return {
+          sent: 0,
+          failed: 0,
+          vapidConfigured: true,
+          subscriptionCount: 0,
+          message: "No push subscriptions found for this account. Users need to enable push notifications in their browser first.",
+        };
+      }
+
+      // Send a test push notification
+      const result = await sendPushNotificationToAccountDirect(input.accountId, {
+        title: "\uD83D\uDD14 Push Notification Test",
+        body: "If you see this, push notifications are working correctly!",
+        url: "/settings",
+        tag: "test-push",
+      });
+
+      console.log(`[WebPush] Test push for account ${input.accountId}: sent=${result.sent} failed=${result.failed} subscriptions=${subscriptionCount}`);
+
+      return {
+        sent: result.sent,
+        failed: result.failed,
+        vapidConfigured: true,
+        subscriptionCount,
+        message: result.sent > 0
+          ? `Successfully sent test push to ${result.sent} subscription(s).`
+          : `Failed to deliver to any of ${subscriptionCount} subscription(s). Check if subscriptions are still valid.`,
       };
     }),
 
