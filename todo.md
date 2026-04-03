@@ -3156,3 +3156,8 @@
 
 ## Fix: Remove RequireAccount from /settings/notifications route
 - [x] Remove RequireAccount wrapper from /settings/notifications in App.tsx so admins can access notification settings without a sub-account selected
+
+## Add VAPID Key Generation + Test Push UI to NotificationSettings
+- [x] Add admin-only "VAPID Configuration" card with Generate Keys button and key display
+- [x] Add admin-only "Test Push Notification" card with account selector and Send Test button
+- [x] Save checkpoint

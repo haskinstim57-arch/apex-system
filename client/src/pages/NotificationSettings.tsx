@@ -36,6 +36,8 @@ import {
 } from "lucide-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { Key, Zap, Copy, Eye, EyeOff } from "lucide-react";
 
 // Event type configuration
 const EVENT_TYPES = [
@@ -129,6 +131,8 @@ const DEFAULT_PREFS: PreferencesState = {
 export default function NotificationSettings() {
   const { currentAccountId } = useAccount();
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const {
     isSupported,
     isSubscribed,
@@ -497,6 +501,239 @@ export default function NotificationSettings() {
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
       )}
+
+      {/* Admin-only: VAPID Configuration */}
+      {isAdmin && <VapidConfigCard />}
+
+      {/* Admin-only: Test Push Diagnostic */}
+      {isAdmin && <TestPushCard />}
     </div>
+  );
+}
+
+// ─── Admin-only: VAPID Key Generation ───
+function VapidConfigCard() {
+  const [keys, setKeys] = useState<{ publicKey: string; privateKey: string; instructions: string } | null>(null);
+  const [showPrivate, setShowPrivate] = useState(false);
+
+  const generateMutation = trpc.notifications.generateVapidKeys.useMutation({
+    onSuccess: (data) => {
+      setKeys(data);
+      toast.success("VAPID keys generated — copy them into your environment variables");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to generate VAPID keys");
+    },
+  });
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied to clipboard`);
+  };
+
+  return (
+    <Card className="border-0 card-shadow border-l-4 border-l-amber-500">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Key className="h-4 w-4 text-amber-500" />
+          VAPID Configuration
+          <Badge variant="outline" className="text-[10px] ml-1">Admin</Badge>
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Generate VAPID keys for Web Push. These must be set as environment variables
+          (VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT) for push notifications to work.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!keys ? (
+          <Button
+            onClick={() => generateMutation.mutate()}
+            disabled={generateMutation.isPending}
+            variant="outline"
+            className="w-full"
+          >
+            {generateMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Key className="h-4 w-4 mr-2" />
+            )}
+            Generate New VAPID Keys
+          </Button>
+        ) : (
+          <div className="space-y-3">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-xs">
+                Copy these keys and set them as environment variables. They will not be shown again.
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">VAPID_PUBLIC_KEY</Label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={keys.publicKey}
+                    className="h-8 text-xs font-mono bg-muted"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => copyToClipboard(keys.publicKey, "Public key")}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">VAPID_PRIVATE_KEY</Label>
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    type={showPrivate ? "text" : "password"}
+                    value={keys.privateKey}
+                    className="h-8 text-xs font-mono bg-muted"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => setShowPrivate(!showPrivate)}
+                  >
+                    {showPrivate ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0"
+                    onClick={() => copyToClipboard(keys.privateKey, "Private key")}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">VAPID_SUBJECT</Label>
+                <Input
+                  readOnly
+                  value="mailto:admin@yourdomain.com"
+                  className="h-8 text-xs font-mono bg-muted"
+                />
+              </div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Set these three values as environment variables in Settings → Secrets, then restart the server.
+              </p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Admin-only: Test Push Diagnostic ───
+function TestPushCard() {
+  const [testAccountId, setTestAccountId] = useState("");
+  const [result, setResult] = useState<{
+    sent: number;
+    failed: number;
+    vapidConfigured: boolean;
+    subscriptionCount: number;
+    message: string;
+  } | null>(null);
+
+  const testMutation = trpc.notifications.testPushNotification.useMutation({
+    onSuccess: (data) => {
+      setResult(data);
+      if (data.sent > 0) {
+        toast.success(data.message);
+      } else {
+        toast.warning(data.message);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Test push failed");
+    },
+  });
+
+  return (
+    <Card className="border-0 card-shadow border-l-4 border-l-blue-500">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Zap className="h-4 w-4 text-blue-500" />
+          Test Push Notification
+          <Badge variant="outline" className="text-[10px] ml-1">Admin</Badge>
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Send a test push notification to all subscriptions for a specific account to verify the pipeline is working.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            placeholder="Account ID"
+            value={testAccountId}
+            onChange={(e) => setTestAccountId(e.target.value)}
+            className="h-9"
+          />
+          <Button
+            onClick={() => {
+              const id = parseInt(testAccountId);
+              if (!id || id <= 0) {
+                toast.error("Enter a valid account ID");
+                return;
+              }
+              testMutation.mutate({ accountId: id });
+            }}
+            disabled={testMutation.isPending}
+            size="sm"
+          >
+            {testMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Zap className="h-4 w-4 mr-2" />
+            )}
+            Send Test
+          </Button>
+        </div>
+
+        {result && (
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="text-center">
+                <p className="text-lg font-semibold">{result.subscriptionCount}</p>
+                <p className="text-[10px] text-muted-foreground">Subscriptions</p>
+              </div>
+              <div className="text-center">
+                <p className={`text-lg font-semibold ${result.vapidConfigured ? "text-green-500" : "text-red-500"}`}>
+                  {result.vapidConfigured ? "Yes" : "No"}
+                </p>
+                <p className="text-[10px] text-muted-foreground">VAPID Configured</p>
+              </div>
+              <div className="text-center">
+                <p className="text-lg font-semibold text-green-500">{result.sent}</p>
+                <p className="text-[10px] text-muted-foreground">Sent</p>
+              </div>
+              <div className="text-center">
+                <p className={`text-lg font-semibold ${result.failed > 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                  {result.failed}
+                </p>
+                <p className="text-[10px] text-muted-foreground">Failed</p>
+              </div>
+            </div>
+            <Separator />
+            <p className="text-xs text-muted-foreground">{result.message}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
