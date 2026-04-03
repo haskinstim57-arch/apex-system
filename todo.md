@@ -3171,3 +3171,7 @@
 - [x] Investigate push subscription flow — root cause: admin in agency scope has currentAccountId=null, subscribe silently returns false
 - [x] Fix the Enable button — fall back to first available account when admin has no sub-account selected, added error toasts for all failure paths
 - [x] Save checkpoint (all 1952 tests pass)
+
+## UX: Post-enable notification confirmation message
+- [x] After user enables push notifications, show a confirmation message explaining how to manage settings later
+- [x] Save checkpoint

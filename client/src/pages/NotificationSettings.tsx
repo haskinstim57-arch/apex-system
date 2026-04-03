@@ -186,6 +186,8 @@ export default function NotificationSettings() {
     });
   }, [currentAccountId, prefs, updatePrefsMutation]);
 
+  const [justEnabled, setJustEnabled] = useState(false);
+
   const handleSubscribe = useCallback(async () => {
     if (!pushAccountId) {
       toast.error("No account available. Please select a sub-account first.");
@@ -194,7 +196,8 @@ export default function NotificationSettings() {
     try {
       const result = await subscribe();
       if (result) {
-        toast.success("Push notifications enabled");
+        setJustEnabled(true);
+        toast.success("Push notifications enabled!");
       } else if (permission === "denied") {
         toast.error("Notifications are blocked. Please enable them in your browser/device settings.");
       } else {
@@ -328,6 +331,33 @@ export default function NotificationSettings() {
                 {prefsData.hasSubscription ? " — preferences synced" : " — using defaults"}
               </span>
             </div>
+          )}
+
+          {/* Post-enable confirmation message */}
+          {isSubscribed && justEnabled && (
+            <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-xs text-green-800 dark:text-green-300 space-y-2">
+                <p className="font-medium">You're all set! Push notifications are now active on this device.</p>
+                <p>
+                  You can manage your notification preferences anytime by returning to{" "}
+                  <strong>Settings → Notifications</strong>. From here you can:
+                </p>
+                <ul className="list-disc list-inside space-y-0.5 ml-1">
+                  <li>Choose which events trigger notifications (SMS, email, leads, etc.)</li>
+                  <li>Set quiet hours to pause alerts during off-hours</li>
+                  <li>Disable notifications on this device at any time</li>
+                </ul>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-1 h-6 text-xs text-green-700 dark:text-green-400 hover:text-green-900 px-0"
+                  onClick={() => setJustEnabled(false)}
+                >
+                  Got it, dismiss
+                </Button>
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
