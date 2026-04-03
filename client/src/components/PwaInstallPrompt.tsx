@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Download, X, Bell } from "lucide-react";
+import { useAccount } from "@/contexts/AccountContext";
+import { usePushNotifications } from "@/hooks/usePushNotifications";
 
 const DISMISS_KEY = "pwa-install-dismissed";
 const NOTIFY_DISMISS_KEY = "pwa-notify-dismissed";
@@ -16,6 +18,11 @@ export function PwaInstallPrompt() {
     useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [showNotifyBanner, setShowNotifyBanner] = useState(false);
+
+  const { currentAccountId, accounts } = useAccount();
+  // Use currentAccountId if available, otherwise fall back to first account
+  const pushAccountId = currentAccountId ?? accounts?.[0]?.id ?? undefined;
+  const { subscribe } = usePushNotifications(pushAccountId);
 
   // Install prompt listener
   useEffect(() => {
@@ -85,15 +92,16 @@ export function PwaInstallPrompt() {
 
   const handleEnableNotifications = async () => {
     try {
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
+      const result = await subscribe();
+      if (result) {
+        // Successfully registered push subscription with backend
         setShowNotifyBanner(false);
-      } else {
-        setShowNotifyBanner(false);
-        localStorage.setItem(NOTIFY_DISMISS_KEY, Date.now().toString());
       }
-    } catch {
+    } catch (err) {
+      // subscribe() throws on failure — hide banner and dismiss so it doesn't keep popping up
+      console.error("[PwaInstallPrompt] Push subscribe failed:", err);
       setShowNotifyBanner(false);
+      localStorage.setItem(NOTIFY_DISMISS_KEY, Date.now().toString());
     }
   };
 

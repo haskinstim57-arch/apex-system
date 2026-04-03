@@ -422,9 +422,9 @@ function App() {
             }}
           />
           <ImpersonationBanner />
-          <PwaInstallPrompt />
           <PwaUpdater />
           <AccountProvider>
+            <PwaInstallPrompt />
             <BrandingProvider>
               <Router />
             </BrandingProvider>

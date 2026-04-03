@@ -3202,3 +3202,8 @@
 - [x] Bug 2: Enable button silently fails on PWA — re-throw errors from subscribe so handleSubscribe can show them in toast.error(); add SW scope/state logging
 - [x] Bug 3: getVapidPublicKey returns stale empty value — add staleTime: 0, refetchOnMount: true to the query in usePushNotifications.ts
 - [x] Save checkpoint
+
+## Bug Fix: PWA Install Banner — Enable Notifications not registering push subscription
+- [x] Move PwaInstallPrompt inside AccountProvider in App.tsx so it can access currentAccountId
+- [x] Rewrite PwaInstallPrompt.tsx handleEnableNotifications to use usePushNotifications hook instead of raw Notification.requestPermission()
+- [x] Save checkpoint
