@@ -3161,3 +3161,8 @@
 - [x] Add admin-only "VAPID Configuration" card with Generate Keys button and key display
 - [x] Add admin-only "Test Push Notification" card with account selector and Send Test button
 - [x] Save checkpoint
+
+## Fix: NotificationSettings — Account ID visibility + Test Push persistence
+- [x] Replace manual Account ID input with a dropdown that lists sub-accounts with their IDs
+- [x] Fix test push result not persisting — result now stored in component state with account name + timestamp
+- [x] Save checkpoint

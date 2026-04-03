@@ -640,18 +640,26 @@ function VapidConfigCard() {
 
 // ─── Admin-only: Test Push Diagnostic ───
 function TestPushCard() {
-  const [testAccountId, setTestAccountId] = useState("");
-  const [result, setResult] = useState<{
+  const { data: accounts } = trpc.accounts.list.useQuery();
+  const [selectedAccountId, setSelectedAccountId] = useState<string>("");
+  const [lastResult, setLastResult] = useState<{
     sent: number;
     failed: number;
     vapidConfigured: boolean;
     subscriptionCount: number;
     message: string;
+    accountName: string;
+    timestamp: string;
   } | null>(null);
 
   const testMutation = trpc.notifications.testPushNotification.useMutation({
     onSuccess: (data) => {
-      setResult(data);
+      const acct = accounts?.find((a: any) => String(a.id) === selectedAccountId);
+      setLastResult({
+        ...data,
+        accountName: acct?.name || `Account #${selectedAccountId}`,
+        timestamp: new Date().toLocaleTimeString(),
+      });
       if (data.sent > 0) {
         toast.success(data.message);
       } else {
@@ -677,23 +685,29 @@ function TestPushCard() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
-          <Input
-            type="number"
-            placeholder="Account ID"
-            value={testAccountId}
-            onChange={(e) => setTestAccountId(e.target.value)}
-            className="h-9"
-          />
+          <Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+            <SelectTrigger className="h-9 flex-1">
+              <SelectValue placeholder="Select a sub-account..." />
+            </SelectTrigger>
+            <SelectContent>
+              {accounts?.map((acct: any) => (
+                <SelectItem key={acct.id} value={String(acct.id)}>
+                  <span className="font-medium">{acct.name}</span>
+                  <span className="text-muted-foreground ml-2 text-xs">ID: {acct.id}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button
             onClick={() => {
-              const id = parseInt(testAccountId);
+              const id = parseInt(selectedAccountId);
               if (!id || id <= 0) {
-                toast.error("Enter a valid account ID");
+                toast.error("Select a sub-account first");
                 return;
               }
               testMutation.mutate({ accountId: id });
             }}
-            disabled={testMutation.isPending}
+            disabled={testMutation.isPending || !selectedAccountId}
             size="sm"
           >
             {testMutation.isPending ? (
@@ -705,32 +719,36 @@ function TestPushCard() {
           </Button>
         </div>
 
-        {result && (
+        {lastResult && (
           <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-xs font-medium">{lastResult.accountName}</p>
+              <p className="text-[10px] text-muted-foreground">{lastResult.timestamp}</p>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="text-center">
-                <p className="text-lg font-semibold">{result.subscriptionCount}</p>
+                <p className="text-lg font-semibold">{lastResult.subscriptionCount}</p>
                 <p className="text-[10px] text-muted-foreground">Subscriptions</p>
               </div>
               <div className="text-center">
-                <p className={`text-lg font-semibold ${result.vapidConfigured ? "text-green-500" : "text-red-500"}`}>
-                  {result.vapidConfigured ? "Yes" : "No"}
+                <p className={`text-lg font-semibold ${lastResult.vapidConfigured ? "text-green-500" : "text-red-500"}`}>
+                  {lastResult.vapidConfigured ? "Yes" : "No"}
                 </p>
                 <p className="text-[10px] text-muted-foreground">VAPID Configured</p>
               </div>
               <div className="text-center">
-                <p className="text-lg font-semibold text-green-500">{result.sent}</p>
+                <p className="text-lg font-semibold text-green-500">{lastResult.sent}</p>
                 <p className="text-[10px] text-muted-foreground">Sent</p>
               </div>
               <div className="text-center">
-                <p className={`text-lg font-semibold ${result.failed > 0 ? "text-red-500" : "text-muted-foreground"}`}>
-                  {result.failed}
+                <p className={`text-lg font-semibold ${lastResult.failed > 0 ? "text-red-500" : "text-muted-foreground"}`}>
+                  {lastResult.failed}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Failed</p>
               </div>
             </div>
             <Separator />
-            <p className="text-xs text-muted-foreground">{result.message}</p>
+            <p className="text-xs text-muted-foreground">{lastResult.message}</p>
           </div>
         )}
       </CardContent>
