@@ -3218,3 +3218,8 @@
 - [x] Implement 410 Gone auto-cleanup: auto-delete expired/invalid push subscriptions from the database when sending fails (already implemented in webPush.ts)
 - [x] Add loading spinner for main content area while initial data is being fetched
 - [x] Save checkpoint
+
+## Feature: Subscription Count Badge on Test Push Card
+- [x] Add backend procedure to count active push subscriptions per account
+- [x] Display subscription count badge in TestPushCard UI
+- [x] Save checkpoint

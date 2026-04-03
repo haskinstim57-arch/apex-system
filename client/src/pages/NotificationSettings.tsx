@@ -37,7 +37,7 @@ import {
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Key, Zap, Copy, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Key, Zap, Copy, Eye, EyeOff, Trash2, Users } from "lucide-react";
 
 // Event type configuration
 const EVENT_TYPES = [
@@ -774,6 +774,12 @@ function TestPushCard() {
     timestamp: string;
   } | null>(null);
 
+  const parsedAccountId = parseInt(selectedAccountId) || 0;
+  const { data: subCountData, refetch: refetchSubCount } = trpc.notifications.subscriptionCount.useQuery(
+    { accountId: parsedAccountId },
+    { enabled: parsedAccountId > 0, staleTime: 0, refetchOnMount: true }
+  );
+
   const testMutation = trpc.notifications.testPushNotification.useMutation({
     onSuccess: (data) => {
       const acct = accounts?.find((a: any) => String(a.id) === selectedAccountId);
@@ -782,6 +788,7 @@ function TestPushCard() {
         accountName: acct?.name || `Account #${selectedAccountId}`,
         timestamp: new Date().toLocaleTimeString(),
       });
+      refetchSubCount();
       if (data.sent > 0) {
         toast.success(data.message);
       } else {
@@ -820,6 +827,19 @@ function TestPushCard() {
               ))}
             </SelectContent>
           </Select>
+          {parsedAccountId > 0 && subCountData && (
+            <Badge
+              variant={subCountData.count > 0 ? "default" : "secondary"}
+              className={`h-9 px-3 flex items-center gap-1.5 text-xs font-medium ${
+                subCountData.count > 0
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800"
+                  : "bg-muted text-muted-foreground"
+              }`}
+            >
+              <Users className="h-3 w-3" />
+              {subCountData.count} sub{subCountData.count !== 1 ? "s" : ""}
+            </Badge>
+          )}
           <Button
             onClick={() => {
               const id = parseInt(selectedAccountId);

@@ -13,7 +13,7 @@ import {
 import { savePushSubscription, removePushSubscription, generateVAPIDKeyPair, isVapidConfigured, sendPushNotificationToAccountDirect } from "../services/webPush";
 import { ENV } from "../_core/env";
 import { pushSubscriptions } from "../../drizzle/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, count, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { parseNotificationPreferences, DEFAULT_NOTIFICATION_PREFERENCES } from "../services/pushBatcher";
 
@@ -297,6 +297,25 @@ export const notificationsRouter = router({
       console.log(`[WebPush] Admin ${ctx.user.id} cleared ${deleted} subscriptions for account ${input.accountId}`);
 
       return { deleted };
+    }),
+
+  /** Admin-only: Get active push subscription count for a specific account */
+  subscriptionCount: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const result = await db
+        .select({ total: count() })
+        .from(pushSubscriptions)
+        .where(eq(pushSubscriptions.accountId, input.accountId));
+
+      return { count: result[0]?.total ?? 0 };
     }),
 
   /** Update notification preferences for all of the current user's push subscriptions in an account */
