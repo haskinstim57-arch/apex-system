@@ -3207,3 +3207,8 @@
 - [x] Move PwaInstallPrompt inside AccountProvider in App.tsx so it can access currentAccountId
 - [x] Rewrite PwaInstallPrompt.tsx handleEnableNotifications to use usePushNotifications hook instead of raw Notification.requestPermission()
 - [x] Save checkpoint
+
+## Bug Fix: iOS/Safari push notification permission — direct user interaction chain
+- [x] Move Notification.requestPermission() to the very top of subscribe() before any await calls (iOS requires direct user interaction)
+- [x] Disable Enable button in NotificationSettings.tsx until VAPID key is loaded
+- [x] Save checkpoint

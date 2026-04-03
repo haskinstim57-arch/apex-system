@@ -72,12 +72,22 @@ export function usePushNotifications(accountId?: number) {
     }
   }, []);
 
-  // Bug 2 fix: subscribe now throws on error instead of silently returning false,
-  // so the caller (handleSubscribe) can catch and show the error message in a toast
+  // iOS/Safari fix: requestPermission() MUST be the first await in the call stack
+  // triggered by user interaction. Any prior async work breaks the user-gesture chain.
   const subscribe = useCallback(async () => {
     if (!isSupported) {
       throw new Error("Push notifications are not supported in this browser. Try Chrome, Edge, or Firefox.");
     }
+
+    // 1. Request permission IMMEDIATELY — must be the first await (iOS/Safari requirement)
+    const perm = await Notification.requestPermission();
+    setPermission(perm);
+
+    if (perm !== "granted") {
+      throw new Error("Notification permission was denied. Enable notifications in your browser/device settings.");
+    }
+
+    // 2. Now validate the rest (after permission is secured)
     if (!vapidData?.publicKey) {
       throw new Error("VAPID public key not configured. Ask your admin to set VAPID_PUBLIC_KEY and restart the server.");
     }
@@ -88,15 +98,7 @@ export function usePushNotifications(accountId?: number) {
       throw new Error("You must be logged in to enable push notifications.");
     }
 
-    // Request notification permission
-    const perm = await Notification.requestPermission();
-    setPermission(perm);
-
-    if (perm !== "granted") {
-      throw new Error("Notification permission was denied. Enable notifications in your browser/device settings.");
-    }
-
-    // Get service worker registration
+    // 3. NOW wait for the service worker (after permission is granted)
     const registration = await navigator.serviceWorker.ready;
 
     // Log SW scope and state for diagnostics
@@ -172,5 +174,6 @@ export function usePushNotifications(accountId?: number) {
     subscribe,
     unsubscribe,
     isLoading: subscribeMutation.isPending || unsubscribeMutation.isPending,
+    isVapidReady: !!vapidData?.publicKey,
   };
 }

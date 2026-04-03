@@ -143,6 +143,7 @@ export default function NotificationSettings() {
     subscribe,
     unsubscribe,
     isLoading: pushLoading,
+    isVapidReady,
   } = usePushNotifications(pushAccountId);
 
   const [prefs, setPrefs] = useState<PreferencesState>(DEFAULT_PREFS);
@@ -313,12 +314,14 @@ export default function NotificationSettings() {
                 variant={isSubscribed ? "outline" : "default"}
                 size="sm"
                 onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
-                disabled={pushLoading}
+                disabled={pushLoading || (!isSubscribed && !isVapidReady)}
               >
                 {pushLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : isSubscribed ? (
                   "Disable"
+                ) : !isVapidReady ? (
+                  <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Loading…</>
                 ) : (
                   "Enable"
                 )}
