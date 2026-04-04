@@ -282,7 +282,12 @@ export async function sendPushNotificationToAccount(
     return isChEnabled(prefs, eventType, "email");
   });
 
-  if (!anyPushEnabled && !anyEmailEnabled) return;
+  const anySmsEnabled = subs.some((sub) => {
+    const prefs = parseNotificationPreferences(sub.notificationPreferences);
+    return isChEnabled(prefs, eventType, "sms");
+  });
+
+  if (!anyPushEnabled && !anyEmailEnabled && !anySmsEnabled) return;
 
   // Check quiet hours — if ALL subscriptions are in quiet hours, skip
   const anyAwake = subs.some((sub) => {
@@ -292,7 +297,7 @@ export async function sendPushNotificationToAccount(
 
   if (!anyAwake) return;
 
-  // Route through batcher (handles both push + email dispatch on flush)
+  // Route through batcher (handles push + email + SMS dispatch on flush)
   await enqueuePushEvent(accountId, eventType, {
     title: payload.title,
     body: payload.body,

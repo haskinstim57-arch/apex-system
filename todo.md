@@ -3242,3 +3242,13 @@
 - [x] Route emails to user's profile email (per-user from users table)
 - [x] Write vitest tests for email template builders and dispatch logic (27 tests)
 - [x] Save checkpoint
+
+## Feature: SMS Notification Channel via Twilio
+- [x] Create SMS notification service (server/services/smsNotifications.ts) with event-type-specific message templates
+- [x] Integrate SMS channel into pushBatcher flushPendingBatches alongside push and email
+- [x] Update webPush.ts sendPushNotificationToAccount to check SMS channel prefs
+- [x] Support all event types: inbound_sms, inbound_email, appointment_booked, ai_call_completed, facebook_lead
+- [x] Use isChannelEnabled(prefs, eventType, "sms") to check if SMS is enabled per event type
+- [x] Get account phone number from accounts table for SMS delivery
+- [x] Write vitest tests for SMS notification service (17 tests)
+- [x] Save checkpoint

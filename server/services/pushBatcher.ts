@@ -17,6 +17,7 @@ import { pushNotificationBatch, pushSubscriptions } from "../../drizzle/schema";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { sendPushNotificationToAccountDirect } from "./webPush";
 import { sendBatchedEmailNotification } from "./emailNotifications";
+import { sendBatchedSmsNotification } from "./smsNotifications";
 
 // ─── Configuration ───────────────────────────────────
 /** Time window (ms) to accumulate events before flushing. Default: 30 seconds */
@@ -377,6 +378,21 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
         }
       } catch (emailErr) {
         console.error(`[PushBatcher] Email channel error for batch ${batch.id}:`, emailErr);
+      }
+
+      // Send SMS notifications (non-blocking — SMS failures don't block push/email)
+      try {
+        const smsResult = await sendBatchedSmsNotification(
+          batch.accountId,
+          batch.eventType as PushEventType,
+          batch.eventCount,
+          payloads
+        );
+        if (smsResult.sent > 0) {
+          console.log(`[PushBatcher] SMS channel: sent ${smsResult.sent} for batch ${batch.id} (${batch.eventType})`);
+        }
+      } catch (smsErr) {
+        console.error(`[PushBatcher] SMS channel error for batch ${batch.id}:`, smsErr);
       }
 
       // Mark batch as sent
