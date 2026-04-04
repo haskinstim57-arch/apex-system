@@ -7,14 +7,15 @@
  * Uses the existing Twilio integration via dispatchSMS().
  * Checks isChannelEnabled(prefs, eventType, "sms") before sending.
  *
- * SMS recipients are resolved from the accounts table phone field
- * (account-level phone) since the users table does not have a phone field.
+ * SMS recipients are resolved in priority order:
+ * 1. Per-user phone numbers from the users table (if set)
+ * 2. Account-level phone from the accounts table (fallback)
  * Falls back to account members who are owners/managers if no push
  * subscriptions exist.
  */
 
 import { getDb } from "../db";
-import { pushSubscriptions, accounts, accountMembers } from "../../drizzle/schema";
+import { pushSubscriptions, accounts, accountMembers, users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { parseNotificationPreferences, isChannelEnabled } from "./pushBatcher";
 import type { PushEventType } from "./pushBatcher";
@@ -149,13 +150,13 @@ async function getAccountPhone(accountId: number): Promise<string | null> {
 
 /**
  * Get all users in an account who have SMS notifications enabled for a given event type.
- * Since users don't have phone numbers, we use the account-level phone.
+ * First checks per-user phone numbers, then falls back to account-level phone.
  * Returns unique phone numbers to avoid duplicate SMS.
  */
 async function getSmsRecipientsForAccount(
   accountId: number,
   eventType: PushEventType
-): Promise<Array<{ phone: string; source: string }>> {
+): Promise<Array<{ phone: string; userId?: number; source: string }>> {
   const db = await getDb();
   if (!db) return [];
 
@@ -168,31 +169,58 @@ async function getSmsRecipientsForAccount(
     .from(pushSubscriptions)
     .where(eq(pushSubscriptions.accountId, accountId));
 
-  // Check if any subscription has SMS enabled for this event type
-  let smsEnabled = false;
+  // Collect user IDs that have SMS enabled
+  const smsEnabledUserIds: number[] = [];
 
   if (subs.length > 0) {
-    smsEnabled = subs.some((sub) => {
+    for (const sub of subs) {
       const prefs = parseNotificationPreferences(sub.notificationPreferences);
-      return isChannelEnabled(prefs, eventType, "sms");
-    });
+      if (isChannelEnabled(prefs, eventType, "sms")) {
+        smsEnabledUserIds.push(sub.userId);
+      }
+    }
   } else {
     // No subscriptions — check if there are owners/managers (default: SMS enabled for them)
     const members = await db
-      .select({ role: accountMembers.role })
+      .select({ userId: accountMembers.userId, role: accountMembers.role })
       .from(accountMembers)
       .where(eq(accountMembers.accountId, accountId));
 
-    smsEnabled = members.some((m) => m.role === "owner" || m.role === "manager");
+    for (const m of members) {
+      if (m.role === "owner" || m.role === "manager") {
+        smsEnabledUserIds.push(m.userId);
+      }
+    }
   }
 
-  if (!smsEnabled) return [];
+  if (smsEnabledUserIds.length === 0) return [];
 
-  // Get the account phone number
-  const accountPhone = await getAccountPhone(accountId);
-  if (!accountPhone) return [];
+  // Try to get per-user phone numbers first
+  const recipients: Array<{ phone: string; userId?: number; source: string }> = [];
+  const seenPhones = new Set<string>();
 
-  return [{ phone: accountPhone, source: "account" }];
+  for (const userId of smsEnabledUserIds) {
+    const [user] = await db
+      .select({ phone: users.phone })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (user?.phone && !seenPhones.has(user.phone)) {
+      seenPhones.add(user.phone);
+      recipients.push({ phone: user.phone, userId, source: "user" });
+    }
+  }
+
+  // If no per-user phones found, fall back to account-level phone
+  if (recipients.length === 0) {
+    const accountPhone = await getAccountPhone(accountId);
+    if (accountPhone && !seenPhones.has(accountPhone)) {
+      recipients.push({ phone: accountPhone, source: "account" });
+    }
+  }
+
+  return recipients;
 }
 
 /**

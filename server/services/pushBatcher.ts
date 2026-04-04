@@ -18,6 +18,7 @@ import { eq, and, lte, sql } from "drizzle-orm";
 import { sendPushNotificationToAccountDirect } from "./webPush";
 import { sendBatchedEmailNotification } from "./emailNotifications";
 import { sendBatchedSmsNotification } from "./smsNotifications";
+import { logNotificationDelivery } from "./notificationLogger";
 
 // ─── Configuration ───────────────────────────────────
 /** Time window (ms) to accumulate events before flushing. Default: 30 seconds */
@@ -358,12 +359,35 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
       );
 
       // Send the grouped push notification to the account
-      await sendPushNotificationToAccountDirect(batch.accountId, {
+      const pushResult = await sendPushNotificationToAccountDirect(batch.accountId, {
         title: notification.title,
         body: notification.body,
         url: notification.url,
         tag: notification.tag,
       });
+
+      // Log push delivery
+      if (pushResult.sent > 0) {
+        logNotificationDelivery({
+          channel: "push",
+          eventType: batch.eventType,
+          accountId: batch.accountId,
+          status: "sent",
+          title: notification.title,
+          provider: "web-push",
+        }).catch(() => {});
+      }
+      if (pushResult.failed > 0) {
+        logNotificationDelivery({
+          channel: "push",
+          eventType: batch.eventType,
+          accountId: batch.accountId,
+          status: "failed",
+          title: notification.title,
+          provider: "web-push",
+          errorMessage: `${pushResult.failed} subscription(s) failed`,
+        }).catch(() => {});
+      }
 
       // Send email notifications (non-blocking — email failures don't block push)
       try {
@@ -375,9 +399,26 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
         );
         if (emailResult.sent > 0) {
           console.log(`[PushBatcher] Email channel: sent ${emailResult.sent} for batch ${batch.id} (${batch.eventType})`);
+          logNotificationDelivery({
+            channel: "email",
+            eventType: batch.eventType,
+            accountId: batch.accountId,
+            status: "sent",
+            title: notification.title,
+            provider: "sendgrid",
+          }).catch(() => {});
         }
-      } catch (emailErr) {
+      } catch (emailErr: any) {
         console.error(`[PushBatcher] Email channel error for batch ${batch.id}:`, emailErr);
+        logNotificationDelivery({
+          channel: "email",
+          eventType: batch.eventType,
+          accountId: batch.accountId,
+          status: "failed",
+          title: notification.title,
+          provider: "sendgrid",
+          errorMessage: emailErr?.message || "Unknown error",
+        }).catch(() => {});
       }
 
       // Send SMS notifications (non-blocking — SMS failures don't block push/email)
@@ -390,9 +431,26 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
         );
         if (smsResult.sent > 0) {
           console.log(`[PushBatcher] SMS channel: sent ${smsResult.sent} for batch ${batch.id} (${batch.eventType})`);
+          logNotificationDelivery({
+            channel: "sms",
+            eventType: batch.eventType,
+            accountId: batch.accountId,
+            status: "sent",
+            title: notification.title,
+            provider: "twilio",
+          }).catch(() => {});
         }
-      } catch (smsErr) {
+      } catch (smsErr: any) {
         console.error(`[PushBatcher] SMS channel error for batch ${batch.id}:`, smsErr);
+        logNotificationDelivery({
+          channel: "sms",
+          eventType: batch.eventType,
+          accountId: batch.accountId,
+          status: "failed",
+          title: notification.title,
+          provider: "twilio",
+          errorMessage: smsErr?.message || "Unknown error",
+        }).catch(() => {});
       }
 
       // Mark batch as sent

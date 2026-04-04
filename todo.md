@@ -3257,3 +3257,25 @@
 - [x] Add testSms adminProcedure to server/routers/notifications.ts that sends a test SMS to the account phone
 - [x] Add Test SMS button to TestPushCard in NotificationSettings.tsx alongside the existing Send Test Push button
 - [x] Save checkpoint
+
+## Feature: Test Email Admin Button
+- [x] Add testEmailNotification adminProcedure to server/routers/notifications.ts
+- [x] Add Test Email button to TestPushCard in NotificationSettings.tsx alongside Test Push and Test SMS
+- [x] Show email result panel with delivery status and recipient
+
+## Feature: Notification Delivery Logs
+- [x] Create notification_log table in drizzle/schema.ts (channel, eventType, accountId, userId, recipient, status, error, timestamp)
+- [x] Add logNotificationDelivery helper function (server/services/notificationLogger.ts)
+- [x] Integrate logging into push dispatch (pushBatcher.ts)
+- [x] Integrate logging into email dispatch (pushBatcher.ts)
+- [x] Integrate logging into SMS dispatch (pushBatcher.ts)
+- [x] Add admin queries: deliveryLogs + deliveryStats
+
+## Feature: Per-User Phone Numbers
+- [x] Add phone column to users table in drizzle/schema.ts
+- [x] Run pnpm db:push for migration
+- [x] Update SMS notification dispatch to send to individual user phones when available (with fallback to account phone)
+- [x] Add PersonalPhoneCard to NotificationSettings.tsx with getUserPhone/updateUserPhone mutations
+
+- [x] Write vitest tests for all three features (14 tests)
+- [x] Save checkpoint

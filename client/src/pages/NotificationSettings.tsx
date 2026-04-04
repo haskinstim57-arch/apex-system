@@ -417,6 +417,9 @@ export default function NotificationSettings() {
         </CardContent>
       </Card>
 
+      {/* Personal SMS Phone Number */}
+      <PersonalPhoneCard />
+
       {/* Event Type Toggles */}
       <Card className="border-0 card-shadow">
         <CardHeader className="pb-3">
@@ -899,16 +902,41 @@ function TestPushCard() {
     },
   });
 
+  const [emailResult, setEmailResult] = useState<{
+    success: boolean;
+    message: string;
+    email?: string;
+    provider?: string;
+    timestamp: string;
+  } | null>(null);
+
+  const testEmailMutation = trpc.notifications.testEmailNotification.useMutation({
+    onSuccess: (data) => {
+      setEmailResult({
+        ...data,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.warning(data.message);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Test email failed");
+    },
+  });
+
   return (
     <Card className="border-0 card-shadow border-l-4 border-l-blue-500">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Zap className="h-4 w-4 text-blue-500" />
-          Test Push Notification
+          Test Notifications
           <Badge variant="outline" className="text-[10px] ml-1">Admin</Badge>
         </CardTitle>
         <CardDescription className="text-xs">
-          Send a test push notification to all subscriptions for a specific account to verify the pipeline is working.
+          Send test notifications via Push, SMS, or Email to verify each channel is working for a specific account.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -978,6 +1006,27 @@ function TestPushCard() {
               <MessageSquare className="h-4 w-4 mr-2" />
             )}
             Test SMS
+          </Button>
+          <Button
+            onClick={() => {
+              const id = parseInt(selectedAccountId);
+              if (!id || id <= 0) {
+                toast.error("Select a sub-account first");
+                return;
+              }
+              testEmailMutation.mutate({ accountId: id });
+            }}
+            disabled={testEmailMutation.isPending || !selectedAccountId}
+            size="sm"
+            variant="outline"
+            className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400 dark:hover:bg-blue-900/30"
+          >
+            {testEmailMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Mail className="h-4 w-4 mr-2" />
+            )}
+            Test Email
           </Button>
         </div>
 
@@ -1050,6 +1099,172 @@ function TestPushCard() {
             </div>
             <Separator />
             <p className="text-xs text-muted-foreground">{smsResult.message}</p>
+          </div>
+        )}
+
+        {emailResult && (
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Mail className="h-3 w-3 text-blue-500" />
+                <p className="text-xs font-medium">Email Test Result</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{emailResult.timestamp}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                {emailResult.success ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                )}
+                <span className={`text-sm font-medium ${emailResult.success ? "text-green-600" : "text-red-600"}`}>
+                  {emailResult.success ? "Delivered" : "Failed"}
+                </span>
+              </div>
+              {emailResult.email && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {emailResult.email}
+                </Badge>
+              )}
+              {emailResult.provider && (
+                <Badge variant="outline" className="text-[10px]">
+                  {emailResult.provider}
+                </Badge>
+              )}
+            </div>
+            <Separator />
+            <p className="text-xs text-muted-foreground">{emailResult.message}</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Personal Phone Number Card ─────────────────────
+function PersonalPhoneCard() {
+  const { data: phoneData, isLoading } = trpc.notifications.getUserPhone.useQuery(undefined, {
+    staleTime: 0,
+    refetchOnMount: true,
+  });
+  const utils = trpc.useUtils();
+
+  const [phone, setPhone] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (phoneData?.phone) {
+      setPhone(phoneData.phone);
+    }
+  }, [phoneData]);
+
+  const updatePhoneMutation = trpc.notifications.updateUserPhone.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.phone ? "Personal phone number saved" : "Personal phone number removed");
+      utils.notifications.getUserPhone.invalidate();
+      setIsEditing(false);
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update phone number");
+    },
+  });
+
+  const handleSave = () => {
+    const trimmed = phone.trim();
+    updatePhoneMutation.mutate({ phone: trimmed || null });
+  };
+
+  const handleRemove = () => {
+    setPhone("");
+    updatePhoneMutation.mutate({ phone: null });
+  };
+
+  const hasPhone = !!phoneData?.phone;
+
+  return (
+    <Card className="border-0 card-shadow">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Phone className="h-4 w-4 text-muted-foreground" />
+          Personal SMS Number
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Set your personal phone number to receive SMS notifications directly. If not set, SMS notifications will be sent to the account-level phone number.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading...
+          </div>
+        ) : !isEditing && hasPhone ? (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-green-500/10 flex items-center justify-center">
+                <Phone className="h-4 w-4 text-green-500" />
+              </div>
+              <div>
+                <p className="text-sm font-medium font-mono">{phoneData.phone}</p>
+                <p className="text-xs text-muted-foreground">SMS notifications will be sent here</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => setIsEditing(true)}>
+                Edit
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-red-500 hover:text-red-600"
+                onClick={handleRemove}
+                disabled={updatePhoneMutation.isPending}
+              >
+                {updatePhoneMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Remove"}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Phone Number (E.164 format)</Label>
+              <Input
+                placeholder="+12125551234"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Include country code. Example: +12125551234 for US numbers.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={handleSave}
+                disabled={!phone.trim() || updatePhoneMutation.isPending}
+              >
+                {updatePhoneMutation.isPending ? (
+                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                ) : (
+                  <Save className="h-3 w-3 mr-1" />
+                )}
+                Save
+              </Button>
+              {isEditing && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsEditing(false);
+                    setPhone(phoneData?.phone || "");
+                  }}
+                >
+                  Cancel
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </CardContent>

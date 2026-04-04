@@ -540,6 +540,20 @@
       "when": 1775152655913,
       "tag": "0076_unknown_rocket_raccoon",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "5",
+      "when": 1775319562365,
+      "tag": "0077_romantic_retro_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "5",
+      "when": 1775319640856,
+      "tag": "0078_gorgeous_outlaw_kid",
+      "breakpoints": true
     }
   ]
 }

@@ -21,6 +21,8 @@ export const users = mysqlTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
   /** bcrypt hash for email/password login (sub-account users) */
   passwordHash: varchar("passwordHash", { length: 255 }),
+  /** User's personal phone number for SMS notifications */
+  phone: varchar("phone", { length: 30 }),
   /** Platform-level role: admin = agency owner, user = normal user */
   role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -2582,3 +2584,32 @@ export const leadRoutingEvents = mysqlTable("lead_routing_events", {
 });
 export type LeadRoutingEvent = typeof leadRoutingEvents.$inferSelect;
 export type InsertLeadRoutingEvent = typeof leadRoutingEvents.$inferInsert;
+
+// ─────────────────────────────────────────────
+// NOTIFICATION LOG — Audit trail for all notification deliveries
+// Tracks every push/email/SMS notification sent for monitoring and debugging
+// ─────────────────────────────────────────────
+export const notificationLog = mysqlTable("notification_log", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Which channel was used */
+  channel: mysqlEnum("channel", ["push", "email", "sms"]).notNull(),
+  /** Event type that triggered this notification */
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  /** Account this notification belongs to */
+  accountId: int("account_id").notNull(),
+  /** User who received this notification (null for account-level SMS) */
+  userId: int("user_id"),
+  /** Recipient address (email, phone, or push endpoint prefix) */
+  recipient: varchar("recipient", { length: 320 }),
+  /** Delivery status */
+  status: mysqlEnum("status", ["sent", "failed", "skipped"]).default("sent").notNull(),
+  /** Error message if delivery failed */
+  errorMessage: text("error_message"),
+  /** Provider used (sendgrid, twilio, web-push, etc.) */
+  provider: varchar("provider", { length: 50 }),
+  /** Notification title/subject for reference */
+  title: varchar("title", { length: 500 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type NotificationLog = typeof notificationLog.$inferSelect;
+export type InsertNotificationLog = typeof notificationLog.$inferInsert;

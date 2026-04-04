@@ -12,7 +12,7 @@ import {
 } from "../db";
 import { savePushSubscription, removePushSubscription, generateVAPIDKeyPair, isVapidConfigured, sendPushNotificationToAccountDirect } from "../services/webPush";
 import { ENV } from "../_core/env";
-import { pushSubscriptions } from "../../drizzle/schema";
+import { pushSubscriptions, users } from "../../drizzle/schema";
 import { eq, and, count, sql } from "drizzle-orm";
 import { getDb } from "../db";
 import { parseNotificationPreferences, DEFAULT_NOTIFICATION_PREFERENCES } from "../services/pushBatcher";
@@ -340,6 +340,75 @@ export const notificationsRouter = router({
       }
     }),
 
+  /** Admin-only: Test email notification delivery for a specific account */
+  testEmailNotification: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+
+      const { dispatchEmail } = await import("../services/messaging");
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const { accounts } = await import("../../drizzle/schema");
+      const [account] = await db
+        .select({ email: accounts.email, name: accounts.name })
+        .from(accounts)
+        .where(eq(accounts.id, input.accountId))
+        .limit(1);
+
+      if (!account?.email) {
+        return {
+          success: false,
+          message: `No email address configured for account "${account?.name || input.accountId}". Set an email address in the account settings first.`,
+        };
+      }
+
+      try {
+        const result = await dispatchEmail({
+          to: account.email,
+          subject: "\uD83D\uDD14 Email Notification Test — Apex System",
+          body: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <div style="background: linear-gradient(135deg, #3B82F6, #8B5CF6); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 16px;">
+              <h1 style="color: white; margin: 0; font-size: 20px;">\uD83D\uDD14 Email Notification Test</h1>
+            </div>
+            <div style="background: #F9FAFB; border-radius: 8px; padding: 16px; border: 1px solid #E5E7EB;">
+              <p style="margin: 0 0 8px 0; color: #374151;">If you receive this email, email notifications are working correctly for <strong>${account.name || "your account"}</strong>.</p>
+              <p style="margin: 0; color: #6B7280; font-size: 13px;">Sent from Apex System</p>
+            </div>
+          </div>`,
+          accountId: input.accountId,
+        });
+
+        console.log(`[Notifications] Test email for account ${input.accountId}: success=${result.success} provider=${result.provider}`);
+
+        if (result.success) {
+          return {
+            success: true,
+            message: `Test email sent successfully to ${account.email} via ${result.provider}.`,
+            email: account.email,
+            provider: result.provider,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Failed to send test email to ${account.email}: ${result.error}`,
+            email: account.email,
+            provider: result.provider,
+          };
+        }
+      } catch (err: any) {
+        console.error(`[Notifications] Test email error for account ${input.accountId}:`, err);
+        return {
+          success: false,
+          message: `Error sending test email: ${err.message || "Unknown error"}`,
+        };
+      }
+    }),
+
   /** Admin-only: Clear all push subscriptions for a specific account */
   clearSubscriptions: protectedProcedure
     .input(z.object({ accountId: z.number().int().positive() }))
@@ -359,6 +428,41 @@ export const notificationsRouter = router({
       console.log(`[WebPush] Admin ${ctx.user.id} cleared ${deleted} subscriptions for account ${input.accountId}`);
 
       return { deleted };
+    }),
+
+  /** Admin-only: Get recent notification delivery logs for a specific account */
+  deliveryLogs: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        limit: z.number().int().min(1).max(100).optional().default(50),
+        channel: z.enum(["push", "email", "sms"]).optional(),
+        status: z.enum(["sent", "failed", "skipped"]).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      const { getRecentNotificationLogs } = await import("../services/notificationLogger");
+      const logs = await getRecentNotificationLogs(input.accountId, {
+        limit: input.limit,
+        channel: input.channel,
+        status: input.status,
+      });
+      return logs;
+    }),
+
+  /** Admin-only: Get notification delivery stats for a specific account */
+  deliveryStats: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      const { getNotificationDeliveryStats } = await import("../services/notificationLogger");
+      const stats = await getNotificationDeliveryStats(input.accountId);
+      return stats;
     }),
 
   /** Admin-only: Get active push subscription count for a specific account */
@@ -417,5 +521,39 @@ export const notificationsRouter = router({
         );
 
       return { success: true };
+    }),
+
+  /** Get the current user's personal phone number */
+  getUserPhone: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return { phone: null };
+
+      const [user] = await db
+        .select({ phone: users.phone })
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
+        .limit(1);
+
+      return { phone: user?.phone || null };
+    }),
+
+  /** Update the current user's personal phone number for SMS notifications */
+  updateUserPhone: protectedProcedure
+    .input(
+      z.object({
+        phone: z.string().regex(/^\+?[1-9]\d{6,14}$/, "Invalid phone number format. Use E.164 format (e.g., +12125551234)").nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      await db
+        .update(users)
+        .set({ phone: input.phone })
+        .where(eq(users.id, ctx.user.id));
+
+      return { success: true, phone: input.phone };
     }),
 });
