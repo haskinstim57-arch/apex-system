@@ -1149,23 +1149,67 @@ function TestPushCard() {
 }
 
 // ─── Test Notification Channels Card ─────────────────────
+/** Small inline status badge that auto-clears after 10 seconds */
+function TestStatusBadge({ status }: { status: "idle" | "sent" | "failed" }) {
+  if (status === "idle") return null;
+  if (status === "sent") {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 border border-green-200 rounded-full px-2 py-0.5 animate-in fade-in duration-300">
+        <CheckCircle2 className="h-3 w-3" />
+        Sent
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 animate-in fade-in duration-300">
+      <AlertCircle className="h-3 w-3" />
+      Failed
+    </span>
+  );
+}
+
 function TestChannelsCard({ accountId, isSubscribed }: { accountId?: number; isSubscribed?: boolean }) {
   const [testPhone, setTestPhone] = useState("");
   const [testEmailAddr, setTestEmailAddr] = useState("");
 
+  // Status state for each channel: idle | sent | failed
+  const [pushStatus, setPushStatus] = useState<"idle" | "sent" | "failed">("idle");
+  const [smsStatus, setSmsStatus] = useState<"idle" | "sent" | "failed">("idle");
+  const [emailStatus, setEmailStatus] = useState<"idle" | "sent" | "failed">("idle");
+
+  // Auto-clear status after 10 seconds
+  useEffect(() => {
+    if (pushStatus !== "idle") {
+      const t = setTimeout(() => setPushStatus("idle"), 10000);
+      return () => clearTimeout(t);
+    }
+  }, [pushStatus]);
+  useEffect(() => {
+    if (smsStatus !== "idle") {
+      const t = setTimeout(() => setSmsStatus("idle"), 10000);
+      return () => clearTimeout(t);
+    }
+  }, [smsStatus]);
+  useEffect(() => {
+    if (emailStatus !== "idle") {
+      const t = setTimeout(() => setEmailStatus("idle"), 10000);
+      return () => clearTimeout(t);
+    }
+  }, [emailStatus]);
+
   const testPushMutation = trpc.notifications.testPush.useMutation({
-    onSuccess: () => toast.success("Test push sent! Check your device."),
-    onError: (err: any) => toast.error(err.message || "Failed to send test push"),
+    onSuccess: () => { setPushStatus("sent"); toast.success("Test push sent! Check your device."); },
+    onError: (err: any) => { setPushStatus("failed"); toast.error(err.message || "Failed to send test push"); },
   });
 
   const testSmsMutation = trpc.notifications.testSms.useMutation({
-    onSuccess: () => toast.success("Test SMS sent! Check your phone."),
-    onError: (err: any) => toast.error(err.message || "Failed to send test SMS"),
+    onSuccess: () => { setSmsStatus("sent"); toast.success("Test SMS sent! Check your phone."); },
+    onError: (err: any) => { setSmsStatus("failed"); toast.error(err.message || "Failed to send test SMS"); },
   });
 
   const testEmailMutation = trpc.notifications.testEmail.useMutation({
-    onSuccess: () => toast.success("Test email sent! Check your inbox."),
-    onError: (err: any) => toast.error(err.message || "Failed to send test email"),
+    onSuccess: () => { setEmailStatus("sent"); toast.success("Test email sent! Check your inbox."); },
+    onError: (err: any) => { setEmailStatus("failed"); toast.error(err.message || "Failed to send test email"); },
   });
 
   return (
@@ -1192,17 +1236,21 @@ function TestChannelsCard({ accountId, isSubscribed }: { accountId?: number; isS
                   <p className="text-xs text-muted-foreground">Send a test push to this device</p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!accountId) return;
-                  testPushMutation.mutate({ accountId });
-                }}
-                disabled={testPushMutation.isPending || !accountId}
-              >
-                {testPushMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test"}
-              </Button>
+              <div className="flex items-center gap-2">
+                <TestStatusBadge status={pushStatus} />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (!accountId) return;
+                    setPushStatus("idle");
+                    testPushMutation.mutate({ accountId });
+                  }}
+                  disabled={testPushMutation.isPending || !accountId}
+                >
+                  {testPushMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test"}
+                </Button>
+              </div>
             </div>
             <Separator />
           </>
@@ -1231,12 +1279,14 @@ function TestChannelsCard({ accountId, isSubscribed }: { accountId?: number; isS
               size="sm"
               onClick={() => {
                 if (!accountId || !testPhone) return;
+                setSmsStatus("idle");
                 testSmsMutation.mutate({ accountId, phoneNumber: testPhone });
               }}
               disabled={testSmsMutation.isPending || !testPhone || !accountId}
             >
               {testSmsMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Test"}
             </Button>
+            <TestStatusBadge status={smsStatus} />
           </div>
         </div>
 
@@ -1265,12 +1315,14 @@ function TestChannelsCard({ accountId, isSubscribed }: { accountId?: number; isS
               size="sm"
               onClick={() => {
                 if (!accountId || !testEmailAddr) return;
+                setEmailStatus("idle");
                 testEmailMutation.mutate({ accountId, emailAddress: testEmailAddr });
               }}
               disabled={testEmailMutation.isPending || !testEmailAddr || !accountId}
             >
               {testEmailMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Test"}
             </Button>
+            <TestStatusBadge status={emailStatus} />
           </div>
         </div>
       </CardContent>

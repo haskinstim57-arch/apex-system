@@ -3350,4 +3350,10 @@
 ## Bug Fix: Notification Page Rendering + Blooio SMS 503
 - [x] Fix NotificationSettings page — PWA cache issue: bumped version to 3.0.0, updated cache names v4, added auto-reload on SW update
 - [x] Fix Blooio SMS — API works correctly (confirmed via curl 202 Accepted), 503 was from per-account key being the old one; added key source logging
+- [x] Save checkpoint
+
+## Feature: Test Button Status Indicators
+- [x] Add 'Sent' / 'Failed' status indicator next to Push Test button after test
+- [x] Add 'Sent' / 'Failed' status indicator next to SMS Send Test button after test
+- [x] Add 'Sent' / 'Failed' status indicator next to Email Send Test button after test
 - [ ] Save checkpoint
