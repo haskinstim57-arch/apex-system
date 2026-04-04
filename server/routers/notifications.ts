@@ -627,6 +627,131 @@ export const notificationsRouter = router({
       };
     }),
 
+  /** User-facing: Send a test email to the current user's email address */
+  testMyEmail: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      const db = await getDb();
+      if (!db) {
+        return { success: false, message: "Database not available" };
+      }
+
+      // Get the current user's email
+      const [user] = await db
+        .select({ email: users.email, name: users.name })
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
+        .limit(1);
+
+      if (!user?.email) {
+        return {
+          success: false,
+          message: "No email address found on your account. Update your profile with an email address first.",
+        };
+      }
+
+      try {
+        const { dispatchEmail } = await import("../services/messaging");
+        const result = await dispatchEmail({
+          to: user.email,
+          subject: "\uD83D\uDD14 Test Email Notification — Apex System",
+          body: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px;">
+            <div style="background: linear-gradient(135deg, #3B82F6, #8B5CF6); border-radius: 12px; padding: 24px; text-align: center; margin-bottom: 16px;">
+              <h1 style="color: white; margin: 0; font-size: 20px;">\uD83D\uDD14 Email Test Successful</h1>
+            </div>
+            <div style="background: #F9FAFB; border-radius: 8px; padding: 16px; border: 1px solid #E5E7EB;">
+              <p style="margin: 0 0 8px 0; color: #374151;">Hi ${user.name || "there"},</p>
+              <p style="margin: 0 0 8px 0; color: #374151;">If you're reading this, your email notifications are working correctly!</p>
+              <p style="margin: 0; color: #6B7280; font-size: 13px;">Sent from Apex System</p>
+            </div>
+          </div>`,
+          accountId: input.accountId,
+        });
+
+        console.log(`[Notifications] User ${ctx.user.id} test email: success=${result.success} provider=${result.provider}`);
+
+        if (result.success) {
+          return {
+            success: true,
+            message: `Test email sent to ${user.email}! Check your inbox (and spam folder).`,
+            email: user.email,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Failed to send test email: ${result.error}`,
+            email: user.email,
+          };
+        }
+      } catch (err: any) {
+        console.error(`[Notifications] User ${ctx.user.id} test email error:`, err);
+        return {
+          success: false,
+          message: `Error sending test email: ${err.message || "Unknown error"}`,
+        };
+      }
+    }),
+
+  /** User-facing: Send a test SMS to the current user's personal phone number */
+  testMySms: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      const db = await getDb();
+      if (!db) {
+        return { success: false, message: "Database not available" };
+      }
+
+      // Get the current user's phone number
+      const [user] = await db
+        .select({ phone: users.phone, name: users.name })
+        .from(users)
+        .where(eq(users.id, ctx.user.id))
+        .limit(1);
+
+      if (!user?.phone) {
+        return {
+          success: false,
+          message: "No phone number found on your profile. Add your personal phone number in the notification settings first.",
+        };
+      }
+
+      try {
+        const { dispatchSMS } = await import("../services/messaging");
+        const result = await dispatchSMS({
+          to: user.phone,
+          body: `\uD83D\uDD14 SMS Test — If you receive this, your SMS notifications are working! — Apex System`,
+          accountId: input.accountId,
+          skipDndCheck: true,
+        });
+
+        console.log(`[Notifications] User ${ctx.user.id} test SMS: success=${result.success} provider=${result.provider}`);
+
+        if (result.success) {
+          return {
+            success: true,
+            message: `Test SMS sent to ${user.phone}!`,
+            phone: user.phone,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Failed to send test SMS: ${result.error}`,
+            phone: user.phone,
+          };
+        }
+      } catch (err: any) {
+        console.error(`[Notifications] User ${ctx.user.id} test SMS error:`, err);
+        return {
+          success: false,
+          message: `Error sending test SMS: ${err.message || "Unknown error"}`,
+        };
+      }
+    }),
+
   /** Update the current user's personal phone number for SMS notifications */
   updateUserPhone: protectedProcedure
     .input(

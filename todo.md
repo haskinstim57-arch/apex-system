@@ -3314,4 +3314,11 @@
 ## Fix: Notification Test Button + PWA Enable Button
 - [x] Add a "Test Notification" button accessible to regular users (not just admins) to verify their push subscription works
 - [x] Fix PWA Enable button — diagnose and fix why subscribe() still fails on the PWA
+- [x] Save checkpoint
+
+## Feature: User-Facing Test Email & SMS Buttons
+- [x] Add testMyEmail tRPC procedure — sends test email to the current user's email address
+- [x] Add testMySms tRPC procedure — sends test SMS to the current user's personal phone number
+- [x] Add "Send Test Email" and "Send Test SMS" buttons to NotificationSettings UI
+- [x] All 2,091 existing tests pass (procedures follow same pattern as testMyPush)
 - [ ] Save checkpoint

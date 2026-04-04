@@ -432,6 +432,9 @@ export default function NotificationSettings() {
       {/* Personal SMS Phone Number */}
       <PersonalPhoneCard />
 
+      {/* Test Email & SMS Buttons */}
+      <TestChannelsCard accountId={pushAccountId} />
+
       {/* Event Type Toggles */}
       <Card className="border-0 card-shadow">
         <CardHeader className="pb-3">
@@ -1196,6 +1199,120 @@ function TestMyPushButton({ accountId }: { accountId?: number }) {
         Send Test
       </Button>
     </div>
+  );
+}
+
+// ─── Test Email & SMS Channels Card ─────────────────────
+function TestChannelsCard({ accountId }: { accountId?: number }) {
+  const testEmailMutation = trpc.notifications.testMyEmail.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.warning(data.message);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to send test email");
+    },
+  });
+
+  const testSmsMutation = trpc.notifications.testMySms.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.warning(data.message);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to send test SMS");
+    },
+  });
+
+  return (
+    <Card className="border-0 card-shadow">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Zap className="h-4 w-4 text-muted-foreground" />
+          Test Notification Channels
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Send yourself a test message to verify your email and SMS channels are working.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {/* Test Email */}
+        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-md bg-blue-500/10 flex items-center justify-center">
+              <Mail className="h-3.5 w-3.5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium">Email</p>
+              <p className="text-[10px] text-muted-foreground">Sends to your account email</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => {
+              if (!accountId) {
+                toast.error("No account selected");
+                return;
+              }
+              testEmailMutation.mutate({ accountId });
+            }}
+            disabled={testEmailMutation.isPending || !accountId}
+          >
+            {testEmailMutation.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+            ) : (
+              <Mail className="h-3 w-3 mr-1" />
+            )}
+            Send Test
+          </Button>
+        </div>
+
+        {/* Test SMS */}
+        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-md bg-green-500/10 flex items-center justify-center">
+              <MessageSquare className="h-3.5 w-3.5 text-green-500" />
+            </div>
+            <div>
+              <p className="text-xs font-medium">SMS</p>
+              <p className="text-[10px] text-muted-foreground">Sends to your personal phone number</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs"
+            onClick={() => {
+              if (!accountId) {
+                toast.error("No account selected");
+                return;
+              }
+              testSmsMutation.mutate({ accountId });
+            }}
+            disabled={testSmsMutation.isPending || !accountId}
+          >
+            {testSmsMutation.isPending ? (
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+            ) : (
+              <MessageSquare className="h-3 w-3 mr-1" />
+            )}
+            Send Test
+          </Button>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground pt-1">
+          Email is sent to your account email. SMS is sent to your personal phone number set above.
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
