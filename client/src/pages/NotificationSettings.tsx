@@ -356,20 +356,28 @@ export default function NotificationSettings() {
                   </p>
                 </div>
               </div>
-              <Button
-                variant={isSubscribed ? "outline" : "default"}
-                size="sm"
-                onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
-                disabled={pushLoading}
-              >
-                {pushLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : isSubscribed ? (
-                  "Disable"
-                ) : (
-                  "Enable"
-                )}
-              </Button>
+              {isSubscribed ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-green-600">Enabled</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-muted-foreground h-7"
+                    onClick={handleUnsubscribe}
+                    disabled={pushLoading}
+                  >
+                    {pushLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : "Disable"}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={handleSubscribe}
+                  disabled={pushLoading}
+                >
+                  {pushLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Enable"}
+                </Button>
+              )}
             </div>
           )}
 
@@ -1207,7 +1215,7 @@ function TestChannelsCard({ accountId, isSubscribed }: { accountId?: number; isS
             </div>
             <div>
               <p className="text-sm font-medium">SMS</p>
-              <p className="text-xs text-muted-foreground">Send a test SMS via Twilio</p>
+              <p className="text-xs text-muted-foreground">Send a test SMS via Blooio</p>
             </div>
           </div>
           <div className="flex items-center gap-2 pl-11">

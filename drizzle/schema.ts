@@ -747,6 +747,8 @@ export const accountMessagingSettings = mysqlTable("account_messaging_settings",
   sendgridApiKey: varchar("sendgrid_api_key", { length: 255 }),
   sendgridFromEmail: varchar("sendgrid_from_email", { length: 255 }),
   sendgridFromName: varchar("sendgrid_from_name", { length: 255 }),
+  /** Blooio credentials (SMS/iMessage provider) */
+  blooioApiKey: varchar("blooio_api_key", { length: 255 }),
   /** Business hours configuration (JSON) — per-day schedule with timezone */
   businessHours: text("business_hours"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

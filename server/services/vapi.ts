@@ -353,7 +353,7 @@ export async function provisionVapiPhoneNumber(opts: {
   areaCode?: string;
 }): Promise<VapiPhoneNumberResponse> {
   const body: Record<string, unknown> = {
-    provider: "twilio",
+    provider: "blooio",
     assistantId: opts.assistantId,
   };
   if (opts.areaCode) {

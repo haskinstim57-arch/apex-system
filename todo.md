@@ -3331,4 +3331,18 @@
 - [x] Add testPush, testSms, testEmail procedures with explicit phone/email inputs
 - [x] Replace Test Channels card UI with input fields for phone and email
 - [x] All 2,091 tests pass
+- [x] Save checkpoint
+
+## Bug Fix: Enable Button Text + SMS Credentials + PWA Prompt
+- [x] Fix Enable button text — shows "Enabled" label when push is active, "Enable" button when inactive
+- [x] Fix SMS — switched from Twilio to Blooio as SMS provider
+- [x] Fix PwaInstallPrompt Enable button — now calls subscribe() correctly (removed placeholder toast)
+- [x] Fix Users nav item — removed placeholder flag since /team route exists
+- [x] Research Blooio SMS API and integration requirements
+- [x] Create server/services/blooio.ts with sendSMSViaBlooio function
+- [x] Update messaging.ts to route SMS through Blooio instead of Twilio
+- [x] Add blooioApiKey column to accountMessagingSettings schema
+- [x] Add Blooio API key field to MessagingSettings UI
+- [x] Set BLOOIO_API_KEY environment variable
+- [x] Update all test references from Twilio to Blooio — 2,093 tests pass
 - [ ] Save checkpoint

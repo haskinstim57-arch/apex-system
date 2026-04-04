@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 // ─────────────────────────────────────────────
 // Tests for Per-Account Messaging Settings
@@ -133,12 +133,21 @@ describe("SendGrid Service — Per-Account Credential Resolution", () => {
 });
 
 describe("Messaging Dispatcher — accountId Forwarding", () => {
+  let savedBlooioKey: string | undefined;
   beforeEach(() => {
     delete process.env.TWILIO_ACCOUNT_SID;
     delete process.env.TWILIO_AUTH_TOKEN;
     delete process.env.TWILIO_FROM_NUMBER;
     delete process.env.SENDGRID_API_KEY;
     delete process.env.SENDGRID_FROM_EMAIL;
+    // Save and remove BLOOIO_API_KEY to test placeholder fallback
+    savedBlooioKey = process.env.BLOOIO_API_KEY;
+    delete process.env.BLOOIO_API_KEY;
+  });
+
+  afterEach(() => {
+    // Restore BLOOIO_API_KEY
+    if (savedBlooioKey) process.env.BLOOIO_API_KEY = savedBlooioKey;
   });
 
   it("dispatchSMS accepts accountId parameter", async () => {

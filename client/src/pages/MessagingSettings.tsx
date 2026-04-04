@@ -33,6 +33,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
+  MessageSquare,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -180,6 +181,7 @@ export default function MessagingSettings() {
   const [sendgridApiKey, setSendgridApiKey] = useState("");
   const [sendgridFromEmail, setSendgridFromEmail] = useState("");
   const [sendgridFromName, setSendgridFromName] = useState("");
+  const [blooioApiKey, setBlooioApiKey] = useState("");
 
   // Form state — business hours
   const [businessHours, setBusinessHours] =
@@ -188,6 +190,7 @@ export default function MessagingSettings() {
   // Visibility toggles for sensitive fields
   const [showTwilioToken, setShowTwilioToken] = useState(false);
   const [showSendgridKey, setShowSendgridKey] = useState(false);
+  const [showBlooioKey, setShowBlooioKey] = useState(false);
 
   // Populate form when settings load
   useEffect(() => {
@@ -198,6 +201,7 @@ export default function MessagingSettings() {
       setSendgridApiKey(settings.sendgridApiKey || "");
       setSendgridFromEmail(settings.sendgridFromEmail || "");
       setSendgridFromName(settings.sendgridFromName || "");
+      setBlooioApiKey(settings.blooioApiKey || "");
       if (settings.businessHours) {
         setBusinessHours(settings.businessHours as BusinessHoursConfig);
       }
@@ -270,6 +274,7 @@ export default function MessagingSettings() {
       sendgridApiKey: sendgridApiKey || null,
       sendgridFromEmail: sendgridFromEmail || null,
       sendgridFromName: sendgridFromName || null,
+      blooioApiKey: blooioApiKey || null,
     });
   };
 
@@ -324,6 +329,8 @@ export default function MessagingSettings() {
   const sendgridConfigured = !!(
     settings?.sendgridApiKey && settings?.sendgridFromEmail
   );
+
+  const blooioConfigured = !!settings?.blooioApiKey;
 
   const openDayCount = useMemo(
     () => DAYS.filter((d) => businessHours.schedule[d]?.open).length,
@@ -573,6 +580,81 @@ export default function MessagingSettings() {
                   onChange={(e) => setSendgridFromName(e.target.value)}
                   className="text-sm"
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Separator className="bg-border/30" />
+
+          {/* ─── Blooio SMS Settings ─── */}
+          <Card className="bg-white border-0 card-shadow">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-sm font-medium">
+                    Blooio SMS / iMessage
+                  </CardTitle>
+                </div>
+                <Badge
+                  variant={blooioConfigured ? "default" : "secondary"}
+                  className="text-xs"
+                >
+                  {blooioConfigured ? (
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3" /> Configured
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> Not configured
+                    </span>
+                  )}
+                </Badge>
+              </div>
+              <CardDescription className="text-xs">
+                Enter your Blooio API key to send SMS and iMessage from this
+                account. If left blank, the system will use the global API key.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="blooioApiKey" className="text-xs">
+                  API Key
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="blooioApiKey"
+                    type={showBlooioKey ? "text" : "password"}
+                    placeholder="api_xxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    value={blooioApiKey}
+                    onChange={(e) => setBlooioApiKey(e.target.value)}
+                    className="font-mono text-sm pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                    onClick={() => setShowBlooioKey(!showBlooioKey)}
+                  >
+                    {showBlooioKey ? (
+                      <EyeOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Get your API key from{" "}
+                  <a
+                    href="https://app.blooio.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline"
+                  >
+                    app.blooio.com
+                  </a>
+                </p>
               </div>
             </CardContent>
           </Card>

@@ -99,7 +99,7 @@ const subAccountMenuItems = [
 const agencyMenuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Building2, label: "Sub-Accounts", path: "/accounts" },
-  { icon: Users, label: "Users", path: "/team", placeholder: true },
+  { icon: Users, label: "Users", path: "/team" },
   { icon: CreditCard, label: "Billing", path: "/billing" },
 ];
 

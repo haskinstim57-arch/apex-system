@@ -66,6 +66,7 @@ export const messagingSettingsRouter = router({
           sendgridApiKey: null,
           sendgridFromEmail: null,
           sendgridFromName: null,
+          blooioApiKey: null,
           businessHours: DEFAULT_BUSINESS_HOURS_SCHEDULE,
         };
       }
@@ -85,6 +86,9 @@ export const messagingSettingsRouter = router({
           : null,
         sendgridFromEmail: settings.sendgridFromEmail,
         sendgridFromName: settings.sendgridFromName,
+        blooioApiKey: settings.blooioApiKey
+          ? "••••" + settings.blooioApiKey.slice(-4)
+          : null,
         businessHours,
       };
     }),
@@ -100,6 +104,7 @@ export const messagingSettingsRouter = router({
         sendgridApiKey: z.string().nullable().optional(),
         sendgridFromEmail: z.string().email().nullable().optional(),
         sendgridFromName: z.string().nullable().optional(),
+        blooioApiKey: z.string().nullable().optional(),
         businessHours: businessHoursSchema.optional(),
       })
     )

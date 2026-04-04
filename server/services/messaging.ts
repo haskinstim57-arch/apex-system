@@ -1,23 +1,23 @@
-import { sendSMS, isTwilioConfigured } from "./twilio";
+import { sendSMSViaBlooio, isBlooioConfigured } from "./blooio";
 import { sendEmail, isSendGridConfigured } from "./sendgrid";
 import { isPhoneOptedOut, logMessageBlocked } from "./smsCompliance";
 
 // ─────────────────────────────────────────────
 // Unified Messaging Dispatcher
-// Routes SMS/Email through real providers when configured,
-// falls back to logging when providers are not set up.
+// Routes SMS through Blooio, Email through SendGrid.
+// Falls back to logging when providers are not set up.
 // ─────────────────────────────────────────────
 
 export interface MessageSendResult {
   success: boolean;
   externalId?: string;
   error?: string;
-  provider: "twilio" | "sendgrid" | "placeholder";
+  provider: "blooio" | "sendgrid" | "placeholder";
 }
 
 /**
- * Send an SMS message through the configured provider.
- * Uses per-account Twilio credentials if available, falls back to global.
+ * Send an SMS message through the configured provider (Blooio).
+ * Uses per-account Blooio API key if available, falls back to global.
  * Falls back to placeholder logging if neither is configured.
  */
 export async function dispatchSMS(params: {
@@ -48,7 +48,7 @@ export async function dispatchSMS(params: {
         return {
           success: false,
           error: "Message blocked: recipient has opted out of SMS (DND)",
-          provider: "twilio",
+          provider: "blooio",
         };
       }
     } catch (err) {
@@ -57,10 +57,10 @@ export async function dispatchSMS(params: {
     }
   }
 
-  // Always attempt sendSMS — it handles per-account → global fallback internally
-  const result = await sendSMS(params.to, params.body, params.from, params.accountId);
-  if (result.success || result.error !== "Twilio not configured") {
-    return { ...result, provider: "twilio" };
+  // Send via Blooio — it handles per-account → global fallback internally
+  const result = await sendSMSViaBlooio(params.to, params.body, params.accountId);
+  if (result.success || result.error !== "Blooio not configured") {
+    return { ...result, provider: "blooio" };
   }
 
   // Placeholder fallback — neither per-account nor global configured
@@ -69,7 +69,7 @@ export async function dispatchSMS(params: {
   );
   return {
     success: false,
-    error: "Provider not configured — set Twilio credentials in account settings or global environment variables",
+    error: "Provider not configured — set Blooio API key in account settings or global environment variables",
     provider: "placeholder",
   };
 }
@@ -115,7 +115,7 @@ export async function dispatchEmail(params: {
  */
 export function getProviderStatus() {
   return {
-    sms: isTwilioConfigured() ? "twilio" : "placeholder",
+    sms: isBlooioConfigured() ? "blooio" : "placeholder",
     email: isSendGridConfigured() ? "sendgrid" : "placeholder",
   };
 }

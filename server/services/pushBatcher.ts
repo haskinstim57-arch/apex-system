@@ -454,7 +454,7 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
               accountId: batch.accountId,
               status: "sent",
               title: notification.title,
-              provider: "twilio",
+              provider: "blooio",
               externalMessageId: extId,
             }).catch(() => {});
           }
@@ -466,7 +466,7 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
               accountId: batch.accountId,
               status: "sent",
               title: notification.title,
-              provider: "twilio",
+              provider: "blooio",
             }).catch(() => {});
           }
         }
@@ -478,7 +478,7 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
           accountId: batch.accountId,
           status: "failed",
           title: notification.title,
-          provider: "twilio",
+          provider: "blooio",
           errorMessage: smsErr?.message || "Unknown error",
         }).catch(() => {});
       }

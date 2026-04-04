@@ -561,7 +561,7 @@ export const notificationsRouter = router({
       return { success: true, sent: result.sent, failed: result.failed };
     }),
 
-  /** Send a test SMS to verify Twilio configuration */
+  /** Send a test SMS to verify Blooio configuration */
   testSms: protectedProcedure
     .input(
       z.object({

@@ -1,0 +1,1 @@
+ALTER TABLE `account_messaging_settings` ADD `blooio_api_key` varchar(255);

@@ -69,15 +69,23 @@ describe("SendGrid Email Service", () => {
 });
 
 describe("Unified Messaging Dispatcher", () => {
+  let savedBlooioKey: string | undefined;
   beforeEach(() => {
     delete process.env.TWILIO_ACCOUNT_SID;
     delete process.env.TWILIO_AUTH_TOKEN;
     delete process.env.TWILIO_FROM_NUMBER;
     delete process.env.SENDGRID_API_KEY;
     delete process.env.SENDGRID_FROM_EMAIL;
+    // Save and remove BLOOIO_API_KEY to test placeholder fallback
+    savedBlooioKey = process.env.BLOOIO_API_KEY;
+    delete process.env.BLOOIO_API_KEY;
   });
 
-  it("dispatchSMS falls back to placeholder when Twilio not configured", async () => {
+  afterEach(() => {
+    if (savedBlooioKey) process.env.BLOOIO_API_KEY = savedBlooioKey;
+  });
+
+  it("dispatchSMS falls back to placeholder when Blooio not configured", async () => {
     const { dispatchSMS } = await import("./services/messaging");
     const result = await dispatchSMS({ to: "+15559876543", body: "Test" });
     expect(result.success).toBe(false);
@@ -104,15 +112,13 @@ describe("Unified Messaging Dispatcher", () => {
     expect(status.email).toBe("placeholder");
   });
 
-  it("getProviderStatus reports twilio/sendgrid when configured", async () => {
-    process.env.TWILIO_ACCOUNT_SID = "ACtest";
-    process.env.TWILIO_AUTH_TOKEN = "token";
-    process.env.TWILIO_FROM_NUMBER = "+15551234567";
+  it("getProviderStatus reports blooio/sendgrid when configured", async () => {
+    process.env.BLOOIO_API_KEY = "api_test123";
     process.env.SENDGRID_API_KEY = "SG.test";
     process.env.SENDGRID_FROM_EMAIL = "test@example.com";
     const { getProviderStatus } = await import("./services/messaging");
     const status = getProviderStatus();
-    expect(status.sms).toBe("twilio");
+    expect(status.sms).toBe("blooio");
     expect(status.email).toBe("sendgrid");
   });
 });
@@ -170,12 +176,19 @@ describe("Workflow Triggers — call_completed", () => {
 });
 
 describe("Campaign Send Functions — Provider Integration", () => {
+  let savedBlooioKey: string | undefined;
   beforeEach(() => {
     delete process.env.TWILIO_ACCOUNT_SID;
     delete process.env.TWILIO_AUTH_TOKEN;
     delete process.env.TWILIO_FROM_NUMBER;
     delete process.env.SENDGRID_API_KEY;
     delete process.env.SENDGRID_FROM_EMAIL;
+    savedBlooioKey = process.env.BLOOIO_API_KEY;
+    delete process.env.BLOOIO_API_KEY;
+  });
+
+  afterEach(() => {
+    if (savedBlooioKey) process.env.BLOOIO_API_KEY = savedBlooioKey;
   });
 
   it("sendCampaignEmail uses dispatcher (placeholder fallback returns failure)", async () => {

@@ -4,7 +4,7 @@
  * Sends SMS notifications for each event type when the user has
  * enabled the "sms" channel in their notification preferences.
  *
- * Uses the existing Twilio integration via dispatchSMS().
+ * Uses the existing Blooio integration via dispatchSMS().
  * Checks isChannelEnabled(prefs, eventType, "sms") before sending.
  *
  * SMS recipients are resolved in priority order:

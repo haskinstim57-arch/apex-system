@@ -92,16 +92,13 @@ export function PwaInstallPrompt() {
   };
 
   const handleEnableNotifications = async () => {
-    try {
-      const result = await subscribe();
-      if (result) {
-        // Successfully registered push subscription with backend
-        setShowNotifyBanner(false);
-        toast.success("Push notifications enabled! You'll receive alerts for new leads, messages, and appointments.");
-      }
-    } catch (err) {
-      // subscribe() throws on failure — hide banner and dismiss so it doesn't keep popping up
-      console.error("[PwaInstallPrompt] Push subscribe failed:", err);
+    const result = await subscribe();
+    if (result.success) {
+      setShowNotifyBanner(false);
+      toast.success("Push notifications enabled! You'll receive alerts for new leads, messages, and appointments.");
+    } else if (result.error) {
+      toast.error(result.error);
+      // Dismiss banner so it doesn't keep popping up after a real error
       setShowNotifyBanner(false);
       localStorage.setItem(NOTIFY_DISMISS_KEY, Date.now().toString());
     }
