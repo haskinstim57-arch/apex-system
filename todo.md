@@ -3310,3 +3310,8 @@
 - [x] Write vitest tests for all three features (23 tests)
 
 - [x] Save checkpoint
+
+## Fix: Notification Test Button + PWA Enable Button
+- [x] Add a "Test Notification" button accessible to regular users (not just admins) to verify their push subscription works
+- [x] Fix PWA Enable button — diagnose and fix why subscribe() still fails on the PWA
+- [ ] Save checkpoint

@@ -538,6 +538,95 @@ export const notificationsRouter = router({
       return { phone: user?.phone || null };
     }),
 
+  /** User-facing: Send a test push notification to the current user's subscriptions in an account */
+  testMyPush: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      const vapidReady = isVapidConfigured();
+      if (!vapidReady) {
+        return {
+          success: false,
+          message: "VAPID keys are not configured. Push notifications are disabled.",
+        };
+      }
+
+      const db = await getDb();
+      if (!db) {
+        return { success: false, message: "Database not available" };
+      }
+
+      // Get only the current user's subscriptions for this account
+      const subs = await db
+        .select()
+        .from(pushSubscriptions)
+        .where(
+          and(
+            eq(pushSubscriptions.userId, ctx.user.id),
+            eq(pushSubscriptions.accountId, input.accountId)
+          )
+        );
+
+      if (subs.length === 0) {
+        return {
+          success: false,
+          message: "No push subscriptions found. Make sure you have enabled push notifications on this device.",
+        };
+      }
+
+      // Send test push to this user's subscriptions
+      const webpush = await import("web-push");
+      webpush.setVapidDetails(
+        ENV.vapidSubject,
+        ENV.vapidPublicKey,
+        ENV.vapidPrivateKey
+      );
+
+      const payload = JSON.stringify({
+        title: "\uD83D\uDD14 Test Notification",
+        body: "If you see this, your push notifications are working!",
+        url: "/settings/notifications",
+        tag: "test-my-push",
+      });
+
+      let sent = 0;
+      let failed = 0;
+
+      for (const sub of subs) {
+        try {
+          await webpush.sendNotification(
+            {
+              endpoint: sub.endpoint,
+              keys: { p256dh: sub.p256dh, auth: sub.auth },
+            },
+            payload
+          );
+          sent++;
+        } catch (err: any) {
+          failed++;
+          // Auto-cleanup expired subscriptions
+          if (err?.statusCode === 410 || err?.statusCode === 404) {
+            await db
+              .delete(pushSubscriptions)
+              .where(eq(pushSubscriptions.id, sub.id));
+            console.log(`[WebPush] Auto-deleted expired subscription ${sub.id}`);
+          }
+        }
+      }
+
+      console.log(`[WebPush] User ${ctx.user.id} test push: sent=${sent} failed=${failed}`);
+
+      return {
+        success: sent > 0,
+        message: sent > 0
+          ? `Test notification sent to ${sent} device(s)!`
+          : `Failed to deliver to any of ${subs.length} subscription(s). Try re-enabling push notifications.`,
+        sent,
+        failed,
+      };
+    }),
+
   /** Update the current user's personal phone number for SMS notifications */
   updateUserPhone: protectedProcedure
     .input(

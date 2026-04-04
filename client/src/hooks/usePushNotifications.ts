@@ -15,6 +15,57 @@ function urlBase64ToUint8Array(base64String: string): BufferSource {
   return outputArray.buffer as ArrayBuffer;
 }
 
+/**
+ * Wait for a service worker registration to become ready.
+ * If navigator.serviceWorker.ready doesn't resolve within `timeoutMs`,
+ * attempt to manually register a service worker and wait again.
+ */
+async function getServiceWorkerRegistration(timeoutMs = 5000): Promise<ServiceWorkerRegistration> {
+  // First try: wait for an existing registration
+  const existing = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+
+  if (existing) {
+    console.log("[Push] SW ready (existing):", existing.scope);
+    return existing;
+  }
+
+  // No SW ready — try to register one manually
+  console.log("[Push] No SW ready within timeout — attempting manual registration");
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  if (registrations.length === 0) {
+    // Register the VitePWA service worker path (production uses /sw.js)
+    try {
+      await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+      console.log("[Push] Manually registered /sw.js");
+    } catch {
+      // In dev mode, VitePWA uses /dev-sw.js?dev-sw
+      try {
+        await navigator.serviceWorker.register("/dev-sw.js?dev-sw", { scope: "/", type: "module" as any });
+        console.log("[Push] Manually registered /dev-sw.js (dev mode)");
+      } catch (err2) {
+        console.error("[Push] Failed to register service worker:", err2);
+        throw new Error("Could not register a service worker. Push notifications require HTTPS and a valid service worker.");
+      }
+    }
+  }
+
+  // Wait for the registration to activate
+  const reg = await Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
+  ]);
+
+  if (!reg) {
+    throw new Error("Service worker failed to activate. Try refreshing the page and enabling notifications again.");
+  }
+
+  console.log("[Push] SW ready (after manual registration):", reg.scope);
+  return reg;
+}
+
 export function usePushNotifications(accountId?: number) {
   const { user } = useAuth();
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -98,8 +149,8 @@ export function usePushNotifications(accountId?: number) {
       throw new Error("You must be logged in to enable push notifications.");
     }
 
-    // 3. NOW wait for the service worker (after permission is granted)
-    const registration = await navigator.serviceWorker.ready;
+    // 3. Get service worker registration with fallback and timeout
+    const registration = await getServiceWorkerRegistration();
 
     // Log SW scope and state for diagnostics
     console.log("[Push] SW scope:", registration.scope, "| active state:", registration.active?.state);

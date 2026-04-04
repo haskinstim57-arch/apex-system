@@ -162,6 +162,10 @@ const plugins = [
     // PWA version — bump on each deploy to force cache invalidation
     // @ts-ignore — version is passed through to manifest
     version: "2.0.0",
+    devOptions: {
+      enabled: true,
+      type: "module",
+    },
     includeAssets: ["favicon.ico", "icons/apple-touch-icon-v2.png", "icons/masked-icon.svg"],
     manifest: {
       name: "Sterling Marketing",

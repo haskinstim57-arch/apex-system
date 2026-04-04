@@ -386,6 +386,10 @@ export default function NotificationSettings() {
             </div>
           )}
 
+          {isSubscribed && (
+            <TestMyPushButton accountId={pushAccountId} />
+          )}
+
           {isSubscribed && prefsData && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <CheckCircle2 className="h-3 w-3 text-green-500" />
@@ -1147,6 +1151,51 @@ function TestPushCard() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// ─── User-facing: Test My Push Notification ─────────────────────
+function TestMyPushButton({ accountId }: { accountId?: number }) {
+  const testMutation = trpc.notifications.testMyPush.useMutation({
+    onSuccess: (data) => {
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.warning(data.message);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to send test notification");
+    },
+  });
+
+  return (
+    <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
+      <div className="flex items-center gap-2">
+        <Zap className="h-3.5 w-3.5 text-blue-500" />
+        <span className="text-xs text-muted-foreground">Verify your push subscription is working</span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7 text-xs"
+        onClick={() => {
+          if (!accountId) {
+            toast.error("No account selected");
+            return;
+          }
+          testMutation.mutate({ accountId });
+        }}
+        disabled={testMutation.isPending || !accountId}
+      >
+        {testMutation.isPending ? (
+          <Loader2 className="h-3 w-3 animate-spin mr-1" />
+        ) : (
+          <Bell className="h-3 w-3 mr-1" />
+        )}
+        Send Test
+      </Button>
+    </div>
   );
 }
 
