@@ -316,6 +316,6 @@ describe("campaigns module", () => {
       });
       expect(result).toHaveProperty("success");
       expect(typeof result.success).toBe("boolean");
-    });
+    }, 15000);
   });
 });

@@ -404,8 +404,10 @@ function Router() {
 function PwaUpdater() {
   const { updateServiceWorker } = useRegisterSW({
     onNeedRefresh() {
-      // Auto-update without asking user — forces new SW activation
-      updateServiceWorker(true);
+      // Auto-update: activate new SW then reload so user always sees latest code
+      updateServiceWorker(true).then(() => {
+        window.location.reload();
+      });
     },
     onOfflineReady() {
       console.log("App ready to work offline");

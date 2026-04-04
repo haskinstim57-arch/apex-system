@@ -26,6 +26,7 @@ async function resolveApiKey(accountId?: number): Promise<string | null> {
     try {
       const settings = await getAccountMessagingSettings(accountId);
       if (settings?.blooioApiKey) {
+        console.log(`[Blooio] Using per-account API key for account ${accountId} (key starts with: ${settings.blooioApiKey.substring(0, 8)}...)`);
         return settings.blooioApiKey;
       }
     } catch (err) {
@@ -35,6 +36,7 @@ async function resolveApiKey(accountId?: number): Promise<string | null> {
 
   // Fall back to global env var
   if (process.env.BLOOIO_API_KEY) {
+    console.log(`[Blooio] Using global API key (key starts with: ${process.env.BLOOIO_API_KEY.substring(0, 8)}...)`);
     return process.env.BLOOIO_API_KEY;
   }
 

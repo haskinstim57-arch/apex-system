@@ -80,7 +80,7 @@ define(['./workbox-08e2db5c'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "/index.html",
-    "revision": "0.2egipvbbhb"
+    "revision": "0.bc8gd3ake9g"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
@@ -88,7 +88,7 @@ define(['./workbox-08e2db5c'], (function (workbox) { 'use strict';
     denylist: [/^\/api/]
   }));
   workbox.registerRoute(/\/assets\/page-.*\.js$/i, new workbox.NetworkFirst({
-    "cacheName": "page-chunks-v3",
+    "cacheName": "page-chunks-v4",
     "networkTimeoutSeconds": 5,
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 30,
@@ -96,7 +96,7 @@ define(['./workbox-08e2db5c'], (function (workbox) { 'use strict';
     })]
   }), 'GET');
   workbox.registerRoute(/\/assets\/.*\.js$/i, new workbox.NetworkFirst({
-    "cacheName": "lazy-chunks-v3",
+    "cacheName": "lazy-chunks-v4",
     "networkTimeoutSeconds": 5,
     plugins: [new workbox.ExpirationPlugin({
       maxEntries: 100,

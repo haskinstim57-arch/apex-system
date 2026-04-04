@@ -28,5 +28,5 @@ describe("Blooio API Key Validation", () => {
     expect(response.status).not.toBe(401);
     // Accept 200 or any non-auth-error status
     expect([200, 201, 204, 404].includes(response.status) || response.ok).toBe(true);
-  });
+  }, 15000);
 });

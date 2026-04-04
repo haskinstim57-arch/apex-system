@@ -161,7 +161,7 @@ const plugins = [
     registerType: "autoUpdate",
     // PWA version — bump on each deploy to force cache invalidation
     // @ts-ignore — version is passed through to manifest
-    version: "2.0.0",
+    version: "3.0.0",
     devOptions: {
       enabled: true,
       type: "module",
@@ -222,7 +222,7 @@ const plugins = [
           urlPattern: /\/assets\/page-.*\.js$/i,
           handler: "NetworkFirst",
           options: {
-            cacheName: "page-chunks-v3",
+            cacheName: "page-chunks-v4",
             expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 7 },
             networkTimeoutSeconds: 5,
           },
@@ -232,7 +232,7 @@ const plugins = [
           urlPattern: /\/assets\/.*\.js$/i,
           handler: "NetworkFirst",
           options: {
-            cacheName: "lazy-chunks-v3",
+            cacheName: "lazy-chunks-v4",
             expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 7 },
             networkTimeoutSeconds: 5,
           },

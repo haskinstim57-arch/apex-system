@@ -3346,3 +3346,8 @@
 - [x] Set BLOOIO_API_KEY environment variable
 - [x] Update all test references from Twilio to Blooio — 2,093 tests pass
 - [x] Save checkpoint
+
+## Bug Fix: Notification Page Rendering + Blooio SMS 503
+- [x] Fix NotificationSettings page — PWA cache issue: bumped version to 3.0.0, updated cache names v4, added auto-reload on SW update
+- [x] Fix Blooio SMS — API works correctly (confirmed via curl 202 Accepted), 503 was from per-account key being the old one; added key source logging
+- [ ] Save checkpoint
