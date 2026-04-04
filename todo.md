@@ -3232,3 +3232,13 @@
 - [x] Part 3c: Update NotificationSettings.tsx UI to show push/SMS/email toggles per event type
 - [x] Part 3d: Update updatePreferences mutation Zod schema to handle new nested object structure
 - [x] Save checkpoint
+
+## Feature: Email Notification Channel via SendGrid
+- [x] Read existing SendGrid integration and notification pipeline code
+- [x] Create email notification service (server/services/emailNotifications.ts) with event-type-specific HTML templates
+- [x] Integrate email channel into pushBatcher flushPendingBatches + webPush sendPushNotificationToAccount
+- [x] Support all event types: inbound_sms, inbound_email, appointment_booked, ai_call_completed, facebook_lead
+- [x] Use isChannelEnabled(prefs, eventType, "email") to check if email is enabled per event type
+- [x] Route emails to user's profile email (per-user from users table)
+- [x] Write vitest tests for email template builders and dispatch logic (27 tests)
+- [x] Save checkpoint

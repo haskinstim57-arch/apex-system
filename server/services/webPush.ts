@@ -258,7 +258,9 @@ export async function sendPushNotificationToAccount(
     return;
   }
 
-  // Check if ANY subscription for this account has this event type enabled
+  const { isChannelEnabled: isChEnabled } = await import("./pushBatcher");
+
+  // Check if ANY subscription for this account has any channel enabled for this event type
   const db = await getDb();
   if (!db) return;
 
@@ -269,13 +271,18 @@ export async function sendPushNotificationToAccount(
 
   if (subs.length === 0) return;
 
-  // Check preferences — if ALL subscriptions have this event type disabled, skip
-  const anyEnabled = subs.some((sub) => {
+  // Check preferences — if ALL subscriptions have ALL channels disabled for this event, skip
+  const anyPushEnabled = subs.some((sub) => {
     const prefs = parseNotificationPreferences(sub.notificationPreferences);
     return isEventTypeEnabled(prefs, eventType);
   });
 
-  if (!anyEnabled) return;
+  const anyEmailEnabled = subs.some((sub) => {
+    const prefs = parseNotificationPreferences(sub.notificationPreferences);
+    return isChEnabled(prefs, eventType, "email");
+  });
+
+  if (!anyPushEnabled && !anyEmailEnabled) return;
 
   // Check quiet hours — if ALL subscriptions are in quiet hours, skip
   const anyAwake = subs.some((sub) => {
@@ -285,7 +292,7 @@ export async function sendPushNotificationToAccount(
 
   if (!anyAwake) return;
 
-  // Route through batcher
+  // Route through batcher (handles both push + email dispatch on flush)
   await enqueuePushEvent(accountId, eventType, {
     title: payload.title,
     body: payload.body,

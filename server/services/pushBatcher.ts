@@ -16,6 +16,7 @@ import { getDb } from "../db";
 import { pushNotificationBatch, pushSubscriptions } from "../../drizzle/schema";
 import { eq, and, lte, sql } from "drizzle-orm";
 import { sendPushNotificationToAccountDirect } from "./webPush";
+import { sendBatchedEmailNotification } from "./emailNotifications";
 
 // ─── Configuration ───────────────────────────────────
 /** Time window (ms) to accumulate events before flushing. Default: 30 seconds */
@@ -355,13 +356,28 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
         payloads
       );
 
-      // Send the grouped notification to the account
+      // Send the grouped push notification to the account
       await sendPushNotificationToAccountDirect(batch.accountId, {
         title: notification.title,
         body: notification.body,
         url: notification.url,
         tag: notification.tag,
       });
+
+      // Send email notifications (non-blocking — email failures don't block push)
+      try {
+        const emailResult = await sendBatchedEmailNotification(
+          batch.accountId,
+          batch.eventType as PushEventType,
+          batch.eventCount,
+          payloads
+        );
+        if (emailResult.sent > 0) {
+          console.log(`[PushBatcher] Email channel: sent ${emailResult.sent} for batch ${batch.id} (${batch.eventType})`);
+        }
+      } catch (emailErr) {
+        console.error(`[PushBatcher] Email channel error for batch ${batch.id}:`, emailErr);
+      }
 
       // Mark batch as sent
       await db
