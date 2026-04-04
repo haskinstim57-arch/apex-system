@@ -171,7 +171,6 @@ export default function NotificationSettings() {
     subscribe,
     unsubscribe,
     isLoading: pushLoading,
-    isVapidReady,
   } = usePushNotifications(pushAccountId);
 
   const [prefs, setPrefs] = useState<PreferencesState>(DEFAULT_PREFS);
@@ -232,33 +231,23 @@ export default function NotificationSettings() {
   const [justEnabled, setJustEnabled] = useState(false);
 
   const handleSubscribe = useCallback(async () => {
-    if (!pushAccountId) {
-      toast.error("No account available. Please select a sub-account first.");
-      return;
+    const result = await subscribe();
+    if (result.success) {
+      setJustEnabled(true);
+      toast.success("Push notifications enabled! You'll receive alerts on this device.");
+    } else if (result.error) {
+      toast.error(result.error);
+    } else {
+      toast.error("Failed to enable notifications. Please try again.");
     }
-    try {
-      const result = await subscribe();
-      if (result) {
-        setJustEnabled(true);
-        toast.success("Push notifications enabled!");
-      }
-    } catch (err: any) {
-      console.error("[Push] Subscribe error:", err);
-      // Translate common DOMException names into user-friendly messages
-      let message = err?.message || "Failed to enable push notifications";
-      if (err?.name === "InvalidStateError" || message.includes("applicationServerKey")) {
-        message = "VAPID key mismatch — ask your admin to reset subscriptions and try again.";
-      } else if (err?.name === "NotAllowedError") {
-        message = "Notification permission denied. Enable notifications in your browser/device settings.";
-      }
-      toast.error(message);
-    }
-  }, [subscribe, pushAccountId]);
+  }, [subscribe]);
 
   const handleUnsubscribe = useCallback(async () => {
     const result = await unsubscribe();
-    if (result) {
+    if (result.success) {
       toast.success("Push notifications disabled");
+    } else if (result.error) {
+      toast.error(result.error);
     }
   }, [unsubscribe]);
 
@@ -371,23 +360,17 @@ export default function NotificationSettings() {
                 variant={isSubscribed ? "outline" : "default"}
                 size="sm"
                 onClick={isSubscribed ? handleUnsubscribe : handleSubscribe}
-                disabled={pushLoading || (!isSubscribed && !isVapidReady)}
+                disabled={pushLoading}
               >
                 {pushLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : isSubscribed ? (
                   "Disable"
-                ) : !isVapidReady ? (
-                  <><Loader2 className="h-3 w-3 animate-spin mr-1" /> Loading…</>
                 ) : (
                   "Enable"
                 )}
               </Button>
             </div>
-          )}
-
-          {isSubscribed && (
-            <TestMyPushButton accountId={pushAccountId} />
           )}
 
           {isSubscribed && prefsData && (
@@ -433,7 +416,7 @@ export default function NotificationSettings() {
       <PersonalPhoneCard />
 
       {/* Test Email & SMS Buttons */}
-      <TestChannelsCard accountId={pushAccountId} />
+      <TestChannelsCard accountId={pushAccountId} isSubscribed={isSubscribed} />
 
       {/* Event Type Toggles */}
       <Card className="border-0 card-shadow">
@@ -1157,160 +1140,131 @@ function TestPushCard() {
   );
 }
 
-// ─── User-facing: Test My Push Notification ─────────────────────
-function TestMyPushButton({ accountId }: { accountId?: number }) {
-  const testMutation = trpc.notifications.testMyPush.useMutation({
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success(data.message);
-      } else {
-        toast.warning(data.message);
-      }
-    },
-    onError: (err) => {
-      toast.error(err.message || "Failed to send test notification");
-    },
+// ─── Test Notification Channels Card ─────────────────────
+function TestChannelsCard({ accountId, isSubscribed }: { accountId?: number; isSubscribed?: boolean }) {
+  const [testPhone, setTestPhone] = useState("");
+  const [testEmailAddr, setTestEmailAddr] = useState("");
+
+  const testPushMutation = trpc.notifications.testPush.useMutation({
+    onSuccess: () => toast.success("Test push sent! Check your device."),
+    onError: (err: any) => toast.error(err.message || "Failed to send test push"),
   });
 
-  return (
-    <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-      <div className="flex items-center gap-2">
-        <Zap className="h-3.5 w-3.5 text-blue-500" />
-        <span className="text-xs text-muted-foreground">Verify your push subscription is working</span>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-7 text-xs"
-        onClick={() => {
-          if (!accountId) {
-            toast.error("No account selected");
-            return;
-          }
-          testMutation.mutate({ accountId });
-        }}
-        disabled={testMutation.isPending || !accountId}
-      >
-        {testMutation.isPending ? (
-          <Loader2 className="h-3 w-3 animate-spin mr-1" />
-        ) : (
-          <Bell className="h-3 w-3 mr-1" />
-        )}
-        Send Test
-      </Button>
-    </div>
-  );
-}
-
-// ─── Test Email & SMS Channels Card ─────────────────────
-function TestChannelsCard({ accountId }: { accountId?: number }) {
-  const testEmailMutation = trpc.notifications.testMyEmail.useMutation({
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success(data.message);
-      } else {
-        toast.warning(data.message);
-      }
-    },
-    onError: (err) => {
-      toast.error(err.message || "Failed to send test email");
-    },
+  const testSmsMutation = trpc.notifications.testSms.useMutation({
+    onSuccess: () => toast.success("Test SMS sent! Check your phone."),
+    onError: (err: any) => toast.error(err.message || "Failed to send test SMS"),
   });
 
-  const testSmsMutation = trpc.notifications.testMySms.useMutation({
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success(data.message);
-      } else {
-        toast.warning(data.message);
-      }
-    },
-    onError: (err) => {
-      toast.error(err.message || "Failed to send test SMS");
-    },
+  const testEmailMutation = trpc.notifications.testEmail.useMutation({
+    onSuccess: () => toast.success("Test email sent! Check your inbox."),
+    onError: (err: any) => toast.error(err.message || "Failed to send test email"),
   });
 
   return (
     <Card className="border-0 card-shadow">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <Zap className="h-4 w-4 text-muted-foreground" />
+          <Bell className="h-4 w-4 text-muted-foreground" />
           Test Notification Channels
         </CardTitle>
         <CardDescription className="text-xs">
-          Send yourself a test message to verify your email and SMS channels are working.
+          Verify your notification channels are configured correctly by sending a test message.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {/* Test Email */}
-        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-blue-500/10 flex items-center justify-center">
-              <Mail className="h-3.5 w-3.5 text-blue-500" />
+      <CardContent className="space-y-4">
+        {isSubscribed && (
+          <>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                  <Bell className="h-4 w-4 text-purple-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Push Notification</p>
+                  <p className="text-xs text-muted-foreground">Send a test push to this device</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!accountId) return;
+                  testPushMutation.mutate({ accountId });
+                }}
+                disabled={testPushMutation.isPending || !accountId}
+              >
+                {testPushMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Test"}
+              </Button>
+            </div>
+            <Separator />
+          </>
+        )}
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+              <MessageSquare className="h-4 w-4 text-green-500" />
             </div>
             <div>
-              <p className="text-xs font-medium">Email</p>
-              <p className="text-[10px] text-muted-foreground">Sends to your account email</p>
+              <p className="text-sm font-medium">SMS</p>
+              <p className="text-xs text-muted-foreground">Send a test SMS via Twilio</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => {
-              if (!accountId) {
-                toast.error("No account selected");
-                return;
-              }
-              testEmailMutation.mutate({ accountId });
-            }}
-            disabled={testEmailMutation.isPending || !accountId}
-          >
-            {testEmailMutation.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            ) : (
-              <Mail className="h-3 w-3 mr-1" />
-            )}
-            Send Test
-          </Button>
+          <div className="flex items-center gap-2 pl-11">
+            <Input
+              type="tel"
+              placeholder="+15551234567"
+              value={testPhone}
+              onChange={(e) => setTestPhone(e.target.value)}
+              className="h-8 text-sm max-w-[200px]"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (!accountId || !testPhone) return;
+                testSmsMutation.mutate({ accountId, phoneNumber: testPhone });
+              }}
+              disabled={testSmsMutation.isPending || !testPhone || !accountId}
+            >
+              {testSmsMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Test"}
+            </Button>
+          </div>
         </div>
 
-        {/* Test SMS */}
-        <div className="flex items-center justify-between bg-muted/50 rounded-lg p-3">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-md bg-green-500/10 flex items-center justify-center">
-              <MessageSquare className="h-3.5 w-3.5 text-green-500" />
+        <Separator />
+
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Mail className="h-4 w-4 text-blue-500" />
             </div>
             <div>
-              <p className="text-xs font-medium">SMS</p>
-              <p className="text-[10px] text-muted-foreground">Sends to your personal phone number</p>
+              <p className="text-sm font-medium">Email</p>
+              <p className="text-xs text-muted-foreground">Send a test email via SendGrid</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs"
-            onClick={() => {
-              if (!accountId) {
-                toast.error("No account selected");
-                return;
-              }
-              testSmsMutation.mutate({ accountId });
-            }}
-            disabled={testSmsMutation.isPending || !accountId}
-          >
-            {testSmsMutation.isPending ? (
-              <Loader2 className="h-3 w-3 animate-spin mr-1" />
-            ) : (
-              <MessageSquare className="h-3 w-3 mr-1" />
-            )}
-            Send Test
-          </Button>
+          <div className="flex items-center gap-2 pl-11">
+            <Input
+              type="email"
+              placeholder="you@example.com"
+              value={testEmailAddr}
+              onChange={(e) => setTestEmailAddr(e.target.value)}
+              className="h-8 text-sm max-w-[250px]"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (!accountId || !testEmailAddr) return;
+                testEmailMutation.mutate({ accountId, emailAddress: testEmailAddr });
+              }}
+              disabled={testEmailMutation.isPending || !testEmailAddr || !accountId}
+            >
+              {testEmailMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Send Test"}
+            </Button>
+          </div>
         </div>
-
-        <p className="text-[10px] text-muted-foreground pt-1">
-          Email is sent to your account email. SMS is sent to your personal phone number set above.
-        </p>
       </CardContent>
     </Card>
   );

@@ -69,7 +69,7 @@ if (!self.define) {
 }
 define(['./workbox-08e2db5c'], (function (workbox) { 'use strict';
 
-  importScripts("/sw-push.js");
+  importScripts("./sw-push.js");
   self.skipWaiting();
   workbox.clientsClaim();
 
@@ -80,7 +80,7 @@ define(['./workbox-08e2db5c'], (function (workbox) { 'use strict';
    */
   workbox.precacheAndRoute([{
     "url": "/index.html",
-    "revision": "0.s3ejtk867no"
+    "revision": "0.ddrg66nv6lo"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {

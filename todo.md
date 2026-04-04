@@ -3321,4 +3321,14 @@
 - [x] Add testMySms tRPC procedure — sends test SMS to the current user's personal phone number
 - [x] Add "Send Test Email" and "Send Test SMS" buttons to NotificationSettings UI
 - [x] All 2,091 existing tests pass (procedures follow same pattern as testMyPush)
+- [x] Save checkpoint
+
+## Bug Fix: Push Enable Silent Failures + Test SMS/Email Provider Not Configured
+- [x] Replace usePushNotifications.ts with robust error handling, SW timeout, and SubscribeResult type
+- [x] Replace sw-push.js with ES5-compatible syntax for mobile PWA compatibility
+- [x] Fix vite.config.ts importScripts path from /sw-push.js to ./sw-push.js
+- [x] Update handleSubscribe/handleUnsubscribe in NotificationSettings to use SubscribeResult
+- [x] Add testPush, testSms, testEmail procedures with explicit phone/email inputs
+- [x] Replace Test Channels card UI with input fields for phone and email
+- [x] All 2,091 tests pass
 - [ ] Save checkpoint

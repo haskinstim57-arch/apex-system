@@ -210,7 +210,7 @@ const plugins = [
       // Only precache the essential shell — let code-split chunks load on-demand
       globPatterns: ["index.html", "assets/index-*.js", "assets/*.css", "icons/*.png"],
       maximumFileSizeToCacheInBytes: 8 * 1024 * 1024, // 8 MB — large SPA bundle
-      importScripts: ["/sw-push.js"],
+      importScripts: ["./sw-push.js"],
       navigateFallback: "/index.html",
       navigateFallbackDenylist: [/^\/api/],
       cleanupOutdatedCaches: true,
