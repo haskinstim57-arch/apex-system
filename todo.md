@@ -3366,9 +3366,18 @@
 ## Bug Fix: Service Worker Activation Failure on Mobile PWA
 - [x] Investigate service worker activation error on deployed mobile PWA
 - [x] Fix service worker registration/activation for production builds
-- [ ] Save checkpoint
+- [x] Save checkpoint
 
 ## Bug Fix: Phone Number Auto-Populate Missing Country Code
 - [x] Ensure auto-populated phone number includes +1 prefix when stored without it
 - [x] Backend also normalizes phone to E.164 on save
+- [x] Save checkpoint
+
+## Bug Fix: Push Notification Comprehensive Fixes (User-Provided)
+- [x] BUG 1: Replace usePushNotifications.ts — fix silent failures, add SubscribeResult type with error messages
+- [x] BUG 2: Replace PwaInstallPrompt.tsx — use usePushNotifications hook, proper error handling, move inside AccountProvider
+- [x] BUG 3: Fix subscribe() iOS gesture chain — requestPermission FIRST, verify actual subscription on mount
+- [x] BUG 4: Update handleSubscribe/handleUnsubscribe in NotificationSettings.tsx for better error feedback
+- [x] Replace sw-push.js with ES5-compatible syntax for mobile PWA compatibility
+- [x] Move PwaInstallPrompt inside AccountProvider in App.tsx
 - [ ] Save checkpoint

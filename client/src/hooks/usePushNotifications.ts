@@ -109,10 +109,24 @@ export function usePushNotifications(accountId?: number) {
 
     if (supported) {
       setPermission(Notification.permission);
-      const subscribed = localStorage.getItem(PUSH_SUBSCRIBED_KEY);
-      if (subscribed === "true") {
-        setIsSubscribed(true);
-      }
+
+      // Verify the actual PushManager subscription exists — don't trust localStorage alone
+      navigator.serviceWorker.ready
+        .then((registration) => registration.pushManager.getSubscription())
+        .then((sub) => {
+          if (sub) {
+            setIsSubscribed(true);
+            localStorage.setItem(PUSH_SUBSCRIBED_KEY, "true");
+          } else {
+            setIsSubscribed(false);
+            localStorage.removeItem(PUSH_SUBSCRIBED_KEY);
+          }
+        })
+        .catch(() => {
+          // Service worker not ready yet — fall back to localStorage
+          const stored = localStorage.getItem(PUSH_SUBSCRIBED_KEY);
+          setIsSubscribed(stored === "true");
+        });
     }
   }, []);
 
