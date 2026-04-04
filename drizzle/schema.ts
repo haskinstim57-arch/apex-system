@@ -2609,6 +2609,12 @@ export const notificationLog = mysqlTable("notification_log", {
   provider: varchar("provider", { length: 50 }),
   /** Notification title/subject for reference */
   title: varchar("title", { length: 500 }),
+  /** External message ID from provider (SendGrid x-message-id, Twilio SID) for webhook matching */
+  externalMessageId: varchar("external_message_id", { length: 255 }),
+  /** Final delivery status from provider webhook (delivered, bounced, dropped, deferred, undelivered, failed, etc.) */
+  deliveryStatus: varchar("delivery_status", { length: 50 }),
+  /** Timestamp when delivery status was last updated by webhook */
+  deliveryStatusUpdatedAt: timestamp("delivery_status_updated_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export type NotificationLog = typeof notificationLog.$inferSelect;

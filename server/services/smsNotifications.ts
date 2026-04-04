@@ -231,11 +231,11 @@ export async function sendSmsNotification(
   accountId: number,
   eventType: PushEventType,
   payload: SmsNotificationPayload
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; externalIds: string[] }> {
   const recipients = await getSmsRecipientsForAccount(accountId, eventType);
 
   if (recipients.length === 0) {
-    return { sent: 0, failed: 0 };
+    return { sent: 0, failed: 0, externalIds: [] };
   }
 
   const appUrl = process.env.VITE_APP_URL || "https://apexcrm-knxkwfan.manus.space";
@@ -243,6 +243,7 @@ export async function sendSmsNotification(
 
   let sent = 0;
   let failed = 0;
+  const externalIds: string[] = [];
 
   for (const recipient of recipients) {
     try {
@@ -254,6 +255,7 @@ export async function sendSmsNotification(
 
       if (result.success) {
         sent++;
+        if (result.externalId) externalIds.push(result.externalId);
         console.log(`[SmsNotify] Sent ${eventType} SMS to ${recipient.phone} (${recipient.source})`);
       } else {
         failed++;
@@ -265,7 +267,7 @@ export async function sendSmsNotification(
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, externalIds };
 }
 
 /**
@@ -277,11 +279,11 @@ export async function sendBatchedSmsNotification(
   eventType: PushEventType,
   eventCount: number,
   payloads: SmsNotificationPayload[]
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; externalIds: string[] }> {
   const recipients = await getSmsRecipientsForAccount(accountId, eventType);
 
   if (recipients.length === 0) {
-    return { sent: 0, failed: 0 };
+    return { sent: 0, failed: 0, externalIds: [] };
   }
 
   const appUrl = process.env.VITE_APP_URL || "https://apexcrm-knxkwfan.manus.space";
@@ -289,6 +291,7 @@ export async function sendBatchedSmsNotification(
 
   let sent = 0;
   let failed = 0;
+  const externalIds: string[] = [];
 
   for (const recipient of recipients) {
     try {
@@ -300,6 +303,7 @@ export async function sendBatchedSmsNotification(
 
       if (result.success) {
         sent++;
+        if (result.externalId) externalIds.push(result.externalId);
         console.log(`[SmsNotify] Sent batched ${eventType} SMS (${eventCount} events) to ${recipient.phone}`);
       } else {
         failed++;
@@ -311,7 +315,7 @@ export async function sendBatchedSmsNotification(
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, externalIds };
 }
 
 /**

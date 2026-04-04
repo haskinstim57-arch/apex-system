@@ -247,11 +247,11 @@ export async function sendEmailNotification(
   accountId: number,
   eventType: PushEventType,
   payload: EmailNotificationPayload
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; externalIds: string[] }> {
   const recipients = await getEmailRecipientsForAccount(accountId, eventType);
 
   if (recipients.length === 0) {
-    return { sent: 0, failed: 0 };
+    return { sent: 0, failed: 0, externalIds: [] };
   }
 
   const appUrl = process.env.VITE_APP_URL || "https://apexcrm-knxkwfan.manus.space";
@@ -259,6 +259,7 @@ export async function sendEmailNotification(
 
   let sent = 0;
   let failed = 0;
+  const externalIds: string[] = [];
 
   for (const recipient of recipients) {
     try {
@@ -271,6 +272,7 @@ export async function sendEmailNotification(
 
       if (result.success) {
         sent++;
+        if (result.externalId) externalIds.push(result.externalId);
         console.log(`[EmailNotify] Sent ${eventType} email to ${recipient.email} (user ${recipient.userId})`);
       } else {
         failed++;
@@ -282,7 +284,7 @@ export async function sendEmailNotification(
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, externalIds };
 }
 
 /**
@@ -294,11 +296,11 @@ export async function sendBatchedEmailNotification(
   eventType: PushEventType,
   eventCount: number,
   payloads: EmailNotificationPayload[]
-): Promise<{ sent: number; failed: number }> {
+): Promise<{ sent: number; failed: number; externalIds: string[] }> {
   const recipients = await getEmailRecipientsForAccount(accountId, eventType);
 
   if (recipients.length === 0) {
-    return { sent: 0, failed: 0 };
+    return { sent: 0, failed: 0, externalIds: [] };
   }
 
   const appUrl = process.env.VITE_APP_URL || "https://apexcrm-knxkwfan.manus.space";
@@ -308,6 +310,7 @@ export async function sendBatchedEmailNotification(
 
   let sent = 0;
   let failed = 0;
+  const externalIds: string[] = [];
 
   for (const recipient of recipients) {
     try {
@@ -320,6 +323,7 @@ export async function sendBatchedEmailNotification(
 
       if (result.success) {
         sent++;
+        if (result.externalId) externalIds.push(result.externalId);
         console.log(`[EmailNotify] Sent batched ${eventType} email (${eventCount} events) to ${recipient.email}`);
       } else {
         failed++;
@@ -331,7 +335,7 @@ export async function sendBatchedEmailNotification(
     }
   }
 
-  return { sent, failed };
+  return { sent, failed, externalIds };
 }
 
 // ─── Utility ────────────────────────────────────────

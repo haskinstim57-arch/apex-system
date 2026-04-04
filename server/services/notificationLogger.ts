@@ -3,6 +3,9 @@
  *
  * Logs every push/email/SMS notification delivery to the notification_log table
  * for audit trail, monitoring, and debugging purposes.
+ *
+ * Also provides updateDeliveryStatus() for webhook-driven status updates
+ * from SendGrid and Twilio.
  */
 
 import { getDb } from "../db";
@@ -22,6 +25,8 @@ export interface LogNotificationParams {
   errorMessage?: string | null;
   provider?: string | null;
   title?: string | null;
+  /** External message ID from provider (SendGrid x-message-id, Twilio SID) */
+  externalMessageId?: string | null;
 }
 
 /**
@@ -46,10 +51,62 @@ export async function logNotificationDelivery(params: LogNotificationParams): Pr
       errorMessage: params.errorMessage ?? null,
       provider: params.provider ?? null,
       title: params.title ?? null,
+      externalMessageId: params.externalMessageId ?? null,
     });
   } catch (err: any) {
     console.error("[NotificationLogger] Failed to log notification:", err.message);
   }
+}
+
+/**
+ * Update the delivery status of a notification log entry by external message ID.
+ * Called by SendGrid/Twilio delivery status webhooks.
+ *
+ * @returns Number of rows updated (0 if no matching log found)
+ */
+export async function updateDeliveryStatus(
+  externalMessageId: string,
+  deliveryStatus: string,
+  errorMessage?: string | null
+): Promise<number> {
+  try {
+    const db = await getDb();
+    if (!db) {
+      console.warn("[NotificationLogger] Database not available, skipping status update");
+      return 0;
+    }
+
+    const result = await db
+      .update(notificationLog)
+      .set({
+        deliveryStatus,
+        deliveryStatusUpdatedAt: new Date(),
+        ...(errorMessage ? { errorMessage } : {}),
+      })
+      .where(eq(notificationLog.externalMessageId, externalMessageId));
+
+    const rowsAffected = (result as any)?.[0]?.affectedRows ?? 0;
+    return rowsAffected;
+  } catch (err: any) {
+    console.error("[NotificationLogger] Failed to update delivery status:", err.message);
+    return 0;
+  }
+}
+
+/**
+ * Find a notification log entry by external message ID.
+ */
+export async function findByExternalMessageId(externalMessageId: string) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const rows = await db
+    .select()
+    .from(notificationLog)
+    .where(eq(notificationLog.externalMessageId, externalMessageId))
+    .limit(1);
+
+  return rows[0] ?? null;
 }
 
 /**

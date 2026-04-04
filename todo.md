@@ -3279,3 +3279,15 @@
 
 - [x] Write vitest tests for all three features (14 tests)
 - [x] Save checkpoint
+
+## Feature: Delivery Status Webhooks (SendGrid + Twilio)
+- [x] Read current notification_log schema and notificationLogger service
+- [x] Add externalMessageId and deliveryStatus columns to notification_log table
+- [x] Update logNotificationDelivery to store externalMessageId when available
+- [x] Create POST /api/webhooks/sendgrid/delivery-status endpoint for SendGrid Event Webhook
+- [x] Create POST /api/webhooks/twilio/delivery-status endpoint for Twilio SMS Status Callback
+- [x] Add updateDeliveryStatus helper to notificationLogger.ts
+- [x] Wire SendGrid webhook to look up notification_log by externalMessageId and update deliveryStatus
+- [x] Wire Twilio webhook to look up notification_log by externalMessageId and update deliveryStatus
+- [x] Write vitest tests for both webhook handlers (30 tests)
+- [x] Save checkpoint

@@ -399,14 +399,29 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
         );
         if (emailResult.sent > 0) {
           console.log(`[PushBatcher] Email channel: sent ${emailResult.sent} for batch ${batch.id} (${batch.eventType})`);
-          logNotificationDelivery({
-            channel: "email",
-            eventType: batch.eventType,
-            accountId: batch.accountId,
-            status: "sent",
-            title: notification.title,
-            provider: "sendgrid",
-          }).catch(() => {});
+          // Log each email with its external message ID for webhook matching
+          for (const extId of emailResult.externalIds) {
+            logNotificationDelivery({
+              channel: "email",
+              eventType: batch.eventType,
+              accountId: batch.accountId,
+              status: "sent",
+              title: notification.title,
+              provider: "sendgrid",
+              externalMessageId: extId,
+            }).catch(() => {});
+          }
+          // If no externalIds returned but sent > 0, still log without ID
+          if (emailResult.externalIds.length === 0) {
+            logNotificationDelivery({
+              channel: "email",
+              eventType: batch.eventType,
+              accountId: batch.accountId,
+              status: "sent",
+              title: notification.title,
+              provider: "sendgrid",
+            }).catch(() => {});
+          }
         }
       } catch (emailErr: any) {
         console.error(`[PushBatcher] Email channel error for batch ${batch.id}:`, emailErr);
@@ -431,14 +446,29 @@ export async function flushPendingBatches(): Promise<{ flushed: number; errors: 
         );
         if (smsResult.sent > 0) {
           console.log(`[PushBatcher] SMS channel: sent ${smsResult.sent} for batch ${batch.id} (${batch.eventType})`);
-          logNotificationDelivery({
-            channel: "sms",
-            eventType: batch.eventType,
-            accountId: batch.accountId,
-            status: "sent",
-            title: notification.title,
-            provider: "twilio",
-          }).catch(() => {});
+          // Log each SMS with its external message ID (Twilio SID) for webhook matching
+          for (const extId of smsResult.externalIds) {
+            logNotificationDelivery({
+              channel: "sms",
+              eventType: batch.eventType,
+              accountId: batch.accountId,
+              status: "sent",
+              title: notification.title,
+              provider: "twilio",
+              externalMessageId: extId,
+            }).catch(() => {});
+          }
+          // If no externalIds returned but sent > 0, still log without ID
+          if (smsResult.externalIds.length === 0) {
+            logNotificationDelivery({
+              channel: "sms",
+              eventType: batch.eventType,
+              accountId: batch.accountId,
+              status: "sent",
+              title: notification.title,
+              provider: "twilio",
+            }).catch(() => {});
+          }
         }
       } catch (smsErr: any) {
         console.error(`[PushBatcher] SMS channel error for batch ${batch.id}:`, smsErr);

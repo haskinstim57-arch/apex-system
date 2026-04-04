@@ -29,6 +29,7 @@ import { webchatWebhookRouter } from "../webhooks/webchat";
 import { webchatWidgetRouter } from "../webhooks/webchatWidget";
 import { jarvisStreamRouter } from "../webhooks/jarvisStream";
 import { squareWebhookRouter } from "../webhooks/square";
+import { deliveryStatusRouter } from "../webhooks/deliveryStatus";
 import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 import { startMessageQueueWorker } from "../services/messageQueue";
 import { startPushBatchWorker } from "../services/pushBatcher";
@@ -85,6 +86,8 @@ async function startServer() {
   app.use(jarvisStreamRouter);
   // Square payment webhook
   app.use(squareWebhookRouter);
+  // Delivery status webhooks (SendGrid + Twilio)
+  app.use(deliveryStatusRouter);
   // Public landing page serving
   app.use(publicPagesRouter);
   // Build version endpoint — returns server start timestamp for frontend cache-busting

@@ -554,6 +554,13 @@
       "when": 1775319640856,
       "tag": "0078_gorgeous_outlaw_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "5",
+      "when": 1775320593675,
+      "tag": "0079_curved_molten_man",
+      "breakpoints": true
     }
   ]
 }
