@@ -3372,3 +3372,7 @@
 - [x] Ensure auto-populated phone number includes +1 prefix when stored without it
 - [x] Backend also normalizes phone to E.164 on save
 - [ ] Save checkpoint
+
+## Bug Fix: Service Worker Stuck Cache — Manual Re-Registration Fallback
+- [x] Replace getServiceWorkerRegistration with manual SW register fallback for stuck cached SWs
+- [ ] Save checkpoint
