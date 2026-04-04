@@ -623,11 +623,26 @@ export const notificationsRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
+      // Normalize to E.164 format before saving
+      let normalizedPhone = input.phone;
+      if (normalizedPhone) {
+        const digits = normalizedPhone.replace(/\D/g, "");
+        if (!normalizedPhone.startsWith("+")) {
+          if (digits.length === 10) {
+            normalizedPhone = "+1" + digits; // US number without country code
+          } else if (digits.length === 11 && digits.startsWith("1")) {
+            normalizedPhone = "+" + digits; // US number with country code but no +
+          } else {
+            normalizedPhone = "+" + digits;
+          }
+        }
+      }
+
       await db
         .update(users)
-        .set({ phone: input.phone })
+        .set({ phone: normalizedPhone })
         .where(eq(users.id, ctx.user.id));
 
-      return { success: true, phone: input.phone };
+      return { success: true, phone: normalizedPhone };
     }),
 });

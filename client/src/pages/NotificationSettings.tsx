@@ -1177,7 +1177,20 @@ function TestChannelsCard({ accountId, isSubscribed, userEmail, userPhone }: { a
   const [emailPopulated, setEmailPopulated] = useState(false);
   useEffect(() => {
     if (!phonePopulated && userPhone) {
-      setTestPhone(userPhone);
+      // Normalize to E.164: add +1 prefix for US numbers if missing
+      let normalized = userPhone.trim();
+      if (normalized && !normalized.startsWith("+")) {
+        // Strip any non-digit characters
+        const digits = normalized.replace(/\D/g, "");
+        if (digits.length === 10) {
+          normalized = "+1" + digits;
+        } else if (digits.length === 11 && digits.startsWith("1")) {
+          normalized = "+" + digits;
+        } else {
+          normalized = "+" + digits;
+        }
+      }
+      setTestPhone(normalized);
       setPhonePopulated(true);
     }
   }, [userPhone, phonePopulated]);

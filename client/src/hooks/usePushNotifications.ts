@@ -15,20 +15,65 @@ function urlBase64ToUint8Array(base64String: string): BufferSource {
   return outputArray.buffer as ArrayBuffer;
 }
 
-/** Wait for service worker with timeout — prevents hanging forever */
-async function waitForServiceWorker(timeoutMs = 15000): Promise<ServiceWorkerRegistration> {
+/**
+ * Get a ready service worker registration.
+ * Strategy:
+ *  1. Check if there's already an active SW via getRegistrations()
+ *  2. If not, wait for navigator.serviceWorker.ready with a generous timeout
+ *  3. If the SW is installing/waiting, wait for it to activate
+ */
+async function getServiceWorkerRegistration(timeoutMs = 30000): Promise<ServiceWorkerRegistration> {
+  // First, try to get an existing registration quickly
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  for (const reg of registrations) {
+    if (reg.active) {
+      console.log("[Push] Found active SW from getRegistrations()");
+      return reg;
+    }
+  }
+
+  // If no active SW yet, wait for navigator.serviceWorker.ready
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error("Service worker did not activate within 15 seconds. Try refreshing the page."));
+      reject(new Error(
+        "Service worker did not activate within " + (timeoutMs / 1000) + " seconds. " +
+        "Please refresh the page and try again. If this keeps happening, clear your browser cache or reinstall the app."
+      ));
     }, timeoutMs);
+
+    // Poll every 2 seconds for an active SW as a fallback
+    const pollInterval = setInterval(async () => {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+          if (reg.active) {
+            clearTimeout(timer);
+            clearInterval(pollInterval);
+            console.log("[Push] Found active SW via polling");
+            resolve(reg);
+            return;
+          }
+          // If SW is installing or waiting, try to nudge it
+          const pendingSW = reg.installing || reg.waiting;
+          if (pendingSW) {
+            console.log("[Push] SW state:", pendingSW.state, "— waiting for activation...");
+          }
+        }
+      } catch {
+        // ignore polling errors
+      }
+    }, 2000);
 
     navigator.serviceWorker.ready
       .then((reg) => {
         clearTimeout(timer);
+        clearInterval(pollInterval);
+        console.log("[Push] SW ready via navigator.serviceWorker.ready");
         resolve(reg);
       })
       .catch((err) => {
         clearTimeout(timer);
+        clearInterval(pollInterval);
         reject(err);
       });
   });
@@ -124,18 +169,17 @@ export function usePushNotifications(accountId?: number) {
         };
       }
 
-      // Step 2: Wait for service worker (with timeout)
-      console.log("[Push] Waiting for service worker...");
+      // Step 2: Get service worker registration (with generous timeout + polling)
+      console.log("[Push] Getting service worker registration...");
       let registration: ServiceWorkerRegistration;
       try {
-        registration = await waitForServiceWorker(15000);
+        registration = await getServiceWorkerRegistration(30000);
         console.log("[Push] Service worker ready, state:", registration.active?.state);
       } catch (swErr: any) {
         console.error("[Push] Service worker error:", swErr);
         return {
           success: false,
-          error:
-            "Service worker failed to activate. Please refresh the page and try again. If this keeps happening, clear your browser cache or reinstall the app.",
+          error: swErr?.message || "Service worker failed to activate. Please refresh the page and try again.",
         };
       }
 

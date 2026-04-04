@@ -3361,4 +3361,14 @@
 ## Feature: Auto-Populate Test Notification Fields
 - [x] Pre-fill test phone field from logged-in user's personal phone number
 - [x] Pre-fill test email field from logged-in user's account email
+- [x] Save checkpoint
+
+## Bug Fix: Service Worker Activation Failure on Mobile PWA
+- [x] Investigate service worker activation error on deployed mobile PWA
+- [x] Fix service worker registration/activation for production builds
+- [ ] Save checkpoint
+
+## Bug Fix: Phone Number Auto-Populate Missing Country Code
+- [x] Ensure auto-populated phone number includes +1 prefix when stored without it
+- [x] Backend also normalizes phone to E.164 on save
 - [ ] Save checkpoint
