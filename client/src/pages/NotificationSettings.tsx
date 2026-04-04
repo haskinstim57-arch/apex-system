@@ -874,6 +874,31 @@ function TestPushCard() {
     },
   });
 
+  const [smsResult, setSmsResult] = useState<{
+    success: boolean;
+    message: string;
+    phone?: string;
+    provider?: string;
+    timestamp: string;
+  } | null>(null);
+
+  const testSmsMutation = trpc.notifications.testSmsNotification.useMutation({
+    onSuccess: (data) => {
+      setSmsResult({
+        ...data,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+      if (data.success) {
+        toast.success(data.message);
+      } else {
+        toast.warning(data.message);
+      }
+    },
+    onError: (err) => {
+      toast.error(err.message || "Test SMS failed");
+    },
+  });
+
   return (
     <Card className="border-0 card-shadow border-l-4 border-l-blue-500">
       <CardHeader className="pb-3">
@@ -931,14 +956,38 @@ function TestPushCard() {
             ) : (
               <Zap className="h-4 w-4 mr-2" />
             )}
-            Send Test
+            Test Push
+          </Button>
+          <Button
+            onClick={() => {
+              const id = parseInt(selectedAccountId);
+              if (!id || id <= 0) {
+                toast.error("Select a sub-account first");
+                return;
+              }
+              testSmsMutation.mutate({ accountId: id });
+            }}
+            disabled={testSmsMutation.isPending || !selectedAccountId}
+            size="sm"
+            variant="outline"
+            className="bg-green-50 border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-900/20 dark:border-green-800 dark:text-green-400 dark:hover:bg-green-900/30"
+          >
+            {testSmsMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <MessageSquare className="h-4 w-4 mr-2" />
+            )}
+            Test SMS
           </Button>
         </div>
 
         {lastResult && (
           <div className="bg-muted/50 rounded-lg p-3 space-y-2">
             <div className="flex items-center justify-between mb-1">
-              <p className="text-xs font-medium">{lastResult.accountName}</p>
+              <div className="flex items-center gap-2">
+                <Zap className="h-3 w-3 text-blue-500" />
+                <p className="text-xs font-medium">Push — {lastResult.accountName}</p>
+              </div>
               <p className="text-[10px] text-muted-foreground">{lastResult.timestamp}</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -965,6 +1014,42 @@ function TestPushCard() {
             </div>
             <Separator />
             <p className="text-xs text-muted-foreground">{lastResult.message}</p>
+          </div>
+        )}
+
+        {smsResult && (
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="h-3 w-3 text-green-500" />
+                <p className="text-xs font-medium">SMS Test Result</p>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{smsResult.timestamp}</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                {smsResult.success ? (
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
+                )}
+                <span className={`text-sm font-medium ${smsResult.success ? "text-green-600" : "text-red-600"}`}>
+                  {smsResult.success ? "Delivered" : "Failed"}
+                </span>
+              </div>
+              {smsResult.phone && (
+                <Badge variant="secondary" className="text-[10px]">
+                  {smsResult.phone}
+                </Badge>
+              )}
+              {smsResult.provider && (
+                <Badge variant="outline" className="text-[10px]">
+                  {smsResult.provider}
+                </Badge>
+              )}
+            </div>
+            <Separator />
+            <p className="text-xs text-muted-foreground">{smsResult.message}</p>
           </div>
         )}
       </CardContent>

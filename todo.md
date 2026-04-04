@@ -3252,3 +3252,8 @@
 - [x] Get account phone number from accounts table for SMS delivery
 - [x] Write vitest tests for SMS notification service (17 tests)
 - [x] Save checkpoint
+
+## Feature: Test SMS Admin Button
+- [x] Add testSms adminProcedure to server/routers/notifications.ts that sends a test SMS to the account phone
+- [x] Add Test SMS button to TestPushCard in NotificationSettings.tsx alongside the existing Send Test Push button
+- [x] Save checkpoint

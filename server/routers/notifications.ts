@@ -278,6 +278,68 @@ export const notificationsRouter = router({
       };
     }),
 
+  /** Admin-only: Test SMS notification delivery for a specific account */
+  testSmsNotification: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+
+      const { dispatchSMS } = await import("../services/messaging");
+
+      // Get the account phone number
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const { accounts } = await import("../../drizzle/schema");
+      const [account] = await db
+        .select({ phone: accounts.phone, name: accounts.name })
+        .from(accounts)
+        .where(eq(accounts.id, input.accountId))
+        .limit(1);
+
+      if (!account?.phone) {
+        return {
+          success: false,
+          message: `No phone number configured for account "${account?.name || input.accountId}". Set a phone number in the account settings first.`,
+        };
+      }
+
+      try {
+        const result = await dispatchSMS({
+          to: account.phone,
+          body: `\uD83D\uDD14 SMS Notification Test\nIf you receive this, SMS notifications are working correctly for ${account.name || "your account"}!\n\nSent from Apex System`,
+          accountId: input.accountId,
+          skipDndCheck: true,
+        });
+
+        console.log(`[WebPush] Test SMS for account ${input.accountId}: success=${result.success} provider=${result.provider}`);
+
+        if (result.success) {
+          return {
+            success: true,
+            message: `Test SMS sent successfully to ${account.phone} via ${result.provider}.`,
+            phone: account.phone,
+            provider: result.provider,
+          };
+        } else {
+          return {
+            success: false,
+            message: `Failed to send test SMS to ${account.phone}: ${result.error}`,
+            phone: account.phone,
+            provider: result.provider,
+          };
+        }
+      } catch (err: any) {
+        console.error(`[WebPush] Test SMS error for account ${input.accountId}:`, err);
+        return {
+          success: false,
+          message: `Error sending test SMS: ${err.message || "Unknown error"}`,
+        };
+      }
+    }),
+
   /** Admin-only: Clear all push subscriptions for a specific account */
   clearSubscriptions: protectedProcedure
     .input(z.object({ accountId: z.number().int().positive() }))
