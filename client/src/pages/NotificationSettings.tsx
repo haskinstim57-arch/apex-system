@@ -327,12 +327,19 @@ export default function NotificationSettings() {
               </AlertDescription>
             </Alert>
           ) : permission === "denied" ? (
-            <Alert variant="destructive">
-              <Shield className="h-4 w-4" />
-              <AlertDescription className="text-xs">
-                Notifications are blocked by your browser. Open browser settings to allow notifications for this site.
-              </AlertDescription>
-            </Alert>
+            <div className="space-y-3">
+              <Alert variant="destructive" className="border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
+                <Shield className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-xs text-red-800 dark:text-red-300">
+                  <p className="font-medium mb-2">Notifications are blocked on this device</p>
+                  <p className="mb-2">
+                    You previously denied notification permissions, or your device settings are blocking them.
+                    To re-enable, follow the instructions for your device below:
+                  </p>
+                  <NotificationUnblockInstructions />
+                </AlertDescription>
+              </Alert>
+            </div>
           ) : (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1486,5 +1493,175 @@ function PersonalPhoneCard() {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/** Detects the user's platform and shows device-specific unblock instructions */
+function NotificationUnblockInstructions() {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (ua.includes("Mac") && "ontouchend" in document);
+  const isAndroid = /Android/i.test(ua);
+  const isSafari = /Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua);
+  const isChrome = /Chrome|CriOS/i.test(ua) && !/Edge|Edg/i.test(ua);
+  const isFirefox = /Firefox|FxiOS/i.test(ua);
+  const isEdge = /Edge|Edg/i.test(ua);
+  const isPWA = window.matchMedia("(display-mode: standalone)").matches;
+
+  // Determine which platform to auto-expand
+  const detectedPlatform = isIOS ? "ios" : isAndroid ? "android" : "desktop";
+
+  const toggle = (key: string) => {
+    setExpanded((prev) => (prev === key ? null : key));
+  };
+
+  return (
+    <div className="space-y-2 mt-2">
+      {/* iOS Instructions */}
+      <div className="rounded-md border border-red-200 dark:border-red-800 overflow-hidden">
+        <button
+          onClick={() => toggle("ios")}
+          className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs font-medium hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors ${
+            detectedPlatform === "ios" ? "bg-red-100/30 dark:bg-red-900/10" : ""
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Smartphone className="h-3.5 w-3.5" />
+            iPhone / iPad (Safari)
+            {detectedPlatform === "ios" && (
+              <Badge variant="outline" className="text-[10px] h-4 px-1 border-red-300 text-red-600">
+                Your device
+              </Badge>
+            )}
+          </span>
+          <span className="text-[10px] text-muted-foreground">{expanded === "ios" ? "▲" : "▼"}</span>
+        </button>
+        {expanded === "ios" && (
+          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/10">
+            <ol className="list-decimal list-inside space-y-1.5 text-xs">
+              {isPWA ? (
+                <>
+                  <li>Open the <strong>Settings</strong> app on your iPhone/iPad</li>
+                  <li>Scroll down and tap <strong>Apps</strong> (or <strong>Notifications</strong> on older iOS)</li>
+                  <li>Find and tap <strong>Apex System</strong> (or the app name)</li>
+                  <li>Tap <strong>Notifications</strong></li>
+                  <li>Toggle <strong>Allow Notifications</strong> to ON</li>
+                  <li>Return here and tap <strong>Enable</strong></li>
+                </>
+              ) : (
+                <>
+                  <li>Open the <strong>Settings</strong> app on your iPhone/iPad</li>
+                  <li>Scroll down and tap <strong>Safari</strong> (or your browser)</li>
+                  <li>Tap <strong>Notifications</strong></li>
+                  <li>Find this website and set it to <strong>Allow</strong></li>
+                  <li>Return here, refresh the page, and tap <strong>Enable</strong></li>
+                </>
+              )}
+            </ol>
+            <p className="text-[10px] text-muted-foreground mt-2 italic">
+              Note: iOS requires the app to be added to your Home Screen for push notifications to work.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Android Instructions */}
+      <div className="rounded-md border border-red-200 dark:border-red-800 overflow-hidden">
+        <button
+          onClick={() => toggle("android")}
+          className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs font-medium hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors ${
+            detectedPlatform === "android" ? "bg-red-100/30 dark:bg-red-900/10" : ""
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Smartphone className="h-3.5 w-3.5" />
+            Android (Chrome)
+            {detectedPlatform === "android" && (
+              <Badge variant="outline" className="text-[10px] h-4 px-1 border-red-300 text-red-600">
+                Your device
+              </Badge>
+            )}
+          </span>
+          <span className="text-[10px] text-muted-foreground">{expanded === "android" ? "▲" : "▼"}</span>
+        </button>
+        {expanded === "android" && (
+          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/10">
+            <ol className="list-decimal list-inside space-y-1.5 text-xs">
+              <li>Tap the <strong>three-dot menu</strong> (⋮) in Chrome's top-right corner</li>
+              <li>Tap <strong>Settings</strong></li>
+              <li>Tap <strong>Site settings</strong> → <strong>Notifications</strong></li>
+              <li>Find this website in the <strong>Blocked</strong> list</li>
+              <li>Tap it and change to <strong>Allow</strong></li>
+              <li>Return here, refresh the page, and tap <strong>Enable</strong></li>
+            </ol>
+            <p className="text-[10px] text-muted-foreground mt-2 italic">
+              Alternatively: Tap the lock/info icon in the address bar → Permissions → Notifications → Allow.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Instructions */}
+      <div className="rounded-md border border-red-200 dark:border-red-800 overflow-hidden">
+        <button
+          onClick={() => toggle("desktop")}
+          className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs font-medium hover:bg-red-100/50 dark:hover:bg-red-900/20 transition-colors ${
+            detectedPlatform === "desktop" ? "bg-red-100/30 dark:bg-red-900/10" : ""
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            <Shield className="h-3.5 w-3.5" />
+            Desktop Browser
+            {detectedPlatform === "desktop" && (
+              <Badge variant="outline" className="text-[10px] h-4 px-1 border-red-300 text-red-600">
+                Your device
+              </Badge>
+            )}
+          </span>
+          <span className="text-[10px] text-muted-foreground">{expanded === "desktop" ? "▲" : "▼"}</span>
+        </button>
+        {expanded === "desktop" && (
+          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/10">
+            {isChrome || isEdge ? (
+              <ol className="list-decimal list-inside space-y-1.5 text-xs">
+                <li>Click the <strong>lock icon</strong> (or tune icon) in the address bar</li>
+                <li>Find <strong>Notifications</strong> in the permissions list</li>
+                <li>Change from <strong>Block</strong> to <strong>Allow</strong></li>
+                <li>Refresh the page and tap <strong>Enable</strong></li>
+              </ol>
+            ) : isFirefox ? (
+              <ol className="list-decimal list-inside space-y-1.5 text-xs">
+                <li>Click the <strong>lock icon</strong> in the address bar</li>
+                <li>Click <strong>Connection secure</strong> → <strong>More Information</strong></li>
+                <li>Go to the <strong>Permissions</strong> tab</li>
+                <li>Find <strong>Send Notifications</strong> and set to <strong>Allow</strong></li>
+                <li>Refresh the page and tap <strong>Enable</strong></li>
+              </ol>
+            ) : isSafari ? (
+              <ol className="list-decimal list-inside space-y-1.5 text-xs">
+                <li>Open <strong>Safari</strong> → <strong>Settings</strong> (or Preferences)</li>
+                <li>Go to the <strong>Websites</strong> tab</li>
+                <li>Click <strong>Notifications</strong> in the sidebar</li>
+                <li>Find this website and change to <strong>Allow</strong></li>
+                <li>Refresh the page and tap <strong>Enable</strong></li>
+              </ol>
+            ) : (
+              <ol className="list-decimal list-inside space-y-1.5 text-xs">
+                <li>Open your browser's <strong>Settings</strong></li>
+                <li>Navigate to <strong>Privacy & Security</strong> → <strong>Site Settings</strong></li>
+                <li>Find <strong>Notifications</strong></li>
+                <li>Locate this website and change to <strong>Allow</strong></li>
+                <li>Refresh the page and tap <strong>Enable</strong></li>
+              </ol>
+            )}
+          </div>
+        )}
+      </div>
+
+      <p className="text-[10px] text-muted-foreground mt-1">
+        After changing your device settings, refresh this page and the <strong>Enable</strong> button will reappear.
+      </p>
+    </div>
   );
 }

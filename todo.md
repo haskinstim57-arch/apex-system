@@ -3375,4 +3375,9 @@
 
 ## Bug Fix: Service Worker Stuck Cache — Manual Re-Registration Fallback
 - [x] Replace getServiceWorkerRegistration with manual SW register fallback for stuck cached SWs
+- [x] Save checkpoint
+
+## Feature: Inline Warning for Blocked Notifications
+- [x] Add persistent warning banner when Notification.permission === "denied"
+- [x] Include device-specific instructions (iOS Safari, Android Chrome, desktop browsers)
 - [ ] Save checkpoint
