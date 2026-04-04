@@ -52,6 +52,7 @@ import MessageQueue from "./pages/MessageQueue";
 import GeminiUsage from "./pages/GeminiUsage";
 import LeadMonitor from "./pages/LeadMonitor";
 import NotificationLog from "./pages/NotificationLog";
+import NotificationDeliveryDashboard from "./pages/NotificationDeliveryDashboard";
 import Billing from "./pages/Billing";
 const SocialMedia = lazy(() => import("./pages/SocialMedia"));
 import Offline from "./pages/Offline";
@@ -364,6 +365,13 @@ function Router() {
       <Route path="/settings/notification-log">
         <DashboardLayout>
           <NotificationLog />
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings/delivery-dashboard">
+        <DashboardLayout>
+          <AdminRoute>
+            <NotificationDeliveryDashboard />
+          </AdminRoute>
         </DashboardLayout>
       </Route>
       <Route path="/settings/facebook-pages">

@@ -298,16 +298,24 @@ export default function NotificationSettings() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} className="shrink-0">
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-xl font-semibold">Push Notification Settings</h1>
-          <p className="text-sm text-muted-foreground">
-            Control which events trigger push notifications and set quiet hours.
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} className="shrink-0">
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-xl font-semibold">Push Notification Settings</h1>
+            <p className="text-sm text-muted-foreground">
+              Control which events trigger push notifications and set quiet hours.
+            </p>
+          </div>
         </div>
+        {isAdmin && (
+          <Button variant="outline" size="sm" onClick={() => navigate("/settings/delivery-dashboard")}>
+            <Bell className="h-4 w-4 mr-1" />
+            Delivery Dashboard
+          </Button>
+        )}
       </div>
 
       {/* Push Subscription Status */}

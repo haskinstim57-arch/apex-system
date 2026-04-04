@@ -3291,3 +3291,22 @@
 - [x] Wire Twilio webhook to look up notification_log by externalMessageId and update deliveryStatus
 - [x] Write vitest tests for both webhook handlers (30 tests)
 - [x] Save checkpoint
+
+## Feature: Notification Delivery Dashboard
+- [x] Create NotificationDeliveryDashboard.tsx admin page with delivery stats charts and filterable log table
+- [x] Add route in App.tsx and link from NotificationSettings header
+- [x] Display delivery stats by channel (push/email/SMS) with sent/failed/delivered counts
+- [x] Display recent delivery logs in a filterable, sortable table (channel, status, recipient, timestamp)
+- [x] Add date range filter and channel filter to the log table
+
+## Feature: SendGrid Webhook URL Configuration
+- [x] Add Webhook Configuration card to delivery dashboard with SendGrid and Twilio webhook URLs
+- [x] Display the correct URL with copy-to-clipboard buttons
+- [x] Show which event types should be enabled in SendGrid dashboard
+
+## Feature: Twilio StatusCallback Auto-Injection
+- [x] Update Twilio sendSMS function to include statusCallback URL parameter automatically
+- [x] Use VITE_APP_URL or APP_URL to construct the callback URL
+- [x] Write vitest tests for all three features (23 tests)
+
+- [x] Save checkpoint
