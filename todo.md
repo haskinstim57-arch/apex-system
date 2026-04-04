@@ -3356,4 +3356,9 @@
 - [x] Add 'Sent' / 'Failed' status indicator next to Push Test button after test
 - [x] Add 'Sent' / 'Failed' status indicator next to SMS Send Test button after test
 - [x] Add 'Sent' / 'Failed' status indicator next to Email Send Test button after test
+- [x] Save checkpoint
+
+## Feature: Auto-Populate Test Notification Fields
+- [x] Pre-fill test phone field from logged-in user's personal phone number
+- [x] Pre-fill test email field from logged-in user's account email
 - [ ] Save checkpoint

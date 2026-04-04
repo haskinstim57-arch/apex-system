@@ -424,7 +424,7 @@ export default function NotificationSettings() {
       <PersonalPhoneCard />
 
       {/* Test Email & SMS Buttons */}
-      <TestChannelsCard accountId={pushAccountId} isSubscribed={isSubscribed} />
+      <TestChannelsCard accountId={pushAccountId} isSubscribed={isSubscribed} userEmail={user?.email} userPhone={user?.phone} />
 
       {/* Event Type Toggles */}
       <Card className="border-0 card-shadow">
@@ -1168,9 +1168,25 @@ function TestStatusBadge({ status }: { status: "idle" | "sent" | "failed" }) {
   );
 }
 
-function TestChannelsCard({ accountId, isSubscribed }: { accountId?: number; isSubscribed?: boolean }) {
+function TestChannelsCard({ accountId, isSubscribed, userEmail, userPhone }: { accountId?: number; isSubscribed?: boolean; userEmail?: string | null; userPhone?: string | null }) {
   const [testPhone, setTestPhone] = useState("");
   const [testEmailAddr, setTestEmailAddr] = useState("");
+
+  // Auto-populate from user profile on first load
+  const [phonePopulated, setPhonePopulated] = useState(false);
+  const [emailPopulated, setEmailPopulated] = useState(false);
+  useEffect(() => {
+    if (!phonePopulated && userPhone) {
+      setTestPhone(userPhone);
+      setPhonePopulated(true);
+    }
+  }, [userPhone, phonePopulated]);
+  useEffect(() => {
+    if (!emailPopulated && userEmail) {
+      setTestEmailAddr(userEmail);
+      setEmailPopulated(true);
+    }
+  }, [userEmail, emailPopulated]);
 
   // Status state for each channel: idle | sent | failed
   const [pushStatus, setPushStatus] = useState<"idle" | "sent" | "failed">("idle");
