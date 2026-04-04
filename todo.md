@@ -3345,4 +3345,4 @@
 - [x] Add Blooio API key field to MessagingSettings UI
 - [x] Set BLOOIO_API_KEY environment variable
 - [x] Update all test references from Twilio to Blooio — 2,093 tests pass
-- [ ] Save checkpoint
+- [x] Save checkpoint
