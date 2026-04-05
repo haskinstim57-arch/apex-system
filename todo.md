@@ -3380,4 +3380,9 @@
 ## Feature: Inline Warning for Blocked Notifications
 - [x] Add persistent warning banner when Notification.permission === "denied"
 - [x] Include device-specific instructions (iOS Safari, Android Chrome, desktop browsers)
+- [x] Save checkpoint
+
+## Bug Fix: Blooio SMS Test Returns 503 "No active devices"
+- [x] Investigate Blooio SMS sending code — check if from number is specified
+- [x] Fix SMS sending — updated BLOOIO_API_KEY to api_j23Hv1vto07eEKOWXJalm (the key with +1(714) assigned)
 - [ ] Save checkpoint
