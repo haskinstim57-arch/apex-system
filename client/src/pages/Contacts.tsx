@@ -612,14 +612,14 @@ export default function Contacts() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-[28px] font-bold tracking-tight text-foreground">Contacts</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {total} contact{total !== 1 ? "s" : ""} in this account
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
           <a href="/contacts/merge">
             <Button variant="outline" size="sm" className="h-9 gap-1.5">
               <GitMerge className="h-3.5 w-3.5" />

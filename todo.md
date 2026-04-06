@@ -3409,4 +3409,9 @@
 - [x] Auto-fill operator/value when Business Hours is selected
 - [x] Hide operator/value fields and show hint text for Business Hours condition
 - [x] Apply to both AddStepDialog and EditStepDialog
+- [x] Save checkpoint
+
+## Bug Fix: Contacts Page Header Button Overflow on Mobile/PWA
+- [x] Change 1: Make outer header container stack vertically on mobile with flex-col sm:flex-row
+- [x] Change 2: Make button group wrap on mobile with flex-wrap and w-full sm:w-auto
 - [ ] Save checkpoint
