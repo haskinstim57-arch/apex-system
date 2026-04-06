@@ -22,7 +22,9 @@ import {
   logContactActivity,
   getExecutionStats,
   getExecutionHistoryWithWorkflow,
+  createContact,
 } from "../db";
+import { onFacebookLeadReceived } from "../services/workflowTriggers";
 
 // ─── Tenant guard ───
 async function requireAccountMember(userId: number, accountId: number, userRole?: string) {
@@ -629,7 +631,7 @@ export const automationsRouter = router({
     .input(
       z.object({
         accountId: z.number().int().positive(),
-        preset: z.enum(["facebook_lead_pmr"]),
+        preset: z.enum(["facebook_lead_pmr", "webinar_registration", "appointment_no_show"]),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -745,6 +747,304 @@ export const automationsRouter = router({
         };
       }
 
+      // ─── Webinar Registration Preset ───
+      if (input.preset === "webinar_registration") {
+        const { id: workflowId } = await createWorkflow({
+          accountId: input.accountId,
+          name: "Webinar Registration Follow-Up",
+          triggerType: "form_submitted",
+          isActive: false,
+          createdById: ctx.user.id,
+        });
+
+        // Step 1: Tag as webinar_registrant
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 1,
+          name: "Tag: webinar_registrant",
+          actionConfig: JSON.stringify({ action: "add_tag", tag: "webinar_registrant" }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 2: Send confirmation email
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 2,
+          name: "Send confirmation email",
+          actionConfig: JSON.stringify({
+            action: "send_email",
+            subject: "You're registered! Webinar details inside",
+            body: "Hi {{firstName}},\n\nYou're confirmed for the upcoming webinar. We'll send you a reminder before it starts.\n\nLooking forward to seeing you there!",
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 3: Notify the team
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 3,
+          name: "Notify team",
+          actionConfig: JSON.stringify({
+            action: "notify_user",
+            message: "New webinar registration: {{firstName}} {{lastName}} — {{email}}",
+            notifyAll: true,
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 4: Wait 1 hour then send SMS reminder
+        await createWorkflowStep({
+          workflowId,
+          stepType: "delay",
+          stepOrder: 4,
+          name: "Wait 1 hour",
+          delayConfig: JSON.stringify({ delayMinutes: 60 }),
+          actionConfig: null,
+          conditionConfig: null,
+        });
+
+        // Step 5: Send SMS reminder
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 5,
+          name: "Send SMS reminder",
+          actionConfig: JSON.stringify({
+            action: "send_sms",
+            body: "Hi {{firstName}}, just confirming your webinar registration! Save the date — we'll send a link before the event. Reply STOP to opt out.",
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 6: Create follow-up task
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 6,
+          name: "Create follow-up task",
+          actionConfig: JSON.stringify({
+            action: "create_task",
+            title: "Follow up with {{firstName}} {{lastName}} after webinar",
+            description: "Webinar registrant. Follow up post-event to gauge interest and schedule a consultation.",
+            priority: "medium",
+            dueDateOffsetMinutes: 1440, // 24 hours
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        return {
+          success: true,
+          workflowId,
+          message: "Webinar Registration workflow installed. Activate it in Automations when ready.",
+        };
+      }
+
+      // ─── Appointment No-Show Preset ───
+      if (input.preset === "appointment_no_show") {
+        const { id: workflowId } = await createWorkflow({
+          accountId: input.accountId,
+          name: "Appointment No-Show Re-Engagement",
+          triggerType: "appointment_cancelled",
+          isActive: false,
+          createdById: ctx.user.id,
+        });
+
+        // Step 1: Tag as no_show
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 1,
+          name: "Tag: no_show",
+          actionConfig: JSON.stringify({ action: "add_tag", tag: "no_show" }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 2: Notify the team
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 2,
+          name: "Notify team",
+          actionConfig: JSON.stringify({
+            action: "notify_user",
+            message: "Appointment no-show: {{firstName}} {{lastName}} — {{phone}}. Re-engagement needed.",
+            notifyAll: true,
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 3: Wait 30 minutes
+        await createWorkflowStep({
+          workflowId,
+          stepType: "delay",
+          stepOrder: 3,
+          name: "Wait 30 minutes",
+          delayConfig: JSON.stringify({ delayMinutes: 30 }),
+          actionConfig: null,
+          conditionConfig: null,
+        });
+
+        // Step 4: Send re-engagement SMS
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 4,
+          name: "Send re-engagement SMS",
+          actionConfig: JSON.stringify({
+            action: "send_sms",
+            body: "Hi {{firstName}}, we noticed you missed your appointment. No worries! Would you like to reschedule? Reply YES and we'll get you set up. Reply STOP to opt out.",
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 5: Wait 24 hours
+        await createWorkflowStep({
+          workflowId,
+          stepType: "delay",
+          stepOrder: 5,
+          name: "Wait 24 hours",
+          delayConfig: JSON.stringify({ delayMinutes: 1440 }),
+          actionConfig: null,
+          conditionConfig: null,
+        });
+
+        // Step 6: Send follow-up email
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 6,
+          name: "Send follow-up email",
+          actionConfig: JSON.stringify({
+            action: "send_email",
+            subject: "We missed you — let's reschedule",
+            body: "Hi {{firstName}},\n\nWe're sorry we missed you at your appointment. Life gets busy — we totally understand!\n\nWe'd love to help you get back on track. Click below to reschedule at a time that works for you.\n\nLooking forward to connecting!",
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 7: Create re-engagement task
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 7,
+          name: "Create re-engagement task",
+          actionConfig: JSON.stringify({
+            action: "create_task",
+            title: "Re-engage {{firstName}} {{lastName}} — Appointment No-Show",
+            description: "Contact missed their appointment. SMS and email sent. Follow up with a personal call to reschedule.",
+            priority: "high",
+            dueDateOffsetMinutes: 2880, // 48 hours
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 8: Branch on business hours for AI call
+        await createWorkflowStep({
+          workflowId,
+          stepType: "condition",
+          stepOrder: 8,
+          name: "Is it business hours?",
+          conditionConfig: JSON.stringify({
+            field: "business_hours",
+            operator: "equals",
+            value: "true",
+            trueBranchStepOrder: 9,
+            falseBranchStepOrder: 99,
+          }),
+          actionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 9: AI call during business hours
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 9,
+          name: "AI call to reschedule",
+          actionConfig: JSON.stringify({
+            action: "start_ai_call",
+            skipBusinessHoursCheck: true,
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        return {
+          success: true,
+          workflowId,
+          message: "Appointment No-Show workflow installed. Activate it in Automations when ready.",
+        };
+      }
+
       throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown preset" });
+    }),
+
+  /**
+   * Admin-only: Simulate a test Facebook lead to verify the PMR workflow fires correctly.
+   * Creates a fake contact and triggers the facebook_lead_received event.
+   */
+  simulateTestLead: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        firstName: z.string().optional().default("Test"),
+        lastName: z.string().optional().default("Lead"),
+        email: z.string().optional().default("testlead@example.com"),
+        phone: z.string().optional().default("+15555550199"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      // Create a test contact
+      const { id: contactId } = await createContact({
+        accountId: input.accountId,
+        firstName: input.firstName,
+        lastName: input.lastName,
+        email: input.email,
+        phone: input.phone,
+        leadSource: "facebook",
+        status: "new",
+        customFields: JSON.stringify({
+          fb_lead_id: `test_${Date.now()}`,
+          fb_campaign_id: "test_campaign",
+          fb_form_id: "test_form",
+          fb_form_loan_type: "Conventional",
+          fb_form_property_state: "California",
+        }),
+      });
+
+      // Fire the facebook_lead_received trigger
+      await onFacebookLeadReceived(input.accountId, contactId);
+
+      await logContactActivity({
+        contactId,
+        accountId: input.accountId,
+        type: "workflow_triggered",
+        description: "Simulated Facebook lead — triggered PMR workflow for testing",
+        performedById: ctx.user.id,
+      });
+
+      return {
+        success: true,
+        contactId,
+        message: `Test lead created (ID: ${contactId}) and facebook_lead_received trigger fired. Check workflow execution logs.`,
+      };
     }),
 });

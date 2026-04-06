@@ -3392,4 +3392,21 @@
 - [x] CHANGE 2: Add business_hours condition to workflowEngine.ts + skipBusinessHoursCheck flag on start_ai_call
 - [x] CHANGE 3: Add installPresetWorkflow endpoint in automations.ts (one-click PMR workflow installer)
 - [x] CHANGE 4: Add Install PMR Workflow button to Automations UI
+- [x] Save checkpoint
+
+## Feature: Test Facebook Lead Simulation Endpoint
+- [x] Add simulateTestLead endpoint in automations.ts to create a fake Facebook lead and trigger the PMR workflow
+- [x] Add "Test PMR Workflow" button in Automations UI that calls the simulation endpoint
+
+## Feature: Additional Preset Workflow Templates
+- [x] Add webinar_registration preset template (tag, confirm email, notify, delay, SMS reminder, follow-up task)
+- [x] Add appointment_no_show preset template (tag, notify, delay, re-engage SMS, email, task, business hours AI call)
+- [x] Extend installPresetWorkflow endpoint to support new presets
+- [x] Add Install buttons for both new presets in Automations UI
+
+## Feature: Business Hours Condition in Workflow Builder
+- [x] Add Business Hours to CONDITION_FIELDS array in Automations.tsx
+- [x] Auto-fill operator/value when Business Hours is selected
+- [x] Hide operator/value fields and show hint text for Business Hours condition
+- [x] Apply to both AddStepDialog and EditStepDialog
 - [ ] Save checkpoint

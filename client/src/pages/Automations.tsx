@@ -66,7 +66,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileText, Palette, GitBranch, PhoneMissed, CalendarX, Calendar } from "lucide-react";
+import { FileText, Palette, GitBranch, PhoneMissed, CalendarX, Calendar, CalendarCheck, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 
 // ─── Constants ───
@@ -119,6 +119,7 @@ const CONTACT_FIELDS = [
 ] as const;
 
 const CONDITION_FIELDS = [
+  { value: "business_hours", label: "Business Hours" },
   { value: "status", label: "Pipeline Status" },
   { value: "leadSource", label: "Lead Source" },
   { value: "email", label: "Email" },
@@ -255,6 +256,50 @@ export default function Automations() {
                   <Zap className="h-4 w-4 mr-2" />
                 )}
                 Install PMR Workflow
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!accountId) {
+                    toast.error("Select an account first");
+                    return;
+                  }
+                  installPresetMutation.mutate({
+                    accountId,
+                    preset: "webinar_registration",
+                  });
+                }}
+                disabled={installPresetMutation.isPending}
+              >
+                {installPresetMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CalendarCheck className="h-4 w-4 mr-2" />
+                )}
+                Webinar Follow-Up
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!accountId) {
+                    toast.error("Select an account first");
+                    return;
+                  }
+                  installPresetMutation.mutate({
+                    accountId,
+                    preset: "appointment_no_show",
+                  });
+                }}
+                disabled={installPresetMutation.isPending}
+              >
+                {installPresetMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CalendarX className="h-4 w-4 mr-2" />
+                )}
+                No-Show Re-Engage
               </Button>
             </>
           )}
@@ -1399,7 +1444,13 @@ function AddStepDialog({
                 </div>
                 <div>
                   <Label>Contact Field</Label>
-                  <Select value={condField} onValueChange={setCondField}>
+                  <Select value={condField} onValueChange={(v) => {
+                    setCondField(v);
+                    if (v === "business_hours") {
+                      setCondOperator("equals");
+                      setCondValue("true");
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -1411,23 +1462,30 @@ function AddStepDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {condField === "business_hours" && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Checks if the current time is within the account's configured business hours. TRUE branch runs during hours, FALSE branch runs after hours.
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <Label>Operator</Label>
-                  <Select value={condOperator} onValueChange={setCondOperator}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONDITION_OPERATORS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {condOperator !== "is_empty" && condOperator !== "is_not_empty" && (
+                {condField !== "business_hours" && (
+                  <div>
+                    <Label>Operator</Label>
+                    <Select value={condOperator} onValueChange={setCondOperator}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONDITION_OPERATORS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {condField !== "business_hours" && condOperator !== "is_empty" && condOperator !== "is_not_empty" && (
                   <div>
                     <Label>Value</Label>
                     {condField === "status" ? (
@@ -1661,7 +1719,13 @@ function EditStepDialog({
                 </div>
                 <div>
                   <Label>Contact Field</Label>
-                  <Select value={condField} onValueChange={setCondField}>
+                  <Select value={condField} onValueChange={(v) => {
+                    setCondField(v);
+                    if (v === "business_hours") {
+                      setCondOperator("equals");
+                      setCondValue("true");
+                    }
+                  }}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -1673,23 +1737,30 @@ function EditStepDialog({
                       ))}
                     </SelectContent>
                   </Select>
+                  {condField === "business_hours" && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Checks if the current time is within the account's configured business hours. TRUE branch runs during hours, FALSE branch runs after hours.
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <Label>Operator</Label>
-                  <Select value={condOperator} onValueChange={setCondOperator}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CONDITION_OPERATORS.map((o) => (
-                        <SelectItem key={o.value} value={o.value}>
-                          {o.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {condOperator !== "is_empty" && condOperator !== "is_not_empty" && (
+                {condField !== "business_hours" && (
+                  <div>
+                    <Label>Operator</Label>
+                    <Select value={condOperator} onValueChange={setCondOperator}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CONDITION_OPERATORS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {condField !== "business_hours" && condOperator !== "is_empty" && condOperator !== "is_not_empty" && (
                   <div>
                     <Label>Value</Label>
                     {condField === "status" ? (
