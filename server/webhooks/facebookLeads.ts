@@ -294,6 +294,7 @@ async function handleFacebookNativePayload(body: any): Promise<LeadResult[]> {
           campaignId,
           adId,
           formId,
+          formFields: fieldData,
         });
         // Log successful routing event
         logRoutingEvent({
@@ -406,6 +407,8 @@ interface LeadData {
   campaignId: string;
   adId: string;
   formId: string;
+  /** All raw form field answers from the Facebook lead form */
+  formFields?: Record<string, string>;
 }
 
 async function processLead(
@@ -432,6 +435,23 @@ async function processLead(
   if (data.campaignId) customFields.fb_campaign_id = data.campaignId;
   if (data.adId) customFields.fb_ad_id = data.adId;
   if (data.formId) customFields.fb_form_id = data.formId;
+
+  // Store all form field answers so workflows can branch on them
+  // e.g. loan_type → cf.fb_form_loan_type, property_state → cf.fb_form_property_state
+  const STANDARD_FIELDS = new Set([
+    "first_name", "last_name", "full_name", "name",
+    "email", "email_address", "phone_number", "phone",
+    "firstname", "lastname",
+  ]);
+  if (data.formFields) {
+    for (const [key, val] of Object.entries(data.formFields)) {
+      if (val && !STANDARD_FIELDS.has(key.toLowerCase())) {
+        // Sanitize key: lowercase, replace spaces/hyphens with underscores
+        const safeKey = key.toLowerCase().replace(/[\s-]+/g, "_").replace(/[^a-z0-9_]/g, "");
+        if (safeKey) customFields[`fb_form_${safeKey}`] = String(val);
+      }
+    }
+  }
 
   // 1. Create contact
   const { id: contactId } = await createContact({

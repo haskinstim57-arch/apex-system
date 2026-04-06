@@ -447,7 +447,8 @@ async function executeAction(
       const account = await getAccountById(accountId);
       const bhConfig = (account?.businessHoursConfig as BusinessHoursConfig | null) ?? null;
       // Check business hours — queue call if outside configured hours
-      if (!isWithinBusinessHours(bhConfig)) {
+      const skipBhCheck = !!(config as any).skipBusinessHoursCheck;
+      if (!skipBhCheck && !isWithinBusinessHours(bhConfig)) {
         const accountAssistantIdEarly = (account as any)?.vapiAssistantId;
         const assistantIdEarly = accountAssistantIdEarly || resolveAssistantId(contact.leadSource);
         const { id: queueId } = await enqueueMessage({
@@ -828,6 +829,22 @@ async function evaluateCondition(
 
   const fieldValue = await resolveContactFieldValue(contact as Record<string, unknown>, condConfig.field, contactId);
   const compareValue = condConfig.value ?? "";
+
+  // Special handling: check if current time is within account business hours
+  if (condConfig.field === "business_hours") {
+    const { getAccountById } = await import("../db");
+    const acct = await getAccountById(accountId);
+    const bhCfg = (acct?.businessHoursConfig as BusinessHoursConfig | null) ?? null;
+    const isOpen = isWithinBusinessHours(bhCfg);
+    console.log(`[WorkflowEngine] business_hours condition: isOpen=${isOpen}`);
+    return {
+      result: isOpen,
+      field: "business_hours",
+      operator: condConfig.operator,
+      fieldValue: isOpen ? "true" : "false",
+      compareValue,
+    };
+  }
 
   // Special handling for segment membership check
   if (condConfig.field === "in_segment" && compareValue) {

@@ -3385,4 +3385,11 @@
 ## Bug Fix: Blooio SMS Test Returns 503 "No active devices"
 - [x] Investigate Blooio SMS sending code — check if from number is specified
 - [x] Fix SMS sending — updated BLOOIO_API_KEY to api_j23Hv1vto07eEKOWXJalm (the key with +1(714) assigned)
+- [x] Save checkpoint
+
+## Feature: Automated Facebook Lead Routing Workflow
+- [x] CHANGE 1: Capture Facebook form field answers in facebookLeads.ts (formFields on LeadData, store as cf.fb_form_* custom fields)
+- [x] CHANGE 2: Add business_hours condition to workflowEngine.ts + skipBusinessHoursCheck flag on start_ai_call
+- [x] CHANGE 3: Add installPresetWorkflow endpoint in automations.ts (one-click PMR workflow installer)
+- [x] CHANGE 4: Add Install PMR Workflow button to Automations UI
 - [ ] Save checkpoint

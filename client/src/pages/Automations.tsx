@@ -170,6 +170,15 @@ export default function Automations() {
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false);
 
+  // Install preset workflow mutation
+  const installPresetMutation = trpc.automations.installPresetWorkflow.useMutation({
+    onSuccess: (data) => {
+      toast.success(data.message);
+      utils.automations.list.invalidate();
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to install preset"),
+  });
+
   if (!accountId) {
     return <NoAccountSelected />;
   }
@@ -224,6 +233,28 @@ export default function Automations() {
               }} />
               <Button onClick={() => setCreateOpen(true)} size="sm">
                 <Plus className="h-4 w-4 mr-1" /> New Workflow
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (!accountId) {
+                    toast.error("Select an account first");
+                    return;
+                  }
+                  installPresetMutation.mutate({
+                    accountId,
+                    preset: "facebook_lead_pmr",
+                  });
+                }}
+                disabled={installPresetMutation.isPending}
+              >
+                {installPresetMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                Install PMR Workflow
               </Button>
             </>
           )}

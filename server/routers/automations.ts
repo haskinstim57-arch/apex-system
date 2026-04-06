@@ -619,4 +619,132 @@ export const automationsRouter = router({
         workflowId: input.workflowId,
       });
     }),
+
+  /**
+   * Admin-only: Install a pre-built workflow template for an account.
+   * Currently supports: "facebook_lead_pmr" — full Facebook lead routing
+   * with tagging, task creation, human notification during hours, AI calling after hours.
+   */
+  installPresetWorkflow: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        preset: z.enum(["facebook_lead_pmr"]),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required" });
+      }
+
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      if (input.preset === "facebook_lead_pmr") {
+        // Create the workflow
+        const { id: workflowId } = await createWorkflow({
+          accountId: input.accountId,
+          name: "Facebook Lead \u2014 PMR Auto-Router",
+          description:
+            "Tags incoming Facebook leads, notifies the team, creates a call task, then routes to AI calling after hours or ends for human follow-up during business hours.",
+          triggerType: "facebook_lead_received",
+          triggerConfig: null,
+          createdById: ctx.user.id,
+        });
+
+        // Step 1: Tag as new_lead
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 1,
+          name: "Tag: new_lead",
+          actionConfig: JSON.stringify({ action: "add_tag", tag: "new_lead" }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 2: Tag as facebook_lead
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 2,
+          name: "Tag: facebook_lead",
+          actionConfig: JSON.stringify({ action: "add_tag", tag: "facebook_lead" }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 3: Create urgent call task
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 3,
+          name: "Create call task",
+          actionConfig: JSON.stringify({
+            action: "create_task",
+            title: "Call {{firstName}} {{lastName}} \u2014 New Facebook Lead",
+            description: "Phone: {{phone}}\nEmail: {{email}}\n\nNew lead from Facebook. Call within 5 minutes.",
+            priority: "high",
+            dueDateOffsetMinutes: 5,
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 4: Notify the team
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 4,
+          name: "Notify team",
+          actionConfig: JSON.stringify({
+            action: "notify_user",
+            message: "New Facebook lead: {{firstName}} {{lastName}} \u2014 {{phone}}. Call now!",
+            notifyAll: true,
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 5: Branch on business hours
+        // TRUE (during hours) \u2192 step 99 (doesn't exist) \u2192 workflow ends, human handles it
+        // FALSE (after hours) \u2192 step 6 \u2192 AI calls
+        await createWorkflowStep({
+          workflowId,
+          stepType: "condition",
+          stepOrder: 5,
+          name: "Is it business hours?",
+          conditionConfig: JSON.stringify({
+            field: "business_hours",
+            operator: "equals",
+            value: "true",
+            trueBranchStepOrder: 99,
+            falseBranchStepOrder: 6,
+          }),
+          actionConfig: null,
+          delayConfig: null,
+        });
+
+        // Step 6: AI calls after hours
+        await createWorkflowStep({
+          workflowId,
+          stepType: "action",
+          stepOrder: 6,
+          name: "AI calls (after hours)",
+          actionConfig: JSON.stringify({
+            action: "start_ai_call",
+            skipBusinessHoursCheck: true,
+          }),
+          conditionConfig: null,
+          delayConfig: null,
+        });
+
+        return {
+          success: true,
+          workflowId,
+          message: "PMR Facebook Lead workflow installed. Activate it in Automations when ready.",
+        };
+      }
+
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Unknown preset" });
+    }),
 });
