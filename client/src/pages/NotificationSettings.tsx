@@ -534,7 +534,7 @@ export default function NotificationSettings() {
           {prefs.quiet_hours_enabled && (
             <>
               <Separator />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Start Time</Label>
                   <Input
@@ -601,7 +601,7 @@ export default function NotificationSettings() {
             notification instead of flooding your device. This happens transparently — no
             configuration needed.
           </p>
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="bg-muted/50 rounded-lg p-2 text-center">
               <p className="text-lg font-semibold">15s</p>
               <p className="text-[10px] text-muted-foreground">Batch Window</p>
@@ -1052,7 +1052,7 @@ function TestPushCard() {
               </div>
               <p className="text-[10px] text-muted-foreground">{lastResult.timestamp}</p>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div className="text-center">
                 <p className="text-lg font-semibold">{lastResult.subscriptionCount}</p>
                 <p className="text-[10px] text-muted-foreground">Subscriptions</p>

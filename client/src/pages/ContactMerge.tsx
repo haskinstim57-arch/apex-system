@@ -267,7 +267,7 @@ function DuplicateGroupCard({
             )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="font-medium">{group.matchValue}</span>
               <Badge variant={group.score >= 100 ? "destructive" : "secondary"} className="text-xs">
                 {group.score}% match
@@ -611,7 +611,7 @@ function MergeDialog({
                   {loserContacts.map((c: DuplicateContact) => {
                     const preview = getPreview(c.id);
                     return (
-                      <div key={c.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+                      <div key={c.id} className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between p-2 rounded-lg bg-muted/30">
                         <div>
                           <span className="font-medium">
                             {c.firstName} {c.lastName}

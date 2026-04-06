@@ -410,7 +410,7 @@ export default function Accounts() {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <Badge
                         variant="secondary"
                         className="text-[10px] h-5 bg-yellow-500/10 text-yellow-600 border-yellow-200"

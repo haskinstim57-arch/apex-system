@@ -210,7 +210,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
               ` · Sent ${new Date(campaign.sentAt).toLocaleString()}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {campaign.status === "draft" && (
             <Button
               size="sm"

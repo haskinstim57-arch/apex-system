@@ -938,7 +938,7 @@ export default function Analytics() {
 
         {/* ═══════════════════════ CAMPAIGN ROI TAB ═══════════════════════ */}
         <TabsContent value="campaigns" className="space-y-6 mt-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h2 className="text-lg font-semibold">Campaign ROI Tracking</h2>
               <p className="text-sm text-muted-foreground">
@@ -1131,7 +1131,7 @@ export default function Analytics() {
 
         {/* ═══════════════════════ WORKFLOWS TAB ═══════════════════════ */}
         <TabsContent value="workflows" className="space-y-6 mt-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h2 className="text-lg font-semibold">Workflow Performance</h2>
               <p className="text-sm text-muted-foreground">
@@ -1399,7 +1399,7 @@ export default function Analytics() {
 
         {/* ═══════════════════════ REVENUE TAB ═══════════════════════ */}
         <TabsContent value="revenue" className="space-y-6 mt-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
               <h2 className="text-lg font-semibold">Revenue Attribution</h2>
               <p className="text-sm text-muted-foreground">

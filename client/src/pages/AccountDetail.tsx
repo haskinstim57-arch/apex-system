@@ -513,7 +513,7 @@ export default function AccountDetail({ id }: { id: number }) {
                         </div>
                         <div>
                           <p className="text-sm font-medium">{invite.email}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center flex-wrap gap-2 mt-0.5">
                             <Badge
                               variant="outline"
                               className={`text-[10px] h-4 px-1.5 ${roleColors[invite.role] || ""}`}
@@ -532,7 +532,7 @@ export default function AccountDetail({ id }: { id: number }) {
                             >
                               {invite.status}
                             </Badge>
-                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                            <span className="text-[10px] text-muted-foreground flex items-center flex-wrap gap-1">
                               <Clock className="h-3 w-3" />
                               Expires{" "}
                               {new Date(invite.expiresAt).toLocaleDateString()}
@@ -542,7 +542,7 @@ export default function AccountDetail({ id }: { id: number }) {
                       </div>
 
                       {invite.status === "pending" && (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center flex-wrap gap-1">
                           <Button
                             variant="ghost"
                             size="sm"

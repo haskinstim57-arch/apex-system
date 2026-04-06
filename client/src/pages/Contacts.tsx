@@ -658,7 +658,7 @@ export default function Contacts() {
 
       {/* Stats Row */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-2 sm:grid-cols-4 gap-3">
           <MiniStat label="Total" value={stats.total} />
           <MiniStat label="New" value={stats.new} color="text-blue-600" />
           <MiniStat

@@ -651,8 +651,8 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
             <CardTitle>Current Usage Breakdown</CardTitle>
             <CardDescription>Unbilled usage for the current period</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
+          <CardContent className="overflow-x-auto">
+            <Table className="min-w-[500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Service</TableHead>
@@ -705,7 +705,7 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
               <p>No invoices yet. Invoices are generated automatically when your usage reaches the threshold.</p>
             </div>
           ) : (
-            <Table>
+            <Table className="min-w-[500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Invoice #</TableHead>
@@ -778,8 +778,8 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
             <CardTitle>Recent Activity</CardTitle>
             <CardDescription>Last 10 billable events</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
+          <CardContent className="overflow-x-auto">
+            <Table className="min-w-[500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Event</TableHead>
@@ -1017,7 +1017,7 @@ function AgencyBilling() {
           {!rates?.length ? (
             <p className="text-muted-foreground text-center py-4">No billing rates configured</p>
           ) : (
-            <Table>
+            <Table className="min-w-[500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
@@ -1068,7 +1068,7 @@ function AgencyBilling() {
           {!overview?.accounts.length ? (
             <p className="text-muted-foreground text-center py-4">No sub-accounts found</p>
           ) : (
-            <Table>
+            <Table className="min-w-[500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Account</TableHead>
@@ -1188,7 +1188,7 @@ function AgencyBilling() {
               <p>No invoices found</p>
             </div>
           ) : (
-            <Table>
+            <Table className="min-w-[500px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Invoice #</TableHead>

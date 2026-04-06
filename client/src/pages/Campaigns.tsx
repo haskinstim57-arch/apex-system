@@ -356,7 +356,7 @@ export default function Campaigns() {
 
           {/* Campaigns Table */}
           <Card className="bg-white border-0 card-shadow overflow-x-auto">
-            <Table>
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">
                   <TableHead className="text-xs">Name</TableHead>

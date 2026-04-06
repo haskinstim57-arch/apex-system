@@ -399,7 +399,7 @@ export default function Messages() {
         {/* Messages Table */}
         <TabsContent value={activeTab} className="mt-4">
           <Card className="border-border/50 overflow-x-auto">
-            <Table>
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-border/50">
                   <TableHead className="w-[40px]"></TableHead>

@@ -2343,8 +2343,8 @@ function ExecutionDashboard({ accountId }: { accountId: number }) {
               No executions found.
             </div>
           ) : (
-            <>
-              <Table>
+            <div className="overflow-x-auto">
+              <Table className="min-w-[600px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">Status</TableHead>
@@ -2440,7 +2440,7 @@ function ExecutionDashboard({ accountId }: { accountId: number }) {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </CardContent>
       </Card>

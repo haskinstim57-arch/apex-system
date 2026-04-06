@@ -1713,7 +1713,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
             </div>
           ) : (
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3 mb-4">
                 <TabsTrigger value="manage" className="text-xs">Manage</TabsTrigger>
                 <TabsTrigger value="porting" className="text-xs">Porting</TabsTrigger>
                 <TabsTrigger value="usage" className="text-xs" disabled={!assigned?.hasNumber}>Usage</TabsTrigger>
@@ -1919,7 +1919,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
                         </div>
 
                         {/* SMS stats */}
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-1 sm:grid-cols-3 gap-3">
                           <div className="rounded-lg border border-border/50 p-3">
                             <div className="flex items-center gap-2 mb-2">
                               <Send className="h-4 w-4 text-blue-500" />
@@ -3489,7 +3489,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
           {showCreate && (
             <div className="p-4 border rounded-lg space-y-3 bg-muted/30">
               <p className="text-sm font-medium">New Webhook</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">Name</Label>
                   <Input
@@ -3584,7 +3584,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                   {editingId === wh.id ? (
                     /* Edit Mode */
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <Label className="text-xs">Name</Label>
                           <Input

@@ -3414,4 +3414,25 @@
 ## Bug Fix: Contacts Page Header Button Overflow on Mobile/PWA
 - [x] Change 1: Make outer header container stack vertically on mobile with flex-col sm:flex-row
 - [x] Change 2: Make button group wrap on mobile with flex-wrap and w-full sm:w-auto
+- [x] Save checkpoint
+
+## Feature: Mobile Viewport Responsive Fixes (18 pages)
+- [x] Home: flex-wrap on header rows
+- [x] Accounts: stack filters on mobile, responsive grid-cols
+- [x] AccountDetail: flex-wrap on buttons and badges
+- [x] Contacts: responsive grid-cols on stats, flex-wrap on filter row
+- [x] Pipeline: flex-wrap on filter controls
+- [x] Campaigns: responsive grid-cols on stats, overflow-x-auto on table, flex-wrap on merge tags
+- [x] CampaignDetail: flex-wrap on buttons, overflow-x-auto on table
+- [x] AICalls: overflow-x-auto on table, stack filters on mobile, flex-wrap on header buttons
+- [x] Automations: overflow-x-auto on table
+- [x] SocialMedia: flex-wrap on buttons and filter bar
+- [x] NotificationSettings: flex-wrap on header, responsive grid-cols
+- [x] Billing: overflow-x-auto on tables
+- [x] Settings: responsive grid-cols, flex-wrap on action rows
+- [x] Inbox: flex-wrap on filter tabs and reply input
+- [x] Messages: overflow-x-auto on table, responsive search width, flex-wrap on pagination
+- [x] Calendar: flex-wrap on header, responsive grid for form fields, overflow-x-auto on table
+- [x] ContactMerge: stack header sections on mobile, flex-wrap on badges
+- [x] Analytics: stack header sections on mobile
 - [ ] Save checkpoint

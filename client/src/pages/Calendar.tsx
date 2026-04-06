@@ -821,7 +821,7 @@ function AppointmentDetailDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
             <div className="space-y-1">
               <div className="text-muted-foreground text-xs">Date</div>
               <div className="font-medium">
@@ -979,7 +979,7 @@ function NewAppointmentFromSlotDialog({
             </Select>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Start Time</Label>
               <Input type="time" value={startHour} onChange={(e) => setStartHour(e.target.value)} />
@@ -1287,7 +1287,7 @@ function AppointmentsList({
         </Card>
       ) : (
         <Card className="overflow-x-auto">
-          <Table>
+          <Table className="min-w-[600px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Guest</TableHead>
