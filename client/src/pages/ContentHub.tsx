@@ -134,12 +134,14 @@ function BlogArticlesTab() {
   const [genWebResearch, setGenWebResearch] = useState(false);
   const [genImage, setGenImage] = useState(false);
   const [genTemplateId, setGenTemplateId] = useState<string>("none");
+  const [genAiModel, setGenAiModel] = useState("gemini-2.5-flash");
 
   // Bulk generate dialog
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [bulkTopics, setBulkTopics] = useState("");
   const [bulkWebResearch, setBulkWebResearch] = useState(false);
   const [bulkTemplateId, setBulkTemplateId] = useState<string>("none");
+  const [bulkAiModel, setBulkAiModel] = useState("gemini-2.5-flash");
 
   const stableSearch = useMemo(() => searchQuery, [searchQuery]);
 
@@ -206,6 +208,7 @@ function BlogArticlesTab() {
     setGenWebResearch(false);
     setGenImage(false);
     setGenTemplateId("none");
+    setGenAiModel("gemini-2.5-flash");
   }
 
   function handleGenerate() {
@@ -217,6 +220,7 @@ function BlogArticlesTab() {
       enableWebResearch: genWebResearch,
       shouldGenerateImage: genImage,
       templateId: genTemplateId !== "none" ? Number(genTemplateId) : undefined,
+      aiModel: genAiModel,
     });
   }
 
@@ -239,6 +243,7 @@ function BlogArticlesTab() {
       topics,
       enableWebResearch: bulkWebResearch,
       templateId: bulkTemplateId !== "none" ? Number(bulkTemplateId) : undefined,
+      aiModel: bulkAiModel,
     });
   }
 
@@ -528,6 +533,21 @@ function BlogArticlesTab() {
               />
             </div>
 
+            <div>
+              <Label>AI Model</Label>
+              <Select value={genAiModel} onValueChange={setGenAiModel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
+                  <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro (Best Quality)</SelectItem>
+                  <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                  <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             <Separator />
 
             <div className="flex items-center justify-between">
@@ -621,6 +641,21 @@ function BlogArticlesTab() {
                       {t.name}
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>AI Model</Label>
+              <Select value={bulkAiModel} onValueChange={setBulkAiModel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
+                  <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro (Best Quality)</SelectItem>
+                  <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                  <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

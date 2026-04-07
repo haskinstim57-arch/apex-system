@@ -3494,3 +3494,13 @@
 - [x] Delete client/src/pages/SocialMedia.tsx
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Fix ContentDetail Edit tab + Add AI Model Selector
+- [x] Fix 1: Remove onSuccess from getById query in ContentDetail.tsx
+- [x] Fix 1: Add useEffect to populate edit fields from contentQuery.data
+- [x] Fix 2a: Add genAiModel state and Select field to single generate dialog in ContentHub.tsx
+- [x] Fix 2b: Pass aiModel in generateMutation.mutate call
+- [x] Fix 2c: Add bulkAiModel state, Select field, and pass in bulk generate dialog
+- [x] Fix 2d: Reset genAiModel in dialog close handler
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

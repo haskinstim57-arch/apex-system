@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAccount } from "@/contexts/AccountContext";
 import { toast } from "sonner";
@@ -91,16 +91,15 @@ export default function ContentDetail() {
   // ─── Queries ────────────────────────────────────────────────────────────
   const contentQuery = trpc.longFormContent.getById.useQuery(
     { accountId: accountId!, id: contentId },
-    {
-      enabled: !!accountId && !!contentId,
-      onSuccess: (data) => {
-        if (!isEditing) {
-          setEditTitle(data.title);
-          setEditContent(data.content);
-        }
-      },
-    }
+    { enabled: !!accountId && !!contentId }
   );
+
+  useEffect(() => {
+    if (contentQuery.data && !isEditing) {
+      setEditTitle(contentQuery.data.title ?? "");
+      setEditContent(contentQuery.data.content ?? "");
+    }
+  }, [contentQuery.data]);
 
   const utils = trpc.useUtils();
 
