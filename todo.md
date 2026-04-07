@@ -3504,3 +3504,12 @@
 - [x] Fix 2d: Reset genAiModel in dialog close handler
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Wire aiModel to invokeLLM + Model Cost Indicators
+- [x] Check llm.ts for exact model parameter name
+- [x] Wire aiModel to every invokeLLM call in generate mutation
+- [x] Wire aiModel to every invokeLLM call in bulkGenerate mutation
+- [x] Add cost/speed indicator badges to single generate dialog model selector
+- [x] Add cost/speed indicator badges to bulk generate dialog model selector
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

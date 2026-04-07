@@ -540,10 +540,30 @@ function BlogArticlesTab() {
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
-                  <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro (Best Quality)</SelectItem>
-                  <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                  <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
+                  <SelectItem value="gemini-2.5-flash">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Flash</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Lowest Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gemini-2.5-pro">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Pro</span>
+                      <span className="text-xs text-muted-foreground">✨ Best Quality · High Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o">
+                    <div className="flex flex-col">
+                      <span>GPT-4o</span>
+                      <span className="text-xs text-muted-foreground">⚖️ Balanced · Medium Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o-mini">
+                    <div className="flex flex-col">
+                      <span>GPT-4o Mini</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Low Cost</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -652,10 +672,30 @@ function BlogArticlesTab() {
                   <SelectValue placeholder="Select model" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
-                  <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro (Best Quality)</SelectItem>
-                  <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                  <SelectItem value="gpt-4o-mini">GPT-4o Mini (Fast)</SelectItem>
+                  <SelectItem value="gemini-2.5-flash">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Flash</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Lowest Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gemini-2.5-pro">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Pro</span>
+                      <span className="text-xs text-muted-foreground">✨ Best Quality · High Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o">
+                    <div className="flex flex-col">
+                      <span>GPT-4o</span>
+                      <span className="text-xs text-muted-foreground">⚖️ Balanced · Medium Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o-mini">
+                    <div className="flex flex-col">
+                      <span>GPT-4o Mini</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Low Cost</span>
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -297,6 +297,7 @@ REQUIREMENTS:
 Return your response as valid JSON.`;
 
       const response = await invokeLLM({
+        model: input.aiModel || "gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
           {
@@ -548,6 +549,7 @@ REQUIREMENTS:
 Return your response as valid JSON.`;
 
           const response = await invokeLLM({
+            model: input.aiModel || "gemini-2.5-flash",
             messages: [
               { role: "system", content: systemPrompt },
               {
