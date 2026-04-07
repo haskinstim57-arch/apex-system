@@ -3435,4 +3435,13 @@
 - [x] Calendar: flex-wrap on header, responsive grid for form fields, overflow-x-auto on table
 - [x] ContactMerge: stack header sections on mobile, flex-wrap on badges
 - [x] Analytics: stack header sections on mobile
+- [x] Save checkpoint
+
+## Fix: Social Media Content Generation — Add Missing Database Tables
+- [x] Add socialPosts table to drizzle/schema.ts (already existed at line 2488)
+- [x] Add socialAccounts table to drizzle/schema.ts (already existed at line 2510)
+- [x] Add contentBrandVoice table to drizzle/schema.ts (already existed at line 2525)
+- [x] Export TypeScript types for all three tables (already existed)
+- [x] Run pnpm db:push — tables already in DB, no schema changes needed
+- [x] Verify 0 TypeScript errors
 - [ ] Save checkpoint

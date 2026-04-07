@@ -2621,3 +2621,4 @@ export const notificationLog = mysqlTable("notification_log", {
 });
 export type NotificationLog = typeof notificationLog.$inferSelect;
 export type InsertNotificationLog = typeof notificationLog.$inferInsert;
+
