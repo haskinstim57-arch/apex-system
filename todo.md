@@ -3688,3 +3688,52 @@
 ### Verification
 - [x] Vitest tests for new features (13 tests passing)
 - [x] Save checkpoint
+
+## Jarvis Agentic Expansion — 20+ New Tools
+
+### Part 1 — Content Creation Tools
+- [x] generate_social_post tool
+- [x] schedule_social_post tool (CRITICAL)
+- [x] generate_blog_post tool
+- [x] generate_email_draft tool
+- [x] send_email_draft tool (CRITICAL)
+- [x] repurpose_blog_post tool
+
+### Part 2 — Campaign Tools
+- [x] create_campaign tool (CRITICAL)
+- [x] send_campaign tool (CRITICAL)
+- [x] pause_campaign tool (CRITICAL)
+
+### Part 3 — Appointment Booking
+- [x] check_appointment_availability tool
+- [x] book_appointment tool (CRITICAL)
+
+### Part 4 — Pipeline & Deals
+- [x] create_deal tool (CRITICAL)
+- [x] update_deal tool (CRITICAL)
+
+### Part 5 — Inbox & Inbound Messages
+- [x] get_inbox_conversations tool
+- [x] get_contact_conversation tool (extend existing)
+
+### Part 6 — Custom Fields
+- [x] get_contact_custom_fields tool
+- [x] update_contact_custom_field tool (CRITICAL)
+
+### Part 7 — Lead Scoring
+- [x] get_contact_lead_score tool
+
+### Part 8 — Voice Calls
+- [x] initiate_ai_voice_call tool (CRITICAL)
+- [x] get_ai_call_history tool
+
+### Part 9 — System Prompt Update
+- [x] Update Jarvis system prompt with all new capabilities
+
+### Part 10 — CRITICAL_TOOLS Update
+- [x] Add all new critical tools to CRITICAL_TOOLS set
+
+### Verification
+- [x] 0 TypeScript errors in jarvisTools.ts and jarvisService.ts
+- [x] 26 vitest tests passing (tool definitions, schemas, CRITICAL_TOOLS, TOOL_DISPLAY, system prompt)
+- [x] Save checkpoint

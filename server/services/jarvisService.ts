@@ -54,10 +54,20 @@ Your capabilities:
 - Search and manage contacts (create, update, tag, add notes, filter by date/messages/calls)
 - Send SMS and email messages to contacts (individual and bulk)
 - View dashboard stats, contact stats, message stats, campaign stats, analytics
-- View and manage the sales pipeline (deals, stages)
+- View and manage the sales pipeline (create deals, move deals between stages, update deal values)
 - List and trigger workflows/automations
 - List segments and sequences, enroll contacts in sequences
-- View calendars and appointments
+- View calendars, check appointment availability, and book appointments
+- Generate content: social media posts, blog articles, email drafts
+- Schedule social posts for future publishing
+- Repurpose blog posts into different formats (social snippets, email summaries, short-form, video scripts)
+- Send email drafts directly to contacts
+- Create, send, and pause campaigns (email and SMS)
+- View inbox conversations and full contact message threads
+- Read and update custom fields on contacts
+- Check lead scores with grade breakdown and history
+- Initiate AI voice calls via VAPI (with business hours enforcement)
+- View AI call history with summaries and durations
 
 CRITICAL: You MUST use your tools to answer questions. Never describe what you would do — just do it. If asked to find contacts, call search_contacts or get_contacts_by_filter immediately. If asked to send an SMS, call send_sms immediately. If asked for analytics, call get_analytics immediately. You have real tools connected to a live CRM database. Use them. NEVER say "I would need to..." or "I can help you by..." — instead, CALL THE TOOL and return the real results.
 
@@ -339,29 +349,66 @@ export async function chat(
 // ═══════════════════════════════════════════════
 
 const TOOL_DISPLAY: Record<string, string> = {
+  // Dashboard & Stats
+  get_dashboard_stats: "Pulled dashboard stats",
+  get_contact_stats: "Pulled contact stats",
+  get_message_stats: "Pulled message stats",
+  get_campaign_stats: "Pulled campaign stats",
+  get_analytics: "Pulled analytics",
+  // Contacts
   search_contacts: "Searched contacts",
   get_contact_detail: "Fetched contact details",
   create_contact: "Created a contact",
   update_contact: "Updated contact info",
   add_contact_note: "Added a note",
   add_contact_tag: "Tagged a contact",
+  manage_contact_tags: "Managed contact tags",
+  get_contact_messages: "Fetched contact messages",
+  get_contacts_by_filter: "Filtered contacts",
+  // Messaging
   send_sms: "Sent an SMS",
   send_email: "Sent an email",
-  get_dashboard_stats: "Pulled dashboard stats",
-  get_contact_stats: "Pulled contact stats",
-  get_message_stats: "Pulled message stats",
-  get_campaign_stats: "Pulled campaign stats",
+  bulk_send_sms: "Sent bulk SMS",
+  // Campaigns
   list_campaigns: "Listed campaigns",
-  pipeline_overview: "Checked pipeline",
-  list_pipeline_stages: "Listed pipeline stages",
+  create_campaign: "Created a campaign",
+  send_campaign: "Sent a campaign",
+  pause_campaign: "Paused a campaign",
+  // Pipeline
+  get_pipeline_overview: "Checked pipeline",
   move_deal_stage: "Moved a deal",
   create_deal: "Created a deal",
+  update_deal: "Updated a deal",
+  // Workflows
   list_workflows: "Listed workflows",
   trigger_workflow: "Triggered a workflow",
+  // Segments & Sequences
   list_segments: "Listed segments",
   list_sequences: "Listed sequences",
   enroll_in_sequence: "Enrolled in sequence",
-  get_calendar_appointments: "Checked appointments",
+  // Calendar & Appointments
+  list_calendars: "Listed calendars",
+  get_contact_appointments: "Checked appointments",
+  check_appointment_availability: "Checked availability",
+  book_appointment: "Booked appointment",
+  // Content Creation
+  generate_social_post: "Generated social post",
+  schedule_social_post: "Scheduled social post",
+  generate_blog_post: "Generated blog post",
+  generate_email_draft: "Generated email draft",
+  send_email_draft: "Sent email draft",
+  repurpose_blog_post: "Repurposed blog post",
+  // Inbox
+  get_inbox_conversations: "Fetched inbox conversations",
+  get_contact_conversation: "Fetched contact conversation",
+  // Custom Fields
+  get_contact_custom_fields: "Fetched custom fields",
+  update_contact_custom_field: "Updated custom field",
+  // Lead Scoring
+  get_contact_lead_score: "Checked lead score",
+  // Voice Calls
+  initiate_ai_voice_call: "Initiated AI voice call",
+  get_ai_call_history: "Fetched call history",
 };
 
 export type StreamEvent =
@@ -375,17 +422,32 @@ export type StreamEvent =
 
 // ── Critical tools that require user confirmation before execution ──
 const CRITICAL_TOOLS = new Set([
+  // Messaging
   "send_sms",
   "send_email",
   "bulk_send_sms",
-  "move_deal_stage",
-  "enroll_in_sequence",
-  "trigger_workflow",
+  "send_email_draft",
+  // Contact mutations
   "create_contact",
   "update_contact",
   "manage_contact_tags",
   "add_contact_note",
-  "schedule_appointment",
+  "update_contact_custom_field",
+  // Pipeline
+  "move_deal_stage",
+  "create_deal",
+  "update_deal",
+  // Workflows & Sequences
+  "enroll_in_sequence",
+  "trigger_workflow",
+  // Appointments
+  "book_appointment",
+  // Campaigns
+  "create_campaign",
+  "send_campaign",
+  "pause_campaign",
+  // Voice Calls
+  "initiate_ai_voice_call",
 ]);
 
 /**
@@ -413,8 +475,24 @@ function buildConfirmationSummary(toolName: string, args: Record<string, unknown
       return `${args.action === "add" ? "Add" : "Remove"} tag "${args.tag}" ${args.action === "add" ? "to" : "from"} contact #${args.contactId}`;
     case "add_contact_note":
       return `Add note to contact #${args.contactId}: "${String(args.content || "").substring(0, 60)}${String(args.content || "").length > 60 ? "..." : ""}"`;
-    case "schedule_appointment":
-      return `Schedule appointment for contact #${args.contactId}${args.startTime ? ` at ${args.startTime}` : ""}`;
+    case "book_appointment":
+      return `Book appointment for contact #${args.contactId}${args.startTime ? ` at ${args.startTime}` : ""}`;
+    case "send_email_draft":
+      return `Send email draft #${args.draftId} to the associated contact`;
+    case "create_deal":
+      return `Create deal "${args.title || "Untitled"}" for contact #${args.contactId}${args.value ? ` ($${args.value})` : ""}`;
+    case "update_deal":
+      return `Update deal #${args.dealId}: ${Object.keys(args).filter(k => k !== "dealId").join(", ")}`;
+    case "update_contact_custom_field":
+      return `Set custom field "${args.fieldKey}" to "${args.value}" on contact #${args.contactId}`;
+    case "create_campaign":
+      return `Create ${args.type} campaign "${args.name || "Untitled"}"`;
+    case "send_campaign":
+      return `Send campaign #${args.campaignId}`;
+    case "pause_campaign":
+      return `Pause campaign #${args.campaignId}`;
+    case "initiate_ai_voice_call":
+      return `Initiate AI voice call to contact #${args.contactId}`;
     default:
       return `Execute ${TOOL_DISPLAY[toolName] || toolName}`;
   }
