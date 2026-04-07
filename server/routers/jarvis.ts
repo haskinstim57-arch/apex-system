@@ -18,7 +18,10 @@ import {
   getMessageStats,
   listCampaigns,
   getGeminiUsageStats,
+  getDb,
 } from "../db";
+import { jarvisToolUsage, jarvisScheduledTasks } from "../../drizzle/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export const jarvisRouter = router({
   /** List all conversation sessions for the current user */
@@ -296,5 +299,121 @@ Generate 4 suggestions as JSON array.`,
       }
 
       return { text: result.text, language: result.language, duration: result.duration };
+    }),
+
+  // ═══════════════════════════════════════════════
+  // TOOL USAGE ANALYTICS
+  // ═══════════════════════════════════════════════
+
+  /** Track a tool usage event (called from jarvisService after tool execution) */
+  trackToolUsage: protectedProcedure
+    .input(z.object({ accountId: z.number(), toolName: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      // Upsert: increment count or insert new row
+      const existing = await db.select().from(jarvisToolUsage)
+        .where(and(
+          eq(jarvisToolUsage.accountId, input.accountId),
+          eq(jarvisToolUsage.toolName, input.toolName)
+        ));
+      if (existing.length > 0) {
+        await db.update(jarvisToolUsage)
+          .set({
+            usageCount: sql`${jarvisToolUsage.usageCount} + 1`,
+            lastUsedAt: new Date(),
+          })
+          .where(eq(jarvisToolUsage.id, existing[0].id));
+      } else {
+        await db.insert(jarvisToolUsage).values({
+          accountId: input.accountId,
+          toolName: input.toolName,
+          usageCount: 1,
+          lastUsedAt: new Date(),
+        });
+      }
+      return { success: true };
+    }),
+
+  /** Get tool usage analytics for the account */
+  getToolUsageStats: protectedProcedure
+    .input(z.object({ accountId: z.number(), limit: z.number().min(1).max(50).default(10) }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      const stats = await db.select().from(jarvisToolUsage)
+        .where(eq(jarvisToolUsage.accountId, input.accountId))
+        .orderBy(desc(jarvisToolUsage.usageCount))
+        .limit(input.limit);
+      const totalUsage = stats.reduce((sum: number, s: typeof stats[number]) => sum + s.usageCount, 0);
+      return { stats, totalUsage };
+    }),
+
+  // ═══════════════════════════════════════════════
+  // SCHEDULED TASKS
+  // ═══════════════════════════════════════════════
+
+  /** List all scheduled tasks for the account */
+  listScheduledTasks: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      return db.select().from(jarvisScheduledTasks)
+        .where(eq(jarvisScheduledTasks.accountId, input.accountId))
+        .orderBy(desc(jarvisScheduledTasks.createdAt));
+    }),
+
+  /** Create a scheduled task */
+  createScheduledTask: protectedProcedure
+    .input(z.object({
+      accountId: z.number(),
+      name: z.string().min(1).max(255),
+      prompt: z.string().min(1),
+      scheduleDescription: z.string().min(1).max(255),
+      cronExpression: z.string().min(1).max(100),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      const [result] = await db.insert(jarvisScheduledTasks).values({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        name: input.name,
+        prompt: input.prompt,
+        scheduleDescription: input.scheduleDescription,
+        cronExpression: input.cronExpression,
+        isActive: true,
+      });
+      return { id: result.insertId };
+    }),
+
+  /** Toggle a scheduled task active/inactive */
+  toggleScheduledTask: protectedProcedure
+    .input(z.object({ accountId: z.number(), taskId: z.number(), isActive: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      await db.update(jarvisScheduledTasks)
+        .set({ isActive: input.isActive })
+        .where(and(
+          eq(jarvisScheduledTasks.id, input.taskId),
+          eq(jarvisScheduledTasks.accountId, input.accountId)
+        ));
+      return { success: true };
+    }),
+
+  /** Delete a scheduled task */
+  deleteScheduledTask: protectedProcedure
+    .input(z.object({ accountId: z.number(), taskId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      await db.delete(jarvisScheduledTasks)
+        .where(and(
+          eq(jarvisScheduledTasks.id, input.taskId),
+          eq(jarvisScheduledTasks.accountId, input.accountId)
+        ));
+      return { success: true };
     }),
 });

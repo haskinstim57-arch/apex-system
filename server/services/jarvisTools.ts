@@ -67,6 +67,7 @@ import {
   users,
   accounts,
   leadScoreHistory,
+  jarvisScheduledTasks,
 } from "../../drizzle/schema";
 import { dispatchSMS, dispatchEmail } from "./messaging";
 import { triggerWorkflow } from "./workflowEngine";
@@ -810,6 +811,53 @@ export const JARVIS_TOOLS: Tool[] = [
           contactId: { type: "number" },
           limit: { type: "number", description: "Max calls to return (default 10)" },
         },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  // ── Scheduled Tasks ──
+  {
+    type: "function",
+    function: {
+      name: "schedule_recurring_task",
+      description: "Schedule a recurring task that Jarvis will execute automatically. Examples: 'Send me a pipeline summary every Monday at 9am', 'Generate a social post every weekday at 10am'. The user describes what they want and how often.",
+      parameters: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "Short name for the task, e.g. 'Weekly Pipeline Summary'" },
+          prompt: { type: "string", description: "The full instruction Jarvis should execute each time, e.g. 'Get my pipeline overview and send me a summary via email'" },
+          cronExpression: { type: "string", description: "Cron expression (5 fields: min hour dom month dow). E.g. '0 9 * * 1' for every Monday at 9am" },
+          scheduleDescription: { type: "string", description: "Human-readable schedule, e.g. 'Every Monday at 9:00 AM'" },
+        },
+        required: ["name", "prompt", "cronExpression", "scheduleDescription"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cancel_scheduled_task",
+      description: "Cancel/delete a scheduled recurring task by its ID.",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: { type: "number", description: "The ID of the scheduled task to cancel" },
+        },
+        required: ["taskId"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "list_scheduled_tasks",
+      description: "List all scheduled recurring tasks for the current account.",
+      parameters: {
+        type: "object",
+        properties: {},
         required: [],
         additionalProperties: false,
       },
@@ -2046,6 +2094,64 @@ Return your response as valid JSON.`;
         })
       );
       return { calls: enriched, total: result.total };
+    }
+
+    // ── Scheduled Tasks ──
+    case "schedule_recurring_task": {
+      const { name, prompt, cronExpression, scheduleDescription } = args as {
+        name: string; prompt: string; cronExpression: string; scheduleDescription: string;
+      };
+      // Validate cron expression (basic: 5 fields)
+      const cronParts = cronExpression.trim().split(/\s+/);
+      if (cronParts.length !== 5) {
+        return { error: "Invalid cron expression. Must have 5 fields: minute hour day-of-month month day-of-week" };
+      }
+      const schedDb = (await getDb())!;
+      const [inserted] = await schedDb.insert(jarvisScheduledTasks).values({
+        accountId,
+        userId,
+        name,
+        prompt,
+        cronExpression: cronExpression.trim(),
+        scheduleDescription,
+      });
+      return {
+        success: true,
+        taskId: inserted.insertId ? Number(inserted.insertId) : null,
+        message: `Scheduled task "${name}" created. It will run ${scheduleDescription}.`,
+        schedule: scheduleDescription,
+        cronExpression,
+      };
+    }
+
+    case "cancel_scheduled_task": {
+      const { taskId } = args as { taskId: number };
+      const cancelDb = (await getDb())!;
+      await cancelDb.delete(jarvisScheduledTasks)
+        .where(and(
+          eq(jarvisScheduledTasks.id, taskId),
+          eq(jarvisScheduledTasks.accountId, accountId),
+        ));
+      return { success: true, message: `Scheduled task #${taskId} has been cancelled and deleted.` };
+    }
+
+    case "list_scheduled_tasks": {
+      const listDb = (await getDb())!;
+      const tasks = await listDb.select().from(jarvisScheduledTasks)
+        .where(eq(jarvisScheduledTasks.accountId, accountId))
+        .orderBy(desc(jarvisScheduledTasks.createdAt));
+      return {
+        tasks: tasks.map((t: typeof jarvisScheduledTasks.$inferSelect) => ({
+          id: t.id,
+          name: t.name,
+          prompt: t.prompt,
+          schedule: t.scheduleDescription,
+          cronExpression: t.cronExpression,
+          isActive: t.isActive,
+          lastRunAt: t.lastRunAt,
+        })),
+        total: tasks.length,
+      };
     }
 
     default:

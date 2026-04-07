@@ -11,6 +11,41 @@ import { invokeGeminiWithRetry } from "./gemini";
 import type { Message, ToolCall, InvokeResult } from "../_core/llm";
 import { JARVIS_TOOLS, executeTool } from "./jarvisTools";
 import { trackUsage } from "./usageTracker";
+import { getDb } from "../db";
+import { jarvisToolUsage } from "../../drizzle/schema";
+import { eq, and, sql } from "drizzle-orm";
+
+// ═══════════════════════════════════════════════
+// TOOL USAGE TRACKING (internal helper)
+// ═══════════════════════════════════════════════
+
+async function trackToolUsageInternal(accountId: number, toolName: string) {
+  try {
+    const db = (await getDb())!;
+    const existing = await db.select().from(jarvisToolUsage)
+      .where(and(
+        eq(jarvisToolUsage.accountId, accountId),
+        eq(jarvisToolUsage.toolName, toolName)
+      ));
+    if (existing.length > 0) {
+      await db.update(jarvisToolUsage)
+        .set({
+          usageCount: sql`${jarvisToolUsage.usageCount} + 1`,
+          lastUsedAt: new Date(),
+        })
+        .where(eq(jarvisToolUsage.id, existing[0].id));
+    } else {
+      await db.insert(jarvisToolUsage).values({
+        accountId,
+        toolName,
+        usageCount: 1,
+        lastUsedAt: new Date(),
+      });
+    }
+  } catch {
+    // Silently fail — analytics should never break chat
+  }
+}
 
 // ═══════════════════════════════════════════════
 // TYPES
@@ -68,6 +103,8 @@ Your capabilities:
 - Check lead scores with grade breakdown and history
 - Initiate AI voice calls via VAPI (with business hours enforcement)
 - View AI call history with summaries and durations
+- Schedule recurring tasks (e.g., "Send me a pipeline summary every Monday at 9am")
+- List and cancel scheduled tasks
 
 CRITICAL: You MUST use your tools to answer questions. Never describe what you would do — just do it. If asked to find contacts, call search_contacts or get_contacts_by_filter immediately. If asked to send an SMS, call send_sms immediately. If asked for analytics, call get_analytics immediately. You have real tools connected to a live CRM database. Use them. NEVER say "I would need to..." or "I can help you by..." — instead, CALL THE TOOL and return the real results.
 
@@ -295,6 +332,9 @@ export async function chat(
         content: toolResultStr,
         tool_call_id: tc.id,
       } as any);
+
+      // Track tool usage for analytics (fire-and-forget)
+      trackToolUsageInternal(ctx.accountId, toolName).catch(() => {});
     }
 
     if (round === MAX_TOOL_ROUNDS - 1) {
@@ -409,6 +449,10 @@ const TOOL_DISPLAY: Record<string, string> = {
   // Voice Calls
   initiate_ai_voice_call: "Initiated AI voice call",
   get_ai_call_history: "Fetched call history",
+  // Scheduled Tasks
+  schedule_recurring_task: "Scheduled recurring task",
+  cancel_scheduled_task: "Cancelled scheduled task",
+  list_scheduled_tasks: "Listed scheduled tasks",
 };
 
 export type StreamEvent =
@@ -448,6 +492,9 @@ const CRITICAL_TOOLS = new Set([
   "pause_campaign",
   // Voice Calls
   "initiate_ai_voice_call",
+  // Scheduled Tasks
+  "schedule_recurring_task",
+  "cancel_scheduled_task",
 ]);
 
 /**
@@ -493,6 +540,10 @@ function buildConfirmationSummary(toolName: string, args: Record<string, unknown
       return `Pause campaign #${args.campaignId}`;
     case "initiate_ai_voice_call":
       return `Initiate AI voice call to contact #${args.contactId}`;
+    case "schedule_recurring_task":
+      return `Schedule recurring task "${args.name || "Untitled"}": ${args.scheduleDescription || args.cronExpression}`;
+    case "cancel_scheduled_task":
+      return `Cancel scheduled task #${args.taskId}`;
     default:
       return `Execute ${TOOL_DISPLAY[toolName] || toolName}`;
   }
@@ -671,6 +722,11 @@ export async function* chatStream(
       llmMessages.push({ role: "tool", content: toolResultStr, tool_call_id: tc.id } as any);
 
       yield { type: "tool_result", data: { name: toolName, displayName, success } };
+
+      // Track tool usage for analytics (fire-and-forget)
+      if (success) {
+        trackToolUsageInternal(ctx.accountId, toolName).catch(() => {});
+      }
     }
 
     // If this was the last round, force a final text response

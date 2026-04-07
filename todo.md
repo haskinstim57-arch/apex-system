@@ -3737,3 +3737,38 @@
 - [x] 0 TypeScript errors in jarvisTools.ts and jarvisService.ts
 - [x] 26 vitest tests passing (tool definitions, schemas, CRITICAL_TOOLS, TOOL_DISPLAY, system prompt)
 - [x] Save checkpoint
+
+## Jarvis Enhancements — Quick Actions, Analytics, Scheduled Tasks
+
+### 1. Quick-Action Buttons in Jarvis Chat UI
+- [x] Add preset quick-action button grid in Jarvis chat (shown when conversation is empty)
+- [x] 8 quick-action buttons: Pipeline, Contacts, Social Post, Campaign, Appointment, Lead Scores, AI Call, Inbox
+- [x] Clicking a button sends the prompt text as a user message automatically
+- [x] Buttons shown only when conversation is empty (auto-hide when messages exist)
+- [x] Responsive grid layout that works on mobile sidebar
+
+### 2. Tool Usage Analytics Widget
+- [x] Backend: jarvis_tool_usage table with upsert tracking (tool name, count, last used)
+- [x] Backend: tRPC getToolUsageStats query (top tools, usage counts, total)
+- [x] Frontend: "Analytics" tab in Jarvis panel with Most Used Actions widget
+- [x] Display: ranked list with usage counts, percentage bars, and last-used dates
+- [x] Analytics tab shows all tracked tools with visual usage breakdown
+
+### 3. Scheduled Recurring Tasks
+- [x] Schema: jarvis_scheduled_tasks table (accountId, userId, name, prompt, cronExpression, isActive, lastRunAt, nextRunAt, createdAt)
+- [x] DB migration pushed
+- [x] Backend: CRUD helpers for scheduled tasks (create, list, update, delete, toggle active)
+- [x] Backend: tRPC router for scheduled tasks management (listScheduledTasks, toggleScheduledTask, deleteScheduledTask)
+- [x] New Jarvis tool: schedule_recurring_task (name, prompt, cronExpression, scheduleDescription)
+- [x] New Jarvis tool: list_scheduled_tasks
+- [x] New Jarvis tool: cancel_scheduled_task
+- [x] Jarvis LLM generates cron expressions from natural language via schedule_recurring_task tool
+- [x] Scheduled tasks stored in DB (worker execution is a future enhancement)
+- [x] Frontend: "Tasks" tab in Jarvis panel (list active tasks, toggle active/pause, delete)
+- [x] Added schedule_recurring_task and cancel_scheduled_task to CRITICAL_TOOLS
+- [x] Added to TOOL_DISPLAY and buildConfirmationSummary
+
+### Verification
+- [x] 0 TypeScript errors in all Jarvis files
+- [x] 40 vitest tests passing (including scheduled tasks, quick actions, analytics)
+- [x] Save checkpoint

@@ -2338,6 +2338,39 @@ export type JarvisSessionRow = typeof jarvisSessions.$inferSelect;
 export type InsertJarvisSession = typeof jarvisSessions.$inferInsert;
 
 // ─────────────────────────────────────────────
+// JARVIS TOOL USAGE — Track tool usage per account
+// ─────────────────────────────────────────────
+export const jarvisToolUsage = mysqlTable("jarvis_tool_usage", {
+  id: int("id").primaryKey().autoincrement(),
+  accountId: int("account_id").notNull(),
+  toolName: varchar("tool_name", { length: 100 }).notNull(),
+  usageCount: int("usage_count").default(0).notNull(),
+  lastUsedAt: timestamp("last_used_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type JarvisToolUsageRow = typeof jarvisToolUsage.$inferSelect;
+
+// ─────────────────────────────────────────────
+// JARVIS SCHEDULED TASKS — Recurring tasks configured by Jarvis
+// ─────────────────────────────────────────────
+export const jarvisScheduledTasks = mysqlTable("jarvis_scheduled_tasks", {
+  id: int("id").primaryKey().autoincrement(),
+  accountId: int("account_id").notNull(),
+  userId: int("user_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  prompt: text("prompt").notNull(),
+  scheduleDescription: varchar("schedule_description", { length: 255 }).notNull(),
+  cronExpression: varchar("cron_expression", { length: 100 }).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  lastRunAt: timestamp("last_run_at"),
+  nextRunAt: timestamp("next_run_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type JarvisScheduledTaskRow = typeof jarvisScheduledTasks.$inferSelect;
+export type InsertJarvisScheduledTask = typeof jarvisScheduledTasks.$inferInsert;
+
+// ─────────────────────────────────────────────
 // GEMINI USAGE LOGS — Track API token usage and costs
 // ─────────────────────────────────────────────
 export const geminiUsageLogs = mysqlTable("gemini_usage_logs", {

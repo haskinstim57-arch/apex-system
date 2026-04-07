@@ -32,6 +32,16 @@ import {
   Mic,
   MicOff,
   Square,
+  BarChart3,
+  Calendar,
+  Phone,
+  Mail,
+  Users,
+  Target,
+  Megaphone,
+  Inbox,
+  Timer,
+  ListTodo,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -123,7 +133,7 @@ interface PendingConfirmation {
   timestamp: number;
 }
 
-type PanelMode = "suggestions" | "chat";
+type PanelMode = "suggestions" | "chat" | "analytics" | "tasks";
 
 const PANEL_COLLAPSED_KEY = "jarvis-panel-collapsed";
 const ACTIVE_SESSION_KEY = "jarvis-active-session";
@@ -163,6 +173,32 @@ const TOOL_DISPLAY: Record<string, string> = {
   get_analytics: "Fetched analytics",
   bulk_send_sms: "Sent bulk SMS",
   trigger_automation: "Triggered automation",
+};
+
+// ═══════════════════════════════════════════════
+// QUICK ACTION BUTTONS
+// ═══════════════════════════════════════════════
+
+const QUICK_ACTIONS = [
+  { label: "Generate social post", prompt: "Generate a social media post for my mortgage business", icon: "Megaphone", color: "text-violet-500" },
+  { label: "Check pipeline", prompt: "Show me my pipeline overview and deal stats", icon: "Target", color: "text-blue-500" },
+  { label: "Book appointment", prompt: "Check my available appointment slots for this week", icon: "Calendar", color: "text-emerald-500" },
+  { label: "Send follow-up", prompt: "Help me send a follow-up message to a contact", icon: "Mail", color: "text-amber-500" },
+  { label: "Check lead scores", prompt: "Show me my top leads by lead score", icon: "BarChart3", color: "text-pink-500" },
+  { label: "Start AI call", prompt: "I want to start an AI voice call with a contact", icon: "Phone", color: "text-teal-500" },
+  { label: "Create campaign", prompt: "Help me create a new email or SMS campaign", icon: "Users", color: "text-orange-500" },
+  { label: "View inbox", prompt: "Show me my recent inbox conversations", icon: "Inbox", color: "text-indigo-500" },
+] as const;
+
+const QUICK_ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  Megaphone,
+  Target,
+  Calendar,
+  Mail,
+  BarChart3,
+  Phone,
+  Users,
+  Inbox,
 };
 
 // ═══════════════════════════════════════════════
@@ -723,6 +759,22 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
                     <MessageSquare className="h-3.5 w-3.5" />
                   </button>
                   <button
+                    onClick={() => setMode("analytics")}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                      mode === "analytics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <BarChart3 className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setMode("tasks")}
+                    className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                      mode === "tasks" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Timer className="h-3.5 w-3.5" />
+                  </button>
+                  <button
                     onClick={() => setMobileOpen(false)}
                     className="p-1 rounded text-muted-foreground hover:text-foreground ml-1"
                   >
@@ -832,6 +884,24 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
             title="Chat"
           >
             <MessageSquare className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setMode("analytics")}
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+              mode === "analytics" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
+            title="Tool Analytics"
+          >
+            <BarChart3 className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={() => setMode("tasks")}
+            className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+              mode === "tasks" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
+            title="Scheduled Tasks"
+          >
+            <Timer className="h-3.5 w-3.5" />
           </button>
           <button
             onClick={() => setCollapsed(true)}
@@ -1321,9 +1391,34 @@ function PanelContent(props: PanelContentProps) {
             ) : (
               <div className="space-y-3">
                 {(messages ?? []).length === 0 && !isThinking && !streamingText && (
-                  <div className="text-center py-8">
-                    <Bot className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-xs text-muted-foreground">Ask me anything about your CRM data.</p>
+                  <div className="py-4">
+                    <div className="text-center mb-4">
+                      <Bot className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                      <p className="text-xs text-muted-foreground">What would you like to do?</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {QUICK_ACTIONS.map((action) => {
+                        const IconComp = QUICK_ACTION_ICONS[action.icon];
+                        return (
+                          <button
+                            key={action.label}
+                            onClick={() => {
+                              setInput(action.prompt);
+                              // Auto-send after a brief moment so user sees what was typed
+                              setTimeout(() => {
+                                inputRef.current?.focus();
+                              }, 50);
+                            }}
+                            className="flex items-center gap-2 px-2.5 py-2 rounded-lg border border-border bg-card hover:bg-accent/50 hover:border-primary/30 transition-all text-left group"
+                          >
+                            <div className={`h-6 w-6 rounded-md bg-muted/60 flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors`}>
+                              {IconComp && <IconComp className={`h-3 w-3 ${action.color}`} />}
+                            </div>
+                            <span className="text-[11px] font-medium text-foreground truncate">{action.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -1561,6 +1656,271 @@ function PanelContent(props: PanelContentProps) {
           )}
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* ANALYTICS MODE */}
+      {/* ═══════════════════════════════════════════════ */}
+      {mode === "analytics" && <ToolAnalyticsPanel accountId={accountId} />}
+
+      {/* ═══════════════════════════════════════════════ */}
+      {/* SCHEDULED TASKS MODE */}
+      {/* ═══════════════════════════════════════════════ */}
+      {mode === "tasks" && <ScheduledTasksPanel accountId={accountId} />}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// TOOL ANALYTICS PANEL
+// ═══════════════════════════════════════════════
+
+const TOOL_LABELS: Record<string, string> = {
+  get_dashboard_stats: "Dashboard Stats",
+  get_contact_stats: "Contact Stats",
+  get_message_stats: "Message Stats",
+  get_campaign_stats: "Campaign Stats",
+  get_analytics: "Analytics",
+  search_contacts: "Search Contacts",
+  get_contact_detail: "Contact Details",
+  create_contact: "Create Contact",
+  update_contact: "Update Contact",
+  add_contact_note: "Add Note",
+  add_contact_tag: "Tag Contact",
+  manage_contact_tags: "Manage Tags",
+  get_contact_messages: "Contact Messages",
+  get_contacts_by_filter: "Filter Contacts",
+  send_sms: "Send SMS",
+  send_email: "Send Email",
+  bulk_send_sms: "Bulk SMS",
+  list_campaigns: "List Campaigns",
+  create_campaign: "Create Campaign",
+  send_campaign: "Send Campaign",
+  pause_campaign: "Pause Campaign",
+  get_pipeline_overview: "Pipeline Overview",
+  move_deal_stage: "Move Deal",
+  create_deal: "Create Deal",
+  update_deal: "Update Deal",
+  list_workflows: "List Workflows",
+  trigger_workflow: "Trigger Workflow",
+  list_segments: "List Segments",
+  list_sequences: "List Sequences",
+  enroll_in_sequence: "Enroll in Sequence",
+  list_calendars: "List Calendars",
+  get_contact_appointments: "Contact Appointments",
+  check_appointment_availability: "Check Availability",
+  book_appointment: "Book Appointment",
+  generate_social_post: "Generate Social Post",
+  schedule_social_post: "Schedule Social Post",
+  generate_blog_post: "Generate Blog Post",
+  generate_email_draft: "Generate Email Draft",
+  send_email_draft: "Send Email Draft",
+  repurpose_blog_post: "Repurpose Blog Post",
+  get_inbox_conversations: "Inbox Conversations",
+  get_contact_conversation: "Contact Conversation",
+  get_contact_custom_fields: "Custom Fields",
+  update_contact_custom_field: "Update Custom Field",
+  get_contact_lead_score: "Lead Score",
+  initiate_ai_voice_call: "AI Voice Call",
+  get_ai_call_history: "Call History",
+};
+
+function ToolAnalyticsPanel({ accountId }: { accountId: number }) {
+  const statsQuery = trpc.jarvis.getToolUsageStats.useQuery(
+    { accountId, limit: 20 },
+    { enabled: !!accountId }
+  );
+
+  const stats = statsQuery.data?.stats ?? [];
+  const totalUsage = statsQuery.data?.totalUsage ?? 0;
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="px-3 pt-3 pb-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Most Used Actions
+        </p>
+      </div>
+
+      <div className="px-3 space-y-1 pb-3">
+        {statsQuery.isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-10 rounded-lg bg-muted/30 animate-pulse" />
+            ))}
+          </div>
+        ) : stats.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="h-10 w-10 rounded-lg bg-muted/30 flex items-center justify-center mb-2">
+              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-xs text-muted-foreground">No tool usage data yet</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-1">Start chatting with Jarvis to see analytics</p>
+          </div>
+        ) : (
+          <>
+            {/* Summary card */}
+            <div className="rounded-lg border border-border bg-card p-3 mb-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Total tool executions</span>
+                <span className="text-sm font-bold text-foreground">{totalUsage.toLocaleString()}</span>
+              </div>
+              <div className="flex items-center justify-between mt-1">
+                <span className="text-xs text-muted-foreground">Unique tools used</span>
+                <span className="text-sm font-bold text-foreground">{stats.length}</span>
+              </div>
+            </div>
+
+            {/* Tool usage bars */}
+            {stats.map((stat, idx) => {
+              const pct = totalUsage > 0 ? (stat.usageCount / totalUsage) * 100 : 0;
+              const label = TOOL_LABELS[stat.toolName] || stat.toolName;
+              return (
+                <div key={stat.toolName} className="group">
+                  <div className="flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-muted/30 transition-colors">
+                    <span className="text-[10px] font-medium text-muted-foreground w-4 text-right">{idx + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-medium text-foreground truncate">{label}</span>
+                        <span className="text-[10px] text-muted-foreground ml-2 shrink-0">{stat.usageCount}x</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-muted/40 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                          style={{ width: `${Math.max(pct, 2)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Last used info */}
+            {stats[0]?.lastUsedAt && (
+              <div className="pt-2 border-t border-border mt-2">
+                <p className="text-[10px] text-muted-foreground">
+                  Most recent: <span className="font-medium">{TOOL_LABELS[stats[0].toolName] || stats[0].toolName}</span>
+                  {" "}&mdash; {new Date(stats[0].lastUsedAt).toLocaleDateString()}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// SCHEDULED TASKS PANEL
+// ═══════════════════════════════════════════════
+
+function ScheduledTasksPanel({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+  const tasksQuery = trpc.jarvis.listScheduledTasks.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+  const toggleMutation = trpc.jarvis.toggleScheduledTask.useMutation({
+    onSuccess: () => utils.jarvis.listScheduledTasks.invalidate(),
+  });
+  const deleteMutation = trpc.jarvis.deleteScheduledTask.useMutation({
+    onSuccess: () => utils.jarvis.listScheduledTasks.invalidate(),
+  });
+
+  const tasks = tasksQuery.data ?? [];
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="px-3 pt-3 pb-2">
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          Scheduled Tasks
+        </p>
+        <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+          Ask Jarvis to schedule recurring tasks via chat
+        </p>
+      </div>
+
+      <div className="px-3 space-y-2 pb-3">
+        {tasksQuery.isLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 rounded-lg bg-muted/30 animate-pulse" />
+            ))}
+          </div>
+        ) : tasks.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="h-10 w-10 rounded-lg bg-muted/30 flex items-center justify-center mb-2">
+              <Timer className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-xs text-muted-foreground">No scheduled tasks yet</p>
+            <p className="text-[10px] text-muted-foreground/60 mt-1 max-w-[220px]">
+              Try asking Jarvis: &ldquo;Send me a pipeline summary every Monday at 9am&rdquo;
+            </p>
+          </div>
+        ) : (
+          tasks.map((task) => (
+            <div
+              key={task.id}
+              className={`rounded-lg border p-3 transition-colors ${
+                task.isActive
+                  ? "border-border bg-card"
+                  : "border-border/50 bg-muted/20 opacity-60"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                      task.isActive ? "bg-green-500" : "bg-muted-foreground/30"
+                    }`} />
+                    <span className="text-xs font-medium text-foreground truncate">{task.name}</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground mt-1 line-clamp-2">{task.prompt}</p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted/40 text-muted-foreground font-mono">
+                      {task.scheduleDescription}
+                    </span>
+                    {task.lastRunAt && (
+                      <span className="text-[9px] text-muted-foreground/60">
+                        Last: {new Date(task.lastRunAt).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    onClick={() => toggleMutation.mutate({
+                      accountId,
+                      taskId: task.id,
+                      isActive: !task.isActive,
+                    })}
+                    className={`p-1 rounded transition-colors ${
+                      task.isActive
+                        ? "text-green-500 hover:bg-green-500/10"
+                        : "text-muted-foreground hover:bg-muted/30"
+                    }`}
+                    title={task.isActive ? "Pause task" : "Resume task"}
+                  >
+                    {task.isActive ? <CheckCircle2 className="h-3.5 w-3.5" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm("Delete this scheduled task?")) {
+                        deleteMutation.mutate({ accountId, taskId: task.id });
+                      }
+                    }}
+                    className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    title="Delete task"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

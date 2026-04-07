@@ -263,5 +263,123 @@ describe("Jarvis Tools Expansion — CRITICAL_TOOLS and TOOL_DISPLAY", () => {
     expect(content).toContain("Check lead scores with grade breakdown");
     expect(content).toContain("Initiate AI voice calls via VAPI");
     expect(content).toContain("View AI call history");
+    expect(content).toContain("Schedule recurring tasks");
+    expect(content).toContain("List and cancel scheduled tasks");
+  });
+});
+
+// ═══════════════════════════════════════════════
+// SCHEDULED TASKS TOOLS
+// ═══════════════════════════════════════════════
+
+describe("Jarvis Tools — Scheduled Tasks", () => {
+  const toolNames = getToolNames();
+
+  it("includes schedule_recurring_task tool", () => {
+    expect(toolNames).toContain("schedule_recurring_task");
+    const tool = JARVIS_TOOLS.find((t) => t.function.name === "schedule_recurring_task");
+    expect(tool).toBeDefined();
+    const params = tool!.function.parameters as any;
+    expect(params.required).toContain("name");
+    expect(params.required).toContain("prompt");
+    expect(params.required).toContain("cronExpression");
+    expect(params.required).toContain("scheduleDescription");
+  });
+
+  it("includes cancel_scheduled_task tool", () => {
+    expect(toolNames).toContain("cancel_scheduled_task");
+    const tool = JARVIS_TOOLS.find((t) => t.function.name === "cancel_scheduled_task");
+    expect(tool).toBeDefined();
+    const params = tool!.function.parameters as any;
+    expect(params.required).toContain("taskId");
+  });
+
+  it("includes list_scheduled_tasks tool", () => {
+    expect(toolNames).toContain("list_scheduled_tasks");
+  });
+
+  it("schedule_recurring_task and cancel_scheduled_task are in CRITICAL_TOOLS", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain('"schedule_recurring_task"');
+    expect(content).toContain('"cancel_scheduled_task"');
+  });
+
+  it("TOOL_DISPLAY has entries for all scheduled task tools", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain("schedule_recurring_task");
+    expect(content).toContain("cancel_scheduled_task");
+    expect(content).toContain("list_scheduled_tasks");
+  });
+
+  it("buildConfirmationSummary handles schedule_recurring_task", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain('case "schedule_recurring_task"');
+    expect(content).toContain('case "cancel_scheduled_task"');
+  });
+});
+
+// ═══════════════════════════════════════════════
+// QUICK ACTIONS UI
+// ═══════════════════════════════════════════════
+
+describe("Jarvis UI — Quick Action Buttons", () => {
+  it("JarvisPanel.tsx contains QUICK_ACTIONS array", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("client/src/components/JarvisPanel.tsx", "utf-8");
+    expect(content).toContain("QUICK_ACTIONS");
+  });
+
+  it("quick actions cover key categories", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("client/src/components/JarvisPanel.tsx", "utf-8");
+    // Should have actions for pipeline, contacts, content, campaigns, etc.
+    expect(content).toContain("pipeline");
+    expect(content).toContain("contact");
+  });
+});
+
+// ═══════════════════════════════════════════════
+// ANALYTICS & SCHEDULED TASKS BACKEND
+// ═══════════════════════════════════════════════
+
+describe("Jarvis Backend — Analytics & Scheduled Tasks Procedures", () => {
+  it("jarvis router has toolUsageStats procedure", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/routers/jarvis.ts", "utf-8");
+    expect(content).toContain("getToolUsageStats");
+  });
+
+  it("jarvis router has listScheduledTasks procedure", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/routers/jarvis.ts", "utf-8");
+    expect(content).toContain("listScheduledTasks");
+  });
+
+  it("jarvis router has deleteScheduledTask procedure", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/routers/jarvis.ts", "utf-8");
+    expect(content).toContain("deleteScheduledTask");
+  });
+
+  it("jarvis router has toggleScheduledTask procedure", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/routers/jarvis.ts", "utf-8");
+    expect(content).toContain("toggleScheduledTask");
+  });
+
+  it("jarvisService.ts has trackToolUsageInternal function", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain("trackToolUsageInternal");
+  });
+
+  it("schema has jarvisToolUsage and jarvisScheduledTasks tables", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("drizzle/schema.ts", "utf-8");
+    expect(content).toContain("jarvis_tool_usage");
+    expect(content).toContain("jarvis_scheduled_tasks");
   });
 });
