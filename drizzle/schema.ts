@@ -2726,6 +2726,10 @@ export const emailSignatures = mysqlTable("email_signatures", {
   name: varchar("name", { length: 255 }).notNull(),
   html: text("html").notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
+  /** Number of times this signature has been used in sent emails */
+  usageCount: int("usage_count").default(0).notNull(),
+  /** Last time this signature was used */
+  lastUsedAt: timestamp("last_used_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });

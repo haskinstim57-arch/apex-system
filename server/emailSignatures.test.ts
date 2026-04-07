@@ -59,19 +59,42 @@ vi.mock("./db", async (importOriginal) => {
         from: vi.fn().mockImplementation((table: any) => {
           // Return a chainable object that supports where → limit, where → orderBy → limit → offset
           return {
-            where: vi.fn().mockImplementation((condition: any) => ({
-              limit: vi.fn().mockImplementation(() => {
-                // For signature queries, return from store
-                return Promise.resolve(
-                  signatureStore.filter((s) => s.accountId === 1).slice(0, 1)
-                );
-              }),
-              orderBy: vi.fn().mockReturnValue({
-                limit: vi.fn().mockReturnValue({
-                  offset: vi.fn().mockResolvedValue([]),
+            where: vi.fn().mockImplementation((condition: any) => {
+              const chainable = {
+                limit: vi.fn().mockImplementation(() => {
+                  // For signature queries, return from store
+                  return Promise.resolve(
+                    signatureStore.filter((s) => s.accountId === 1).slice(0, 1)
+                  );
                 }),
-              }),
-            })),
+                orderBy: vi.fn().mockImplementation(() => {
+                  // For analytics: select().from().where().orderBy() resolves to array
+                  const result = signatureStore
+                    .filter((s) => s.accountId === 1)
+                    .map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      isDefault: s.isDefault,
+                      usageCount: 0,
+                      lastUsedAt: null,
+                      createdAt: s.createdAt,
+                    }));
+                  // Make the result thenable (both a promise and chainable)
+                  const p = Promise.resolve(result) as any;
+                  p.limit = vi.fn().mockReturnValue({
+                    offset: vi.fn().mockResolvedValue([]),
+                  });
+                  return p;
+                }),
+                // Make the where result itself thenable for direct await
+                then: (resolve: any, reject: any) => {
+                  return Promise.resolve(
+                    signatureStore.filter((s) => s.accountId === 1)
+                  ).then(resolve, reject);
+                },
+              };
+              return chainable;
+            }),
             orderBy: vi.fn().mockReturnValue({
               limit: vi.fn().mockReturnValue({
                 offset: vi.fn().mockResolvedValue([]),
@@ -296,6 +319,95 @@ describe("emailContent signature procedures", () => {
           isDefault: false,
         })
       ).rejects.toThrow();
+    });
+  });
+
+  describe("getSignatureTemplates", () => {
+    it("returns an array of pre-built templates", async () => {
+      const ctx = createTestContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.emailContent.getSignatureTemplates({
+        accountId: 1,
+      });
+
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBeGreaterThan(0);
+      // Each template should have required fields
+      const first = result[0];
+      expect(first).toHaveProperty("id");
+      expect(first).toHaveProperty("name");
+      expect(first).toHaveProperty("html");
+      expect(first).toHaveProperty("description");
+      expect(first).toHaveProperty("category");
+    });
+
+    it("templates contain valid HTML with placeholder tokens", async () => {
+      const ctx = createTestContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.emailContent.getSignatureTemplates({
+        accountId: 1,
+      });
+
+      for (const tmpl of result) {
+        expect(tmpl.html.length).toBeGreaterThan(10);
+        // Templates should have at least name and email placeholders
+        expect(tmpl.html).toContain("{{name}}");
+        expect(tmpl.html).toContain("{{email}}");
+      }
+    });
+  });
+
+  describe("uploadSignatureImage", () => {
+    it("rejects files exceeding 2MB", async () => {
+      const ctx = createTestContext();
+      const caller = appRouter.createCaller(ctx);
+
+      // Create a base64 string representing > 2MB
+      // 2MB = 2097152 bytes, base64 of that is ~2.8M chars
+      const largeBase64 = Buffer.alloc(2.5 * 1024 * 1024).toString("base64");
+
+      await expect(
+        caller.emailContent.uploadSignatureImage({
+          accountId: 1,
+          fileBase64: largeBase64,
+          fileName: "big.png",
+          mimeType: "image/png",
+          imageType: "headshot",
+        })
+      ).rejects.toThrow(/2MB/);
+    });
+
+    it("rejects invalid mime types via zod validation", async () => {
+      const ctx = createTestContext();
+      const caller = appRouter.createCaller(ctx);
+
+      await expect(
+        caller.emailContent.uploadSignatureImage({
+          accountId: 1,
+          fileBase64: "dGVzdA==",
+          fileName: "test.gif",
+          mimeType: "image/gif" as any,
+          imageType: "headshot",
+        })
+      ).rejects.toThrow();
+    });
+  });
+
+  describe("getSignatureAnalytics", () => {
+    it("returns analytics with totalUsage and signatures array", async () => {
+      const ctx = createTestContext();
+      const caller = appRouter.createCaller(ctx);
+
+      const result = await caller.emailContent.getSignatureAnalytics({
+        accountId: 1,
+      });
+
+      expect(result).toHaveProperty("totalUsage");
+      expect(result).toHaveProperty("signatures");
+      expect(Array.isArray(result.signatures)).toBe(true);
+      expect(typeof result.totalUsage).toBe("number");
     });
   });
 });

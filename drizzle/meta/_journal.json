@@ -589,6 +589,13 @@
       "when": 1775576055730,
       "tag": "0083_chilly_photon",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "5",
+      "when": 1775577461904,
+      "tag": "0084_flimsy_lockjaw",
+      "breakpoints": true
     }
   ]
 }

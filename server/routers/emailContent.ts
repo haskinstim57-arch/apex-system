@@ -9,6 +9,154 @@ import { invokeLLM } from "../_core/llm";
 import { trackUsage } from "../services/usageTracker";
 import { dispatchEmail } from "../services/messaging";
 
+// ─── Pre-built Signature Templates ─────────────────────────────────────────
+const SIGNATURE_TEMPLATES = [
+  {
+    id: "professional-classic",
+    name: "Professional Classic",
+    description: "Clean two-column layout with a vertical divider. Timeless and corporate.",
+    category: "professional" as const,
+    html: `<table cellpadding="0" cellspacing="0" style="font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #333333;">
+  <tr>
+    <td style="padding-right: 16px; border-right: 3px solid #0c5ab0; vertical-align: top;">
+      {{headshot}}
+      <strong style="font-size: 16px; color: #0c5ab0;">{{name}}</strong><br/>
+      <span style="font-size: 13px; color: #666;">{{title}}</span><br/>
+      <span style="font-size: 13px; color: #666;">{{company}}</span>
+    </td>
+    <td style="padding-left: 16px; vertical-align: top;">
+      <span style="color: #666;">📞 {{phone}}</span><br/>
+      <a href="mailto:{{email}}" style="color: #0c5ab0; text-decoration: none;">✉️ {{email}}</a><br/>
+      <span style="color: #666;">🌐 {{website}}</span><br/>
+      <span style="font-size: 11px; color: #999;">NMLS# {{nmls}}</span>
+    </td>
+  </tr>
+</table>`,
+  },
+  {
+    id: "modern-minimal",
+    name: "Modern Minimal",
+    description: "Sleek single-column design with subtle accent line.",
+    category: "modern" as const,
+    html: `<table cellpadding="0" cellspacing="0" style="font-family: 'Segoe UI', Tahoma, sans-serif; font-size: 14px; color: #2d2d2d;">
+  <tr><td style="padding-bottom: 8px;">
+    <strong style="font-size: 17px;">{{name}}</strong>
+    <span style="color: #999; margin: 0 8px;">|</span>
+    <span style="color: #666;">{{title}}</span>
+  </td></tr>
+  <tr><td style="border-top: 2px solid #0c5ab0; padding-top: 8px;">
+    <span style="color: #555;">{{company}}</span><br/>
+    <span style="color: #555;">{{phone}} · <a href="mailto:{{email}}" style="color: #0c5ab0; text-decoration: none;">{{email}}</a></span><br/>
+    <span style="font-size: 11px; color: #999;">NMLS# {{nmls}}</span>
+  </td></tr>
+</table>`,
+  },
+  {
+    id: "bold-banner",
+    name: "Bold Banner",
+    description: "Eye-catching colored header bar with white text.",
+    category: "bold" as const,
+    html: `<table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; width: 100%; max-width: 500px;">
+  <tr><td style="background-color: #0c5ab0; padding: 14px 20px; border-radius: 6px 6px 0 0;">
+    <strong style="font-size: 18px; color: #ffffff;">{{name}}</strong><br/>
+    <span style="font-size: 13px; color: #cce0f5;">{{title}} — {{company}}</span>
+  </td></tr>
+  <tr><td style="padding: 12px 20px; background: #f8f9fa; border-radius: 0 0 6px 6px; font-size: 13px; color: #555;">
+    📞 {{phone}} &nbsp;|&nbsp; ✉️ <a href="mailto:{{email}}" style="color: #0c5ab0;">{{email}}</a> &nbsp;|&nbsp; 🌐 {{website}}<br/>
+    <span style="font-size: 11px; color: #999;">NMLS# {{nmls}}</span>
+  </td></tr>
+</table>`,
+  },
+  {
+    id: "photo-card",
+    name: "Photo Card",
+    description: "Headshot-focused layout with photo on the left and details on the right.",
+    category: "professional" as const,
+    html: `<table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; font-size: 14px; color: #333;">
+  <tr>
+    <td style="padding-right: 16px; vertical-align: top;">
+      {{headshot}}
+    </td>
+    <td style="vertical-align: top;">
+      <strong style="font-size: 16px; color: #1a1a1a;">{{name}}</strong><br/>
+      <span style="color: #0c5ab0; font-size: 13px;">{{title}}</span><br/>
+      <span style="color: #666; font-size: 13px;">{{company}}</span><br/>
+      <br/>
+      <span style="font-size: 13px;">📞 {{phone}}</span><br/>
+      <a href="mailto:{{email}}" style="color: #0c5ab0; text-decoration: none; font-size: 13px;">{{email}}</a><br/>
+      {{logo}}
+      <span style="font-size: 11px; color: #999;">NMLS# {{nmls}}</span>
+    </td>
+  </tr>
+</table>`,
+  },
+  {
+    id: "gradient-accent",
+    name: "Gradient Accent",
+    description: "Modern gradient left border with clean typography.",
+    category: "modern" as const,
+    html: `<table cellpadding="0" cellspacing="0" style="font-family: 'Segoe UI', sans-serif; font-size: 14px; color: #333;">
+  <tr>
+    <td style="border-left: 4px solid; border-image: linear-gradient(to bottom, #0c5ab0, #38bdf8) 1; padding-left: 14px;">
+      <strong style="font-size: 16px;">{{name}}</strong><br/>
+      <span style="color: #0c5ab0;">{{title}}</span> · <span style="color: #666;">{{company}}</span><br/>
+      <span style="font-size: 13px; color: #555;">{{phone}} · <a href="mailto:{{email}}" style="color: #0c5ab0; text-decoration: none;">{{email}}</a></span><br/>
+      <span style="font-size: 11px; color: #aaa;">NMLS# {{nmls}}</span>
+    </td>
+  </tr>
+</table>`,
+  },
+  {
+    id: "mortgage-pro",
+    name: "Mortgage Professional",
+    description: "Industry-specific template with rate quote CTA and equal housing logo.",
+    category: "industry" as const,
+    html: `<table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif; font-size: 14px; color: #333; max-width: 500px;">
+  <tr><td style="padding-bottom: 10px;">
+    {{headshot}}
+    <strong style="font-size: 16px;">{{name}}</strong><br/>
+    <span style="color: #0c5ab0;">Licensed Mortgage Loan Originator</span><br/>
+    <span style="color: #666;">{{company}}</span>
+  </td></tr>
+  <tr><td style="border-top: 2px solid #0c5ab0; padding-top: 10px; font-size: 13px;">
+    📞 {{phone}} &nbsp;|&nbsp; ✉️ <a href="mailto:{{email}}" style="color: #0c5ab0; text-decoration: none;">{{email}}</a><br/>
+    🌐 {{website}}<br/>
+    <span style="font-size: 11px; color: #999;">NMLS# {{nmls}} | Equal Housing Lender ⌂</span><br/>
+    <a href="{{website}}" style="display: inline-block; margin-top: 8px; padding: 6px 16px; background: #0c5ab0; color: #fff; text-decoration: none; border-radius: 4px; font-size: 12px;">Get Your Free Rate Quote →</a>
+  </td></tr>
+</table>`,
+  },
+  {
+    id: "dark-elegant",
+    name: "Dark Elegant",
+    description: "Dark background with gold accents for a premium feel.",
+    category: "bold" as const,
+    html: `<table cellpadding="0" cellspacing="0" style="font-family: Georgia, serif; font-size: 14px; max-width: 500px;">
+  <tr><td style="background: #1a1a2e; padding: 16px 20px; border-radius: 8px;">
+    <strong style="font-size: 17px; color: #d4af37;">{{name}}</strong><br/>
+    <span style="color: #ccc; font-size: 13px;">{{title}} — {{company}}</span><br/><br/>
+    <span style="color: #aaa; font-size: 13px;">📞 {{phone}}</span><br/>
+    <a href="mailto:{{email}}" style="color: #d4af37; text-decoration: none; font-size: 13px;">✉️ {{email}}</a><br/>
+    <span style="color: #aaa; font-size: 13px;">🌐 {{website}}</span><br/>
+    <span style="font-size: 11px; color: #777;">NMLS# {{nmls}}</span>
+  </td></tr>
+</table>`,
+  },
+  {
+    id: "simple-text",
+    name: "Simple Text",
+    description: "No-frills plain text style — maximum email client compatibility.",
+    category: "minimal" as const,
+    html: `<div style="font-family: Arial, sans-serif; font-size: 14px; color: #333; line-height: 1.6;">
+  <strong>{{name}}</strong><br/>
+  {{title}} | {{company}}<br/>
+  Phone: {{phone}}<br/>
+  Email: <a href="mailto:{{email}}" style="color: #0c5ab0;">{{email}}</a><br/>
+  NMLS# {{nmls}}
+</div>`,
+  },
+];
+
 // ─── Template type prompts ──────────────────────────────────────────────────
 const TEMPLATE_PROMPTS: Record<string, string> = {
   newsletter:
@@ -1114,6 +1262,102 @@ export const emailContentRouter = router({
         console.error("[emailContent] Send usage tracking failed:", err)
       );
 
+      // Increment usage count on the default signature (if one was appended)
+      try {
+        const [defaultSig] = await db
+          .select({ id: emailSignatures.id })
+          .from(emailSignatures)
+          .where(
+            and(
+              eq(emailSignatures.accountId, input.accountId),
+              eq(emailSignatures.isDefault, true)
+            )
+          )
+          .limit(1);
+        if (defaultSig) {
+          await db
+            .update(emailSignatures)
+            .set({
+              usageCount: sql`${emailSignatures.usageCount} + 1`,
+              lastUsedAt: new Date(),
+            })
+            .where(eq(emailSignatures.id, defaultSig.id));
+        }
+      } catch (sigErr) {
+        console.error("[emailContent] Signature usage tracking failed:", sigErr);
+      }
+
       return { success: true };
+    }),
+
+  // ─── Signature Templates (pre-built) ──────────────────────────────────
+  getSignatureTemplates: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      return SIGNATURE_TEMPLATES;
+    }),
+
+  // ─── Upload Signature Image ───────────────────────────────────────────
+  uploadSignatureImage: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        fileBase64: z.string().min(1),
+        fileName: z.string().min(1).max(255),
+        mimeType: z.enum(["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"]),
+        imageType: z.enum(["headshot", "logo"]).default("headshot"),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+
+      const { storagePut } = await import("../storage");
+      const fileBuffer = Buffer.from(input.fileBase64, "base64");
+
+      // Enforce 2MB limit
+      const MAX_SIZE = 2 * 1024 * 1024;
+      if (fileBuffer.length > MAX_SIZE) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "File size exceeds 2MB limit" });
+      }
+
+      const ext = input.fileName.split(".").pop() || "png";
+      const randomSuffix = Math.random().toString(36).substring(2, 10);
+      const safeKey = `signatures/${input.accountId}/${input.imageType}-${randomSuffix}.${ext}`;
+
+      const { url } = await storagePut(safeKey, fileBuffer, input.mimeType);
+      return { url };
+    }),
+
+  // ─── Signature Analytics ──────────────────────────────────────────────
+  getSignatureAnalytics: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const rows = await db
+        .select({
+          id: emailSignatures.id,
+          name: emailSignatures.name,
+          isDefault: emailSignatures.isDefault,
+          usageCount: emailSignatures.usageCount,
+          lastUsedAt: emailSignatures.lastUsedAt,
+          createdAt: emailSignatures.createdAt,
+        })
+        .from(emailSignatures)
+        .where(eq(emailSignatures.accountId, input.accountId))
+        .orderBy(desc(emailSignatures.usageCount));
+
+      const totalUsage = rows.reduce((sum, r) => sum + (r.usageCount || 0), 0);
+
+      return {
+        signatures: rows.map((r) => ({
+          ...r,
+          percentage: totalUsage > 0 ? Math.round(((r.usageCount || 0) / totalUsage) * 100) : 0,
+        })),
+        totalUsage,
+      };
     }),
 });

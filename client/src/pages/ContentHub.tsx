@@ -115,6 +115,14 @@ import {
   PenLine,
   Star,
   Type,
+  Upload,
+  BarChart3,
+  Image as ImageLucide,
+  Layout,
+  Briefcase,
+  Phone,
+  Globe,
+  Award,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -2332,15 +2340,29 @@ const EMAIL_TONE_OPTIONS = [
 // ─── Signatures Sub-Tab Component ────────────────────────────────────────────
 function EmailSignaturesTab() {
   const { currentAccountId: accountId } = useAccount();
+  const { user } = useAuth();
   const utils = trpc.useUtils();
 
   const [editingSignature, setEditingSignature] = useState<{ id?: number; name: string; html: string; isDefault: boolean } | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
 
   const signaturesQuery = trpc.emailContent.listSignatures.useQuery(
     { accountId: accountId! },
     { enabled: !!accountId }
+  );
+
+  const templatesQuery = trpc.emailContent.getSignatureTemplates.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId && showTemplates }
+  );
+
+  const analyticsQuery = trpc.emailContent.getSignatureAnalytics.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId && showAnalytics }
   );
 
   const createMutation = trpc.emailContent.createSignature.useMutation({
@@ -2348,8 +2370,9 @@ function EmailSignaturesTab() {
       toast.success("Signature created!");
       setEditingSignature(null);
       utils.emailContent.listSignatures.invalidate();
+      utils.emailContent.getSignatureAnalytics.invalidate();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
   });
 
   const updateMutation = trpc.emailContent.updateSignature.useMutation({
@@ -2358,7 +2381,7 @@ function EmailSignaturesTab() {
       setEditingSignature(null);
       utils.emailContent.listSignatures.invalidate();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
   });
 
   const deleteMutation = trpc.emailContent.deleteSignature.useMutation({
@@ -2366,8 +2389,9 @@ function EmailSignaturesTab() {
       toast.success("Signature deleted");
       setDeleteConfirmId(null);
       utils.emailContent.listSignatures.invalidate();
+      utils.emailContent.getSignatureAnalytics.invalidate();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
   });
 
   const setDefaultMutation = trpc.emailContent.setDefaultSignature.useMutation({
@@ -2375,7 +2399,11 @@ function EmailSignaturesTab() {
       toast.success("Default signature updated");
       utils.emailContent.listSignatures.invalidate();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  const uploadImageMutation = trpc.emailContent.uploadSignatureImage.useMutation({
+    onError: (err: any) => toast.error(err.message),
   });
 
   const handleSave = () => {
@@ -2402,12 +2430,92 @@ function EmailSignaturesTab() {
     }
   };
 
+  // Fill template placeholders with user/account data
+  const fillTemplate = (html: string) => {
+    return html
+      .replace(/\{\{name\}\}/g, user?.name || "Your Name")
+      .replace(/\{\{title\}\}/g, "Loan Officer")
+      .replace(/\{\{company\}\}/g, "Your Company")
+      .replace(/\{\{phone\}\}/g, "(555) 123-4567")
+      .replace(/\{\{email\}\}/g, user?.email || "you@company.com")
+      .replace(/\{\{website\}\}/g, "www.yourcompany.com")
+      .replace(/\{\{nmls\}\}/g, "000000")
+      .replace(/\{\{headshot\}\}/g, '')
+      .replace(/\{\{logo\}\}/g, '');
+  };
+
+  const handleUseTemplate = (template: { name: string; html: string }) => {
+    const filledHtml = fillTemplate(template.html);
+    setEditingSignature({
+      name: template.name,
+      html: filledHtml,
+      isDefault: (signaturesQuery.data || []).length === 0,
+    });
+    setShowTemplates(false);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, imageType: "headshot" | "logo") => {
+    const file = e.target.files?.[0];
+    if (!file || !accountId || !editingSignature) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image must be under 2MB");
+      return;
+    }
+
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"];
+    if (!validTypes.includes(file.type)) {
+      toast.error("Supported formats: PNG, JPEG, WebP, SVG");
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1]);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const result = await uploadImageMutation.mutateAsync({
+        accountId,
+        fileBase64: base64,
+        fileName: file.name,
+        mimeType: file.type as any,
+        imageType,
+      });
+
+      const imgTag = imageType === "headshot"
+        ? `<img src="${result.url}" alt="Headshot" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 8px;" /><br/>`
+        : `<img src="${result.url}" alt="Company Logo" style="height: 32px; margin-top: 8px; margin-bottom: 4px;" /><br/>`;
+
+      // Insert at cursor position or append
+      const currentHtml = editingSignature.html;
+      const placeholder = imageType === "headshot" ? "{{headshot}}" : "{{logo}}";
+      if (currentHtml.includes(placeholder)) {
+        setEditingSignature({ ...editingSignature, html: currentHtml.replace(placeholder, imgTag) });
+      } else {
+        setEditingSignature({ ...editingSignature, html: imgTag + currentHtml });
+      }
+      toast.success(`${imageType === "headshot" ? "Headshot" : "Logo"} uploaded and inserted!`);
+    } catch {
+      // error handled by mutation
+    } finally {
+      setUploadingImage(false);
+      e.target.value = "";
+    }
+  };
+
   const signatures = signaturesQuery.data || [];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h3 className="text-lg font-semibold flex items-center gap-2">
             <PenLine className="h-5 w-5" />
@@ -2417,11 +2525,120 @@ function EmailSignaturesTab() {
             Create reusable HTML signatures that auto-append to generated emails.
           </p>
         </div>
-        <Button onClick={() => setEditingSignature({ name: "", html: "", isDefault: signatures.length === 0 })}>
-          <Plus className="h-4 w-4 mr-1" />
-          New Signature
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => { setShowAnalytics(!showAnalytics); if (!showAnalytics) setShowTemplates(false); }}>
+            <BarChart3 className="h-4 w-4 mr-1" />
+            Analytics
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => { setShowTemplates(!showTemplates); if (!showTemplates) setShowAnalytics(false); }}>
+            <Layout className="h-4 w-4 mr-1" />
+            Templates
+          </Button>
+          <Button size="sm" onClick={() => setEditingSignature({ name: "", html: "", isDefault: signatures.length === 0 })}>
+            <Plus className="h-4 w-4 mr-1" />
+            New Signature
+          </Button>
+        </div>
       </div>
+
+      {/* Analytics Section */}
+      {showAnalytics && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-primary" />
+              Signature Usage Analytics
+            </CardTitle>
+            <CardDescription>Track which signatures are used most in sent emails.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {analyticsQuery.isLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : !analyticsQuery.data || analyticsQuery.data.signatures.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">No signature data yet. Send emails to start tracking usage.</p>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{analyticsQuery.data.totalUsage}</span>
+                    <span className="text-muted-foreground">total emails with signatures</span>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  {analyticsQuery.data.signatures.map((sig) => (
+                    <div key={sig.id} className="space-y-1">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{sig.name}</span>
+                          {sig.isDefault && (
+                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                              <Star className="h-2.5 w-2.5 fill-current mr-0.5" />
+                              Default
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span>{sig.usageCount} emails</span>
+                          <span>{sig.percentage}%</span>
+                          {sig.lastUsedAt && (
+                            <span className="text-xs">Last: {new Date(sig.lastUsedAt).toLocaleDateString()}</span>
+                          )}
+                        </div>
+                      </div>
+                      <Progress value={sig.percentage} className="h-2" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Templates Gallery */}
+      {showTemplates && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Layout className="h-4 w-4 text-primary" />
+              Pre-built Templates
+            </CardTitle>
+            <CardDescription>Choose a professional template and customize it with your details.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {templatesQuery.isLoading ? (
+              <div className="flex justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(templatesQuery.data || []).map((tmpl) => (
+                  <div key={tmpl.id} className="border rounded-lg overflow-hidden hover:border-primary/50 transition-colors">
+                    <div className="p-3 bg-white">
+                      <div
+                        className="text-sm max-h-28 overflow-hidden"
+                        dangerouslySetInnerHTML={{ __html: fillTemplate(tmpl.html) }}
+                      />
+                    </div>
+                    <div className="p-3 bg-muted/30 border-t flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium">{tmpl.name}</p>
+                        <p className="text-xs text-muted-foreground">{tmpl.description}</p>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => handleUseTemplate(tmpl)}>
+                        Use Template
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Signatures List */}
       {signaturesQuery.isLoading ? (
@@ -2432,7 +2649,11 @@ function EmailSignaturesTab() {
         <Card>
           <CardContent className="py-12 text-center">
             <PenLine className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground">No signatures yet. Create one to auto-append to your emails.</p>
+            <p className="text-muted-foreground mb-3">No signatures yet. Create one to auto-append to your emails.</p>
+            <Button variant="outline" size="sm" onClick={() => { setShowTemplates(true); setShowAnalytics(false); }}>
+              <Layout className="h-4 w-4 mr-1" />
+              Browse Templates
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -2476,6 +2697,9 @@ function EmailSignaturesTab() {
                 </div>
                 <CardDescription className="text-xs">
                   Created {new Date(sig.createdAt).toLocaleDateString()}
+                  {(sig as any).usageCount > 0 && (
+                    <span className="ml-2 text-muted-foreground">· Used {(sig as any).usageCount} times</span>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -2512,6 +2736,43 @@ function EmailSignaturesTab() {
                   value={editingSignature.name}
                   onChange={(e) => setEditingSignature({ ...editingSignature, name: e.target.value })}
                 />
+              </div>
+
+              {/* Image Upload Section */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1">
+                  <ImageLucide className="h-4 w-4" />
+                  Upload Images
+                </Label>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="flex items-center gap-2 px-3 py-2 border border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors text-sm">
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{uploadingImage ? "Uploading..." : "Headshot Photo"}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, "headshot")}
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex-1">
+                    <label className="flex items-center gap-2 px-3 py-2 border border-dashed rounded-md cursor-pointer hover:bg-muted/50 transition-colors text-sm">
+                      <Upload className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">{uploadingImage ? "Uploading..." : "Company Logo"}</span>
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, "logo")}
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">Max 2MB. PNG, JPEG, WebP, or SVG. Images are uploaded to cloud storage and inserted into your signature HTML.</p>
               </div>
 
               <div className="space-y-2">

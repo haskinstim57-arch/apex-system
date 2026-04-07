@@ -3662,3 +3662,29 @@
 - [x] Verify build with 0 TypeScript errors (0 ContentHub/emailContent errors)
 - [x] Vitest tests for signature CRUD (8 tests passing)
 - [x] Save checkpoint
+
+## Email Signature Enhancements
+### 1. Pre-built Signature Templates Library
+- [x] Create array of 8 professional loan officer signature templates (HTML)
+- [x] Add "Use Template" button/dialog in Signatures sub-tab
+- [x] Template preview cards with one-click apply
+- [x] Templates include placeholders: {{name}}, {{title}}, {{company}}, {{phone}}, {{email}}, {{nmls}}
+- [x] Auto-fill placeholders from user/account profile data
+
+### 2. Signature Image Upload
+- [x] Add image upload endpoint (S3 storagePut) for signature images
+- [x] Add tRPC mutation for uploading signature image (headshot/logo)
+- [x] UI: Image upload zone in create/edit signature dialog
+- [x] Insert uploaded image URL into signature HTML
+- [x] Support both headshot and company logo uploads
+
+### 3. Signature Usage Analytics
+- [x] Add usageCount and lastUsedAt columns to emailSignatures table
+- [x] Backend: increment usage count when signature is appended to sent email
+- [x] Backend: query to get signature usage stats per account
+- [x] Frontend: Analytics section in Signatures sub-tab showing usage per signature
+- [x] Display: total emails sent, last used date, usage percentage bars
+
+### Verification
+- [x] Vitest tests for new features (13 tests passing)
+- [x] Save checkpoint
