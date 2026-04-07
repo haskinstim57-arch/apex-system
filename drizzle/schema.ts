@@ -510,6 +510,7 @@ export const workflowSteps = mysqlTable("workflow_steps", {
     "notify_user",
     "send_review_request",
     "enroll_in_sequence",
+    "unenroll_from_sequence",
     "request_payment",
   ]),
   /** Delay type (null for action steps) */
@@ -2364,6 +2365,8 @@ export const jarvisScheduledTasks = mysqlTable("jarvis_scheduled_tasks", {
   isActive: boolean("is_active").default(true).notNull(),
   lastRunAt: timestamp("last_run_at"),
   nextRunAt: timestamp("next_run_at"),
+  lastRunResult: text("last_run_result"),
+  runCount: int("run_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });

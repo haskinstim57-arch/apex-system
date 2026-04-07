@@ -3772,3 +3772,64 @@
 - [x] 0 TypeScript errors in all Jarvis files
 - [x] 40 vitest tests passing (including scheduled tasks, quick actions, analytics)
 - [x] Save checkpoint
+
+## PROMPT 1 — Jarvis Scheduled Task Worker
+
+### Step 1 — Verify/Add Schema
+- [x] Verified jarvis_scheduled_tasks table — added lastRunResult and runCount columns
+- [x] Schema migration pushed via pnpm db:push
+
+### Step 2 — Cron Worker (server/services/jarvisTaskWorker.ts)
+- [x] Export runDueJarvisTasks() — queries due tasks, executes via Jarvis chat, updates task rows
+- [x] Export startJarvisTaskWorker() — setInterval every 60s + immediate run
+- [x] Uses cron-parser v5 for nextRunAt computation
+- [x] try/catch per task — failing task doesn't stop others
+- [x] Stores lastRunResult (truncated to 1000 chars)
+
+### Step 3 — Start Worker on Server Startup
+- [x] Import and call startJarvisTaskWorker() in server/_core/index.ts
+
+### Step 4 — Verify
+- [x] 0 TypeScript errors in jarvisTaskWorker.ts
+- [x] Worker logs "[JarvisWorker] Started — checking every 60s"
+
+## PROMPT 2 — PMR Sequences, Webinar Funnels, Account Setup & Lead Routing
+
+### Part 1 — unenroll_from_sequence Action Type
+- [x] Added "unenroll_from_sequence" to actionTypeEnum in schema
+- [x] Added case in workflowEngine.ts executeAction switch (unenrolls from all active sequences)
+- [x] Schema migration pushed via pnpm db:push
+
+### Part 2 — PMR Sequence Seeder Script
+- [x] Created server/scripts/seedPMRSequences.ts
+- [x] Finds PMR account by name ("Premier Mortgage Resources")
+- [x] Sequence 1: 6-Month Home Anniversary Refi Check-In (4 steps)
+- [x] Sequence 2: 12-Month Home Anniversary Refi Check-In (4 steps)
+- [x] Sequence 3: Happy Birthday Outreach (2 steps)
+- [x] Sequence 4: Warm RE Agent - Stay Top of Mind (6 steps)
+- [x] Sequence 5: Cold RE Agent - Build New Relationship (6 steps)
+- [x] Sequence 6: Credit Repair - Long Term Nurture (8 steps)
+- [x] Sequence 7: HELOC Lead - Didn't Answer Nurture (7 steps)
+- [x] Sequence 8: Purchase Lead - Didn't Book Nurture (7 steps)
+- [x] Sequence 9: DPA Webinar Registration [TEMPLATE] (9 steps)
+- [x] Sequence 10: RE Agent Webinar Registration [TEMPLATE] (9 steps)
+
+### Part 3 — Trigger Tag Workflows
+- [x] 10 tag-triggered enrollment workflows (one per sequence)
+- [x] 2 auto-stop workflows (Qualified stage change, Appointment booked) using unenroll_from_sequence
+
+### Part 4 — Webinar Landing Pages
+- [x] DPA Borrower Webinar landing page (slug: dpa-webinar)
+- [x] RE Agent Webinar landing page (slug: re-agent-webinar)
+
+### Part 5 — Account Setup: Belinda Osborne + Lead Routing
+- [x] Found Belinda Osborne's account
+- [x] Added Belinda as employee member of PMR account
+- [x] Created lead routing workflow (contact_created → tag "routed-to-belinda" + notify)
+
+### Run & Verify
+- [x] Seeder ran successfully via npx tsx
+- [x] 0 TypeScript errors in all new files
+- [x] Log counts: 10 sequences (62 steps), 10 trigger workflows, 2 auto-stop workflows, 2 landing pages
+- [x] 15 vitest tests passing (worker, unenroll, seeder validation)
+- [x] Save checkpoint

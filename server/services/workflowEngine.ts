@@ -694,6 +694,45 @@ async function executeAction(
       return { action: "enroll_in_sequence", sequenceId: seqId, sequenceName: seq.name, enrollmentId: enrollId, alreadyEnrolled };
     }
 
+    case "unenroll_from_sequence": {
+      const { getDb: getDbInstance } = await import("../db");
+      const { sequenceEnrollments, sequences: seqTable } = await import("../../drizzle/schema");
+      const { eq: eqOp, and: andOp, sql: sqlOp } = await import("drizzle-orm");
+      const dbInst = await getDbInstance();
+      if (!dbInst) throw new Error("Database not available");
+      // Find all active enrollments for this contact in this account
+      const activeEnrollments = await dbInst
+        .select()
+        .from(sequenceEnrollments)
+        .where(andOp(
+          eqOp(sequenceEnrollments.contactId, contactId),
+          eqOp(sequenceEnrollments.accountId, accountId),
+          eqOp(sequenceEnrollments.status, "active" as any)
+        ));
+      let unenrolledCount = 0;
+      for (const enrollment of activeEnrollments) {
+        await dbInst
+          .update(sequenceEnrollments)
+          .set({ status: "unenrolled" as any })
+          .where(eqOp(sequenceEnrollments.id, enrollment.id));
+        await dbInst
+          .update(seqTable)
+          .set({ activeEnrollments: sqlOp`GREATEST(active_enrollments - 1, 0)` })
+          .where(eqOp(seqTable.id, enrollment.sequenceId));
+        unenrolledCount++;
+      }
+      if (unenrolledCount > 0) {
+        await logContactActivity({
+          contactId,
+          accountId,
+          activityType: "automation_triggered",
+          description: `Unenrolled from ${unenrolledCount} active sequence(s) via workflow`,
+          metadata: JSON.stringify({ unenrolledCount, source: "workflow" }),
+        });
+      }
+      return { action: "unenroll_from_sequence", unenrolledCount };
+    }
+
     default:
       throw new Error(`Unknown action type: ${step.actionType}`);
   }

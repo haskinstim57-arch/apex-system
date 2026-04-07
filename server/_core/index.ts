@@ -33,6 +33,7 @@ import { deliveryStatusRouter } from "../webhooks/deliveryStatus";
 import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 import { startMessageQueueWorker } from "../services/messageQueue";
 import { startPushBatchWorker } from "../services/pushBatcher";
+import { startJarvisTaskWorker } from "../services/jarvisTaskWorker";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -421,6 +422,9 @@ async function startServer() {
 
     // Start push notification batch flush worker (checks every 15s, groups rapid-fire events)
     startPushBatchWorker();
+
+    // Start Jarvis scheduled task worker (checks every 60s, executes due recurring tasks)
+    startJarvisTaskWorker();
   });
 }
 
