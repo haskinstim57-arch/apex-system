@@ -3513,3 +3513,27 @@
 - [x] Add cost/speed indicator badges to bulk generate dialog model selector
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Upgrade Social Media Tab: Model Selector, Web Research, Bulk Generate, Visual Calendar
+### Backend
+- [x] Add aiModel + enableWebResearch to socialContent.generatePost Zod schema
+- [x] Add aiModel to socialContent.generateContentCalendar Zod schema
+- [x] Update contentGenerator.generateSocialPost to accept and use aiModel + enableWebResearch
+- [x] Wire web research into generateSocialPost when enableWebResearch is true
+- [x] Pass aiModel through generateContentCalendar
+### Frontend - Generator Upgrades
+- [x] Add socialAiModel state + AI Model selector (4 options, two-line layout)
+- [x] Add socialWebResearch state + Web Research toggle switch
+- [x] Add Bulk Generate button + dialog (topics textarea, platform/tone/model, web research, progress)
+- [x] Pass aiModel and enableWebResearch in generatePost mutation call
+### Frontend - Visual Calendar
+- [x] Replace Calendar tab with visual month/week calendar grid
+- [x] Calendar header: prev/next, month+year title, view toggle (Month/Week), Generate Calendar button
+- [x] Day cells with date number, today highlight, platform-colored post pills
+- [x] HTML5 drag-and-drop: draggable post pills, onDrop reschedules via updatePost mutation
+- [x] Unscheduled Drafts pool below calendar with horizontal scroll
+- [x] Week view: 7-column taller cells with same drag-and-drop
+- [x] Move existing batch generation form into a Dialog opened by Generate Calendar button
+### Verification
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

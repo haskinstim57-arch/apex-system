@@ -1,8 +1,26 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAccount } from "@/contexts/AccountContext";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import {
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  format,
+  addMonths,
+  subMonths,
+  addWeeks,
+  subWeeks,
+  isSameMonth,
+  isSameDay,
+  isToday,
+  setHours,
+  setMinutes,
+  setSeconds,
+} from "date-fns";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -78,6 +96,7 @@ import {
   ChevronLeft,
   ChevronRight,
   PhoneCall,
+  GripVertical,
 } from "lucide-react";
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -752,6 +771,17 @@ function ContentGenerator() {
   const [selectedVariation, setSelectedVariation] = useState<number | null>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [scheduledDate, setScheduledDate] = useState("");
+  const [socialAiModel, setSocialAiModel] = useState("gemini-2.5-flash");
+  const [socialWebResearch, setSocialWebResearch] = useState(false);
+  // Bulk generate state
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkTopics, setBulkTopics] = useState("");
+  const [bulkPlatform, setBulkPlatform] = useState<Platform>("facebook");
+  const [bulkTone, setBulkTone] = useState<Tone>("professional");
+  const [bulkAiModel, setBulkAiModel] = useState("gemini-2.5-flash");
+  const [bulkWebResearch, setBulkWebResearch] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null);
+  const [bulkRunning, setBulkRunning] = useState(false);
 
   const generateMutation = trpc.socialContent.generatePost.useMutation({
     onSuccess: (data) => {
@@ -782,6 +812,8 @@ function ContentGenerator() {
       topic: topic.trim(),
       tone,
       additionalContext: additionalContext.trim() || undefined,
+      aiModel: socialAiModel,
+      enableWebResearch: socialWebResearch,
     });
   };
 
@@ -870,17 +902,71 @@ function ContentGenerator() {
               rows={3}
             />
           </div>
-          <Button
-            onClick={handleGenerate}
-            disabled={generateMutation.isPending || !topic.trim()}
-            className="w-full md:w-auto"
-          >
-            {generateMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
-            ) : (
-              <><Sparkles className="h-4 w-4 mr-2" /> Generate 3 Variations</>
-            )}
-          </Button>
+          {/* AI Model Selector */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>AI Model</Label>
+              <Select value={socialAiModel} onValueChange={setSocialAiModel}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select model" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-2.5-flash">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Flash</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Lowest Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gemini-2.5-pro">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Pro</span>
+                      <span className="text-xs text-muted-foreground">✨ Best Quality · High Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o">
+                    <div className="flex flex-col">
+                      <span>GPT-4o</span>
+                      <span className="text-xs text-muted-foreground">⚖️ Balanced · Medium Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o-mini">
+                    <div className="flex flex-col">
+                      <span>GPT-4o Mini</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Low Cost</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <div className="flex items-center justify-between w-full p-3 rounded-md border">
+                <div>
+                  <Label className="text-sm font-medium">Web Research</Label>
+                  <p className="text-xs text-muted-foreground">Fetches current information before generating</p>
+                </div>
+                <Switch checked={socialWebResearch} onCheckedChange={setSocialWebResearch} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={handleGenerate}
+              disabled={generateMutation.isPending || !topic.trim()}
+            >
+              {generateMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+              ) : (
+                <><Sparkles className="h-4 w-4 mr-2" /> Generate 3 Variations</>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDialogOpen(true)}
+            >
+              <Layers className="h-4 w-4 mr-2" /> Bulk Generate
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -995,6 +1081,176 @@ function ContentGenerator() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Generate Dialog */}
+      <Dialog open={bulkDialogOpen} onOpenChange={(open) => {
+        if (!open && !bulkRunning) {
+          setBulkDialogOpen(false);
+          setBulkTopics("");
+          setBulkProgress(null);
+          setBulkAiModel("gemini-2.5-flash");
+          setBulkWebResearch(false);
+        }
+      }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Bulk Generate Social Posts</DialogTitle>
+            <DialogDescription>Enter one topic per line (max 10). Each topic generates one post saved as a draft.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Topics (one per line)</Label>
+              <Textarea
+                placeholder={"First-time homebuyer tips\nRefinancing benefits\nMarket update Q2 2026"}
+                value={bulkTopics}
+                onChange={(e) => setBulkTopics(e.target.value)}
+                rows={5}
+                disabled={bulkRunning}
+              />
+              <p className="text-xs text-muted-foreground">
+                {bulkTopics.split("\n").filter(l => l.trim()).length}/10 topics
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Platform</Label>
+                <Select value={bulkPlatform} onValueChange={(v) => setBulkPlatform(v as Platform)} disabled={bulkRunning}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="linkedin">LinkedIn</SelectItem>
+                    <SelectItem value="twitter">Twitter/X</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Tone</Label>
+                <Select value={bulkTone} onValueChange={(v) => setBulkTone(v as Tone)} disabled={bulkRunning}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="funny">Funny</SelectItem>
+                    <SelectItem value="inspiring">Inspiring</SelectItem>
+                    <SelectItem value="educational">Educational</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>AI Model</Label>
+              <Select value={bulkAiModel} onValueChange={setBulkAiModel} disabled={bulkRunning}>
+                <SelectTrigger><SelectValue placeholder="Select model" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-2.5-flash">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Flash</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Lowest Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gemini-2.5-pro">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Pro</span>
+                      <span className="text-xs text-muted-foreground">✨ Best Quality · High Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o">
+                    <div className="flex flex-col">
+                      <span>GPT-4o</span>
+                      <span className="text-xs text-muted-foreground">⚖️ Balanced · Medium Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o-mini">
+                    <div className="flex flex-col">
+                      <span>GPT-4o Mini</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Low Cost</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-md border">
+              <div>
+                <Label className="text-sm font-medium">Web Research</Label>
+                <p className="text-xs text-muted-foreground">Fetches current info for each topic</p>
+              </div>
+              <Switch checked={bulkWebResearch} onCheckedChange={setBulkWebResearch} disabled={bulkRunning} />
+            </div>
+            {bulkProgress && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Generating posts...</span>
+                  <span className="font-medium">{bulkProgress.current}/{bulkProgress.total}</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className="bg-primary h-2 rounded-full transition-all"
+                    style={{ width: `${(bulkProgress.current / bulkProgress.total) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDialogOpen(false)} disabled={bulkRunning}>
+              Cancel
+            </Button>
+            <Button
+              disabled={bulkRunning || !bulkTopics.trim()}
+              onClick={async () => {
+                if (!activeAccountId) return toast.error("Select a sub-account first");
+                const topicLines = bulkTopics.split("\n").map(l => l.trim()).filter(Boolean).slice(0, 10);
+                if (topicLines.length === 0) return toast.error("Enter at least one topic");
+                setBulkRunning(true);
+                setBulkProgress({ current: 0, total: topicLines.length });
+                let saved = 0;
+                for (let i = 0; i < topicLines.length; i++) {
+                  try {
+                    const result = await generateMutation.mutateAsync({
+                      accountId: activeAccountId,
+                      platform: bulkPlatform,
+                      topic: topicLines[i],
+                      tone: bulkTone,
+                      aiModel: bulkAiModel,
+                      enableWebResearch: bulkWebResearch,
+                    });
+                    // Save first variation as draft
+                    if (result.variations?.[0]) {
+                      const v = result.variations[0];
+                      await saveDraftMutation.mutateAsync({
+                        accountId: activeAccountId,
+                        platform: bulkPlatform,
+                        content: v.content,
+                        hashtags: v.hashtags,
+                        topic: topicLines[i],
+                        tone: bulkTone,
+                        generationPrompt: topicLines[i],
+                      });
+                      saved++;
+                    }
+                  } catch (err: any) {
+                    console.error(`Bulk generate failed for topic: ${topicLines[i]}`, err);
+                  }
+                  setBulkProgress({ current: i + 1, total: topicLines.length });
+                }
+                setBulkRunning(false);
+                setBulkDialogOpen(false);
+                setBulkTopics("");
+                setBulkProgress(null);
+                setVariations([]);
+                toast.success(`Bulk generated ${saved} posts as drafts!`);
+              }}
+            >
+              {bulkRunning ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+              ) : (
+                <><Layers className="h-4 w-4 mr-2" /> Generate All</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1003,205 +1259,421 @@ function ContentGenerator() {
 // Social Media — Content Calendar Sub-tab
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Platform pill bg colors for calendar
+const PILL_COLORS: Record<Platform, string> = {
+  facebook: "bg-blue-500 text-white",
+  instagram: "bg-pink-500 text-white",
+  linkedin: "bg-indigo-500 text-white",
+  twitter: "bg-sky-500 text-white",
+};
+
 function ContentCalendar() {
   const { currentAccountId: activeAccountId } = useAccount();
-  const [platforms, setPlatforms] = useState<Platform[]>(["facebook", "instagram"]);
-  const [postsPerPlatform, setPostsPerPlatform] = useState(3);
-  const [topics, setTopics] = useState<string[]>([""]);
-  const [tone, setTone] = useState<Tone>("professional");
-  const [startDate, setStartDate] = useState(() => {
+  const utils = trpc.useUtils();
+
+  // Calendar state
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [calView, setCalView] = useState<"month" | "week">("month");
+  const [genDialogOpen, setGenDialogOpen] = useState(false);
+
+  // Generate calendar form state
+  const [genPlatforms, setGenPlatforms] = useState<Platform[]>(["facebook", "instagram"]);
+  const [genPostsPerPlatform, setGenPostsPerPlatform] = useState(3);
+  const [genTopics, setGenTopics] = useState<string[]>([""]);
+  const [genTone, setGenTone] = useState<Tone>("professional");
+  const [genStartDate, setGenStartDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
     return d.toISOString().split("T")[0];
   });
+  const [genAiModel, setGenAiModel] = useState("gemini-2.5-flash");
 
-  const generateCalendarMutation = trpc.socialContent.generateContentCalendar.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Generated ${data.posts.length} posts and saved to your calendar!`);
+  // Fetch ALL posts for the calendar (no status filter, high limit)
+  const { data: postsData } = trpc.socialContent.getPosts.useQuery(
+    { accountId: activeAccountId!, limit: 100, offset: 0 },
+    { enabled: !!activeAccountId }
+  );
+
+  const updateMutation = trpc.socialContent.updatePost.useMutation({
+    onSuccess: () => {
+      utils.socialContent.getPosts.invalidate();
+      toast.success("Post rescheduled!");
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err: any) => toast.error(err.message),
   });
 
-  const togglePlatform = (p: Platform) => {
-    setPlatforms((prev) =>
+  const generateCalendarMutation = trpc.socialContent.generateContentCalendar.useMutation({
+    onSuccess: (data: any) => {
+      toast.success(`Generated ${data.posts.length} posts and saved to your calendar!`);
+      utils.socialContent.getPosts.invalidate();
+      setGenDialogOpen(false);
+    },
+    onError: (err: any) => toast.error(err.message),
+  });
+
+  // Split posts into scheduled vs unscheduled
+  const allPosts = postsData?.posts ?? [];
+  const scheduledPosts = allPosts.filter((p: any) => p.scheduledAt);
+  const unscheduledPosts = allPosts.filter((p: any) => !p.scheduledAt && p.status === "draft");
+
+  // Build postsByDate map
+  const postsByDate = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const post of scheduledPosts) {
+      const dateKey = format(new Date(post.scheduledAt as string | number | Date), "yyyy-MM-dd");
+      if (!map[dateKey]) map[dateKey] = [];
+      map[dateKey].push(post);
+    }
+    return map;
+  }, [scheduledPosts]);
+
+  // Calendar grid days
+  const calendarDays = useMemo(() => {
+    if (calView === "month") {
+      const monthStart = startOfMonth(currentDate);
+      const monthEnd = endOfMonth(currentDate);
+      return eachDayOfInterval({
+        start: startOfWeek(monthStart),
+        end: endOfWeek(monthEnd),
+      });
+    } else {
+      const weekStart = startOfWeek(currentDate);
+      const weekEnd = endOfWeek(currentDate);
+      return eachDayOfInterval({ start: weekStart, end: weekEnd });
+    }
+  }, [currentDate, calView]);
+
+  // Navigation
+  const goNext = () => {
+    setCurrentDate(calView === "month" ? addMonths(currentDate, 1) : addWeeks(currentDate, 1));
+  };
+  const goPrev = () => {
+    setCurrentDate(calView === "month" ? subMonths(currentDate, 1) : subWeeks(currentDate, 1));
+  };
+
+  // Drag handlers
+  const handleDragStart = useCallback((e: React.DragEvent, postId: number) => {
+    e.dataTransfer.setData("postId", postId.toString());
+    e.dataTransfer.effectAllowed = "move";
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetDate: Date) => {
+    e.preventDefault();
+    const postId = parseInt(e.dataTransfer.getData("postId"), 10);
+    if (!postId || !activeAccountId) return;
+    const noon = setSeconds(setMinutes(setHours(targetDate, 12), 0), 0);
+    updateMutation.mutate({
+      postId,
+      accountId: activeAccountId,
+      scheduledAt: noon.getTime(),
+      status: "scheduled",
+    });
+  }, [activeAccountId, updateMutation]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }, []);
+
+  // Generate calendar form handlers
+  const toggleGenPlatform = (p: Platform) => {
+    setGenPlatforms((prev) =>
       prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]
     );
   };
 
-  const handleGenerate = () => {
+  const handleGenerateCalendar = () => {
     if (!activeAccountId) return toast.error("Select a sub-account first");
-    const validTopics = topics.filter((t) => t.trim());
+    const validTopics = genTopics.filter((t) => t.trim());
     if (validTopics.length === 0) return toast.error("Add at least one topic");
-    if (platforms.length === 0) return toast.error("Select at least one platform");
-
+    if (genPlatforms.length === 0) return toast.error("Select at least one platform");
     generateCalendarMutation.mutate({
       accountId: activeAccountId,
-      platforms,
-      postsPerPlatform,
+      platforms: genPlatforms,
+      postsPerPlatform: genPostsPerPlatform,
       topics: validTopics,
-      startDate: new Date(startDate).getTime(),
-      tone,
+      startDate: new Date(genStartDate).getTime(),
+      tone: genTone,
+      aiModel: genAiModel,
     });
   };
 
+  const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            Content Calendar Generator
-          </CardTitle>
-          <CardDescription>
-            Generate a week&apos;s worth of content across multiple platforms. Posts are automatically saved as scheduled drafts.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Platforms</Label>
-            <div className="flex flex-wrap gap-2">
-              {(["facebook", "instagram", "linkedin", "twitter"] as Platform[]).map((p) => (
-                <Button
-                  key={p}
-                  variant={platforms.includes(p) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => togglePlatform(p)}
-                  className="gap-1"
-                >
-                  {PLATFORM_ICONS[p]}
-                  <span className="capitalize">{p === "twitter" ? "Twitter/X" : p}</span>
-                </Button>
-              ))}
-            </div>
+    <div className="space-y-4">
+      {/* Calendar Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={goPrev}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <h2 className="text-lg font-semibold min-w-[180px] text-center">
+            {calView === "month"
+              ? format(currentDate, "MMMM yyyy")
+              : `Week of ${format(startOfWeek(currentDate), "MMM d, yyyy")}`}
+          </h2>
+          <Button variant="outline" size="icon" onClick={goNext}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-md border">
+            <Button
+              variant={calView === "month" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-r-none"
+              onClick={() => setCalView("month")}
+            >
+              Month
+            </Button>
+            <Button
+              variant={calView === "week" ? "default" : "ghost"}
+              size="sm"
+              className="rounded-l-none"
+              onClick={() => setCalView("week")}
+            >
+              Week
+            </Button>
           </div>
+          <Button onClick={() => setGenDialogOpen(true)}>
+            <Sparkles className="h-4 w-4 mr-2" /> Generate Calendar
+          </Button>
+        </div>
+      </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Posts per Platform</Label>
-              <Select value={String(postsPerPlatform)} onValueChange={(v) => setPostsPerPlatform(Number(v))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
-                    <SelectItem key={n} value={String(n)}>{n} post{n > 1 ? "s" : ""}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Tone</Label>
-              <Select value={tone} onValueChange={(v) => setTone(v as Tone)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="funny">Funny</SelectItem>
-                  <SelectItem value="inspiring">Inspiring</SelectItem>
-                  <SelectItem value="educational">Educational</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Start Date</Label>
-              <Input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </div>
+      {/* Day-of-week header */}
+      <div className="grid grid-cols-7 gap-px bg-muted rounded-t-lg overflow-hidden">
+        {DAY_NAMES.map((d) => (
+          <div key={d} className="bg-card py-2 text-center text-xs font-medium text-muted-foreground">
+            {d}
           </div>
+        ))}
+      </div>
 
-          <div className="space-y-2">
-            <Label>Topics</Label>
-            {topics.map((t, i) => (
-              <div key={i} className="flex gap-2">
-                <Input
-                  placeholder={`Topic ${i + 1}...`}
-                  value={t}
-                  onChange={(e) => {
-                    const updated = [...topics];
-                    updated[i] = e.target.value;
-                    setTopics(updated);
-                  }}
-                />
-                {topics.length > 1 && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setTopics(topics.filter((_, j) => j !== i))}
+      {/* Calendar Grid */}
+      <div className={`grid grid-cols-7 gap-px bg-muted rounded-b-lg overflow-hidden`}>
+        {calendarDays.map((day) => {
+          const dateKey = format(day, "yyyy-MM-dd");
+          const dayPosts = postsByDate[dateKey] || [];
+          const inMonth = calView === "month" ? isSameMonth(day, currentDate) : true;
+          const today = isToday(day);
+
+          return (
+            <div
+              key={dateKey}
+              className={`bg-card p-1.5 transition-colors ${
+                calView === "week" ? "min-h-[200px]" : "min-h-[90px]"
+              } ${
+                !inMonth ? "opacity-40" : ""
+              } ${
+                today ? "ring-2 ring-primary ring-inset" : ""
+              }`}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, day)}
+            >
+              <div className={`text-xs font-medium mb-1 ${
+                today ? "text-primary font-bold" : "text-muted-foreground"
+              }`}>
+                {format(day, "d")}
+              </div>
+              <div className="space-y-0.5">
+                {dayPosts.slice(0, calView === "week" ? 10 : 3).map((post: any) => (
+                  <div
+                    key={post.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, post.id)}
+                    className={`text-[10px] leading-tight px-1.5 py-0.5 rounded cursor-grab active:cursor-grabbing truncate ${
+                      PILL_COLORS[post.platform as Platform] || "bg-gray-500 text-white"
+                    }`}
+                    title={`${post.platform}: ${post.content?.slice(0, 80)}`}
                   >
-                    <X className="h-4 w-4" />
-                  </Button>
+                    {post.topic || post.content?.slice(0, 20) || post.platform}
+                  </div>
+                ))}
+                {dayPosts.length > (calView === "week" ? 10 : 3) && (
+                  <div className="text-[10px] text-muted-foreground px-1">
+                    +{dayPosts.length - (calView === "week" ? 10 : 3)} more
+                  </div>
                 )}
               </div>
-            ))}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setTopics([...topics, ""])}
-            >
-              <Plus className="h-4 w-4 mr-1" /> Add Topic
-            </Button>
-          </div>
+            </div>
+          );
+        })}
+      </div>
 
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              This will generate <strong>{platforms.length * postsPerPlatform}</strong> posts total
-            </p>
-            <Button
-              onClick={handleGenerate}
-              disabled={generateCalendarMutation.isPending || platforms.length === 0}
-            >
-              {generateCalendarMutation.isPending ? (
-                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating Calendar...</>
-              ) : (
-                <><Calendar className="h-4 w-4 mr-2" /> Generate Calendar</>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Generated Calendar Preview */}
-      {generateCalendarMutation.data && (
+      {/* Unscheduled Drafts Pool */}
+      {unscheduledPosts.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Generated Calendar</CardTitle>
-            <CardDescription>
-              {generateCalendarMutation.data.savedPosts.length} posts saved as scheduled drafts
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <GripVertical className="h-4 w-4 text-muted-foreground" />
+              Unscheduled Drafts ({unscheduledPosts.length})
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Drag posts onto a calendar day to schedule them
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {generateCalendarMutation.data.posts.map((post: any, i: number) => (
-                <div key={i} className="flex gap-3 p-3 rounded-lg border">
-                  <Badge variant="outline" className={PLATFORM_COLORS[post.platform as Platform]}>
-                    {PLATFORM_ICONS[post.platform as Platform]}
-                  </Badge>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-muted-foreground capitalize">{post.platform}</span>
-                      <span className="text-xs text-muted-foreground">·</span>
-                      <span className="text-xs text-muted-foreground">{post.topic}</span>
-                    </div>
-                    <p className="text-sm line-clamp-2">{post.content}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {post.hashtags.slice(0, 5).map((h: string, j: number) => (
-                        <span key={j} className="text-xs text-primary">#{h}</span>
-                      ))}
-                    </div>
+          <CardContent className="pb-3">
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {unscheduledPosts.map((post: any) => (
+                <div
+                  key={post.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, post.id)}
+                  className={`flex-shrink-0 w-48 p-2 rounded-lg border cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Badge variant="outline" className={`text-[10px] px-1 py-0 ${PLATFORM_COLORS[post.platform as Platform]}`}>
+                      {post.platform}
+                    </Badge>
                   </div>
+                  <p className="text-xs line-clamp-2 text-muted-foreground">
+                    {post.topic || post.content?.slice(0, 60)}
+                  </p>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
+
+      {/* Generate Content Calendar Dialog */}
+      <Dialog open={genDialogOpen} onOpenChange={setGenDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Generate Content Calendar
+            </DialogTitle>
+            <DialogDescription>
+              Generate a week&apos;s worth of content across multiple platforms. Posts are automatically saved as scheduled drafts.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Platforms</Label>
+              <div className="flex flex-wrap gap-2">
+                {(["facebook", "instagram", "linkedin", "twitter"] as Platform[]).map((p) => (
+                  <Button
+                    key={p}
+                    variant={genPlatforms.includes(p) ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => toggleGenPlatform(p)}
+                    className="gap-1"
+                  >
+                    {PLATFORM_ICONS[p]}
+                    <span className="capitalize">{p === "twitter" ? "Twitter/X" : p}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label>Posts/Platform</Label>
+                <Select value={String(genPostsPerPlatform)} onValueChange={(v) => setGenPostsPerPlatform(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                      <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Tone</Label>
+                <Select value={genTone} onValueChange={(v) => setGenTone(v as Tone)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="professional">Professional</SelectItem>
+                    <SelectItem value="casual">Casual</SelectItem>
+                    <SelectItem value="funny">Funny</SelectItem>
+                    <SelectItem value="inspiring">Inspiring</SelectItem>
+                    <SelectItem value="educational">Educational</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Start Date</Label>
+                <Input type="date" value={genStartDate} onChange={(e) => setGenStartDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>AI Model</Label>
+              <Select value={genAiModel} onValueChange={setGenAiModel}>
+                <SelectTrigger><SelectValue placeholder="Select model" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-2.5-flash">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Flash</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Lowest Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gemini-2.5-pro">
+                    <div className="flex flex-col">
+                      <span>Gemini 2.5 Pro</span>
+                      <span className="text-xs text-muted-foreground">✨ Best Quality · High Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o">
+                    <div className="flex flex-col">
+                      <span>GPT-4o</span>
+                      <span className="text-xs text-muted-foreground">⚖️ Balanced · Medium Cost</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gpt-4o-mini">
+                    <div className="flex flex-col">
+                      <span>GPT-4o Mini</span>
+                      <span className="text-xs text-muted-foreground">⚡ Fast · Low Cost</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Topics</Label>
+              {genTopics.map((t, i) => (
+                <div key={i} className="flex gap-2">
+                  <Input
+                    placeholder={`Topic ${i + 1}...`}
+                    value={t}
+                    onChange={(e) => {
+                      const updated = [...genTopics];
+                      updated[i] = e.target.value;
+                      setGenTopics(updated);
+                    }}
+                  />
+                  {genTopics.length > 1 && (
+                    <Button variant="ghost" size="icon" onClick={() => setGenTopics(genTopics.filter((_, j) => j !== i))}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => setGenTopics([...genTopics, ""])}>
+                <Plus className="h-4 w-4 mr-1" /> Add Topic
+              </Button>
+            </div>
+            <Separator />
+            <p className="text-sm text-muted-foreground">
+              This will generate <strong>{genPlatforms.length * genPostsPerPlatform}</strong> posts total
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setGenDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleGenerateCalendar}
+              disabled={generateCalendarMutation.isPending || genPlatforms.length === 0}
+            >
+              {generateCalendarMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
+              ) : (
+                <><Calendar className="h-4 w-4 mr-2" /> Generate Calendar</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

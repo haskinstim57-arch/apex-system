@@ -27,6 +27,8 @@ export const socialContentRouter = router({
         topic: z.string().min(1).max(500),
         tone: toneEnum,
         additionalContext: z.string().optional(),
+        aiModel: z.string().optional(),
+        enableWebResearch: z.boolean().optional().default(false),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -57,6 +59,8 @@ export const socialContentRouter = router({
         accountContext: account
           ? { businessName: account.name, industry: account.industry }
           : undefined,
+        aiModel: input.aiModel,
+        enableWebResearch: input.enableWebResearch,
       });
 
       // Track LLM usage
@@ -328,6 +332,7 @@ export const socialContentRouter = router({
         topics: z.array(z.string()).min(1),
         startDate: z.number(), // UTC timestamp ms
         tone: toneEnum,
+        aiModel: z.string().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -358,6 +363,7 @@ export const socialContentRouter = router({
         accountContext: account
           ? { businessName: account.name, industry: account.industry }
           : undefined,
+        aiModel: input.aiModel,
       });
 
       // Track LLM usage — one request per platform

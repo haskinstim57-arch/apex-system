@@ -1,4 +1,5 @@
 import { invokeLLM } from "../_core/llm";
+import { ENV } from "../_core/env";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +85,68 @@ function buildBrandVoiceSection(bv: BrandVoice | undefined): string {
   return parts.length ? parts.join("\n") : "No brand voice configured. Use a professional, helpful tone.";
 }
 
+// ─── Web Research Helper ────────────────────────────────────────────────────
+
+async function fetchSocialWebResearch(topic: string): Promise<string> {
+  try {
+    const baseUrl = ENV.forgeApiUrl?.endsWith("/")
+      ? ENV.forgeApiUrl
+      : `${ENV.forgeApiUrl}/`;
+    const fullUrl = new URL(
+      "webdevtoken.v1.WebDevService/CallApi",
+      baseUrl
+    ).toString();
+
+    const response = await fetch(fullUrl, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+        "connect-protocol-version": "1",
+        authorization: `Bearer ${ENV.forgeApiKey}`,
+      },
+      body: JSON.stringify({
+        apiId: "omni_search",
+        query: { q: topic, search_type: "info", num: 3 },
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn(`[contentGenerator] Web research failed: ${response.status}`);
+      return "";
+    }
+
+    const payload = await response.json();
+    let data: any;
+    if (payload && typeof payload === "object" && "jsonData" in payload) {
+      try {
+        data = JSON.parse(payload.jsonData ?? "{}");
+      } catch {
+        data = payload.jsonData;
+      }
+    } else {
+      data = payload;
+    }
+
+    const results = data?.results || data?.organic_results || data?.items || [];
+    const snippets: string[] = [];
+    for (const result of (Array.isArray(results) ? results : []).slice(0, 3)) {
+      const title = result.title || result.name || "";
+      const snippet = result.snippet || result.description || result.content || "";
+      if (title || snippet) {
+        snippets.push(`Source: ${title}\n${snippet}`);
+      }
+    }
+
+    return snippets.length
+      ? `\n\nWEB RESEARCH CONTEXT (use these facts to make the post more current and credible):\n${snippets.join("\n\n---\n\n")}`
+      : "";
+  } catch (err) {
+    console.error("[contentGenerator] Web research error:", err);
+    return "";
+  }
+}
+
 // ─── Main generator ─────────────────────────────────────────────────────────
 
 export async function generateSocialPost(params: {
@@ -94,8 +157,10 @@ export async function generateSocialPost(params: {
   additionalContext?: string;
   brandVoice?: BrandVoice;
   accountContext?: AccountContext;
+  aiModel?: string;
+  enableWebResearch?: boolean;
 }): Promise<GeneratePostResult> {
-  const { platform, topic, tone, additionalContext, brandVoice, accountContext } = params;
+  const { platform, topic, tone, additionalContext, brandVoice, accountContext, aiModel, enableWebResearch } = params;
 
   const businessName = accountContext?.businessName || "the business";
   const brandSection = buildBrandVoiceSection(brandVoice);
@@ -126,9 +191,18 @@ ${additionalContext ? `\nADDITIONAL CONTEXT: ${additionalContext}` : ""}
 
 Return your response as valid JSON matching this exact schema.`;
 
+  // Optionally fetch web research
+  let researchContext = "";
+  if (enableWebResearch) {
+    researchContext = await fetchSocialWebResearch(topic);
+  }
+
+  const finalSystemPrompt = researchContext ? systemPrompt + researchContext : systemPrompt;
+
   const response = await invokeLLM({
+    model: aiModel || "gemini-2.5-flash",
     messages: [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: finalSystemPrompt },
       { role: "user", content: `Generate 3 social media post variations about: ${topic}` },
     ],
     response_format: {
@@ -207,8 +281,9 @@ export async function generateContentCalendar(params: {
   tone: Tone;
   brandVoice?: BrandVoice;
   accountContext?: AccountContext;
+  aiModel?: string;
 }): Promise<{ posts: Array<GeneratedPost & { platform: Platform; topic: string }> }> {
-  const { platforms, postsPerPlatform, topics, tone, brandVoice, accountContext } = params;
+  const { platforms, postsPerPlatform, topics, tone, brandVoice, accountContext, aiModel } = params;
 
   const businessName = accountContext?.businessName || "the business";
   const brandSection = buildBrandVoiceSection(brandVoice);
@@ -235,6 +310,7 @@ Do NOT include hashtags inside the main content text. Return them separately.
 Return your response as valid JSON matching this exact schema.`;
 
   const response = await invokeLLM({
+    model: aiModel || "gemini-2.5-flash",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: `Generate a content calendar with ${totalPosts} posts across ${platforms.join(", ")} about: ${topics.join(", ")}` },
