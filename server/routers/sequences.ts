@@ -17,9 +17,12 @@ import {
   unenrollContact,
   listSequenceEnrollments,
   getContactEnrollments,
+  getDb,
+  logContactActivity,
 } from "../db";
 import { computeFirstStepAt } from "../services/dripEngine";
-import { logContactActivity } from "../db";
+import { sequenceSteps, sequenceEnrollments } from "../../drizzle/schema";
+import { eq, and, sql, count, gte } from "drizzle-orm";
 
 export const sequencesRouter = router({
   /** List all sequences for an account */
@@ -319,5 +322,240 @@ export const sequencesRouter = router({
     .query(async ({ input, ctx }) => {
       await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       return getContactEnrollments(input.contactId, input.accountId);
+    }),
+
+  // ─── Webinar Config ───
+
+  /** Replace placeholders in all steps of a sequence */
+  updatePlaceholders: protectedProcedure
+    .input(
+      z.object({
+        sequenceId: z.number().int().positive(),
+        accountId: z.number().int().positive(),
+        replacements: z.array(
+          z.object({
+            placeholder: z.string(),
+            value: z.string(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const seq = await getSequenceById(input.sequenceId, input.accountId);
+      if (!seq) throw new TRPCError({ code: "NOT_FOUND", message: "Sequence not found" });
+      const steps = await listSequenceSteps(input.sequenceId);
+      let updatedSteps = 0;
+      for (const step of steps) {
+        let content = step.content;
+        let subject = step.subject || "";
+        let changed = false;
+        for (const { placeholder, value } of input.replacements) {
+          if (content.includes(placeholder)) {
+            content = content.split(placeholder).join(value);
+            changed = true;
+          }
+          if (subject.includes(placeholder)) {
+            subject = subject.split(placeholder).join(value);
+            changed = true;
+          }
+        }
+        if (changed) {
+          const data: Record<string, unknown> = { content };
+          if (step.subject !== null) data.subject = subject;
+          await updateSequenceStep(step.id, input.sequenceId, data as any);
+          updatedSteps++;
+        }
+      }
+      return { updatedSteps };
+    }),
+
+  // ─── Performance Stats ───
+
+  /** Get performance statistics for a sequence */
+  getStats: protectedProcedure
+    .input(
+      z.object({
+        sequenceId: z.number().int().positive(),
+        accountId: z.number().int().positive(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+
+      // 1. Status breakdown
+      const statusRows = await db
+        .select({
+          status: sequenceEnrollments.status,
+          cnt: count(),
+        })
+        .from(sequenceEnrollments)
+        .where(
+          and(
+            eq(sequenceEnrollments.sequenceId, input.sequenceId),
+            eq(sequenceEnrollments.accountId, input.accountId)
+          )
+        )
+        .groupBy(sequenceEnrollments.status);
+
+      const statusBreakdown = {
+        active: 0,
+        completed: 0,
+        paused: 0,
+        failed: 0,
+        unenrolled: 0,
+      };
+      let total = 0;
+      for (const row of statusRows) {
+        statusBreakdown[row.status] = row.cnt;
+        total += row.cnt;
+      }
+
+      // 2. Completion rate (exclude unenrolled from denominator)
+      const denominator = total - statusBreakdown.unenrolled;
+      const completionRate =
+        denominator > 0
+          ? Math.round((statusBreakdown.completed / denominator) * 1000) / 10
+          : 0;
+
+      // 3. Step distribution
+      const stepRows = await db
+        .select({
+          step: sequenceEnrollments.currentStep,
+          cnt: count(),
+        })
+        .from(sequenceEnrollments)
+        .where(
+          and(
+            eq(sequenceEnrollments.sequenceId, input.sequenceId),
+            eq(sequenceEnrollments.accountId, input.accountId),
+            eq(sequenceEnrollments.status, "active")
+          )
+        )
+        .groupBy(sequenceEnrollments.currentStep);
+
+      const stepDistribution = stepRows.map((r) => ({
+        step: r.step,
+        count: r.cnt,
+      }));
+
+      // 4. Enrollment source breakdown
+      const sourceRows = await db
+        .select({
+          source: sequenceEnrollments.enrollmentSource,
+          cnt: count(),
+        })
+        .from(sequenceEnrollments)
+        .where(
+          and(
+            eq(sequenceEnrollments.sequenceId, input.sequenceId),
+            eq(sequenceEnrollments.accountId, input.accountId)
+          )
+        )
+        .groupBy(sequenceEnrollments.enrollmentSource);
+
+      const sourceBreakdown: Record<string, number> = {
+        manual: 0,
+        workflow: 0,
+        campaign: 0,
+        api: 0,
+      };
+      for (const row of sourceRows) {
+        if (row.source) sourceBreakdown[row.source] = row.cnt;
+      }
+
+      // 5. Enrollment trend — last 30 days
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const trendRows = await db
+        .select({
+          date: sql<string>`DATE(${sequenceEnrollments.enrolledAt})`.as("date"),
+          cnt: count(),
+        })
+        .from(sequenceEnrollments)
+        .where(
+          and(
+            eq(sequenceEnrollments.sequenceId, input.sequenceId),
+            eq(sequenceEnrollments.accountId, input.accountId),
+            gte(sequenceEnrollments.enrolledAt, thirtyDaysAgo)
+          )
+        )
+        .groupBy(sql`DATE(${sequenceEnrollments.enrolledAt})`);
+
+      const enrollmentTrend = trendRows.map((r) => ({
+        date: r.date,
+        count: r.cnt,
+      }));
+
+      // 6. Average time to complete (hours)
+      const avgResult = await db
+        .select({
+          avgHours:
+            sql<number>`AVG(TIMESTAMPDIFF(HOUR, ${sequenceEnrollments.enrolledAt}, ${sequenceEnrollments.completedAt}))`.as(
+              "avgHours"
+            ),
+        })
+        .from(sequenceEnrollments)
+        .where(
+          and(
+            eq(sequenceEnrollments.sequenceId, input.sequenceId),
+            eq(sequenceEnrollments.accountId, input.accountId),
+            eq(sequenceEnrollments.status, "completed")
+          )
+        );
+
+      const avgCompletionHours = avgResult[0]?.avgHours ?? null;
+
+      return {
+        statusBreakdown: { ...statusBreakdown, total },
+        completionRate,
+        stepDistribution,
+        sourceBreakdown,
+        enrollmentTrend,
+        avgCompletionHours,
+      };
+    }),
+
+  // ─── Clone Sequence ───
+
+  /** Clone a sequence with all its steps */
+  clone: protectedProcedure
+    .input(
+      z.object({
+        sequenceId: z.number().int().positive(),
+        accountId: z.number().int().positive(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const seq = await getSequenceById(input.sequenceId, input.accountId);
+      if (!seq) throw new TRPCError({ code: "NOT_FOUND", message: "Sequence not found" });
+
+      const steps = await listSequenceSteps(input.sequenceId);
+
+      // Create the clone
+      const newName = `Copy of ${seq.name}`;
+      const { id: newId } = await createSequence({
+        accountId: input.accountId,
+        name: newName,
+        description: seq.description || null,
+        createdById: ctx.user.id,
+      });
+
+      // Copy all steps
+      for (const step of steps) {
+        await createSequenceStep({
+          sequenceId: newId,
+          position: step.position,
+          delayDays: step.delayDays,
+          delayHours: step.delayHours,
+          messageType: step.messageType,
+          subject: step.subject || null,
+          content: step.content,
+          templateId: step.templateId || null,
+        });
+      }
+
+      return { id: newId, name: newName, isTemplate: seq.name.includes("[TEMPLATE]") };
     }),
 });

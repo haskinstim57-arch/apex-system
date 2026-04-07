@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useAccount } from "@/contexts/AccountContext";
@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +42,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   Plus,
@@ -55,13 +56,16 @@ import {
   Users,
   ArrowUp,
   ArrowDown,
-  GripVertical,
   ChevronLeft,
   Zap,
   Send,
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Settings2,
+  Copy,
+  TrendingUp,
+  Activity,
 } from "lucide-react";
 
 // ─── Types ───
@@ -89,6 +93,11 @@ interface Sequence {
   steps?: SequenceStep[];
 }
 
+// ─── Helper: detect template sequences ───
+function isTemplate(name: string): boolean {
+  return name.includes("[TEMPLATE]");
+}
+
 // ─── Main Component ───
 export default function Sequences() {
   const { user } = useAuth();
@@ -98,6 +107,8 @@ export default function Sequences() {
   const [selectedSequenceId, setSelectedSequenceId] = useState<number | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<number | null>(null);
+  // pendingConfigureId: after cloning a template, auto-open Configure dialog
+  const [pendingConfigureId, setPendingConfigureId] = useState<number | null>(null);
 
   // ─── Queries ───
   const { data: sequences = [], isLoading } = trpc.sequences.list.useQuery(
@@ -137,6 +148,20 @@ export default function Sequences() {
     },
   });
 
+  // ─── Clone Mutation ───
+  const cloneMutation = trpc.sequences.clone.useMutation({
+    onSuccess: (data) => {
+      utils.sequences.list.invalidate();
+      toast.success(`Cloned as "${data.name}" — it's in Draft status`);
+      setSelectedSequenceId(data.id);
+      setView("builder");
+      // If the original was a template, auto-open configure dialog
+      if (data.isTemplate) {
+        setPendingConfigureId(data.id);
+      }
+    },
+  });
+
   // ─── Stats ───
   const stats = useMemo(() => {
     const total = sequences.length;
@@ -159,10 +184,17 @@ export default function Sequences() {
       <SequenceBuilder
         sequenceId={selectedSequenceId}
         accountId={accountId}
+        pendingConfigureId={pendingConfigureId}
+        onClearPendingConfigure={() => setPendingConfigureId(null)}
         onBack={() => {
           setView("list");
           setSelectedSequenceId(null);
+          setPendingConfigureId(null);
         }}
+        onClone={(seqId: number) => {
+          cloneMutation.mutate({ sequenceId: seqId, accountId });
+        }}
+        isCloning={cloneMutation.isPending}
       />
     );
   }
@@ -264,6 +296,11 @@ export default function Sequences() {
                     <div className="flex items-center gap-2">
                       <h3 className="font-semibold truncate">{seq.name}</h3>
                       <StatusBadge status={seq.status} />
+                      {isTemplate(seq.name) && (
+                        <Badge className="bg-yellow-500/15 text-yellow-600 border-yellow-300 text-[10px] px-1.5 py-0">
+                          TEMPLATE
+                        </Badge>
+                      )}
                     </div>
                     {seq.description && (
                       <p className="text-sm text-muted-foreground truncate mt-0.5">
@@ -306,6 +343,16 @@ export default function Sequences() {
                           Activate
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          cloneMutation.mutate({ sequenceId: seq.id, accountId });
+                        }}
+                        disabled={cloneMutation.isPending}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Clone Sequence
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-destructive"
@@ -435,15 +482,146 @@ function CreateSequenceDialog({
   );
 }
 
+// ─── Configure Event Dialog ───
+function ConfigureEventDialog({
+  open,
+  onClose,
+  sequenceId,
+  accountId,
+  stepCount,
+}: {
+  open: boolean;
+  onClose: () => void;
+  sequenceId: number;
+  accountId: number;
+  stepCount: number;
+}) {
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
+  const [joinLink, setJoinLink] = useState("");
+  const [calendarLink, setCalendarLink] = useState("");
+  const utils = trpc.useUtils();
+
+  const updatePlaceholders = trpc.sequences.updatePlaceholders.useMutation({
+    onSuccess: (data) => {
+      utils.sequences.get.invalidate({ id: sequenceId, accountId });
+      toast.success(`All steps updated (${data.updatedSteps} steps modified)`);
+      onClose();
+      setEventDate("");
+      setEventTime("");
+      setJoinLink("");
+      setCalendarLink("");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to update steps");
+    },
+  });
+
+  const handleSubmit = () => {
+    const replacements: { placeholder: string; value: string }[] = [];
+    if (eventDate.trim()) replacements.push({ placeholder: "[WEBINAR DATE]", value: eventDate.trim() });
+    if (eventTime.trim()) replacements.push({ placeholder: "[WEBINAR TIME]", value: eventTime.trim() });
+    if (joinLink.trim()) replacements.push({ placeholder: "[WEBINAR LINK]", value: joinLink.trim() });
+    if (calendarLink.trim()) replacements.push({ placeholder: "[CALENDAR LINK]", value: calendarLink.trim() });
+
+    if (replacements.length === 0) {
+      toast.error("Please fill in at least one field");
+      return;
+    }
+
+    updatePlaceholders.mutate({ sequenceId, accountId, replacements });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose(); }}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5" />
+            Configure Webinar Event
+          </DialogTitle>
+          <DialogDescription>
+            Update the date, time, and link for this event. All steps will be updated automatically.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div>
+            <Label>Event Date</Label>
+            <Input
+              placeholder="e.g. Tuesday, April 15th at 7:00 PM EST"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Replaces [WEBINAR DATE] in all steps</p>
+          </div>
+          <div>
+            <Label>Event Time</Label>
+            <Input
+              placeholder="e.g. 7:00 PM EST"
+              value={eventTime}
+              onChange={(e) => setEventTime(e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Replaces [WEBINAR TIME] in all steps</p>
+          </div>
+          <div>
+            <Label>Join Link</Label>
+            <Input
+              placeholder="e.g. https://zoom.us/j/..."
+              value={joinLink}
+              onChange={(e) => setJoinLink(e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Replaces [WEBINAR LINK] in all steps</p>
+          </div>
+          <div>
+            <Label>Calendar Link</Label>
+            <Input
+              placeholder="e.g. https://calendly.com/..."
+              value={calendarLink}
+              onChange={(e) => setCalendarLink(e.target.value)}
+              className="mt-1"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Replaces [CALENDAR LINK] in all steps</p>
+          </div>
+          <div className="rounded-md bg-muted/50 p-3 text-sm text-muted-foreground">
+            This will update all <strong>{stepCount}</strong> step{stepCount !== 1 ? "s" : ""} in this sequence.
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            disabled={updatePlaceholders.isPending}
+          >
+            {updatePlaceholders.isPending ? "Updating..." : "Update All Steps"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Sequence Builder ───
 function SequenceBuilder({
   sequenceId,
   accountId,
+  pendingConfigureId,
+  onClearPendingConfigure,
   onBack,
+  onClone,
+  isCloning,
 }: {
   sequenceId: number;
   accountId: number;
+  pendingConfigureId: number | null;
+  onClearPendingConfigure: () => void;
   onBack: () => void;
+  onClone: (seqId: number) => void;
+  isCloning: boolean;
 }) {
   const utils = trpc.useUtils();
 
@@ -452,11 +630,21 @@ function SequenceBuilder({
     { enabled: !!sequenceId }
   );
 
+  const [activeTab, setActiveTab] = useState<string>("steps");
   const [showStepDialog, setShowStepDialog] = useState(false);
   const [editingStep, setEditingStep] = useState<SequenceStep | null>(null);
   const [showEnrollments, setShowEnrollments] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
+  const [showConfigureDialog, setShowConfigureDialog] = useState(false);
+
+  // Auto-open Configure dialog for pending template clones
+  useEffect(() => {
+    if (pendingConfigureId && pendingConfigureId === sequenceId && sequence) {
+      setShowConfigureDialog(true);
+      onClearPendingConfigure();
+    }
+  }, [pendingConfigureId, sequenceId, sequence, onClearPendingConfigure]);
 
   const updateSeq = trpc.sequences.update.useMutation({
     onSuccess: () => {
@@ -507,6 +695,7 @@ function SequenceBuilder({
   }
 
   const steps = (sequence.steps || []) as SequenceStep[];
+  const seqIsTemplate = isTemplate(sequence.name);
 
   function moveStep(index: number, direction: "up" | "down") {
     const newOrder = [...steps];
@@ -568,15 +757,22 @@ function SequenceBuilder({
                 </Button>
               </div>
             ) : (
-              <h1
-                className="text-2xl font-bold tracking-tight cursor-pointer hover:text-primary transition-colors"
-                onClick={() => {
-                  setEditName(sequence.name);
-                  setIsEditingName(true);
-                }}
-              >
-                {sequence.name}
-              </h1>
+              <div className="flex items-center gap-2">
+                <h1
+                  className="text-2xl font-bold tracking-tight cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => {
+                    setEditName(sequence.name);
+                    setIsEditingName(true);
+                  }}
+                >
+                  {sequence.name}
+                </h1>
+                {seqIsTemplate && (
+                  <Badge className="bg-yellow-500/15 text-yellow-600 border-yellow-300 text-[10px] px-1.5 py-0">
+                    TEMPLATE
+                  </Badge>
+                )}
+              </div>
             )}
             <div className="flex items-center gap-2 mt-1">
               <StatusBadge status={sequence.status} />
@@ -587,6 +783,25 @@ function SequenceBuilder({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {seqIsTemplate && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowConfigureDialog(true)}
+            >
+              <Settings2 className="h-4 w-4 mr-2" />
+              Configure Event
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onClone(sequenceId)}
+            disabled={isCloning}
+          >
+            <Copy className="h-4 w-4 mr-2" />
+            {isCloning ? "Cloning..." : "Clone"}
+          </Button>
           <Button
             variant="outline"
             size="sm"
@@ -622,199 +837,213 @@ function SequenceBuilder({
         <EnrollmentPanel sequenceId={sequenceId} accountId={accountId} />
       )}
 
-      {/* Steps Timeline */}
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Sequence Steps</CardTitle>
-              <CardDescription>
-                Messages are sent in order with configured delays between each step.
-              </CardDescription>
-            </div>
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingStep(null);
-                setShowStepDialog(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Step
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {steps.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
-              <Clock className="h-10 w-10 text-muted-foreground mb-3" />
-              <h3 className="font-semibold mb-1">No steps yet</h3>
-              <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-                Add your first step to start building the drip sequence timeline.
-              </p>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditingStep(null);
-                  setShowStepDialog(true);
-                }}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add First Step
-              </Button>
-            </div>
-          ) : (
-            <div className="relative">
-              {/* Timeline line */}
-              <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border" />
+      {/* Tabs: Steps | Performance */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="steps">Steps</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+        </TabsList>
 
-              <div className="space-y-0">
-                {steps.map((step, index) => (
-                  <div key={step.id} className="relative flex gap-4 pb-6 last:pb-0">
-                    {/* Timeline dot */}
-                    <div
-                      className={`relative z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-2 ${
-                        step.messageType === "email"
-                          ? "bg-blue-500/10 border-blue-300 text-blue-600"
-                          : "bg-green-500/10 border-green-300 text-green-600"
-                      }`}
-                    >
-                      {step.messageType === "email" ? (
-                        <Mail className="h-5 w-5" />
-                      ) : (
-                        <MessageSquare className="h-5 w-5" />
-                      )}
-                    </div>
-
-                    {/* Step Card */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between bg-card border rounded-lg p-4 hover:border-primary/30 transition-colors">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-medium text-muted-foreground uppercase">
-                              Step {step.position}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {step.messageType === "email" ? "Email" : "SMS"}
-                            </Badge>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {step.delayDays > 0 || step.delayHours > 0
-                                ? `Wait ${step.delayDays > 0 ? `${step.delayDays}d` : ""}${step.delayHours > 0 ? ` ${step.delayHours}h` : ""}`
-                                : "No delay"}
-                            </span>
-                            <span className="text-xs text-primary/70">
-                              ({getCumulativeDelay(index)})
-                            </span>
-                          </div>
-                          {step.subject && (
-                            <div className="text-sm font-medium mb-1 truncate">
-                              Subject: {step.subject}
-                            </div>
-                          )}
-                          <p className="text-sm text-muted-foreground line-clamp-2">
-                            {step.content}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 ml-3 shrink-0">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={index === 0}
-                            onClick={() => moveStep(index, "up")}
-                          >
-                            <ArrowUp className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={index === steps.length - 1}
-                            onClick={() => moveStep(index, "down")}
-                          >
-                            <ArrowDown className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={() => {
-                              setEditingStep(step);
-                              setShowStepDialog(true);
-                            }}
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-destructive hover:text-destructive"
-                            onClick={() => {
-                              deleteStep.mutate({ id: step.id, sequenceId, accountId });
-                            }}
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add step at end */}
-              <div className="relative flex gap-4 pt-2">
-                <div className="relative z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-2 border-dashed border-muted-foreground/30 text-muted-foreground">
-                  <Plus className="h-5 w-5" />
+        <TabsContent value="steps">
+          {/* Steps Timeline */}
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Sequence Steps</CardTitle>
+                  <CardDescription>
+                    Messages are sent in order with configured delays between each step.
+                  </CardDescription>
                 </div>
                 <Button
-                  variant="outline"
-                  className="border-dashed"
+                  size="sm"
                   onClick={() => {
                     setEditingStep(null);
                     setShowStepDialog(true);
                   }}
                 >
-                  Add Another Step
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Step
                 </Button>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardHeader>
+            <CardContent>
+              {steps.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center border-2 border-dashed rounded-lg">
+                  <Clock className="h-10 w-10 text-muted-foreground mb-3" />
+                  <h3 className="font-semibold mb-1">No steps yet</h3>
+                  <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+                    Add your first step to start building the drip sequence timeline.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setEditingStep(null);
+                      setShowStepDialog(true);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add First Step
+                  </Button>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Timeline line */}
+                  <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-border" />
 
-      {/* Merge Tags Reference */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Available Merge Tags</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {[
-              "{{firstName}}",
-              "{{lastName}}",
-              "{{email}}",
-              "{{phone}}",
-              "{{company}}",
-              "{{status}}",
-              "{{leadSource}}",
-            ].map((tag) => (
-              <Badge
-                key={tag}
-                variant="secondary"
-                className="cursor-pointer hover:bg-primary/10"
-                onClick={() => {
-                  navigator.clipboard.writeText(tag);
-                  toast.success(`${tag} copied to clipboard`);
-                }}
-              >
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+                  <div className="space-y-0">
+                    {steps.map((step, index) => (
+                      <div key={step.id} className="relative flex gap-4 pb-6 last:pb-0">
+                        {/* Timeline dot */}
+                        <div
+                          className={`relative z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                            step.messageType === "email"
+                              ? "bg-blue-500/10 border-blue-300 text-blue-600"
+                              : "bg-green-500/10 border-green-300 text-green-600"
+                          }`}
+                        >
+                          {step.messageType === "email" ? (
+                            <Mail className="h-5 w-5" />
+                          ) : (
+                            <MessageSquare className="h-5 w-5" />
+                          )}
+                        </div>
+
+                        {/* Step Card */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between bg-card border rounded-lg p-4 hover:border-primary/30 transition-colors">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs font-medium text-muted-foreground uppercase">
+                                  Step {step.position}
+                                </span>
+                                <Badge variant="outline" className="text-xs">
+                                  {step.messageType === "email" ? "Email" : "SMS"}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {step.delayDays > 0 || step.delayHours > 0
+                                    ? `Wait ${step.delayDays > 0 ? `${step.delayDays}d` : ""}${step.delayHours > 0 ? ` ${step.delayHours}h` : ""}`
+                                    : "No delay"}
+                                </span>
+                                <span className="text-xs text-primary/70">
+                                  ({getCumulativeDelay(index)})
+                                </span>
+                              </div>
+                              {step.subject && (
+                                <div className="text-sm font-medium mb-1 truncate">
+                                  Subject: {step.subject}
+                                </div>
+                              )}
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {step.content}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 ml-3 shrink-0">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={index === 0}
+                                onClick={() => moveStep(index, "up")}
+                              >
+                                <ArrowUp className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                disabled={index === steps.length - 1}
+                                onClick={() => moveStep(index, "down")}
+                              >
+                                <ArrowDown className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7"
+                                onClick={() => {
+                                  setEditingStep(step);
+                                  setShowStepDialog(true);
+                                }}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  deleteStep.mutate({ id: step.id, sequenceId, accountId });
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add step at end */}
+                  <div className="relative flex gap-4 pt-2">
+                    <div className="relative z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-2 border-dashed border-muted-foreground/30 text-muted-foreground">
+                      <Plus className="h-5 w-5" />
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="border-dashed"
+                      onClick={() => {
+                        setEditingStep(null);
+                        setShowStepDialog(true);
+                      }}
+                    >
+                      Add Another Step
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Merge Tags Reference */}
+          <Card className="mt-4">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Available Merge Tags</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "{{firstName}}",
+                  "{{lastName}}",
+                  "{{email}}",
+                  "{{phone}}",
+                  "{{company}}",
+                  "{{status}}",
+                  "{{leadSource}}",
+                ].map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="secondary"
+                    className="cursor-pointer hover:bg-primary/10"
+                    onClick={() => {
+                      navigator.clipboard.writeText(tag);
+                      toast.success(`${tag} copied to clipboard`);
+                    }}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="performance">
+          <PerformanceTab sequenceId={sequenceId} accountId={accountId} steps={steps} />
+        </TabsContent>
+      </Tabs>
 
       {/* Step Dialog */}
       <StepEditorDialog
@@ -844,6 +1073,258 @@ function SequenceBuilder({
         }}
         isLoading={addStep.isPending || updateStep.isPending}
       />
+
+      {/* Configure Event Dialog */}
+      <ConfigureEventDialog
+        open={showConfigureDialog}
+        onClose={() => setShowConfigureDialog(false)}
+        sequenceId={sequenceId}
+        accountId={accountId}
+        stepCount={steps.length}
+      />
+    </div>
+  );
+}
+
+// ─── Performance Tab ───
+function PerformanceTab({
+  sequenceId,
+  accountId,
+  steps,
+}: {
+  sequenceId: number;
+  accountId: number;
+  steps: SequenceStep[];
+}) {
+  const { data: stats, isLoading } = trpc.sequences.getStats.useQuery(
+    { sequenceId, accountId },
+    { enabled: !!sequenceId }
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Card key={i}>
+              <CardContent className="pt-4 pb-4">
+                <Skeleton className="h-4 w-20 mb-2" />
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-48 rounded-lg" />
+          <Skeleton className="h-48 rounded-lg" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!stats || stats.statusBreakdown.total === 0) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <TrendingUp className="h-8 w-8 text-primary" />
+          </div>
+          <h3 className="text-lg font-semibold mb-2">No enrollment data yet</h3>
+          <p className="text-muted-foreground max-w-md">
+            Enroll contacts in this sequence to start seeing performance metrics. Data will appear here once contacts begin progressing through the steps.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const { statusBreakdown, completionRate, stepDistribution, sourceBreakdown, enrollmentTrend, avgCompletionHours } = stats;
+  const avgDays = avgCompletionHours != null ? (avgCompletionHours / 24).toFixed(1) : "N/A";
+
+  // Build step distribution map for quick lookup
+  const stepCountMap: Record<number, number> = {};
+  for (const sd of stepDistribution) {
+    stepCountMap[sd.step] = sd.count;
+  }
+  const maxStepCount = Math.max(1, ...stepDistribution.map((s) => s.count));
+
+  // Source breakdown
+  const totalSources = Object.values(sourceBreakdown).reduce((a, b) => a + b, 0);
+  const sourceConfig: { key: string; label: string; color: string }[] = [
+    { key: "manual", label: "Manual", color: "bg-blue-500" },
+    { key: "workflow", label: "Workflow", color: "bg-green-500" },
+    { key: "campaign", label: "Campaign", color: "bg-orange-500" },
+    { key: "api", label: "API", color: "bg-purple-500" },
+  ];
+
+  // Enrollment trend — last 14 days for display
+  const trendDays: { date: string; count: number; label: string }[] = [];
+  const trendMap: Record<string, number> = {};
+  for (const t of enrollmentTrend) {
+    trendMap[t.date] = t.count;
+  }
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    const dateStr = d.toISOString().split("T")[0];
+    trendDays.push({
+      date: dateStr,
+      count: trendMap[dateStr] || 0,
+      label: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    });
+  }
+  const maxTrend = Math.max(1, ...trendDays.map((d) => d.count));
+  const totalTrend30 = enrollmentTrend.reduce((sum, t) => sum + t.count, 0);
+
+  return (
+    <div className="space-y-4">
+      {/* Row 1: Stat Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <Users className="h-4 w-4" />
+              Total Enrolled
+            </div>
+            <div className="text-2xl font-bold">{statusBreakdown.total}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <Activity className="h-4 w-4 text-green-600" />
+              Active
+            </div>
+            <div className="text-2xl font-bold text-green-600">{statusBreakdown.active}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <CheckCircle2 className="h-4 w-4 text-purple-600" />
+              Completed
+            </div>
+            <div className="text-2xl font-bold text-purple-600">{statusBreakdown.completed}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <TrendingUp className="h-4 w-4 text-blue-600" />
+              Completion Rate
+            </div>
+            <div className="text-2xl font-bold text-blue-600">{completionRate}%</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+              <Clock className="h-4 w-4" />
+              Avg. Time
+            </div>
+            <div className="text-2xl font-bold">{avgDays === "N/A" ? "N/A" : `${avgDays}d`}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Row 2: Step-by-Step Progress */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Where Contacts Are in the Sequence</CardTitle>
+          <CardDescription>Active contacts distributed across each step</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {steps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No steps in this sequence.</p>
+          ) : (
+            <div className="space-y-3">
+              {steps.map((step) => {
+                const cnt = stepCountMap[step.position] || 0;
+                const pct = maxStepCount > 0 ? (cnt / maxStepCount) * 100 : 0;
+                return (
+                  <div key={step.id} className="flex items-center gap-3">
+                    <div className="w-24 shrink-0 text-sm text-muted-foreground">
+                      <span className="font-medium">Step {step.position}</span>
+                      <span className="ml-1 text-xs">
+                        {step.messageType === "email" ? "📧" : "💬"}
+                      </span>
+                    </div>
+                    <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${
+                          step.messageType === "email" ? "bg-blue-500" : "bg-green-500"
+                        }`}
+                        style={{ width: `${Math.max(pct, cnt > 0 ? 2 : 0)}%` }}
+                      />
+                    </div>
+                    <div className="w-10 text-right text-sm font-medium">{cnt}</div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Row 3: Trend + Sources */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Enrollment Trend */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Enrollment Trend</CardTitle>
+            <CardDescription>{totalTrend30} enrollments in the last 30 days</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-end gap-[3px] h-32">
+              {trendDays.map((day) => {
+                const heightPct = maxTrend > 0 ? (day.count / maxTrend) * 100 : 0;
+                return (
+                  <div
+                    key={day.date}
+                    className="flex-1 bg-primary/80 hover:bg-primary rounded-t transition-colors cursor-default"
+                    style={{ height: `${Math.max(heightPct, day.count > 0 ? 4 : 1)}%` }}
+                    title={`${day.label}: ${day.count} enrollment${day.count !== 1 ? "s" : ""}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-2 text-[10px] text-muted-foreground">
+              <span>{trendDays[0]?.label}</span>
+              <span>{trendDays[trendDays.length - 1]?.label}</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Enrollment Sources */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Enrollment Sources</CardTitle>
+            <CardDescription>How contacts were enrolled</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {sourceConfig.map(({ key, label, color }) => {
+                const cnt = sourceBreakdown[key as keyof typeof sourceBreakdown] || 0;
+                const pct = totalSources > 0 ? (cnt / totalSources) * 100 : 0;
+                return (
+                  <div key={key} className="space-y-1">
+                    <div className="flex items-center justify-between text-sm">
+                      <span>{label}</span>
+                      <span className="font-medium">{cnt}</span>
+                    </div>
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${color}`}
+                        style={{ width: `${Math.max(pct, cnt > 0 ? 2 : 0)}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

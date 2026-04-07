@@ -3833,3 +3833,33 @@
 - [x] Log counts: 10 sequences (62 steps), 10 trigger workflows, 2 auto-stop workflows, 2 landing pages
 - [x] 15 vitest tests passing (worker, unenroll, seeder validation)
 - [x] Save checkpoint
+
+## Sequence Enhancements — Webinar Config UI + Performance Dashboard + Clone
+
+### Feature 1 — Webinar Date Configuration UI
+- [x] Backend: updatePlaceholders mutation (replace [WEBINAR DATE], [WEBINAR TIME], [WEBINAR LINK], [CALENDAR LINK] in all steps)
+- [x] Frontend: "Configure Event" button (Settings2 icon) in Builder header for [TEMPLATE] sequences
+- [x] Frontend: Configure dialog with 4 inputs (date, time, join link, calendar link)
+- [x] Frontend: Yellow "TEMPLATE" badge in list view and builder header
+- [x] Toast on success: "All steps updated"
+
+### Feature 2 — Sequence Performance Dashboard
+- [x] Backend: getStats query (status breakdown, completion rate, step distribution, source breakdown, enrollment trend, avg completion hours)
+- [x] Frontend: "Steps" / "Performance" tab bar in SequenceBuilder
+- [x] Frontend: 5 stat cards (Total Enrolled, Active, Completed, Completion Rate, Avg Time)
+- [x] Frontend: Step-by-Step Progress bars
+- [x] Frontend: Enrollment Trend (CSS bar chart, last 14 days)
+- [x] Frontend: Enrollment Sources (4 colored progress bars)
+- [x] Loading skeleton and empty state
+
+### Feature 3 — Clone Sequence
+- [x] Backend: clone mutation (copy sequence + all steps, name = "Copy of {original}")
+- [x] Frontend: Clone action in list view dropdown menu
+- [x] Frontend: Clone button in Builder header
+- [x] Frontend: pendingConfigureId state — auto-open Configure dialog after cloning a [TEMPLATE] sequence
+- [x] Toast on success + navigate to cloned sequence builder
+
+### Verification
+- [x] 0 TypeScript errors in sequences.ts and Sequences.tsx
+- [x] Vitest tests for updatePlaceholders, getStats, clone (15 tests passing)
+- [ ] Save checkpoint
