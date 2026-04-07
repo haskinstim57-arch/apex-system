@@ -3573,3 +3573,26 @@
 ### Verification
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Email Content Generation — Email Tab in Content Hub
+### Schema
+- [x] Add emailDrafts table to drizzle/schema.ts
+- [x] Run pnpm db:push
+### Backend (server/routers/emailContent.ts)
+- [x] Create emailContent router with generateEmail mutation (context-aware with conversation history)
+- [x] Add saveDraft mutation
+- [x] Add getDrafts query (paginated, filterable by contactId)
+- [x] Add updateDraft mutation (block edits if sent)
+- [x] Add deleteDraft mutation
+- [x] Add sendEmail mutation (fetch contact email, dispatch, update status)
+- [x] Register emailContentRouter in routers.ts
+### Frontend (Email tab in ContentHub.tsx)
+- [x] Add "Email" tab with Mail icon to ContentHub.tsx top-level tabs
+- [x] Section A: AI Email Generator card (template type, tone, topic, custom instructions, AI model, contact search)
+- [x] Contact-based generation: search contacts, show chip, enable conversation history
+- [x] Preview card after generation (subject, preview text, body with paragraph formatting, view source toggle)
+- [x] Save as Draft + Send Now buttons (Send only if contact with email selected)
+- [x] Section B: Saved Drafts table (subject, template badge, contact, date, status, actions)
+### Verification
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

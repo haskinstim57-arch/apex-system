@@ -97,7 +97,22 @@ import {
   ChevronRight,
   PhoneCall,
   GripVertical,
+  Mail,
+  Send,
+  User,
+  AlertTriangle,
+  ExternalLink,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Social Media types & constants (migrated from SocialMedia.tsx)
@@ -2280,6 +2295,698 @@ function SocialMediaTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Email Tab — AI Email Generator + Drafts
+// ═══════════════════════════════════════════════════════════════════════════
+
+const EMAIL_TEMPLATE_OPTIONS = [
+  { value: "newsletter", label: "Newsletter", desc: "200–350 word branded update" },
+  { value: "nurture", label: "Nurture", desc: "Value-first lead nurturing" },
+  { value: "follow_up", label: "Follow-Up", desc: "Reference a past conversation" },
+  { value: "introduction", label: "Introduction", desc: "First-touch outreach" },
+  { value: "promotional", label: "Promotional", desc: "Offer with urgency + CTA" },
+  { value: "re_engagement", label: "Re-Engagement", desc: "Win back cold contacts" },
+  { value: "custom", label: "Custom", desc: "Your own instructions" },
+] as const;
+
+const EMAIL_TONE_OPTIONS = [
+  { value: "professional", label: "Professional" },
+  { value: "friendly", label: "Friendly" },
+  { value: "casual", label: "Casual" },
+  { value: "urgent", label: "Urgent" },
+  { value: "empathetic", label: "Empathetic" },
+] as const;
+
+function EmailTab() {
+  const { currentAccountId: accountId } = useAccount();
+  const utils = trpc.useUtils();
+
+  // Generator state
+  const [emailTemplateType, setEmailTemplateType] = useState("newsletter");
+  const [emailTone, setEmailTone] = useState("professional");
+  const [emailTopic, setEmailTopic] = useState("");
+  const [emailCustomInstructions, setEmailCustomInstructions] = useState("");
+  const [emailAiModel, setEmailAiModel] = useState("gemini-2.5-flash");
+  const [showCustomInstructions, setShowCustomInstructions] = useState(false);
+
+  // Contact-based generation
+  const [useContact, setUseContact] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
+  const [selectedContact, setSelectedContact] = useState<{ id: number; name: string; email: string | null } | null>(null);
+  const [showContactDropdown, setShowContactDropdown] = useState(false);
+
+  // Generated email preview
+  const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; previewText: string; body: string; contactName: string | null } | null>(null);
+  const [showSource, setShowSource] = useState(false);
+
+  // Drafts
+  const [draftsPage, setDraftsPage] = useState(0);
+  const [viewDraft, setViewDraft] = useState<any | null>(null);
+  const [editDraft, setEditDraft] = useState<any | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+
+  // Send confirmation
+  const [sendConfirmDraftId, setSendConfirmDraftId] = useState<number | null>(null);
+  const [sendConfirmInfo, setSendConfirmInfo] = useState<{ name: string; email: string } | null>(null);
+
+  // Contact search query
+  const contactsQuery = trpc.contacts.list.useQuery(
+    { accountId: accountId!, search: contactSearch, limit: 8 },
+    { enabled: !!accountId && useContact && contactSearch.length >= 2 }
+  );
+
+  // Drafts query
+  const draftsQuery = trpc.emailContent.getDrafts.useQuery(
+    { accountId: accountId!, limit: 20, offset: draftsPage * 20 },
+    { enabled: !!accountId }
+  );
+
+  // Mutations
+  const generateMutation = trpc.emailContent.generateEmail.useMutation({
+    onSuccess: (data) => {
+      setGeneratedEmail(data);
+      toast.success("Email generated!");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const saveDraftMutation = trpc.emailContent.saveDraft.useMutation({
+    onSuccess: () => {
+      toast.success("Draft saved!");
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateDraftMutation = trpc.emailContent.updateDraft.useMutation({
+    onSuccess: () => {
+      toast.success("Draft updated!");
+      setEditDraft(null);
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteDraftMutation = trpc.emailContent.deleteDraft.useMutation({
+    onSuccess: () => {
+      toast.success("Draft deleted");
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const sendEmailMutation = trpc.emailContent.sendEmail.useMutation({
+    onSuccess: () => {
+      toast.success("Email sent!");
+      setSendConfirmDraftId(null);
+      setSendConfirmInfo(null);
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleGenerate = () => {
+    if (!accountId || !emailTopic.trim()) return;
+    generateMutation.mutate({
+      accountId,
+      templateType: emailTemplateType as any,
+      tone: emailTone as any,
+      topic: emailTopic.trim(),
+      customInstructions: emailCustomInstructions.trim() || undefined,
+      contactId: selectedContact?.id,
+      includeConversationHistory: useContact && !!selectedContact,
+      aiModel: emailAiModel,
+    });
+  };
+
+  const handleSaveDraft = () => {
+    if (!accountId || !generatedEmail) return;
+    saveDraftMutation.mutate({
+      accountId,
+      contactId: selectedContact?.id,
+      subject: generatedEmail.subject,
+      body: generatedEmail.body,
+      previewText: generatedEmail.previewText,
+      templateType: emailTemplateType,
+      tone: emailTone,
+      topic: emailTopic,
+      aiModel: emailAiModel,
+    });
+  };
+
+  const handleSendGenerated = () => {
+    // First save the draft, then send it
+    if (!accountId || !generatedEmail || !selectedContact?.email) return;
+    setSendConfirmInfo({ name: selectedContact.name || "Contact", email: selectedContact.email });
+    // We'll save and send after confirmation
+    setSendConfirmDraftId(-1); // -1 = generated email, not yet saved
+  };
+
+  const confirmSendGenerated = async () => {
+    if (!accountId || !generatedEmail) return;
+    try {
+      const { id } = await saveDraftMutation.mutateAsync({
+        accountId,
+        contactId: selectedContact?.id,
+        subject: generatedEmail.subject,
+        body: generatedEmail.body,
+        previewText: generatedEmail.previewText,
+        templateType: emailTemplateType,
+        tone: emailTone,
+        topic: emailTopic,
+        aiModel: emailAiModel,
+      });
+      await sendEmailMutation.mutateAsync({ accountId, draftId: id });
+    } catch {
+      // errors handled by mutation callbacks
+    }
+  };
+
+  const handleSendDraft = (draft: any) => {
+    const contactName = draft.contactName || "Contact";
+    // We need the contact's email - it's available in the drafts query via contactName
+    // For send, we just need to call the mutation - the backend fetches the email
+    setSendConfirmDraftId(draft.id);
+    setSendConfirmInfo({ name: contactName, email: "(loaded from contact record)" });
+  };
+
+  const copyToClipboard = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success(`${label} copied!`);
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Section A — AI Email Generator */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Mail className="h-5 w-5 text-primary" />
+            AI Email Generator
+          </CardTitle>
+          <CardDescription>
+            Generate professional emails with AI. Optionally personalize based on a contact's conversation history.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Row 1: Template Type + Tone */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Template Type</Label>
+              <Select value={emailTemplateType} onValueChange={setEmailTemplateType}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EMAIL_TEMPLATE_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>
+                      <div className="flex flex-col">
+                        <span>{t.label}</span>
+                        <span className="text-xs text-muted-foreground">{t.desc}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Tone</Label>
+              <Select value={emailTone} onValueChange={setEmailTone}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {EMAIL_TONE_OPTIONS.map((t) => (
+                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Row 2: Topic */}
+          <div className="space-y-2">
+            <Label>Topic / Subject</Label>
+            <Input
+              placeholder="e.g., Spring mortgage rates update, Follow up from our call..."
+              value={emailTopic}
+              onChange={(e) => setEmailTopic(e.target.value)}
+            />
+          </div>
+
+          {/* Row 3: AI Model */}
+          <div className="space-y-2">
+            <Label>AI Model</Label>
+            <Select value={emailAiModel} onValueChange={setEmailAiModel}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="gemini-2.5-flash">
+                  <div className="flex flex-col">
+                    <span>Gemini 2.5 Flash</span>
+                    <span className="text-xs text-muted-foreground">⚡ Fast · Lowest Cost</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gemini-2.5-pro">
+                  <div className="flex flex-col">
+                    <span>Gemini 2.5 Pro</span>
+                    <span className="text-xs text-muted-foreground">✨ Best Quality · High Cost</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gpt-4o">
+                  <div className="flex flex-col">
+                    <span>GPT-4o</span>
+                    <span className="text-xs text-muted-foreground">⚖️ Balanced · Medium Cost</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="gpt-4o-mini">
+                  <div className="flex flex-col">
+                    <span>GPT-4o Mini</span>
+                    <span className="text-xs text-muted-foreground">⚡ Fast · Low Cost</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Custom Instructions (collapsible) */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowCustomInstructions(!showCustomInstructions)}
+              className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+            >
+              {showCustomInstructions ? "▾" : "▸"} Custom Instructions {emailTemplateType === "custom" && "(recommended)"}
+            </button>
+            {(showCustomInstructions || emailTemplateType === "custom") && (
+              <Textarea
+                placeholder="Add specific instructions for the AI (e.g., mention a specific product, include a discount code, reference an event)..."
+                value={emailCustomInstructions}
+                onChange={(e) => setEmailCustomInstructions(e.target.value)}
+                rows={3}
+              />
+            )}
+          </div>
+
+          {/* Contact-based generation */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Switch checked={useContact} onCheckedChange={(v) => { setUseContact(v); if (!v) { setSelectedContact(null); setContactSearch(""); } }} />
+              <Label className="cursor-pointer">Generate from contact conversation</Label>
+            </div>
+            {useContact && (
+              <div className="relative">
+                {selectedContact ? (
+                  <div className="flex items-center gap-2 p-2 border rounded-md bg-muted/30">
+                    <User className="h-4 w-4 text-muted-foreground" />
+                    <Badge variant="secondary" className="gap-1">
+                      {selectedContact.name}
+                      {selectedContact.email && <span className="text-xs opacity-70">({selectedContact.email})</span>}
+                    </Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 ml-auto"
+                      onClick={() => { setSelectedContact(null); setContactSearch(""); }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search contacts by name, email, or phone..."
+                        className="pl-9"
+                        value={contactSearch}
+                        onChange={(e) => { setContactSearch(e.target.value); setShowContactDropdown(true); }}
+                        onFocus={() => setShowContactDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowContactDropdown(false), 200)}
+                      />
+                    </div>
+                    {showContactDropdown && contactSearch.length >= 2 && (
+                      <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground border rounded-md shadow-lg max-h-48 overflow-y-auto">
+                        {contactsQuery.isLoading ? (
+                          <div className="p-3 text-center text-sm text-muted-foreground">
+                            <Loader2 className="h-4 w-4 animate-spin inline mr-1" /> Searching...
+                          </div>
+                        ) : contactsQuery.data?.data && contactsQuery.data.data.length > 0 ? (
+                          contactsQuery.data.data.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 hover:bg-accent hover:text-accent-foreground text-sm flex items-center gap-2"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => {
+                                setSelectedContact({ id: c.id, name: `${c.firstName} ${c.lastName}`.trim(), email: c.email });
+                                setContactSearch("");
+                                setShowContactDropdown(false);
+                              }}
+                            >
+                              <User className="h-3 w-3 text-muted-foreground" />
+                              <span>{c.firstName} {c.lastName}</span>
+                              {c.email && <span className="text-xs text-muted-foreground ml-auto">{c.email}</span>}
+                            </button>
+                          ))
+                        ) : (
+                          <div className="p-3 text-center text-sm text-muted-foreground">No contacts found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Generate Button */}
+          <Button
+            onClick={handleGenerate}
+            disabled={!emailTopic.trim() || generateMutation.isPending}
+            className="w-full sm:w-auto"
+          >
+            {generateMutation.isPending ? (
+              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Generating...</>
+            ) : (
+              <><Sparkles className="h-4 w-4 mr-2" /> Generate Email</>
+            )}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Generated Email Preview */}
+      {generatedEmail && (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Eye className="h-5 w-5 text-primary" />
+              Generated Email Preview
+              {generatedEmail.contactName && (
+                <Badge variant="outline" className="ml-2 font-normal">
+                  <User className="h-3 w-3 mr-1" /> For: {generatedEmail.contactName}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Subject */}
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Subject Line</Label>
+              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
+                <span className="font-medium flex-1">{generatedEmail.subject}</span>
+                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(generatedEmail.subject, "Subject")}>
+                  <Copy className="h-3 w-3" />
+                </Button>
+              </div>
+            </div>
+
+            {/* Preview Text */}
+            {generatedEmail.previewText && (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Preview Text</Label>
+                <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
+                  <span className="text-sm text-muted-foreground flex-1">{generatedEmail.previewText}</span>
+                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(generatedEmail.previewText, "Preview text")}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Body */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email Body</Label>
+                <button
+                  type="button"
+                  onClick={() => setShowSource(!showSource)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  {showSource ? "View Rendered" : "View Source"}
+                </button>
+              </div>
+              {showSource ? (
+                <pre className="p-4 bg-muted/30 rounded-md text-sm whitespace-pre-wrap font-mono overflow-x-auto">{generatedEmail.body}</pre>
+              ) : (
+                <div
+                  className="p-4 bg-white dark:bg-zinc-900 rounded-md border prose prose-sm dark:prose-invert max-w-none"
+                  dangerouslySetInnerHTML={{ __html: generatedEmail.body }}
+                />
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button onClick={handleSaveDraft} disabled={saveDraftMutation.isPending} variant="outline">
+                {saveDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save as Draft
+              </Button>
+              <Button
+                onClick={handleSendGenerated}
+                disabled={!selectedContact?.email || sendEmailMutation.isPending}
+                title={!selectedContact?.email ? "Select a contact with an email address to send" : ""}
+              >
+                {sendEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+                Send Now
+              </Button>
+              <Button variant="ghost" onClick={() => copyToClipboard(generatedEmail.body, "Email body")}>
+                <Copy className="h-4 w-4 mr-2" /> Copy Body
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <Separator />
+
+      {/* Section B — Saved Drafts */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          Saved Drafts
+        </h3>
+
+        {draftsQuery.isLoading ? (
+          <div className="flex justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : !draftsQuery.data?.drafts.length ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Mail className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+              <p className="text-muted-foreground">No drafts yet. Generate an email and save it as a draft.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Contact</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {draftsQuery.data.drafts.map((draft) => (
+                    <TableRow key={draft.id}>
+                      <TableCell className="max-w-[200px] truncate font-medium">{draft.subject}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {draft.templateType.replace("_", " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {draft.contactName || <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {new Date(draft.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={draft.status === "sent" ? "default" : "secondary"} className={draft.status === "sent" ? "bg-green-600" : ""}>
+                          {draft.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setViewDraft(draft)}>
+                              <Eye className="h-4 w-4 mr-2" /> View
+                            </DropdownMenuItem>
+                            {draft.status !== "sent" && (
+                              <DropdownMenuItem onClick={() => {
+                                setEditDraft(draft);
+                                setEditSubject(draft.subject);
+                                setEditBody(draft.body);
+                              }}>
+                                <Edit className="h-4 w-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                            )}
+                            {draft.status !== "sent" && draft.contactId && (
+                              <DropdownMenuItem onClick={() => handleSendDraft(draft)}>
+                                <Send className="h-4 w-4 mr-2" /> Send
+                              </DropdownMenuItem>
+                            )}
+                            {draft.status !== "sent" && (
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => {
+                                  if (accountId) deleteDraftMutation.mutate({ accountId, id: draft.id });
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
+
+            {/* Pagination */}
+            {draftsQuery.data.total > 20 && (
+              <div className="flex justify-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={draftsPage === 0}
+                  onClick={() => setDraftsPage((p) => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground flex items-center">
+                  Page {draftsPage + 1} of {Math.ceil(draftsQuery.data.total / 20)}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={(draftsPage + 1) * 20 >= draftsQuery.data.total}
+                  onClick={() => setDraftsPage((p) => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* View Draft Dialog */}
+      <Dialog open={!!viewDraft} onOpenChange={(open) => { if (!open) setViewDraft(null); }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Email Draft</DialogTitle>
+            <DialogDescription>View the full email content</DialogDescription>
+          </DialogHeader>
+          {viewDraft && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Subject</Label>
+                <p className="font-medium">{viewDraft.subject}</p>
+              </div>
+              {viewDraft.previewText && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Preview Text</Label>
+                  <p className="text-sm text-muted-foreground">{viewDraft.previewText}</p>
+                </div>
+              )}
+              <div>
+                <Label className="text-xs text-muted-foreground">Body</Label>
+                <div
+                  className="p-4 bg-white dark:bg-zinc-900 rounded-md border prose prose-sm dark:prose-invert max-w-none mt-1"
+                  dangerouslySetInnerHTML={{ __html: viewDraft.body }}
+                />
+              </div>
+              <div className="flex gap-2 text-xs text-muted-foreground">
+                <Badge variant="outline" className="capitalize">{viewDraft.templateType.replace("_", " ")}</Badge>
+                {viewDraft.contactName && <Badge variant="secondary"><User className="h-3 w-3 mr-1" />{viewDraft.contactName}</Badge>}
+                <Badge variant={viewDraft.status === "sent" ? "default" : "secondary"} className={viewDraft.status === "sent" ? "bg-green-600" : ""}>{viewDraft.status}</Badge>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Draft Dialog */}
+      <Dialog open={!!editDraft} onOpenChange={(open) => { if (!open) setEditDraft(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Draft</DialogTitle>
+            <DialogDescription>Update the email subject and body</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Body (HTML)</Label>
+              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={10} className="font-mono text-sm" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDraft(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (accountId && editDraft) {
+                  updateDraftMutation.mutate({
+                    accountId,
+                    id: editDraft.id,
+                    subject: editSubject,
+                    body: editBody,
+                  });
+                }
+              }}
+              disabled={updateDraftMutation.isPending}
+            >
+              {updateDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Confirmation Dialog */}
+      <AlertDialog open={sendConfirmDraftId !== null} onOpenChange={(open) => { if (!open) { setSendConfirmDraftId(null); setSendConfirmInfo(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" /> Confirm Send
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {sendConfirmInfo && (
+                <>Send this email to <strong>{sendConfirmInfo.name}</strong>? The email will be delivered via your configured email provider.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (sendConfirmDraftId === -1) {
+                  confirmSendGenerated();
+                } else if (accountId && sendConfirmDraftId) {
+                  sendEmailMutation.mutate({ accountId, draftId: sendConfirmDraftId });
+                }
+              }}
+            >
+              {sendEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              Send Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Main Content Hub Page — Top-level Tabs
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -2321,7 +3028,7 @@ export default function ContentHub() {
           Content Hub
         </h1>
         <p className="text-muted-foreground text-sm mt-1">
-          Generate, manage, and repurpose all your content — blog articles and social media — in one place.
+          Generate, manage, and repurpose all your content — blog articles, social media, and email — in one place.
         </p>
       </div>
 
@@ -2336,6 +3043,10 @@ export default function ContentHub() {
             <Share2 className="h-4 w-4" />
             Social Media
           </TabsTrigger>
+          <TabsTrigger value="email" className="gap-2">
+            <Mail className="h-4 w-4" />
+            Email
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="blog-articles">
@@ -2344,6 +3055,10 @@ export default function ContentHub() {
 
         <TabsContent value="social-media">
           <SocialMediaTab />
+        </TabsContent>
+
+        <TabsContent value="email">
+          <EmailTab />
         </TabsContent>
       </Tabs>
     </div>

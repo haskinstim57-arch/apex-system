@@ -2691,3 +2691,27 @@ export const repurposedContent = mysqlTable("repurposed_content", {
 });
 export type RepurposedContent = typeof repurposedContent.$inferSelect;
 export type InsertRepurposedContent = typeof repurposedContent.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// EMAIL DRAFTS — AI-generated email content
+// ─────────────────────────────────────────────
+export const emailDrafts = mysqlTable("email_drafts", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  createdByUserId: int("created_by_user_id"),
+  contactId: int("contact_id"),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  body: text("body").notNull(),
+  previewText: varchar("preview_text", { length: 255 }),
+  templateType: varchar("template_type", { length: 50 }).notNull(),
+  tone: varchar("tone", { length: 50 }),
+  topic: varchar("topic", { length: 500 }),
+  aiModel: varchar("ai_model", { length: 100 }),
+  status: varchar("status", { length: 20 }).default("draft").notNull(),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type EmailDraft = typeof emailDrafts.$inferSelect;
+export type InsertEmailDraft = typeof emailDrafts.$inferInsert;

@@ -575,6 +575,13 @@
       "when": 1775555601804,
       "tag": "0081_glossy_invaders",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "5",
+      "when": 1775570550761,
+      "tag": "0082_wild_george_stacy",
+      "breakpoints": true
     }
   ]
 }
