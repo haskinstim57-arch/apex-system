@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { requireAccountMember } from "./contacts";
-import { emailDrafts, contacts, messages, users, accounts } from "../../drizzle/schema";
+import { emailDrafts, emailSignatures, contacts, messages, users, accounts } from "../../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { invokeLLM } from "../_core/llm";
 import { trackUsage } from "../services/usageTracker";
@@ -227,11 +227,29 @@ export const emailContentRouter = router({
         console.error("[emailContent] Usage tracking failed:", err)
       );
 
+      // Auto-append default signature if one exists
+      let finalBody = parsed.body;
+      const [defaultSig] = await db
+        .select()
+        .from(emailSignatures)
+        .where(
+          and(
+            eq(emailSignatures.accountId, input.accountId),
+            eq(emailSignatures.isDefault, true)
+          )
+        )
+        .limit(1);
+
+      if (defaultSig) {
+        finalBody += `<br/><br/>${defaultSig.html}`;
+      }
+
       return {
         subject: parsed.subject,
         previewText: parsed.previewText || "",
-        body: parsed.body,
+        body: finalBody,
         contactName: contactName || null,
+        signatureAppended: !!defaultSig,
       };
     }),
 
@@ -613,13 +631,37 @@ export const emailContentRouter = router({
             draftId = insertResult.insertId;
           }
 
+          // Auto-append default signature
+          let finalBody = parsed.body;
+          const [defaultSig] = await db
+            .select()
+            .from(emailSignatures)
+            .where(
+              and(
+                eq(emailSignatures.accountId, input.accountId),
+                eq(emailSignatures.isDefault, true)
+              )
+            )
+            .limit(1);
+          if (defaultSig) {
+            finalBody += `<br/><br/>${defaultSig.html}`;
+          }
+
+          // Update draft body if saved with signature
+          if (draftId && defaultSig) {
+            await db
+              .update(emailDrafts)
+              .set({ body: finalBody })
+              .where(eq(emailDrafts.id, draftId));
+          }
+
           results.push({
             contactId: contact.id,
             contactName,
             contactEmail: contact.email,
             subject: parsed.subject,
             previewText: parsed.previewText || "",
-            body: parsed.body,
+            body: finalBody,
             draftId,
             error: null,
           });
@@ -785,6 +827,179 @@ export const emailContentRouter = router({
         totalSent: sentCount,
         totalFailed: results.length - sentCount,
       };
+    }),
+
+  // ─── Signatures: List ─────────────────────────────────────────────────
+  listSignatures: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const rows = await db
+        .select()
+        .from(emailSignatures)
+        .where(eq(emailSignatures.accountId, input.accountId))
+        .orderBy(desc(emailSignatures.createdAt));
+
+      return rows;
+    }),
+
+  // ─── Signatures: Create ───────────────────────────────────────────────
+  createSignature: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        name: z.string().min(1).max(255),
+        html: z.string().min(1),
+        isDefault: z.boolean().optional().default(false),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // If setting as default, unset all others first
+      if (input.isDefault) {
+        await db
+          .update(emailSignatures)
+          .set({ isDefault: false })
+          .where(eq(emailSignatures.accountId, input.accountId));
+      }
+
+      const [result] = await db.insert(emailSignatures).values({
+        accountId: input.accountId,
+        name: input.name,
+        html: input.html,
+        isDefault: input.isDefault,
+      });
+
+      return { id: result.insertId };
+    }),
+
+  // ─── Signatures: Update ───────────────────────────────────────────────
+  updateSignature: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        id: z.number(),
+        name: z.string().min(1).max(255).optional(),
+        html: z.string().min(1).optional(),
+        isDefault: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // Verify signature belongs to account
+      const [existing] = await db
+        .select()
+        .from(emailSignatures)
+        .where(
+          and(
+            eq(emailSignatures.id, input.id),
+            eq(emailSignatures.accountId, input.accountId)
+          )
+        )
+        .limit(1);
+
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Signature not found" });
+
+      // If setting as default, unset all others first
+      if (input.isDefault) {
+        await db
+          .update(emailSignatures)
+          .set({ isDefault: false })
+          .where(eq(emailSignatures.accountId, input.accountId));
+      }
+
+      const updateData: Record<string, any> = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.html !== undefined) updateData.html = input.html;
+      if (input.isDefault !== undefined) updateData.isDefault = input.isDefault;
+
+      await db
+        .update(emailSignatures)
+        .set(updateData)
+        .where(eq(emailSignatures.id, input.id));
+
+      return { success: true };
+    }),
+
+  // ─── Signatures: Delete ───────────────────────────────────────────────
+  deleteSignature: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        id: z.number(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const [existing] = await db
+        .select()
+        .from(emailSignatures)
+        .where(
+          and(
+            eq(emailSignatures.id, input.id),
+            eq(emailSignatures.accountId, input.accountId)
+          )
+        )
+        .limit(1);
+
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Signature not found" });
+
+      await db.delete(emailSignatures).where(eq(emailSignatures.id, input.id));
+
+      return { success: true };
+    }),
+
+  // ─── Signatures: Set Default ──────────────────────────────────────────
+  setDefaultSignature: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        id: z.number(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // Verify signature belongs to account
+      const [existing] = await db
+        .select()
+        .from(emailSignatures)
+        .where(
+          and(
+            eq(emailSignatures.id, input.id),
+            eq(emailSignatures.accountId, input.accountId)
+          )
+        )
+        .limit(1);
+
+      if (!existing) throw new TRPCError({ code: "NOT_FOUND", message: "Signature not found" });
+
+      // Unset all, then set this one
+      await db
+        .update(emailSignatures)
+        .set({ isDefault: false })
+        .where(eq(emailSignatures.accountId, input.accountId));
+
+      await db
+        .update(emailSignatures)
+        .set({ isDefault: true })
+        .where(eq(emailSignatures.id, input.id));
+
+      return { success: true };
     }),
 
   // ─── Send Email ─────────────────────────────────────────────────────────

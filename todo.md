@@ -3638,3 +3638,27 @@
 ### Verification
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Reusable HTML Email Signatures
+### Schema
+- [x] Add emailSignatures table (id, accountId, name, html, isDefault, createdAt, updatedAt)
+- [x] Run pnpm db:push
+### Backend (emailContent router)
+- [x] Add signatures.list query (all signatures for account)
+- [x] Add signatures.create mutation (name, html, isDefault)
+- [x] Add signatures.update mutation (name, html, isDefault — enforce only one default)
+- [x] Add signatures.delete mutation
+- [x] Add signatures.setDefault mutation (toggle default, unset others)
+- [x] Wire auto-append: in generateEmail, fetch default signature and append to body
+- [x] Wire auto-append: in bulkGenerateEmails, fetch default signature and append to body
+### Frontend (Email tab — Signatures sub-tab)
+- [x] Add "Signatures" sub-tab inside Email tab
+- [x] Signatures list with name, default badge, preview snippet, edit/delete actions
+- [x] Create/Edit dialog with name field, HTML editor (textarea + live preview), isDefault toggle
+- [x] Live preview of signature using EmailPreview-style rendering
+- [x] Set Default button on each signature card
+- [x] Add signature selector to single email generator (optional override of default)
+### Verification
+- [x] Verify build with 0 TypeScript errors (0 ContentHub/emailContent errors)
+- [x] Vitest tests for signature CRUD (8 tests passing)
+- [x] Save checkpoint

@@ -2715,3 +2715,19 @@ export const emailDrafts = mysqlTable("email_drafts", {
 });
 export type EmailDraft = typeof emailDrafts.$inferSelect;
 export type InsertEmailDraft = typeof emailDrafts.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// EMAIL SIGNATURES — Reusable HTML email signatures per account
+// ─────────────────────────────────────────────
+export const emailSignatures = mysqlTable("email_signatures", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  html: text("html").notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type EmailSignature = typeof emailSignatures.$inferSelect;
+export type InsertEmailSignature = typeof emailSignatures.$inferInsert;

@@ -112,6 +112,9 @@ import {
   ChevronUp,
   Check,
   XCircle,
+  PenLine,
+  Star,
+  Type,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -2326,7 +2329,277 @@ const EMAIL_TONE_OPTIONS = [
   { value: "empathetic", label: "Empathetic" },
 ] as const;
 
-function EmailTab() {
+// ─── Signatures Sub-Tab Component ────────────────────────────────────────────
+function EmailSignaturesTab() {
+  const { currentAccountId: accountId } = useAccount();
+  const utils = trpc.useUtils();
+
+  const [editingSignature, setEditingSignature] = useState<{ id?: number; name: string; html: string; isDefault: boolean } | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
+
+  const signaturesQuery = trpc.emailContent.listSignatures.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId }
+  );
+
+  const createMutation = trpc.emailContent.createSignature.useMutation({
+    onSuccess: () => {
+      toast.success("Signature created!");
+      setEditingSignature(null);
+      utils.emailContent.listSignatures.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateMutation = trpc.emailContent.updateSignature.useMutation({
+    onSuccess: () => {
+      toast.success("Signature updated!");
+      setEditingSignature(null);
+      utils.emailContent.listSignatures.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = trpc.emailContent.deleteSignature.useMutation({
+    onSuccess: () => {
+      toast.success("Signature deleted");
+      setDeleteConfirmId(null);
+      utils.emailContent.listSignatures.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const setDefaultMutation = trpc.emailContent.setDefaultSignature.useMutation({
+    onSuccess: () => {
+      toast.success("Default signature updated");
+      utils.emailContent.listSignatures.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSave = () => {
+    if (!accountId || !editingSignature) return;
+    if (!editingSignature.name.trim() || !editingSignature.html.trim()) {
+      toast.error("Name and HTML content are required");
+      return;
+    }
+    if (editingSignature.id) {
+      updateMutation.mutate({
+        accountId,
+        id: editingSignature.id,
+        name: editingSignature.name.trim(),
+        html: editingSignature.html.trim(),
+        isDefault: editingSignature.isDefault,
+      });
+    } else {
+      createMutation.mutate({
+        accountId,
+        name: editingSignature.name.trim(),
+        html: editingSignature.html.trim(),
+        isDefault: editingSignature.isDefault,
+      });
+    }
+  };
+
+  const signatures = signaturesQuery.data || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-lg font-semibold flex items-center gap-2">
+            <PenLine className="h-5 w-5" />
+            Email Signatures
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            Create reusable HTML signatures that auto-append to generated emails.
+          </p>
+        </div>
+        <Button onClick={() => setEditingSignature({ name: "", html: "", isDefault: signatures.length === 0 })}>
+          <Plus className="h-4 w-4 mr-1" />
+          New Signature
+        </Button>
+      </div>
+
+      {/* Signatures List */}
+      {signaturesQuery.isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : signatures.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <PenLine className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+            <p className="text-muted-foreground">No signatures yet. Create one to auto-append to your emails.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {signatures.map((sig) => (
+            <Card key={sig.id} className={sig.isDefault ? "border-primary/50 ring-1 ring-primary/20" : ""}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    {sig.name}
+                    {sig.isDefault && (
+                      <Badge variant="secondary" className="text-xs gap-1">
+                        <Star className="h-3 w-3 fill-current" />
+                        Default
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => setEditingSignature({ id: sig.id, name: sig.name, html: sig.html, isDefault: sig.isDefault })}>
+                        <Edit className="h-4 w-4 mr-2" /> Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setPreviewHtml(sig.html)}>
+                        <Eye className="h-4 w-4 mr-2" /> Preview
+                      </DropdownMenuItem>
+                      {!sig.isDefault && (
+                        <DropdownMenuItem onClick={() => accountId && setDefaultMutation.mutate({ accountId, id: sig.id })}>
+                          <Star className="h-4 w-4 mr-2" /> Set as Default
+                        </DropdownMenuItem>
+                      )}
+                      <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirmId(sig.id)}>
+                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                <CardDescription className="text-xs">
+                  Created {new Date(sig.createdAt).toLocaleDateString()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className="border rounded-md p-3 bg-muted/30 text-sm max-h-32 overflow-hidden relative"
+                  dangerouslySetInnerHTML={{ __html: sig.html }}
+                />
+                <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-muted/30 to-transparent pointer-events-none" style={{ position: 'relative', marginTop: '-2rem' }} />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Create/Edit Signature Dialog */}
+      <Dialog open={!!editingSignature} onOpenChange={(open) => !open && setEditingSignature(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PenLine className="h-5 w-5 text-primary" />
+              {editingSignature?.id ? "Edit Signature" : "Create Signature"}
+            </DialogTitle>
+            <DialogDescription>
+              Write your signature in HTML. Use inline styles for best email client compatibility.
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingSignature && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>Signature Name</Label>
+                <Input
+                  placeholder="e.g., Professional, Casual, Holiday..."
+                  value={editingSignature.name}
+                  onChange={(e) => setEditingSignature({ ...editingSignature, name: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>HTML Content</Label>
+                <Textarea
+                  className="font-mono text-sm min-h-[200px]"
+                  placeholder='<table cellpadding="0" cellspacing="0" style="font-family: Arial, sans-serif;">&#10;  <tr>&#10;    <td style="padding-right: 15px; border-right: 2px solid #0066cc;">&#10;      <strong>Your Name</strong><br/>&#10;      <span style="color: #666;">Title | Company</span>&#10;    </td>&#10;    <td style="padding-left: 15px;">&#10;      <span style="color: #666;">📞 (555) 123-4567</span><br/>&#10;      <a href="mailto:you@company.com" style="color: #0066cc;">you@company.com</a>&#10;    </td>&#10;  </tr>&#10;</table>'
+                  value={editingSignature.html}
+                  onChange={(e) => setEditingSignature({ ...editingSignature, html: e.target.value })}
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Switch
+                  checked={editingSignature.isDefault}
+                  onCheckedChange={(checked) => setEditingSignature({ ...editingSignature, isDefault: checked })}
+                />
+                <Label className="cursor-pointer">Set as default signature</Label>
+              </div>
+
+              {/* Live Preview */}
+              {editingSignature.html.trim() && (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">Live Preview</Label>
+                  <div className="border rounded-md p-4 bg-white">
+                    <div dangerouslySetInnerHTML={{ __html: editingSignature.html }} />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSignature(null)}>Cancel</Button>
+            <Button
+              onClick={handleSave}
+              disabled={createMutation.isPending || updateMutation.isPending}
+            >
+              {(createMutation.isPending || updateMutation.isPending) ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Saving...</>
+              ) : (
+                <><Save className="h-4 w-4 mr-1" /> {editingSignature?.id ? "Update" : "Create"}</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewHtml} onOpenChange={(open) => !open && setPreviewHtml(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Signature Preview</DialogTitle>
+          </DialogHeader>
+          <div className="border rounded-md p-6 bg-white">
+            <div dangerouslySetInnerHTML={{ __html: previewHtml || "" }} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Signature</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this signature? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => accountId && deleteConfirmId && deleteMutation.mutate({ accountId, id: deleteConfirmId })}
+              disabled={deleteMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Trash2 className="h-4 w-4 mr-1" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ─── Email Generator + Drafts Sub-Tab ────────────────────────────────────────
+function EmailGeneratorTab() {
   const { currentAccountId: accountId, currentAccount } = useAccount();
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -2349,14 +2622,7 @@ function EmailTab() {
   const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; previewText: string; body: string; contactName: string | null } | null>(null);
   const [showSource, setShowSource] = useState(false);
 
-  // Drafts
-  const [draftsPage, setDraftsPage] = useState(0);
-  const [viewDraft, setViewDraft] = useState<any | null>(null);
-  const [editDraft, setEditDraft] = useState<any | null>(null);
-  const [editSubject, setEditSubject] = useState("");
-  const [editBody, setEditBody] = useState("");
-
-  // Send confirmation
+  // Send confirmation (for generated email send)
   const [sendConfirmDraftId, setSendConfirmDraftId] = useState<number | null>(null);
   const [sendConfirmInfo, setSendConfirmInfo] = useState<{ name: string; email: string } | null>(null);
 
@@ -2387,12 +2653,6 @@ function EmailTab() {
     { enabled: !!accountId && bulkDialogOpen && bulkStep === 1 }
   );
 
-  // Drafts query
-  const draftsQuery = trpc.emailContent.getDrafts.useQuery(
-    { accountId: accountId!, limit: 20, offset: draftsPage * 20 },
-    { enabled: !!accountId }
-  );
-
   // Mutations
   const generateMutation = trpc.emailContent.generateEmail.useMutation({
     onSuccess: (data) => {
@@ -2405,23 +2665,6 @@ function EmailTab() {
   const saveDraftMutation = trpc.emailContent.saveDraft.useMutation({
     onSuccess: () => {
       toast.success("Draft saved!");
-      utils.emailContent.getDrafts.invalidate();
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const updateDraftMutation = trpc.emailContent.updateDraft.useMutation({
-    onSuccess: () => {
-      toast.success("Draft updated!");
-      setEditDraft(null);
-      utils.emailContent.getDrafts.invalidate();
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  const deleteDraftMutation = trpc.emailContent.deleteDraft.useMutation({
-    onSuccess: () => {
-      toast.success("Draft deleted");
       utils.emailContent.getDrafts.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -2512,15 +2755,7 @@ function EmailTab() {
     }
   };
 
-  const handleSendDraft = (draft: any) => {
-    const contactName = draft.contactName || "Contact";
-    // We need the contact's email - it's available in the drafts query via contactName
-    // For send, we just need to call the mutation - the backend fetches the email
-    setSendConfirmDraftId(draft.id);
-    setSendConfirmInfo({ name: contactName, email: "(loaded from contact record)" });
-  };
-
-  const copyToClipboard = (text: string, label: string) => {
+  const localCopyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied!`);
   };
@@ -2583,7 +2818,7 @@ function EmailTab() {
 
   return (
     <div className="space-y-8">
-      {/* Section A — AI Email Generator */}
+      {/* Section A \u2014 AI Email Generator */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -2823,7 +3058,7 @@ function EmailTab() {
                 {sendEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
                 Send Now
               </Button>
-              <Button variant="ghost" onClick={() => copyToClipboard(generatedEmail.body, "Email body")}>
+              <Button variant="ghost" onClick={() => localCopyToClipboard(generatedEmail.body, "Email body")}>
                 <Copy className="h-4 w-4 mr-2" /> Copy Body
               </Button>
             </div>
@@ -2831,199 +3066,7 @@ function EmailTab() {
         </Card>
       )}
 
-      <Separator />
 
-      {/* Section B — Saved Drafts */}
-      <div className="space-y-4">
-        <h3 className="text-lg font-semibold flex items-center gap-2">
-          <FileText className="h-5 w-5" />
-          Saved Drafts
-        </h3>
-
-        {draftsQuery.isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : !draftsQuery.data?.drafts.length ? (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Mail className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-              <p className="text-muted-foreground">No drafts yet. Generate an email and save it as a draft.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Template</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {draftsQuery.data.drafts.map((draft) => (
-                    <TableRow key={draft.id}>
-                      <TableCell className="max-w-[200px] truncate font-medium">{draft.subject}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {draft.templateType.replace("_", " ")}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {draft.contactName || <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {new Date(draft.createdAt).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={draft.status === "sent" ? "default" : "secondary"} className={draft.status === "sent" ? "bg-green-600" : ""}>
-                          {draft.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setViewDraft(draft)}>
-                              <Eye className="h-4 w-4 mr-2" /> View
-                            </DropdownMenuItem>
-                            {draft.status !== "sent" && (
-                              <DropdownMenuItem onClick={() => {
-                                setEditDraft(draft);
-                                setEditSubject(draft.subject);
-                                setEditBody(draft.body);
-                              }}>
-                                <Edit className="h-4 w-4 mr-2" /> Edit
-                              </DropdownMenuItem>
-                            )}
-                            {draft.status !== "sent" && draft.contactId && (
-                              <DropdownMenuItem onClick={() => handleSendDraft(draft)}>
-                                <Send className="h-4 w-4 mr-2" /> Send
-                              </DropdownMenuItem>
-                            )}
-                            {draft.status !== "sent" && (
-                              <DropdownMenuItem
-                                className="text-destructive"
-                                onClick={() => {
-                                  if (accountId) deleteDraftMutation.mutate({ accountId, id: draft.id });
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-
-            {/* Pagination */}
-            {draftsQuery.data.total > 20 && (
-              <div className="flex justify-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={draftsPage === 0}
-                  onClick={() => setDraftsPage((p) => p - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm text-muted-foreground flex items-center">
-                  Page {draftsPage + 1} of {Math.ceil(draftsQuery.data.total / 20)}
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={(draftsPage + 1) * 20 >= draftsQuery.data.total}
-                  onClick={() => setDraftsPage((p) => p + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* View Draft Dialog */}
-      <Dialog open={!!viewDraft} onOpenChange={(open) => { if (!open) setViewDraft(null); }}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Email Draft Preview
-              {viewDraft && (
-                <div className="flex gap-2 ml-2">
-                  <Badge variant="outline" className="capitalize font-normal">{viewDraft.templateType?.replace("_", " ")}</Badge>
-                  <Badge variant={viewDraft.status === "sent" ? "default" : "secondary"} className={viewDraft.status === "sent" ? "bg-green-600 font-normal" : "font-normal"}>{viewDraft.status}</Badge>
-                </div>
-              )}
-            </DialogTitle>
-            <DialogDescription>Preview how this email appears in inbox</DialogDescription>
-          </DialogHeader>
-          {viewDraft && (
-            <EmailPreview
-              subject={viewDraft.subject}
-              previewText={viewDraft.previewText || ""}
-              body={viewDraft.body}
-              senderName={user?.name || "You"}
-              senderEmail={user?.email || "you@company.com"}
-              recipientName={viewDraft.contactName || "Recipient"}
-              recipientEmail="recipient@email.com"
-              date={viewDraft.createdAt ? new Date(viewDraft.createdAt) : new Date()}
-              showActions={true}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* Edit Draft Dialog */}
-      <Dialog open={!!editDraft} onOpenChange={(open) => { if (!open) setEditDraft(null); }}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Draft</DialogTitle>
-            <DialogDescription>Update the email subject and body</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Subject</Label>
-              <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Body (HTML)</Label>
-              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={10} className="font-mono text-sm" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDraft(null)}>Cancel</Button>
-            <Button
-              onClick={() => {
-                if (accountId && editDraft) {
-                  updateDraftMutation.mutate({
-                    accountId,
-                    id: editDraft.id,
-                    subject: editSubject,
-                    body: editBody,
-                  });
-                }
-              }}
-              disabled={updateDraftMutation.isPending}
-            >
-              {updateDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Send Confirmation Dialog */}
       <AlertDialog open={sendConfirmDraftId !== null} onOpenChange={(open) => { if (!open) { setSendConfirmDraftId(null); setSendConfirmInfo(null); } }}>
@@ -3365,7 +3408,7 @@ function EmailTab() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => copyToClipboard(result.body, "Email body")}
+                                  onClick={() => localCopyToClipboard(result.body, "Email body")}
                                 >
                                   <Copy className="h-3 w-3 mr-1" /> Copy
                                 </Button>
@@ -3477,6 +3520,304 @@ function EmailTab() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// ─── Email Drafts Sub-Tab ───────────────────────────────────────────────
+function EmailDraftsTab() {
+  const { currentAccountId: accountId } = useAccount();
+  const { user } = useAuth();
+  const utils = trpc.useUtils();
+
+  const [draftsPage, setDraftsPage] = useState(0);
+  const [viewDraft, setViewDraft] = useState<any | null>(null);
+  const [editDraft, setEditDraft] = useState<any | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
+  const [sendConfirmDraftId, setSendConfirmDraftId] = useState<number | null>(null);
+  const [sendConfirmInfo, setSendConfirmInfo] = useState<{ name: string; email: string } | null>(null);
+
+  const draftsQuery = trpc.emailContent.getDrafts.useQuery(
+    { accountId: accountId!, limit: 20, offset: draftsPage * 20 },
+    { enabled: !!accountId }
+  );
+
+  const updateDraftMutation = trpc.emailContent.updateDraft.useMutation({
+    onSuccess: () => {
+      toast.success("Draft updated!");
+      setEditDraft(null);
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteDraftMutation = trpc.emailContent.deleteDraft.useMutation({
+    onSuccess: () => {
+      toast.success("Draft deleted");
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const sendEmailMutation = trpc.emailContent.sendEmail.useMutation({
+    onSuccess: () => {
+      toast.success("Email sent!");
+      setSendConfirmDraftId(null);
+      setSendConfirmInfo(null);
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSendDraft = (draft: any) => {
+    const contactName = draft.contactName || "Contact";
+    setSendConfirmDraftId(draft.id);
+    setSendConfirmInfo({ name: contactName, email: "(loaded from contact record)" });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <FileText className="h-5 w-5" />
+          Saved Drafts
+        </h3>
+      </div>
+
+      {draftsQuery.isLoading ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : !draftsQuery.data?.drafts.length ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Mail className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
+            <p className="text-muted-foreground">No drafts yet. Generate an email and save it as a draft.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Template</TableHead>
+                  <TableHead>Contact</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {draftsQuery.data.drafts.map((draft) => (
+                  <TableRow key={draft.id}>
+                    <TableCell className="max-w-[200px] truncate font-medium">{draft.subject}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs capitalize">
+                        {draft.templateType.replace("_", " ")}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm">
+                      {draft.contactName || <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {new Date(draft.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={draft.status === "sent" ? "default" : "secondary"} className={draft.status === "sent" ? "bg-green-600" : ""}>
+                        {draft.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setViewDraft(draft)}>
+                            <Eye className="h-4 w-4 mr-2" /> View
+                          </DropdownMenuItem>
+                          {draft.status !== "sent" && (
+                            <DropdownMenuItem onClick={() => {
+                              setEditDraft(draft);
+                              setEditSubject(draft.subject);
+                              setEditBody(draft.body);
+                            }}>
+                              <Edit className="h-4 w-4 mr-2" /> Edit
+                            </DropdownMenuItem>
+                          )}
+                          {draft.status !== "sent" && draft.contactId && (
+                            <DropdownMenuItem onClick={() => handleSendDraft(draft)}>
+                              <Send className="h-4 w-4 mr-2" /> Send
+                            </DropdownMenuItem>
+                          )}
+                          {draft.status !== "sent" && (
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => {
+                                if (accountId) deleteDraftMutation.mutate({ accountId, id: draft.id });
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </Card>
+
+          {draftsQuery.data.total > 20 && (
+            <div className="flex justify-center gap-2">
+              <Button variant="outline" size="sm" disabled={draftsPage === 0} onClick={() => setDraftsPage((p) => p - 1)}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-sm text-muted-foreground flex items-center">
+                Page {draftsPage + 1} of {Math.ceil(draftsQuery.data.total / 20)}
+              </span>
+              <Button variant="outline" size="sm" disabled={(draftsPage + 1) * 20 >= draftsQuery.data.total} onClick={() => setDraftsPage((p) => p + 1)}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* View Draft Dialog */}
+      <Dialog open={!!viewDraft} onOpenChange={(open) => { if (!open) setViewDraft(null); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              Email Draft Preview
+              {viewDraft && (
+                <div className="flex gap-2 ml-2">
+                  <Badge variant="outline" className="capitalize font-normal">{viewDraft.templateType?.replace("_", " ")}</Badge>
+                  <Badge variant={viewDraft.status === "sent" ? "default" : "secondary"} className={viewDraft.status === "sent" ? "bg-green-600 font-normal" : "font-normal"}>{viewDraft.status}</Badge>
+                </div>
+              )}
+            </DialogTitle>
+            <DialogDescription>Preview how this email appears in inbox</DialogDescription>
+          </DialogHeader>
+          {viewDraft && (
+            <EmailPreview
+              subject={viewDraft.subject}
+              previewText={viewDraft.previewText || ""}
+              body={viewDraft.body}
+              senderName={user?.name || "You"}
+              senderEmail={user?.email || "you@company.com"}
+              recipientName={viewDraft.contactName || "Recipient"}
+              recipientEmail="recipient@email.com"
+              date={viewDraft.createdAt ? new Date(viewDraft.createdAt) : new Date()}
+              showActions={true}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Draft Dialog */}
+      <Dialog open={!!editDraft} onOpenChange={(open) => { if (!open) setEditDraft(null); }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Draft</DialogTitle>
+            <DialogDescription>Update the email subject and body</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Subject</Label>
+              <Input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Body (HTML)</Label>
+              <Textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={10} className="font-mono text-sm" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDraft(null)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (accountId && editDraft) {
+                  updateDraftMutation.mutate({
+                    accountId,
+                    id: editDraft.id,
+                    subject: editSubject,
+                    body: editBody,
+                  });
+                }
+              }}
+              disabled={updateDraftMutation.isPending}
+            >
+              {updateDraftMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Send Confirmation Dialog */}
+      <AlertDialog open={sendConfirmDraftId !== null} onOpenChange={(open) => { if (!open) { setSendConfirmDraftId(null); setSendConfirmInfo(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" /> Confirm Send
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {sendConfirmInfo && (
+                <>Send this email to <strong>{sendConfirmInfo.name}</strong>? The email will be delivered via your configured email provider.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (accountId && sendConfirmDraftId) {
+                  sendEmailMutation.mutate({ accountId, draftId: sendConfirmDraftId });
+                }
+              }}
+            >
+              {sendEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
+              Send Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ─── Email Tab Wrapper with Sub-Tabs ─────────────────────────────────────────
+function EmailTab() {
+  return (
+    <Tabs defaultValue="generator" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+        <TabsTrigger value="generator" className="gap-1">
+          <Sparkles className="h-4 w-4" />
+          <span className="hidden sm:inline">Generator</span>
+        </TabsTrigger>
+        <TabsTrigger value="drafts" className="gap-1">
+          <FileText className="h-4 w-4" />
+          <span className="hidden sm:inline">Drafts</span>
+        </TabsTrigger>
+        <TabsTrigger value="signatures" className="gap-1">
+          <PenLine className="h-4 w-4" />
+          <span className="hidden sm:inline">Signatures</span>
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="generator">
+        <EmailGeneratorTab />
+      </TabsContent>
+      <TabsContent value="drafts">
+        <EmailDraftsTab />
+      </TabsContent>
+      <TabsContent value="signatures">
+        <EmailSignaturesTab />
+      </TabsContent>
+    </Tabs>
   );
 }
 
