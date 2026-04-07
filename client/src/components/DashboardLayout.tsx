@@ -52,7 +52,6 @@ import {
   FileText,
   Clock,
   Bot,
-  Share2,
   BookOpen,
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
@@ -87,7 +86,6 @@ const subAccountMenuItems = [
   { icon: ShieldCheck, label: "SMS Compliance", path: "/sms-compliance" },
   { icon: Kanban, label: "Pipeline", path: "/pipeline" },
   { icon: ClipboardList, label: "Forms", path: "/forms" },
-  { icon: Share2, label: "Social Media", path: "/social-media" },
   { icon: BookOpen, label: "Content Hub", path: "/content-hub" },
   { icon: Star, label: "Reputation", path: "/reputation" },
   { icon: Clock, label: "Message Queue", path: "/message-queue" },

@@ -54,7 +54,6 @@ import LeadMonitor from "./pages/LeadMonitor";
 import NotificationLog from "./pages/NotificationLog";
 import NotificationDeliveryDashboard from "./pages/NotificationDeliveryDashboard";
 import Billing from "./pages/Billing";
-const SocialMedia = lazy(() => import("./pages/SocialMedia"));
 const ContentHub = lazy(() => import("./pages/ContentHub"));
 const ContentDetail = lazy(() => import("./pages/ContentDetail"));
 import Offline from "./pages/Offline";
@@ -320,14 +319,6 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <MessageQueue />
-          </RequireAccount>
-        </DashboardLayout>
-      </Route>
-
-      <Route path="/social-media">
-        <DashboardLayout>
-          <RequireAccount>
-            <Suspense fallback={<LazyFallback />}><SocialMedia /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>

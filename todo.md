@@ -3483,3 +3483,14 @@
 - [x] Write vitest tests for longFormContent router
 - [x] Verify 0 TypeScript errors
 - [x] Save checkpoint
+
+## Consolidate Social Media into Content Hub
+- [x] Read SocialMedia.tsx to understand full functionality
+- [x] Rewrite ContentHub.tsx with top-level tab bar (Blog Articles + Social Media)
+- [x] Blog Articles tab: preserve all existing ContentHub functionality
+- [x] Social Media tab: migrate all SocialMedia.tsx functionality (generate, posts, calendar, brand voice)
+- [x] Remove "Social Media" nav item from DashboardLayout.tsx
+- [x] Remove SocialMedia lazy import and /social-media route from App.tsx
+- [x] Delete client/src/pages/SocialMedia.tsx
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint
