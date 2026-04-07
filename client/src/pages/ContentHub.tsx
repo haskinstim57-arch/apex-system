@@ -161,6 +161,7 @@ function BlogArticlesTab() {
   const [bulkWebResearch, setBulkWebResearch] = useState(false);
   const [bulkTemplateId, setBulkTemplateId] = useState<string>("none");
   const [bulkAiModel, setBulkAiModel] = useState("gemini-2.5-flash");
+  const [bulkGenerateImage, setBulkGenerateImage] = useState(false);
 
   const stableSearch = useMemo(() => searchQuery, [searchQuery]);
 
@@ -261,6 +262,7 @@ function BlogArticlesTab() {
       accountId,
       topics,
       enableWebResearch: bulkWebResearch,
+      shouldGenerateImage: bulkGenerateImage,
       templateId: bulkTemplateId !== "none" ? Number(bulkTemplateId) : undefined,
       aiModel: bulkAiModel,
     });
@@ -641,7 +643,12 @@ function BlogArticlesTab() {
       </Dialog>
 
       {/* ─── Bulk Generate Dialog ────────────────────────────────────────── */}
-      <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+      <Dialog open={showBulkDialog} onOpenChange={(open) => {
+        setShowBulkDialog(open);
+        if (!open) {
+          setBulkGenerateImage(false);
+        }
+      }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -727,6 +734,16 @@ function BlogArticlesTab() {
                 </p>
               </div>
               <Switch checked={bulkWebResearch} onCheckedChange={setBulkWebResearch} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Generate Featured Image</Label>
+                <p className="text-xs text-muted-foreground">
+                  Creates an AI image for each article (uses extra credits)
+                </p>
+              </div>
+              <Switch checked={bulkGenerateImage} onCheckedChange={setBulkGenerateImage} />
             </div>
           </div>
 

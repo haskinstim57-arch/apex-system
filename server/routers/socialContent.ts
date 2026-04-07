@@ -69,13 +69,21 @@ export const socialContentRouter = router({
       // Generate images if requested
       if (input.shouldGenerateImage) {
         const { generateImage } = await import("../_core/imageGeneration");
+        const { storagePut } = await import("../storage");
         for (const variation of result.variations) {
           if (variation.imagePrompt) {
             try {
               const img = await generateImage({ prompt: variation.imagePrompt });
-              variation.imageUrl = img.url ?? null;
+              const tempUrl = img.url;
+              if (tempUrl) {
+                const response = await fetch(tempUrl);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                const key = `social-images/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+                const stored = await storagePut(key, buffer, "image/jpeg");
+                variation.imageUrl = stored.url ?? tempUrl;
+              }
             } catch (err) {
-              console.error("[socialContent] Image generation failed:", err);
+              console.error("[socialContent] Image storage failed:", err);
               variation.imageUrl = null;
             }
           }

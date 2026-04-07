@@ -87,6 +87,11 @@ export default function ContentDetail() {
   const [showRepurpose, setShowRepurpose] = useState(false);
   const [repurposeFormat, setRepurposeFormat] = useState<string>("social-snippet");
   const [repurposePlatform, setRepurposePlatform] = useState<string>("");
+  const [repurposePreview, setRepurposePreview] = useState<string | null>(null);
+  const [repurposeEditing, setRepurposeEditing] = useState(false);
+  const [repurposeEditContent, setRepurposeEditContent] = useState("");
+  const [saveToSocialPosts, setSaveToSocialPosts] = useState(true);
+  const [repurposeStep, setRepurposeStep] = useState<"select" | "preview">("select");
 
   // ─── Queries ────────────────────────────────────────────────────────────
   const contentQuery = trpc.longFormContent.getById.useQuery(
@@ -123,11 +128,18 @@ export default function ContentDetail() {
 
   const repurposeMutation = trpc.longFormContent.repurpose.useMutation({
     onSuccess: (data) => {
-      toast.success(`${FORMAT_LABELS[data.format]?.label || data.format} generated`);
-      setShowRepurpose(false);
-      utils.longFormContent.getById.invalidate({ accountId: accountId!, id: contentId });
+      setRepurposePreview(data.content);
+      setRepurposeEditContent(data.content);
+      setRepurposeStep("preview");
     },
     onError: (err) => toast.error(err.message),
+  });
+
+  const saveDraftMutation = trpc.socialContent.saveDraft.useMutation({
+    onSuccess: () => {
+      toast.success("Saved to Social Posts");
+    },
+    onError: (err) => toast.error("Failed to save to Social Posts: " + err.message),
   });
 
   // ─── Handlers ───────────────────────────────────────────────────────────
@@ -166,7 +178,7 @@ export default function ContentDetail() {
     }
   }
 
-  function handleRepurpose() {
+  function handleGeneratePreview() {
     if (!accountId) return;
     repurposeMutation.mutate({
       accountId,
@@ -174,6 +186,35 @@ export default function ContentDetail() {
       format: repurposeFormat as any,
       platform: repurposePlatform || undefined,
     });
+  }
+
+  function handleRepurposeSave() {
+    if (!accountId) return;
+    const finalContent = repurposeEditing ? repurposeEditContent : (repurposePreview || "");
+    // The content is already saved by the mutation; we just need to handle the social post save
+    if (saveToSocialPosts && repurposeFormat === "social-snippet") {
+      const platform = repurposePlatform && repurposePlatform !== "any" ? repurposePlatform : "facebook";
+      saveDraftMutation.mutate({
+        accountId,
+        platform: platform as any,
+        content: finalContent,
+        hashtags: [],
+        topic: data?.topic || "",
+        tone: "professional",
+      });
+    }
+    toast.success(`${FORMAT_LABELS[repurposeFormat]?.label || repurposeFormat} saved`);
+    utils.longFormContent.getById.invalidate({ accountId: accountId!, id: contentId });
+    setShowRepurpose(false);
+    resetRepurposeDialog();
+  }
+
+  function resetRepurposeDialog() {
+    setRepurposePreview(null);
+    setRepurposeEditing(false);
+    setRepurposeEditContent("");
+    setRepurposeStep("select");
+    setSaveToSocialPosts(true);
   }
 
   const handleExport = useCallback(
@@ -587,75 +628,188 @@ ${data.content
       </div>
 
       {/* ─── Repurpose Dialog ──────────────────────────────────────────── */}
-      <Dialog open={showRepurpose} onOpenChange={setShowRepurpose}>
-        <DialogContent className="max-w-md">
+      <Dialog open={showRepurpose} onOpenChange={(open) => {
+        setShowRepurpose(open);
+        if (!open) resetRepurposeDialog();
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Recycle className="h-5 w-5 text-primary" />
               Repurpose Content
             </DialogTitle>
             <DialogDescription>
-              Transform this article into a different format for other channels.
+              {repurposeStep === "select"
+                ? "Transform this article into a different format for other channels."
+                : "Review the generated content before saving."}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div>
-              <Label>Output Format</Label>
-              <Select value={repurposeFormat} onValueChange={setRepurposeFormat}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(FORMAT_LABELS).map(([key, { label, icon }]) => (
-                    <SelectItem key={key} value={key}>
-                      <span className="flex items-center gap-2">
-                        {icon}
-                        {label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {repurposeStep === "select" ? (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <Label>Output Format</Label>
+                  <Select value={repurposeFormat} onValueChange={setRepurposeFormat}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="social-snippet">
+                        <div className="flex flex-col">
+                          <span className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            Social Snippet
+                          </span>
+                          <span className="text-xs text-muted-foreground">Short post (≤280 chars) with hook + CTA</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="email-summary">
+                        <div className="flex flex-col">
+                          <span className="flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            Email Summary
+                          </span>
+                          <span className="text-xs text-muted-foreground">150–250 word newsletter summary with subject line</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="short-form">
+                        <div className="flex flex-col">
+                          <span className="flex items-center gap-2">
+                            <FileText className="h-4 w-4" />
+                            Short-Form Article
+                          </span>
+                          <span className="text-xs text-muted-foreground">300–500 word condensed version</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="infographic-script">
+                        <div className="flex flex-col">
+                          <span className="flex items-center gap-2">
+                            <ImageIcon className="h-4 w-4" />
+                            Infographic Script
+                          </span>
+                          <span className="text-xs text-muted-foreground">Key stats and sections for a visual</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="video-script">
+                        <div className="flex flex-col">
+                          <span className="flex items-center gap-2">
+                            <Video className="h-4 w-4" />
+                            Video Script
+                          </span>
+                          <span className="text-xs text-muted-foreground">2–3 min script with speaker notes</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            {repurposeFormat === "social-snippet" && (
-              <div>
-                <Label>Platform (optional)</Label>
-                <Select value={repurposePlatform} onValueChange={setRepurposePlatform}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Any platform" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">Any platform</SelectItem>
-                    <SelectItem value="facebook">Facebook</SelectItem>
-                    <SelectItem value="instagram">Instagram</SelectItem>
-                    <SelectItem value="linkedin">LinkedIn</SelectItem>
-                    <SelectItem value="twitter">Twitter/X</SelectItem>
-                  </SelectContent>
-                </Select>
+                {repurposeFormat === "social-snippet" && (
+                  <div>
+                    <Label>Platform (optional)</Label>
+                    <Select value={repurposePlatform} onValueChange={setRepurposePlatform}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Any platform" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Any platform</SelectItem>
+                        <SelectItem value="facebook">Facebook</SelectItem>
+                        <SelectItem value="instagram">Instagram</SelectItem>
+                        <SelectItem value="linkedin">LinkedIn</SelectItem>
+                        <SelectItem value="twitter">Twitter/X</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRepurpose(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleRepurpose} disabled={repurposeMutation.isPending}>
-              {repurposeMutation.isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Recycle className="h-4 w-4 mr-2" />
-                  Repurpose
-                </>
-              )}
-            </Button>
-          </DialogFooter>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowRepurpose(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleGeneratePreview} disabled={repurposeMutation.isPending}>
+                  {repurposeMutation.isPending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <Recycle className="h-4 w-4 mr-2" />
+                      Generate Preview
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="space-y-4">
+                <div>
+                  <Label className="mb-2 block">Generated Content</Label>
+                  <Textarea
+                    value={repurposeEditing ? repurposeEditContent : (repurposePreview || "")}
+                    onChange={(e) => setRepurposeEditContent(e.target.value)}
+                    readOnly={!repurposeEditing}
+                    rows={10}
+                    className={!repurposeEditing ? "bg-muted/50" : ""}
+                  />
+                  <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
+                    <span>
+                      {(repurposeEditing ? repurposeEditContent : (repurposePreview || "")).length} characters
+                    </span>
+                    <span>
+                      {(repurposeEditing ? repurposeEditContent : (repurposePreview || "")).split(/\s+/).filter(Boolean).length} words
+                    </span>
+                  </div>
+                </div>
+
+                {repurposeFormat === "social-snippet" && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="saveToSocial"
+                      checked={saveToSocialPosts}
+                      onChange={(e) => setSaveToSocialPosts(e.target.checked)}
+                      className="h-4 w-4 rounded border-border"
+                    />
+                    <Label htmlFor="saveToSocial" className="text-sm cursor-pointer">
+                      Also save to Social Posts as draft
+                    </Label>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setRepurposeStep("select");
+                    setRepurposePreview(null);
+                    setRepurposeEditing(false);
+                  }}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" />
+                  Back
+                </Button>
+                <div className="flex gap-2 ml-auto">
+                  {!repurposeEditing ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => setRepurposeEditing(true)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit & Save
+                    </Button>
+                  ) : null}
+                  <Button onClick={handleRepurposeSave}>
+                    <Save className="h-4 w-4 mr-1" />
+                    {repurposeEditing ? "Save" : "Save As-Is"}
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

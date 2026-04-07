@@ -375,8 +375,22 @@ Return your response as valid JSON.`;
       if (input.shouldGenerateImage && parsed.imagePrompt) {
         try {
           const { generateImage } = await import("../_core/imageGeneration");
-          const result = await generateImage({ prompt: parsed.imagePrompt });
-          imageUrl = result.url ?? null;
+          const imgResult = await generateImage({ prompt: parsed.imagePrompt });
+          const tempUrl = imgResult.url;
+          if (tempUrl) {
+            try {
+              const { storagePut } = await import("../storage");
+              const response = await fetch(tempUrl);
+              const buffer = Buffer.from(await response.arrayBuffer());
+              const ext = "jpg";
+              const key = `content-images/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+              const stored = await storagePut(key, buffer, "image/jpeg");
+              imageUrl = stored.url ?? tempUrl;
+            } catch (err) {
+              console.error("[longFormContent] Image storage upload failed:", err);
+              imageUrl = tempUrl;
+            }
+          }
         } catch (err) {
           console.error("[longFormContent] Image generation failed:", err);
         }
@@ -446,6 +460,7 @@ Return your response as valid JSON.`;
         customPrompt: z.string().optional(),
         aiModel: z.string().optional(),
         enableWebResearch: z.boolean().optional().default(false),
+        shouldGenerateImage: z.boolean().optional().default(false),
         templateId: z.number().optional(),
       })
     )
@@ -602,12 +617,38 @@ Return your response as valid JSON.`;
           const generationTimeMs = Date.now() - startTime;
           const wordCount = countWords(parsed.content);
 
+          // Generate image if requested
+          let imageUrl: string | null = null;
+          if (input.shouldGenerateImage && parsed.imagePrompt) {
+            try {
+              const { generateImage } = await import("../_core/imageGeneration");
+              const imgResult = await generateImage({ prompt: parsed.imagePrompt });
+              const tempUrl = imgResult.url;
+              if (tempUrl) {
+                try {
+                  const { storagePut } = await import("../storage");
+                  const imgResponse = await fetch(tempUrl);
+                  const buffer = Buffer.from(await imgResponse.arrayBuffer());
+                  const key = `content-images/${Date.now()}-${Math.random().toString(36).slice(2)}.jpg`;
+                  const stored = await storagePut(key, buffer, "image/jpeg");
+                  imageUrl = stored.url ?? tempUrl;
+                } catch (uploadErr) {
+                  console.error("[longFormContent] Bulk image upload failed:", uploadErr);
+                  imageUrl = tempUrl;
+                }
+              }
+            } catch (err) {
+              console.error("[longFormContent] Bulk image generation failed:", err);
+            }
+          }
+
           const [insertResult] = await db.insert(longFormContent).values({
             accountId: input.accountId,
             createdByUserId: ctx.user!.id,
             title: parsed.title,
             topic,
             content: parsed.content,
+            imageUrl,
             imagePrompt: parsed.imagePrompt,
             status: "draft",
             aiModel: input.aiModel || "gemini-2.5-flash",

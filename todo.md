@@ -3556,3 +3556,20 @@
 ### Verification
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Persist Images to S3 + Bulk Image Gen + Repurpose Improvements
+### Part 1 — Persist generated images to S3
+- [x] Update longFormContent.ts image generation to upload to S3 via storagePut
+- [x] Update socialContent.ts image generation loop to upload to S3 via storagePut
+### Part 2 — Add image generation to Bulk Generate dialog
+- [x] Check/add shouldGenerateImage to bulkGenerate Zod schema in longFormContent.ts
+- [x] Add bulkGenerateImage state + Switch toggle in ContentHub.tsx bulk dialog
+- [x] Pass shouldGenerateImage in bulkGenerateMutation.mutate call
+- [x] Reset bulkGenerateImage on dialog close
+### Part 3 — Repurpose improvements in ContentDetail.tsx
+- [x] Improvement A: Preview before saving (show generated content, word/char count, Edit & Save / Save As-Is)
+- [x] Improvement B: Save social snippets to Social Posts (checkbox, call saveDraft mutation)
+- [x] Improvement C: Format descriptions (two-line SelectItem layout for each format)
+### Verification
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint
