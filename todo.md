@@ -3596,3 +3596,19 @@
 ### Verification
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Bulk Email Generation Feature
+### Backend (emailContent router)
+- [x] Add bulkGenerateEmails mutation (accept array of contactIds, template, tone, topic, model; generate personalized email for each contact sequentially)
+- [x] Add bulkSendEmails mutation (accept array of draftIds, send each one)
+### Frontend (Email tab in ContentHub.tsx)
+- [x] Add "Bulk Email" button next to Generate Email button
+- [x] Build Bulk Email dialog with multi-step flow: Step 1 contact selection, Step 2 email config, Step 3 generation + preview
+- [x] Step 1: Contact search + multi-select with checkboxes, selected count badge, select all on page
+- [x] Step 2: Template type, tone, topic, AI model, custom instructions, conversation history toggle
+- [x] Step 3: Progress bar during generation, preview list of generated emails, individual expand/collapse
+- [x] Send All / Save All as Drafts buttons after generation
+- [x] Individual send/save/remove per generated email
+### Verification
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

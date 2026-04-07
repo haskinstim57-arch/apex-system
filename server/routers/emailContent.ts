@@ -431,6 +431,322 @@ export const emailContentRouter = router({
       return { success: true };
     }),
 
+  // ─── Bulk Generate Emails ──────────────────────────────────────────────
+  bulkGenerateEmails: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        contactIds: z.array(z.number()).min(1).max(50),
+        templateType: z.enum(TEMPLATE_TYPES),
+        tone: z.enum(TONES),
+        topic: z.string().min(1).max(500),
+        customInstructions: z.string().optional(),
+        includeConversationHistory: z.boolean().optional().default(false),
+        aiModel: z.string().optional().default("gemini-2.5-flash"),
+        saveDrafts: z.boolean().optional().default(true),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db)
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database unavailable",
+        });
+
+      // Fetch all contacts
+      const contactRows = await db
+        .select()
+        .from(contacts)
+        .where(
+          and(
+            sql`${contacts.id} IN (${sql.raw(input.contactIds.join(","))})`,
+            eq(contacts.accountId, input.accountId)
+          )
+        );
+
+      if (contactRows.length === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No contacts found",
+        });
+      }
+
+      const results: Array<{
+        contactId: number;
+        contactName: string;
+        contactEmail: string | null;
+        subject: string;
+        previewText: string;
+        body: string;
+        draftId: number | null;
+        error: string | null;
+      }> = [];
+
+      for (const contact of contactRows) {
+        try {
+          const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+          let contactContext = `\nRecipient: ${contactName}`;
+          if (contact.email) contactContext += ` (${contact.email})`;
+          if (contact.company) contactContext += `, Company: ${contact.company}`;
+          if (contact.title) contactContext += `, Title: ${contact.title}`;
+
+          // Optionally fetch conversation history
+          if (input.includeConversationHistory) {
+            const recentMessages = await db
+              .select()
+              .from(messages)
+              .where(
+                and(
+                  eq(messages.contactId, contact.id),
+                  eq(messages.accountId, input.accountId)
+                )
+              )
+              .orderBy(desc(messages.createdAt))
+              .limit(10);
+
+            if (recentMessages.length > 0) {
+              const history = recentMessages
+                .reverse()
+                .map(
+                  (m) =>
+                    `[${m.direction === "outbound" ? "You" : contactName}] ${m.subject ? `Subject: ${m.subject} — ` : ""}${m.body}`
+                )
+                .join("\n\n");
+              contactContext += `\n\nPrevious conversation history with this contact:\n${history}`;
+            }
+          }
+
+          const basePrompt = TEMPLATE_PROMPTS[input.templateType] || TEMPLATE_PROMPTS.custom;
+          const systemPrompt = `${basePrompt}\n\nTone: ${input.tone}.\n\nYou MUST respond with valid JSON matching this exact schema: { "subject": "string", "previewText": "string", "body": "string" }. The body should use HTML formatting with <p>, <h3>, <strong>, <a> tags for email rendering. Do not include any text outside the JSON object. Personalize the email for the recipient.`;
+
+          let userMessage = `Topic: ${input.topic}`;
+          if (input.customInstructions) {
+            userMessage += `\n\nCustom instructions: ${input.customInstructions}`;
+          }
+          userMessage += `\n${contactContext}`;
+
+          const response = await invokeLLM({
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+            model: input.aiModel || "gemini-2.5-flash",
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "email_generation",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    subject: { type: "string", description: "Email subject line" },
+                    previewText: { type: "string", description: "Short preview text (40-90 chars)" },
+                    body: { type: "string", description: "Full email body in HTML" },
+                  },
+                  required: ["subject", "previewText", "body"],
+                  additionalProperties: false,
+                },
+              },
+            },
+          });
+
+          const rawContent = response.choices?.[0]?.message?.content;
+          const contentStr = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
+          const parsed = JSON.parse(contentStr);
+
+          let draftId: number | null = null;
+          if (input.saveDrafts) {
+            const [insertResult] = await db.insert(emailDrafts).values({
+              accountId: input.accountId,
+              createdByUserId: ctx.user!.id,
+              contactId: contact.id,
+              subject: parsed.subject,
+              body: parsed.body,
+              previewText: parsed.previewText || null,
+              templateType: input.templateType,
+              tone: input.tone,
+              topic: input.topic,
+              aiModel: input.aiModel || null,
+            });
+            draftId = insertResult.insertId;
+          }
+
+          results.push({
+            contactId: contact.id,
+            contactName,
+            contactEmail: contact.email,
+            subject: parsed.subject,
+            previewText: parsed.previewText || "",
+            body: parsed.body,
+            draftId,
+            error: null,
+          });
+        } catch (err: any) {
+          const contactName = `${contact.firstName} ${contact.lastName}`.trim();
+          results.push({
+            contactId: contact.id,
+            contactName,
+            contactEmail: contact.email,
+            subject: "",
+            previewText: "",
+            body: "",
+            draftId: null,
+            error: err.message || "Generation failed",
+          });
+        }
+      }
+
+      // Track usage for successful generations
+      const successCount = results.filter((r) => !r.error).length;
+      if (successCount > 0) {
+        await trackUsage({
+          accountId: input.accountId,
+          userId: ctx.user!.id,
+          eventType: "llm_request",
+          quantity: successCount,
+          metadata: {
+            feature: "bulk_email_generation",
+            templateType: input.templateType,
+            model: input.aiModel,
+            totalContacts: input.contactIds.length,
+            successCount,
+          },
+        }).catch((err) =>
+          console.error("[emailContent] Bulk usage tracking failed:", err)
+        );
+      }
+
+      return {
+        results,
+        totalGenerated: successCount,
+        totalFailed: results.length - successCount,
+      };
+    }),
+
+  // ─── Bulk Send Emails ──────────────────────────────────────────────────
+  bulkSendEmails: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        draftIds: z.array(z.number()).min(1).max(50),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db)
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Database unavailable",
+        });
+
+      const results: Array<{
+        draftId: number;
+        contactName: string;
+        success: boolean;
+        error: string | null;
+      }> = [];
+
+      for (const draftId of input.draftIds) {
+        try {
+          // Fetch draft
+          const [draft] = await db
+            .select()
+            .from(emailDrafts)
+            .where(
+              and(
+                eq(emailDrafts.id, draftId),
+                eq(emailDrafts.accountId, input.accountId)
+              )
+            )
+            .limit(1);
+
+          if (!draft) {
+            results.push({ draftId, contactName: "Unknown", success: false, error: "Draft not found" });
+            continue;
+          }
+
+          if (draft.status === "sent") {
+            results.push({ draftId, contactName: "Unknown", success: false, error: "Already sent" });
+            continue;
+          }
+
+          if (!draft.contactId) {
+            results.push({ draftId, contactName: "Unknown", success: false, error: "No contact associated" });
+            continue;
+          }
+
+          // Fetch contact
+          const [contact] = await db
+            .select()
+            .from(contacts)
+            .where(
+              and(
+                eq(contacts.id, draft.contactId),
+                eq(contacts.accountId, input.accountId)
+              )
+            )
+            .limit(1);
+
+          const contactName = contact ? `${contact.firstName} ${contact.lastName}`.trim() : "Unknown";
+
+          if (!contact?.email) {
+            results.push({ draftId, contactName, success: false, error: "Contact has no email" });
+            continue;
+          }
+
+          // Send
+          const sendResult = await dispatchEmail({
+            to: contact.email,
+            subject: draft.subject,
+            body: draft.body,
+            accountId: input.accountId,
+          });
+
+          if (!sendResult.success) {
+            results.push({ draftId, contactName, success: false, error: sendResult.error || "Send failed" });
+            continue;
+          }
+
+          // Update draft status
+          await db
+            .update(emailDrafts)
+            .set({ status: "sent", sentAt: new Date() })
+            .where(eq(emailDrafts.id, draftId));
+
+          results.push({ draftId, contactName, success: true, error: null });
+        } catch (err: any) {
+          results.push({ draftId, contactName: "Unknown", success: false, error: err.message || "Unknown error" });
+        }
+      }
+
+      // Track usage
+      const sentCount = results.filter((r) => r.success).length;
+      if (sentCount > 0) {
+        await trackUsage({
+          accountId: input.accountId,
+          userId: ctx.user!.id,
+          eventType: "email_sent",
+          quantity: sentCount,
+          metadata: {
+            feature: "bulk_email_send",
+            totalAttempted: input.draftIds.length,
+            sentCount,
+          },
+        }).catch((err) =>
+          console.error("[emailContent] Bulk send usage tracking failed:", err)
+        );
+      }
+
+      return {
+        results,
+        totalSent: sentCount,
+        totalFailed: results.length - sentCount,
+      };
+    }),
+
   // ─── Send Email ─────────────────────────────────────────────────────────
   sendEmail: protectedProcedure
     .input(

@@ -50,6 +50,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -102,6 +105,11 @@ import {
   User,
   AlertTriangle,
   ExternalLink,
+  Users,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  XCircle,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -2349,10 +2357,31 @@ function EmailTab() {
   const [sendConfirmDraftId, setSendConfirmDraftId] = useState<number | null>(null);
   const [sendConfirmInfo, setSendConfirmInfo] = useState<{ name: string; email: string } | null>(null);
 
+  // Bulk email state
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
+  const [bulkStep, setBulkStep] = useState<1 | 2 | 3>(1);
+  const [bulkContactSearch, setBulkContactSearch] = useState("");
+  const [bulkSelectedContacts, setBulkSelectedContacts] = useState<Array<{ id: number; name: string; email: string | null }>>([]); 
+  const [bulkTemplateType, setBulkTemplateType] = useState("newsletter");
+  const [bulkTone, setBulkTone] = useState("professional");
+  const [bulkTopic, setBulkTopic] = useState("");
+  const [bulkCustomInstructions, setBulkCustomInstructions] = useState("");
+  const [bulkAiModel, setBulkAiModel] = useState("gemini-2.5-flash");
+  const [bulkIncludeHistory, setBulkIncludeHistory] = useState(false);
+  const [bulkResults, setBulkResults] = useState<Array<{ contactId: number; contactName: string; contactEmail: string | null; subject: string; previewText: string; body: string; draftId: number | null; error: string | null }>>([]);
+  const [bulkExpandedIdx, setBulkExpandedIdx] = useState<number | null>(null);
+  const [bulkSendConfirmOpen, setBulkSendConfirmOpen] = useState(false);
+
   // Contact search query
   const contactsQuery = trpc.contacts.list.useQuery(
     { accountId: accountId!, search: contactSearch, limit: 8 },
     { enabled: !!accountId && useContact && contactSearch.length >= 2 }
+  );
+
+  // Bulk contact search query
+  const bulkContactsQuery = trpc.contacts.list.useQuery(
+    { accountId: accountId!, search: bulkContactSearch, limit: 20 },
+    { enabled: !!accountId && bulkDialogOpen && bulkStep === 1 }
   );
 
   // Drafts query
@@ -2400,6 +2429,24 @@ function EmailTab() {
       toast.success("Email sent!");
       setSendConfirmDraftId(null);
       setSendConfirmInfo(null);
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const bulkGenerateMutation = trpc.emailContent.bulkGenerateEmails.useMutation({
+    onSuccess: (data) => {
+      setBulkResults(data.results);
+      toast.success(`Generated ${data.totalGenerated} emails${data.totalFailed > 0 ? `, ${data.totalFailed} failed` : ""}`);
+      utils.emailContent.getDrafts.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const bulkSendMutation = trpc.emailContent.bulkSendEmails.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Sent ${data.totalSent} emails${data.totalFailed > 0 ? `, ${data.totalFailed} failed` : ""}`);
+      setBulkSendConfirmOpen(false);
       utils.emailContent.getDrafts.invalidate();
     },
     onError: (err) => toast.error(err.message),
@@ -2473,6 +2520,62 @@ function EmailTab() {
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast.success(`${label} copied!`);
+  };
+
+  const toggleBulkContact = (contact: { id: number; name: string; email: string | null }) => {
+    setBulkSelectedContacts((prev) => {
+      const exists = prev.find((c) => c.id === contact.id);
+      if (exists) return prev.filter((c) => c.id !== contact.id);
+      return [...prev, contact];
+    });
+  };
+
+  const handleBulkGenerate = () => {
+    if (!accountId || !bulkTopic.trim() || bulkSelectedContacts.length === 0) return;
+    bulkGenerateMutation.mutate({
+      accountId,
+      contactIds: bulkSelectedContacts.map((c) => c.id),
+      templateType: bulkTemplateType as any,
+      tone: bulkTone as any,
+      topic: bulkTopic.trim(),
+      customInstructions: bulkCustomInstructions.trim() || undefined,
+      includeConversationHistory: bulkIncludeHistory,
+      aiModel: bulkAiModel,
+      saveDrafts: true,
+    });
+  };
+
+  const handleBulkSendAll = () => {
+    const sendable = bulkResults.filter((r) => !r.error && r.draftId && r.contactEmail);
+    if (sendable.length === 0) {
+      toast.error("No sendable emails");
+      return;
+    }
+    setBulkSendConfirmOpen(true);
+  };
+
+  const confirmBulkSend = () => {
+    if (!accountId) return;
+    const draftIds = bulkResults
+      .filter((r) => !r.error && r.draftId)
+      .map((r) => r.draftId!)
+      .filter(Boolean);
+    bulkSendMutation.mutate({ accountId, draftIds });
+  };
+
+  const resetBulkDialog = () => {
+    setBulkStep(1);
+    setBulkContactSearch("");
+    setBulkSelectedContacts([]);
+    setBulkTemplateType("newsletter");
+    setBulkTone("professional");
+    setBulkTopic("");
+    setBulkCustomInstructions("");
+    setBulkAiModel("gemini-2.5-flash");
+    setBulkIncludeHistory(false);
+    setBulkResults([]);
+    setBulkExpandedIdx(null);
+    setBulkSendConfirmOpen(false);
   };
 
   return (
@@ -2655,18 +2758,25 @@ function EmailTab() {
             )}
           </div>
 
-          {/* Generate Button */}
-          <Button
-            onClick={handleGenerate}
-            disabled={!emailTopic.trim() || generateMutation.isPending}
-            className="w-full sm:w-auto"
-          >
-            {generateMutation.isPending ? (
-              <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Generating...</>
-            ) : (
-              <><Sparkles className="h-4 w-4 mr-2" /> Generate Email</>
-            )}
-          </Button>
+          {/* Generate Buttons */}
+          <div className="flex flex-wrap gap-3">
+            <Button
+              onClick={handleGenerate}
+              disabled={!emailTopic.trim() || generateMutation.isPending}
+            >
+              {generateMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Generating...</>
+              ) : (
+                <><Sparkles className="h-4 w-4 mr-2" /> Generate Email</>
+              )}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDialogOpen(true)}
+            >
+              <Users className="h-4 w-4 mr-2" /> Bulk Email
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -2978,6 +3088,433 @@ function EmailTab() {
             >
               {sendEmailMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
               Send Email
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Bulk Email Dialog ─── */}
+      <Dialog open={bulkDialogOpen} onOpenChange={(open) => { if (!open) resetBulkDialog(); setBulkDialogOpen(open); }}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-primary" />
+              Bulk Email Generation
+            </DialogTitle>
+            <DialogDescription>
+              {bulkStep === 1 && "Step 1 of 3 — Select contacts to email"}
+              {bulkStep === 2 && "Step 2 of 3 — Configure email settings"}
+              {bulkStep === 3 && "Step 3 of 3 — Review generated emails"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Step indicators */}
+          <div className="flex items-center gap-2 mb-4">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center gap-2">
+                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  bulkStep >= s ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                }`}>{s}</div>
+                {s < 3 && <div className={`h-0.5 w-8 ${bulkStep > s ? "bg-primary" : "bg-muted"}`} />}
+              </div>
+            ))}
+            <span className="text-sm text-muted-foreground ml-2">
+              {bulkStep === 1 && "Select Contacts"}
+              {bulkStep === 2 && "Email Settings"}
+              {bulkStep === 3 && "Review & Send"}
+            </span>
+          </div>
+
+          {/* Step 1: Contact Selection */}
+          {bulkStep === 1 && (
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search contacts by name, email, or company..."
+                  value={bulkContactSearch}
+                  onChange={(e) => setBulkContactSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {bulkSelectedContacts.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary" className="font-medium">
+                    {bulkSelectedContacts.length} selected
+                  </Badge>
+                  {bulkSelectedContacts.map((c) => (
+                    <Badge key={c.id} variant="outline" className="flex items-center gap-1">
+                      {c.name}
+                      {!c.email && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                      <button onClick={() => toggleBulkContact(c)} className="ml-1 hover:text-destructive">
+                        <XCircle className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                  <button onClick={() => setBulkSelectedContacts([])} className="text-xs text-muted-foreground hover:text-destructive">
+                    Clear all
+                  </button>
+                </div>
+              )}
+
+              <ScrollArea className="h-[320px] border rounded-lg">
+                {bulkContactsQuery.isLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </div>
+                ) : bulkContactsQuery.data?.data && bulkContactsQuery.data.data.length > 0 ? (
+                  <div className="divide-y">
+                    {/* Select all on page */}
+                    <div className="flex items-center gap-3 p-3 bg-muted/50">
+                      <Checkbox
+                        checked={
+                          bulkContactsQuery.data.data.length > 0 &&
+                          bulkContactsQuery.data.data.every((c: any) =>
+                            bulkSelectedContacts.some((sc) => sc.id === c.id)
+                          )
+                        }
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            const newContacts = bulkContactsQuery.data!.data
+                              .filter((c: any) => !bulkSelectedContacts.some((sc) => sc.id === c.id))
+                              .map((c: any) => ({
+                                id: c.id,
+                                name: `${c.firstName} ${c.lastName}`.trim(),
+                                email: c.email,
+                              }));
+                            setBulkSelectedContacts((prev) => [...prev, ...newContacts]);
+                          } else {
+                            const pageIds = new Set(bulkContactsQuery.data!.data.map((c: any) => c.id));
+                            setBulkSelectedContacts((prev) => prev.filter((c) => !pageIds.has(c.id)));
+                          }
+                        }}
+                      />
+                      <span className="text-sm font-medium">Select all on this page</span>
+                    </div>
+                    {bulkContactsQuery.data.data.map((c: any) => {
+                      const isSelected = bulkSelectedContacts.some((sc) => sc.id === c.id);
+                      const contactName = `${c.firstName} ${c.lastName}`.trim();
+                      return (
+                        <div
+                          key={c.id}
+                          className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50 transition-colors ${
+                            isSelected ? "bg-primary/5" : ""
+                          }`}
+                          onClick={() => toggleBulkContact({ id: c.id, name: contactName, email: c.email })}
+                        >
+                          <Checkbox checked={isSelected} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-sm">{contactName}</span>
+                              {!c.email && <Badge variant="outline" className="text-xs text-amber-600">No email</Badge>}
+                            </div>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              {c.email && <span>{c.email}</span>}
+                              {c.company && <span>· {c.company}</span>}
+                              {c.title && <span>· {c.title}</span>}
+                            </div>
+                          </div>
+                          {isSelected && <Check className="h-4 w-4 text-primary" />}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                    <Users className="h-8 w-8 mb-2" />
+                    <p className="text-sm">{bulkContactSearch.length < 2 ? "Type to search contacts" : "No contacts found"}</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </div>
+          )}
+
+          {/* Step 2: Email Configuration */}
+          {bulkStep === 2 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Template Type</Label>
+                  <Select value={bulkTemplateType} onValueChange={setBulkTemplateType}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {EMAIL_TEMPLATE_OPTIONS.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>
+                          <div className="flex flex-col">
+                            <span>{t.label}</span>
+                            <span className="text-xs text-muted-foreground">{t.desc}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tone</Label>
+                  <Select value={bulkTone} onValueChange={setBulkTone}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {EMAIL_TONE_OPTIONS.map((t) => (
+                        <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Topic / Subject</Label>
+                <Input
+                  placeholder="e.g., New rate drop announcement, Q2 market update..."
+                  value={bulkTopic}
+                  onChange={(e) => setBulkTopic(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>AI Model</Label>
+                <Select value={bulkAiModel} onValueChange={setBulkAiModel}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="gemini-2.5-flash">
+                      <div className="flex flex-col"><span>Gemini 2.5 Flash</span><span className="text-xs text-muted-foreground">⚡ Fast · Lowest Cost</span></div>
+                    </SelectItem>
+                    <SelectItem value="gemini-2.5-pro">
+                      <div className="flex flex-col"><span>Gemini 2.5 Pro</span><span className="text-xs text-muted-foreground">✨ Best Quality · High Cost</span></div>
+                    </SelectItem>
+                    <SelectItem value="gpt-4o">
+                      <div className="flex flex-col"><span>GPT-4o</span><span className="text-xs text-muted-foreground">⚖️ Balanced · Medium Cost</span></div>
+                    </SelectItem>
+                    <SelectItem value="gpt-4o-mini">
+                      <div className="flex flex-col"><span>GPT-4o Mini</span><span className="text-xs text-muted-foreground">⚡ Fast · Low Cost</span></div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Custom Instructions (optional)</Label>
+                <Textarea
+                  placeholder="Any specific instructions for the AI..."
+                  value={bulkCustomInstructions}
+                  onChange={(e) => setBulkCustomInstructions(e.target.value)}
+                  rows={3}
+                />
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Switch checked={bulkIncludeHistory} onCheckedChange={setBulkIncludeHistory} />
+                <Label>Include conversation history for personalization</Label>
+              </div>
+
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-sm text-muted-foreground">
+                  <strong>{bulkSelectedContacts.length}</strong> contacts selected.
+                  {bulkSelectedContacts.filter((c) => !c.email).length > 0 && (
+                    <span className="text-amber-600 ml-1">
+                      {bulkSelectedContacts.filter((c) => !c.email).length} without email (will generate but cannot send).
+                    </span>
+                  )}
+                  Each contact will receive a personalized email.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Results & Preview */}
+          {bulkStep === 3 && (
+            <div className="space-y-4">
+              {bulkGenerateMutation.isPending ? (
+                <div className="space-y-4 py-8">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <p className="text-sm font-medium">Generating personalized emails...</p>
+                    <p className="text-xs text-muted-foreground">
+                      This may take a moment for {bulkSelectedContacts.length} contacts
+                    </p>
+                  </div>
+                  <Progress value={undefined} className="w-full" />
+                </div>
+              ) : bulkResults.length > 0 ? (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary">
+                        {bulkResults.filter((r) => !r.error).length} generated
+                      </Badge>
+                      {bulkResults.filter((r) => r.error).length > 0 && (
+                        <Badge variant="destructive">
+                          {bulkResults.filter((r) => r.error).length} failed
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <ScrollArea className="h-[400px]">
+                    <div className="space-y-2">
+                      {bulkResults.map((result, idx) => (
+                        <div key={idx} className={`border rounded-lg overflow-hidden ${
+                          result.error ? "border-destructive/30 bg-destructive/5" : "border-border"
+                        }`}>
+                          <div
+                            className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50"
+                            onClick={() => setBulkExpandedIdx(bulkExpandedIdx === idx ? null : idx)}
+                          >
+                            {result.error ? (
+                              <XCircle className="h-4 w-4 text-destructive shrink-0" />
+                            ) : (
+                              <Check className="h-4 w-4 text-green-600 shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{result.contactName}</span>
+                                {result.contactEmail && (
+                                  <span className="text-xs text-muted-foreground">{result.contactEmail}</span>
+                                )}
+                              </div>
+                              {result.error ? (
+                                <p className="text-xs text-destructive">{result.error}</p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground truncate">{result.subject}</p>
+                              )}
+                            </div>
+                            {bulkExpandedIdx === idx ? (
+                              <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                          </div>
+                          {bulkExpandedIdx === idx && !result.error && (
+                            <div className="border-t p-4 space-y-3">
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Subject</Label>
+                                <p className="font-medium">{result.subject}</p>
+                              </div>
+                              {result.previewText && (
+                                <div>
+                                  <Label className="text-xs text-muted-foreground">Preview Text</Label>
+                                  <p className="text-sm text-muted-foreground italic">{result.previewText}</p>
+                                </div>
+                              )}
+                              <div>
+                                <Label className="text-xs text-muted-foreground">Body</Label>
+                                <div
+                                  className="mt-1 prose prose-sm max-w-none bg-white dark:bg-gray-900 rounded-lg p-3 border"
+                                  dangerouslySetInnerHTML={{ __html: result.body }}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => copyToClipboard(result.body, "Email body")}
+                                >
+                                  <Copy className="h-3 w-3 mr-1" /> Copy
+                                </Button>
+                                {result.draftId && result.contactEmail && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => {
+                                      setSendConfirmDraftId(result.draftId!);
+                                      setSendConfirmInfo({ name: result.contactName, email: result.contactEmail! });
+                                    }}
+                                  >
+                                    <Send className="h-3 w-3 mr-1" /> Send
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>Click "Generate All" to create personalized emails</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex justify-between sm:justify-between">
+            <div>
+              {bulkStep > 1 && bulkStep < 3 && (
+                <Button variant="ghost" onClick={() => setBulkStep((s) => (s - 1) as 1 | 2 | 3)}>
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+              )}
+              {bulkStep === 3 && !bulkGenerateMutation.isPending && bulkResults.length === 0 && (
+                <Button variant="ghost" onClick={() => setBulkStep(2)}>
+                  <ChevronLeft className="h-4 w-4 mr-1" /> Back
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {bulkStep === 1 && (
+                <Button
+                  onClick={() => setBulkStep(2)}
+                  disabled={bulkSelectedContacts.length === 0}
+                >
+                  Next: Configure <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
+              {bulkStep === 2 && (
+                <Button
+                  onClick={() => { setBulkStep(3); handleBulkGenerate(); }}
+                  disabled={!bulkTopic.trim() || bulkGenerateMutation.isPending}
+                >
+                  <Sparkles className="h-4 w-4 mr-1" /> Generate {bulkSelectedContacts.length} Emails
+                </Button>
+              )}
+              {bulkStep === 3 && bulkResults.length > 0 && !bulkGenerateMutation.isPending && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => { toast.success(`${bulkResults.filter((r) => r.draftId).length} drafts saved`); setBulkDialogOpen(false); resetBulkDialog(); }}
+                  >
+                    <Save className="h-4 w-4 mr-1" /> Close (Drafts Saved)
+                  </Button>
+                  <Button
+                    onClick={handleBulkSendAll}
+                    disabled={bulkSendMutation.isPending || bulkResults.filter((r) => !r.error && r.draftId && r.contactEmail).length === 0}
+                  >
+                    {bulkSendMutation.isPending ? (
+                      <><Loader2 className="h-4 w-4 animate-spin mr-1" /> Sending...</>
+                    ) : (
+                      <><Send className="h-4 w-4 mr-1" /> Send All ({bulkResults.filter((r) => !r.error && r.draftId && r.contactEmail).length})</>
+                    )}
+                  </Button>
+                </>
+              )}
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Send Confirmation */}
+      <AlertDialog open={bulkSendConfirmOpen} onOpenChange={setBulkSendConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-primary" />
+              Confirm Bulk Send
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to send <strong>{bulkResults.filter((r) => !r.error && r.draftId && r.contactEmail).length}</strong> personalized emails.
+              This action cannot be undone. Each contact will receive their individually generated email.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmBulkSend} disabled={bulkSendMutation.isPending}>
+              {bulkSendMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Sending...</>
+              ) : (
+                <><Send className="h-4 w-4 mr-2" /> Send All Emails</>
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
