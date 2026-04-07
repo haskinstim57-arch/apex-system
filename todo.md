@@ -3537,3 +3537,22 @@
 ### Verification
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Add Variations Count Selector + Image Generation to Social Media Posts
+### Backend
+- [x] Add variationsCount param to generateSocialPost (default 3), replace hardcoded 3s
+- [x] Add imageUrl field to GeneratedPost type in contentGenerator.ts
+- [x] Add variationsCount to socialContent.generatePost Zod schema (min 1, max 3, default 3)
+- [x] Add shouldGenerateImage to socialContent.generatePost Zod schema (default false)
+- [x] Add image generation loop after generateSocialPost returns (when shouldGenerateImage is true)
+- [x] Pass variationsCount through to generateSocialPost
+### Frontend
+- [x] Add socialVariations state (default 3) + selector (1/2/3) next to Tone
+- [x] Dynamic button label: "Generate N Post(s)"
+- [x] Dynamic grid: 1 col for 1 variation, 2 cols for 2, 3 cols for 3
+- [x] Add socialGenerateImage state + Switch toggle below Web Research
+- [x] Pass variationsCount and shouldGenerateImage in mutation call
+- [x] Show imageUrl in variation card (img tag) or imagePrompt as fallback
+### Verification
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

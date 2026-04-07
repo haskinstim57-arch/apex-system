@@ -25,6 +25,7 @@ export interface GeneratedPost {
   content: string;
   hashtags: string[];
   imagePrompt: string;
+  imageUrl?: string | null;
 }
 
 export interface GeneratePostResult {
@@ -159,8 +160,9 @@ export async function generateSocialPost(params: {
   accountContext?: AccountContext;
   aiModel?: string;
   enableWebResearch?: boolean;
+  variationsCount?: number;
 }): Promise<GeneratePostResult> {
-  const { platform, topic, tone, additionalContext, brandVoice, accountContext, aiModel, enableWebResearch } = params;
+  const { platform, topic, tone, additionalContext, brandVoice, accountContext, aiModel, enableWebResearch, variationsCount = 3 } = params;
 
   const businessName = accountContext?.businessName || "the business";
   const brandSection = buildBrandVoiceSection(brandVoice);
@@ -180,7 +182,7 @@ ${PLATFORM_RULES[platform]}
 Character limit: ${charLimit} characters for the main content (excluding hashtags for Instagram).
 
 INSTRUCTIONS:
-- Generate exactly 3 unique variations of a social media post about the given topic.
+- Generate exactly ${variationsCount} unique variations of a social media post about the given topic.
 - Each variation should have a different angle or hook while maintaining the same core message.
 - Include relevant hashtags for each variation.
 - For each variation, provide a detailed image prompt describing the ideal visual to accompany the post.
@@ -203,7 +205,7 @@ Return your response as valid JSON matching this exact schema.`;
     model: aiModel || "gemini-2.5-flash",
     messages: [
       { role: "system", content: finalSystemPrompt },
-      { role: "user", content: `Generate 3 social media post variations about: ${topic}` },
+      { role: "user", content: `Generate ${variationsCount} social media post variations about: ${topic}` },
     ],
     response_format: {
       type: "json_schema",
@@ -262,7 +264,7 @@ Return your response as valid JSON matching this exact schema.`;
   }
 
   // Normalize hashtags (remove # prefix if present)
-  const variations: GeneratedPost[] = parsed.posts.slice(0, 3).map((post) => ({
+  const variations: GeneratedPost[] = parsed.posts.slice(0, variationsCount).map((post) => ({
     content: post.content || "",
     hashtags: (post.hashtags || []).map((h: string) => h.replace(/^#/, "")),
     imagePrompt: post.imagePrompt || "",

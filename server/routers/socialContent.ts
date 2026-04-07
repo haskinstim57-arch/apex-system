@@ -29,6 +29,8 @@ export const socialContentRouter = router({
         additionalContext: z.string().optional(),
         aiModel: z.string().optional(),
         enableWebResearch: z.boolean().optional().default(false),
+        variationsCount: z.number().min(1).max(3).optional().default(3),
+        shouldGenerateImage: z.boolean().optional().default(false),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -61,7 +63,24 @@ export const socialContentRouter = router({
           : undefined,
         aiModel: input.aiModel,
         enableWebResearch: input.enableWebResearch,
+        variationsCount: input.variationsCount,
       });
+
+      // Generate images if requested
+      if (input.shouldGenerateImage) {
+        const { generateImage } = await import("../_core/imageGeneration");
+        for (const variation of result.variations) {
+          if (variation.imagePrompt) {
+            try {
+              const img = await generateImage({ prompt: variation.imagePrompt });
+              variation.imageUrl = img.url ?? null;
+            } catch (err) {
+              console.error("[socialContent] Image generation failed:", err);
+              variation.imageUrl = null;
+            }
+          }
+        }
+      }
 
       // Track LLM usage
       await trackUsage({

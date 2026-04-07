@@ -773,6 +773,8 @@ function ContentGenerator() {
   const [scheduledDate, setScheduledDate] = useState("");
   const [socialAiModel, setSocialAiModel] = useState("gemini-2.5-flash");
   const [socialWebResearch, setSocialWebResearch] = useState(false);
+  const [socialVariations, setSocialVariations] = useState(3);
+  const [socialGenerateImage, setSocialGenerateImage] = useState(false);
   // Bulk generate state
   const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const [bulkTopics, setBulkTopics] = useState("");
@@ -787,7 +789,7 @@ function ContentGenerator() {
     onSuccess: (data) => {
       setVariations(data.variations);
       setSelectedVariation(null);
-      toast.success("Generated 3 post variations!");
+      toast.success(`Generated ${data.variations.length} post${data.variations.length === 1 ? "" : " variations"}!`);
     },
     onError: (err) => toast.error(err.message),
   });
@@ -814,6 +816,8 @@ function ContentGenerator() {
       additionalContext: additionalContext.trim() || undefined,
       aiModel: socialAiModel,
       enableWebResearch: socialWebResearch,
+      variationsCount: socialVariations,
+      shouldGenerateImage: socialGenerateImage,
     });
   };
 
@@ -868,22 +872,39 @@ function ContentGenerator() {
                   </SelectItem>
                 </SelectContent>
               </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Tone</Label>
+            <Select value={tone} onValueChange={(v) => setTone(v as Tone)}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="professional">Professional</SelectItem>
+                <SelectItem value="casual">Casual</SelectItem>
+                <SelectItem value="funny">Funny</SelectItem>
+                <SelectItem value="inspiring">Inspiring</SelectItem>
+                <SelectItem value="educational">Educational</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Number of Posts</Label>
+            <div className="flex gap-1">
+              {[1, 2, 3].map((n) => (
+                <Button
+                  key={n}
+                  type="button"
+                  size="sm"
+                  variant={socialVariations === n ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => setSocialVariations(n)}
+                >
+                  {n}
+                </Button>
+              ))}
             </div>
-            <div className="space-y-2">
-              <Label>Tone</Label>
-              <Select value={tone} onValueChange={(v) => setTone(v as Tone)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="professional">Professional</SelectItem>
-                  <SelectItem value="casual">Casual</SelectItem>
-                  <SelectItem value="funny">Funny</SelectItem>
-                  <SelectItem value="inspiring">Inspiring</SelectItem>
-                  <SelectItem value="educational">Educational</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          </div>
           </div>
           <div className="space-y-2">
             <Label>Topic / Subject</Label>
@@ -948,6 +969,13 @@ function ContentGenerator() {
               </div>
             </div>
           </div>
+          <div className="flex items-center justify-between p-3 rounded-md border">
+            <div>
+              <Label className="text-sm font-medium">Generate Featured Image</Label>
+              <p className="text-xs text-muted-foreground">Creates an AI image for each post (uses extra credits)</p>
+            </div>
+            <Switch checked={socialGenerateImage} onCheckedChange={setSocialGenerateImage} />
+          </div>
 
           <div className="flex flex-wrap gap-3">
             <Button
@@ -957,7 +985,7 @@ function ContentGenerator() {
               {generateMutation.isPending ? (
                 <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Generating...</>
               ) : (
-                <><Sparkles className="h-4 w-4 mr-2" /> Generate 3 Variations</>
+                <><Sparkles className="h-4 w-4 mr-2" /> Generate {socialVariations} {socialVariations === 1 ? "Post" : "Posts"}</>
               )}
             </Button>
             <Button
@@ -974,7 +1002,7 @@ function ContentGenerator() {
       {variations.length > 0 && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">Generated Variations</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className={`grid gap-4 ${variations.length === 1 ? "grid-cols-1" : variations.length === 2 ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 lg:grid-cols-3"}`}>
             {variations.map((v, i) => (
               <Card
                 key={i}
@@ -995,6 +1023,13 @@ function ContentGenerator() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                  {v.imageUrl && (
+                    <img
+                      src={v.imageUrl}
+                      alt="Generated post image"
+                      className="rounded-lg w-full object-cover max-h-48"
+                    />
+                  )}
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{v.content}</p>
                   <Separator />
                   <div className="flex flex-wrap gap-1">
@@ -1005,11 +1040,11 @@ function ContentGenerator() {
                       </Badge>
                     ))}
                   </div>
-                  {v.imagePrompt && (
+                  {!v.imageUrl && v.imagePrompt && (
                     <>
                       <Separator />
-                      <div className="text-xs text-muted-foreground">
-                        <div className="flex items-center gap-1 mb-1 font-medium">
+                      <div className="text-xs text-muted-foreground italic">
+                        <div className="flex items-center gap-1 mb-1 font-medium not-italic">
                           <ImageIcon className="h-3 w-3" /> Image Prompt
                         </div>
                         <p className="line-clamp-2">{v.imagePrompt}</p>
