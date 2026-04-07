@@ -55,6 +55,8 @@ import NotificationLog from "./pages/NotificationLog";
 import NotificationDeliveryDashboard from "./pages/NotificationDeliveryDashboard";
 import Billing from "./pages/Billing";
 const SocialMedia = lazy(() => import("./pages/SocialMedia"));
+const ContentHub = lazy(() => import("./pages/ContentHub"));
+const ContentDetail = lazy(() => import("./pages/ContentDetail"));
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -326,6 +328,21 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <Suspense fallback={<LazyFallback />}><SocialMedia /></Suspense>
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+
+      <Route path="/content-hub">
+        <DashboardLayout>
+          <RequireAccount>
+            <Suspense fallback={<LazyFallback />}><ContentHub /></Suspense>
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/content-hub/:id">
+        <DashboardLayout>
+          <RequireAccount>
+            <Suspense fallback={<LazyFallback />}><ContentDetail /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>

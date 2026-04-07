@@ -2622,3 +2622,72 @@ export const notificationLog = mysqlTable("notification_log", {
 export type NotificationLog = typeof notificationLog.$inferSelect;
 export type InsertNotificationLog = typeof notificationLog.$inferInsert;
 
+
+
+// ─────────────────────────────────────────────
+// LONG-FORM CONTENT — AI-generated blog posts & articles
+// ─────────────────────────────────────────────
+export const longFormContent = mysqlTable("long_form_content", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  createdByUserId: int("created_by_user_id").notNull(),
+  title: varchar("title", { length: 500 }).notNull(),
+  topic: text("topic").notNull(),
+  content: text("content").notNull(),
+  imageUrl: text("image_url"),
+  imagePrompt: text("image_prompt"),
+  status: mysqlEnum("status", ["draft", "published"]).notNull().default("draft"),
+  aiModel: varchar("ai_model", { length: 100 }),
+  customPrompt: text("custom_prompt"),
+  inputTokens: int("input_tokens"),
+  outputTokens: int("output_tokens"),
+  totalTokens: int("total_tokens"),
+  urlsFetched: int("urls_fetched").default(0),
+  urlsFailed: int("urls_failed").default(0),
+  webSearches: int("web_searches").default(0),
+  wordCount: int("word_count"),
+  generationTimeMs: int("generation_time_ms"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type LongFormContent = typeof longFormContent.$inferSelect;
+export type InsertLongFormContent = typeof longFormContent.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CONTENT TEMPLATES — Reusable generation templates
+// ─────────────────────────────────────────────
+export const contentTemplates = mysqlTable("content_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id"),  // nullable for global templates
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }),
+  prompt: text("prompt"),
+  structure: json("structure"),
+  isPublic: boolean("is_public").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type ContentTemplate = typeof contentTemplates.$inferSelect;
+export type InsertContentTemplate = typeof contentTemplates.$inferInsert;
+
+// ─────────────────────────────────────────────
+// REPURPOSED CONTENT — Derivative content from long-form articles
+// ─────────────────────────────────────────────
+export const repurposedContent = mysqlTable("repurposed_content", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  originalContentId: int("original_content_id").notNull(),
+  format: mysqlEnum("format", [
+    "social-snippet",
+    "email-summary",
+    "short-form",
+    "infographic-script",
+    "video-script",
+  ]).notNull(),
+  content: text("content").notNull(),
+  platform: varchar("platform", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type RepurposedContent = typeof repurposedContent.$inferSelect;
+export type InsertRepurposedContent = typeof repurposedContent.$inferInsert;

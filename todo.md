@@ -3436,6 +3436,7 @@
 - [x] ContactMerge: stack header sections on mobile, flex-wrap on badges
 - [x] Analytics: stack header sections on mobile
 - [x] Save checkpoint
+<<<<<<< Updated upstream
 
 ## Fix: Social Media Content Generation — Add Missing Database Tables
 - [x] Add socialPosts table to drizzle/schema.ts (already existed at line 2488)
@@ -3445,3 +3446,40 @@
 - [x] Run pnpm db:push — tables already in DB, no schema changes needed
 - [x] Verify 0 TypeScript errors
 - [ ] Save checkpoint
+=======
+>>>>>>> Stashed changes
+
+## Phase 1: Content Generation Upgrade — Long-Form Blog, Bulk Generation, Templates, Repurposing
+
+### Database Schema
+- [x] Add longFormContent table to drizzle/schema.ts
+- [x] Add contentTemplates table to drizzle/schema.ts
+- [x] Add repurposedContent table to drizzle/schema.ts
+- [x] Run pnpm db:push to apply migrations
+
+### Backend Router
+- [x] Create server/routers/longFormContent.ts router
+- [x] Implement generate endpoint with web research support
+- [x] Implement bulkGenerate endpoint
+- [x] Implement repurpose endpoint
+- [x] Implement seedTemplates endpoint with 8 default templates
+- [x] Register longFormContent router in routers.ts
+- [x] Wire up trackUsage for all LLM requests
+
+### Frontend UI
+- [x] Create ContentHub.tsx page (Blog & Articles list view)
+- [x] Add status filters and bulk actions to content list
+- [x] Create BulkGenerateModal component
+- [x] Create ContentDetail.tsx page with tabbed interface
+- [x] Preview tab as default (rendered Markdown + featured image)
+- [x] Edit tab for content editing
+- [x] Generation stats sidebar (word count, time, tokens, URLs)
+- [x] Export dropdown (Markdown, HTML, Plain Text)
+- [x] Repurpose button with format selection modal
+- [x] Add "Content Hub" navigation item to DashboardLayout sidebar
+- [x] Register routes in App.tsx
+
+### Testing & Verification
+- [x] Write vitest tests for longFormContent router
+- [x] Verify 0 TypeScript errors
+- [x] Save checkpoint

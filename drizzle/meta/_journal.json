@@ -568,6 +568,13 @@
       "when": 1775329506459,
       "tag": "0080_perfect_clint_barton",
       "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "5",
+      "when": 1775555601804,
+      "tag": "0081_glossy_invaders",
+      "breakpoints": true
     }
   ]
 }

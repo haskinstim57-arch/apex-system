@@ -49,6 +49,7 @@ import { jarvisRouter } from "./routers/jarvis";
 import { billingRouter } from "./routers/billing";
 import { socialContentRouter } from "./routers/socialContent";
 import { leadMonitorRouter } from "./routers/leadMonitor";
+import { longFormContentRouter } from "./routers/longFormContent";
 
 export const appRouter = router({
   system: systemRouter,
@@ -109,6 +110,7 @@ export const appRouter = router({
   billing: billingRouter,
   socialContent: socialContentRouter,
   leadMonitor: leadMonitorRouter,
+  longFormContent: longFormContentRouter,
 });
 
 export type AppRouter = typeof appRouter;
