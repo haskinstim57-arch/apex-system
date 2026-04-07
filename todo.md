@@ -3612,3 +3612,13 @@
 ### Verification
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Fix Email Generator Placeholder Bug
+- [x] Import users and accounts tables in emailContent.ts
+- [x] Fetch sender name and account name before building the prompt
+- [x] Add sender context to userMessage
+- [x] Update systemPrompt to instruct LLM to use sender name, never placeholders
+- [x] Apply same fix to bulkGenerateEmails mutation
+### Verification
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

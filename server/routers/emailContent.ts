@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { requireAccountMember } from "./contacts";
-import { emailDrafts, contacts, messages } from "../../drizzle/schema";
+import { emailDrafts, contacts, messages, users, accounts } from "../../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { invokeLLM } from "../_core/llm";
 import { trackUsage } from "../services/usageTracker";
@@ -69,6 +69,19 @@ export const emailContentRouter = router({
           message: "Database unavailable",
         });
 
+      // Fetch sender context
+      const [sender] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, ctx.user!.id))
+        .limit(1);
+
+      const [account] = await db
+        .select({ name: accounts.name })
+        .from(accounts)
+        .where(eq(accounts.id, input.accountId))
+        .limit(1);
+
       // Build context from contact + conversation history
       let contactContext = "";
       let contactName = "";
@@ -120,10 +133,17 @@ export const emailContentRouter = router({
 
       // Build system prompt
       const basePrompt = TEMPLATE_PROMPTS[input.templateType] || TEMPLATE_PROMPTS.custom;
-      const systemPrompt = `${basePrompt}\n\nTone: ${input.tone}.\n\nYou MUST respond with valid JSON matching this exact schema: { "subject": "string", "previewText": "string", "body": "string" }. The body should use HTML formatting with <p>, <h3>, <strong>, <a> tags for email rendering. Do not include any text outside the JSON object.`;
+      const systemPrompt = `${basePrompt}\n\nTone: ${input.tone}.\n\nYou MUST respond with valid JSON matching this exact schema: { "subject": "string", "previewText": "string", "body": "string" }. The body should use HTML formatting with <p>, <h3>, <strong>, <a> tags for email rendering. Do not include any text outside the JSON object. IMPORTANT: Always sign off the email using the provided Sender Name and Company. NEVER use placeholders like [Your Name] or [Company Name].`;
 
       // Build user message
       let userMessage = `Topic: ${input.topic}`;
+
+      // Add sender context
+      userMessage += `\n\nSender Name: ${sender?.name || "The Sender"}`;
+      if (account?.name) {
+        userMessage += `\nSender Company/Account: ${account.name}`;
+      }
+
       if (input.customInstructions) {
         userMessage += `\n\nCustom instructions: ${input.customInstructions}`;
       }
@@ -455,6 +475,19 @@ export const emailContentRouter = router({
           message: "Database unavailable",
         });
 
+      // Fetch sender context
+      const [sender] = await db
+        .select({ name: users.name })
+        .from(users)
+        .where(eq(users.id, ctx.user!.id))
+        .limit(1);
+
+      const [account] = await db
+        .select({ name: accounts.name })
+        .from(accounts)
+        .where(eq(accounts.id, input.accountId))
+        .limit(1);
+
       // Fetch all contacts
       const contactRows = await db
         .select()
@@ -519,9 +552,16 @@ export const emailContentRouter = router({
           }
 
           const basePrompt = TEMPLATE_PROMPTS[input.templateType] || TEMPLATE_PROMPTS.custom;
-          const systemPrompt = `${basePrompt}\n\nTone: ${input.tone}.\n\nYou MUST respond with valid JSON matching this exact schema: { "subject": "string", "previewText": "string", "body": "string" }. The body should use HTML formatting with <p>, <h3>, <strong>, <a> tags for email rendering. Do not include any text outside the JSON object. Personalize the email for the recipient.`;
+          const systemPrompt = `${basePrompt}\n\nTone: ${input.tone}.\n\nYou MUST respond with valid JSON matching this exact schema: { "subject": "string", "previewText": "string", "body": "string" }. The body should use HTML formatting with <p>, <h3>, <strong>, <a> tags for email rendering. Do not include any text outside the JSON object. Personalize the email for the recipient. IMPORTANT: Always sign off the email using the provided Sender Name and Company. NEVER use placeholders like [Your Name] or [Company Name].`;
 
           let userMessage = `Topic: ${input.topic}`;
+
+          // Add sender context
+          userMessage += `\n\nSender Name: ${sender?.name || "The Sender"}`;
+          if (account?.name) {
+            userMessage += `\nSender Company/Account: ${account.name}`;
+          }
+
           if (input.customInstructions) {
             userMessage += `\n\nCustom instructions: ${input.customInstructions}`;
           }
