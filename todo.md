@@ -3622,3 +3622,19 @@
 ### Verification
 - [x] Verify build with 0 TypeScript errors
 - [x] Save checkpoint
+
+## Inbox-Style Email Preview (Mobile + Desktop)
+### Component
+- [x] Create EmailPreview component with desktop/mobile toggle
+- [x] Desktop view: full-width email client chrome (toolbar, sender row, subject, body)
+- [x] Mobile view: narrow phone frame with realistic inbox rendering
+- [x] Preview text shown in inbox-list style header
+- [x] Subject line, sender name, date, body rendered in realistic email layout
+- [x] Toggle between Desktop and Mobile via segmented control
+### Integration
+- [x] Replace basic preview in single email generation with EmailPreview
+- [x] Add EmailPreview to drafts View dialog
+- [x] Add EmailPreview expand in bulk email results
+### Verification
+- [x] Verify build with 0 TypeScript errors
+- [x] Save checkpoint

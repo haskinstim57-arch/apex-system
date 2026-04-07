@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAccount } from "@/contexts/AccountContext";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { EmailPreview } from "@/components/EmailPreview";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import {
@@ -2325,7 +2327,8 @@ const EMAIL_TONE_OPTIONS = [
 ] as const;
 
 function EmailTab() {
-  const { currentAccountId: accountId } = useAccount();
+  const { currentAccountId: accountId, currentAccount } = useAccount();
+  const { user } = useAuth();
   const utils = trpc.useUtils();
 
   // Generator state
@@ -2795,51 +2798,16 @@ function EmailTab() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Subject */}
-            <div className="space-y-1">
-              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Subject Line</Label>
-              <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-md">
-                <span className="font-medium flex-1">{generatedEmail.subject}</span>
-                <Button variant="ghost" size="sm" onClick={() => copyToClipboard(generatedEmail.subject, "Subject")}>
-                  <Copy className="h-3 w-3" />
-                </Button>
-              </div>
-            </div>
-
-            {/* Preview Text */}
-            {generatedEmail.previewText && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Preview Text</Label>
-                <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-md">
-                  <span className="text-sm text-muted-foreground flex-1">{generatedEmail.previewText}</span>
-                  <Button variant="ghost" size="sm" onClick={() => copyToClipboard(generatedEmail.previewText, "Preview text")}>
-                    <Copy className="h-3 w-3" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Body */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Email Body</Label>
-                <button
-                  type="button"
-                  onClick={() => setShowSource(!showSource)}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {showSource ? "View Rendered" : "View Source"}
-                </button>
-              </div>
-              {showSource ? (
-                <pre className="p-4 bg-muted/30 rounded-md text-sm whitespace-pre-wrap font-mono overflow-x-auto">{generatedEmail.body}</pre>
-              ) : (
-                <div
-                  className="p-4 bg-white dark:bg-zinc-900 rounded-md border prose prose-sm dark:prose-invert max-w-none"
-                  dangerouslySetInnerHTML={{ __html: generatedEmail.body }}
-                />
-              )}
-            </div>
+            <EmailPreview
+              subject={generatedEmail.subject}
+              previewText={generatedEmail.previewText}
+              body={generatedEmail.body}
+              senderName={user?.name || "You"}
+              senderEmail={user?.email || "you@company.com"}
+              recipientName={generatedEmail.contactName || "Recipient"}
+              recipientEmail={selectedContact?.email || "recipient@email.com"}
+              showActions={true}
+            />
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3 pt-2">
@@ -2989,36 +2957,31 @@ function EmailTab() {
 
       {/* View Draft Dialog */}
       <Dialog open={!!viewDraft} onOpenChange={(open) => { if (!open) setViewDraft(null); }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Email Draft</DialogTitle>
-            <DialogDescription>View the full email content</DialogDescription>
-          </DialogHeader>
-          {viewDraft && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Subject</Label>
-                <p className="font-medium">{viewDraft.subject}</p>
-              </div>
-              {viewDraft.previewText && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Preview Text</Label>
-                  <p className="text-sm text-muted-foreground">{viewDraft.previewText}</p>
+            <DialogTitle className="flex items-center gap-2">
+              Email Draft Preview
+              {viewDraft && (
+                <div className="flex gap-2 ml-2">
+                  <Badge variant="outline" className="capitalize font-normal">{viewDraft.templateType?.replace("_", " ")}</Badge>
+                  <Badge variant={viewDraft.status === "sent" ? "default" : "secondary"} className={viewDraft.status === "sent" ? "bg-green-600 font-normal" : "font-normal"}>{viewDraft.status}</Badge>
                 </div>
               )}
-              <div>
-                <Label className="text-xs text-muted-foreground">Body</Label>
-                <div
-                  className="p-4 bg-white dark:bg-zinc-900 rounded-md border prose prose-sm dark:prose-invert max-w-none mt-1"
-                  dangerouslySetInnerHTML={{ __html: viewDraft.body }}
-                />
-              </div>
-              <div className="flex gap-2 text-xs text-muted-foreground">
-                <Badge variant="outline" className="capitalize">{viewDraft.templateType.replace("_", " ")}</Badge>
-                {viewDraft.contactName && <Badge variant="secondary"><User className="h-3 w-3 mr-1" />{viewDraft.contactName}</Badge>}
-                <Badge variant={viewDraft.status === "sent" ? "default" : "secondary"} className={viewDraft.status === "sent" ? "bg-green-600" : ""}>{viewDraft.status}</Badge>
-              </div>
-            </div>
+            </DialogTitle>
+            <DialogDescription>Preview how this email appears in inbox</DialogDescription>
+          </DialogHeader>
+          {viewDraft && (
+            <EmailPreview
+              subject={viewDraft.subject}
+              previewText={viewDraft.previewText || ""}
+              body={viewDraft.body}
+              senderName={user?.name || "You"}
+              senderEmail={user?.email || "you@company.com"}
+              recipientName={viewDraft.contactName || "Recipient"}
+              recipientEmail="recipient@email.com"
+              date={viewDraft.createdAt ? new Date(viewDraft.createdAt) : new Date()}
+              showActions={true}
+            />
           )}
         </DialogContent>
       </Dialog>
@@ -3387,23 +3350,17 @@ function EmailTab() {
                           </div>
                           {bulkExpandedIdx === idx && !result.error && (
                             <div className="border-t p-4 space-y-3">
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Subject</Label>
-                                <p className="font-medium">{result.subject}</p>
-                              </div>
-                              {result.previewText && (
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Preview Text</Label>
-                                  <p className="text-sm text-muted-foreground italic">{result.previewText}</p>
-                                </div>
-                              )}
-                              <div>
-                                <Label className="text-xs text-muted-foreground">Body</Label>
-                                <div
-                                  className="mt-1 prose prose-sm max-w-none bg-white dark:bg-gray-900 rounded-lg p-3 border"
-                                  dangerouslySetInnerHTML={{ __html: result.body }}
-                                />
-                              </div>
+                              <EmailPreview
+                                subject={result.subject}
+                                previewText={result.previewText || ""}
+                                body={result.body}
+                                senderName={user?.name || "You"}
+                                senderEmail={user?.email || "you@company.com"}
+                                recipientName={result.contactName}
+                                recipientEmail={result.contactEmail || "recipient@email.com"}
+                                showActions={true}
+                                compact={true}
+                              />
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
