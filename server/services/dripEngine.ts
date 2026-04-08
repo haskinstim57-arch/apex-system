@@ -69,6 +69,8 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
           status: "pending",
           body,
           toAddress: contact.phone,
+          sequenceStepId: step.id,
+          sequenceStepPosition: step.position,
         });
       } else if (step.messageType === "email") {
         if (!contact.email) {
@@ -86,6 +88,8 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
           body,
           subject: subject || "(No subject)",
           toAddress: contact.email,
+          sequenceStepId: step.id,
+          sequenceStepPosition: step.position,
         });
       }
 

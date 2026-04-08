@@ -21,8 +21,8 @@ import {
   logContactActivity,
 } from "../db";
 import { computeFirstStepAt } from "../services/dripEngine";
-import { sequenceSteps, sequenceEnrollments } from "../../drizzle/schema";
-import { eq, and, sql, count, gte } from "drizzle-orm";
+import { sequenceSteps, sequenceEnrollments, messages } from "../../drizzle/schema";
+import { eq, and, sql, count, gte, inArray, isNotNull } from "drizzle-orm";
 
 export const sequencesRouter = router({
   /** List all sequences for an account */
@@ -73,6 +73,7 @@ export const sequencesRouter = router({
         name: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         status: z.enum(["active", "paused", "draft", "archived"]).optional(),
+        activateAt: z.string().datetime().nullable().optional(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -81,6 +82,7 @@ export const sequencesRouter = router({
       if (input.name !== undefined) data.name = input.name;
       if (input.description !== undefined) data.description = input.description;
       if (input.status !== undefined) data.status = input.status;
+      if (input.activateAt !== undefined) data.activateAt = input.activateAt ? new Date(input.activateAt) : null;
       await updateSequence(input.id, input.accountId, data as any);
       return { success: true };
     }),
@@ -514,6 +516,87 @@ export const sequencesRouter = router({
         enrollmentTrend,
         avgCompletionHours,
       };
+    }),
+
+  // ─── Step-Level Analytics ───
+
+  getStepAnalytics: protectedProcedure
+    .input(z.object({ sequenceId: z.number(), accountId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user!.id, input.accountId, ctx.user!.role);
+      const db = await getDb();
+      if (!db) return [];
+
+      // Get all steps for context
+      const steps = await listSequenceSteps(input.sequenceId);
+      if (steps.length === 0) return [];
+
+      const stepIds = steps.map((s) => s.id);
+
+      // Get message stats grouped by step position
+      const msgStats = await db
+        .select({
+          stepPosition: messages.sequenceStepPosition,
+          sent: count(),
+          delivered: sql<number>`SUM(CASE WHEN ${messages.status} = 'delivered' THEN 1 ELSE 0 END)`,
+          failed: sql<number>`SUM(CASE WHEN ${messages.status} = 'failed' THEN 1 ELSE 0 END)`,
+        })
+        .from(messages)
+        .where(
+          and(
+            eq(messages.accountId, input.accountId),
+            isNotNull(messages.sequenceStepId),
+            inArray(messages.sequenceStepId, stepIds)
+          )
+        )
+        .groupBy(messages.sequenceStepPosition);
+
+      const statsMap = new Map(
+        msgStats.map((r) => [r.stepPosition, r])
+      );
+
+      // For reply rate: count inbound messages from contacts who received a step message
+      // For each step, find contacts who got that step, then count inbound messages after
+      const replyMap = new Map<number, number>();
+      for (const step of steps) {
+        const replyResult = await db
+          .select({ replyCount: sql<number>`COUNT(DISTINCT inb.contactId)` })
+          .from(
+            sql`(
+              SELECT m1.contactId, m1.createdAt as sentAt
+              FROM messages m1
+              WHERE m1.accountId = ${input.accountId}
+                AND m1.sequence_step_id = ${step.id}
+                AND m1.direction = 'outbound'
+            ) AS outb`
+          )
+          .innerJoin(
+            sql`messages AS inb`,
+            sql`inb.contactId = outb.contactId AND inb.direction = 'inbound' AND inb.createdAt > outb.sentAt AND inb.createdAt <= DATE_ADD(outb.sentAt, INTERVAL 48 HOUR)`
+          );
+        replyMap.set(step.position, Number(replyResult[0]?.replyCount ?? 0));
+      }
+
+      return steps.map((step) => {
+        const stat = statsMap.get(step.position);
+        const sent = Number(stat?.sent ?? 0);
+        const delivered = Number(stat?.delivered ?? 0);
+        const failed = Number(stat?.failed ?? 0);
+        const replyCount = replyMap.get(step.position) ?? 0;
+        return {
+          position: step.position,
+          messageType: step.messageType,
+          delayDays: step.delayDays,
+          content: step.content,
+          subject: step.subject,
+          sent,
+          delivered,
+          failed,
+          deliveryRate: sent > 0 ? Math.round((delivered / sent) * 100) : 0,
+          replyCount,
+          replyRate: sent > 0 ? Math.round((replyCount / sent) * 100) : 0,
+        };
+      });
     }),
 
   // ─── Clone Sequence ───

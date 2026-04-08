@@ -3862,4 +3862,34 @@
 ### Verification
 - [x] 0 TypeScript errors in sequences.ts and Sequences.tsx
 - [x] Vitest tests for updatePlaceholders, getStats, clone (15 tests passing)
+- [x] Save checkpoint (27f573c5)
+
+## Bulk Enroll + Step-Level Analytics + Scheduled Activation
+
+### Feature 1 — Bulk Enroll from Contacts Page
+- [x] Frontend: Add "Enroll in Sequence" button to bulk action bar in Contacts.tsx
+- [x] Frontend: Enroll dialog with sequence selector, submit logic, toast feedback
+- [x] Frontend: Query active sequences, call bulkEnroll mutation, clear selection on success
+
+### Feature 2 — Step-Level Analytics
+- [x] Schema: Add sequenceStepId and sequenceStepPosition nullable columns to messages table
+- [x] Run pnpm db:push for schema changes
+- [x] Update dripEngine.ts: Add sequenceStepId + sequenceStepPosition to both createMessage calls
+- [x] Update createMessage in db.ts to accept new fields (InsertMessage type auto-updated)
+- [x] Backend: getStepAnalytics query in sequences router (sent, delivered, failed, replyCount, replyRate)
+- [x] Frontend: Replace step progress section in Performance tab with richer step analytics
+- [x] Frontend: Show disclaimer about analytics tracking from feature-enable date
+
+### Feature 3 — Scheduled Sequence Activation
+- [x] Schema: Add activateAt nullable timestamp to sequences table
+- [x] Run pnpm db:push for schema changes
+- [x] Backend: Add activateAt to update mutation input schema
+- [x] Backend: Create sequenceActivationWorker.ts (check every 5 min, activate due sequences)
+- [x] Backend: Start worker in server/_core/index.ts alongside other workers
+- [x] Frontend: "Schedule Activation" button + dialog in SequenceBuilder (draft only)
+- [x] Frontend: Show activateAt badge in builder header + list view
+
+### Verification
+- [x] 0 TypeScript errors in all modified files
+- [x] Vitest tests: 16 tests passing (sequences-v2.test.ts)
 - [ ] Save checkpoint

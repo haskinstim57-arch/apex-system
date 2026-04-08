@@ -34,6 +34,7 @@ import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 import { startMessageQueueWorker } from "../services/messageQueue";
 import { startPushBatchWorker } from "../services/pushBatcher";
 import { startJarvisTaskWorker } from "../services/jarvisTaskWorker";
+import { startSequenceActivationWorker } from "../services/sequenceActivationWorker";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -425,6 +426,9 @@ async function startServer() {
 
     // Start Jarvis scheduled task worker (checks every 60s, executes due recurring tasks)
     startJarvisTaskWorker();
+
+    // Start sequence activation worker (checks every 5 min, activates due draft sequences)
+    startSequenceActivationWorker();
   });
 }
 

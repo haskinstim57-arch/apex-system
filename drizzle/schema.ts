@@ -283,6 +283,10 @@ export const messages = mysqlTable("messages", {
   isRead: boolean("isRead").default(true).notNull(),
   /** When the message was read/opened */
   readAt: timestamp("readAt"),
+  /** Sequence step that generated this message (nullable — only set for drip-engine messages) */
+  sequenceStepId: int("sequence_step_id"),
+  /** Position of the step within the sequence (nullable) */
+  sequenceStepPosition: int("sequence_step_position"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -1827,6 +1831,8 @@ export const sequences = mysqlTable("sequences", {
   /** Total number of contacts that completed the full sequence */
   completedCount: int("completed_count").default(0).notNull(),
   createdById: int("created_by_id"),
+  /** Scheduled activation time — when set, the sequence will auto-activate at this time */
+  activateAt: timestamp("activate_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });

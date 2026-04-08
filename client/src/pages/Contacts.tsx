@@ -181,6 +181,9 @@ export default function Contacts() {
   const [bulkEditCfOpen, setBulkEditCfOpen] = useState(false);
   const [bulkEditSlug, setBulkEditSlug] = useState("");
   const [bulkEditValue, setBulkEditValue] = useState<string>("");
+  // Enroll in sequence
+  const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
+  const [enrollSequenceId, setEnrollSequenceId] = useState<string>("");
 
   // Smart Views
   const [saveViewOpen, setSaveViewOpen] = useState(false);
@@ -694,6 +697,15 @@ export default function Contacts() {
             >
               <Share2 className="h-3.5 w-3.5" />
               Distribute
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => setEnrollDialogOpen(true)}
+            >
+              <ListFilter className="h-3.5 w-3.5" />
+              Enroll in Sequence
             </Button>
             {activeFieldDefs.length > 0 && (
               <Button
@@ -1715,6 +1727,15 @@ export default function Contacts() {
         loading={distributeMutation.isPending}
       />
 
+      {/* Enroll in Sequence Dialog */}
+      <EnrollInSequenceDialog
+        open={enrollDialogOpen}
+        onOpenChange={setEnrollDialogOpen}
+        accountId={accountId!}
+        selectedIds={selectedIds}
+        onSuccess={() => setSelectedIds(new Set())}
+      />
+
       {/* Bulk Edit Custom Field Dialog */}
       <Dialog open={bulkEditCfOpen} onOpenChange={setBulkEditCfOpen}>
         <DialogContent className="sm:max-w-md">
@@ -1805,6 +1826,87 @@ export default function Contacts() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// ─── Enroll in Sequence Dialog ───
+function EnrollInSequenceDialog({
+  open,
+  onOpenChange,
+  accountId,
+  selectedIds,
+  onSuccess,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  accountId: number;
+  selectedIds: Set<number>;
+  onSuccess: () => void;
+}) {
+  const [enrollSequenceId, setEnrollSequenceId] = useState<string>("");
+  const { data: allSequences } = trpc.sequences.list.useQuery(
+    { accountId },
+    { enabled: open && !!accountId }
+  );
+  const activeSequences = (allSequences ?? []).filter((s: any) => s.status === "active");
+  const bulkEnrollMutation = trpc.sequences.bulkEnroll.useMutation({
+    onSuccess: (result) => {
+      toast.success(`Enrolled ${result.enrolled} contacts — ${result.skipped} already enrolled`);
+      onOpenChange(false);
+      setEnrollSequenceId("");
+      onSuccess();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Enroll {selectedIds.size} Contacts in Sequence</DialogTitle>
+          <DialogDescription>
+            Select a sequence to enroll the selected contacts into. Contacts already enrolled will be skipped.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <Label>Sequence</Label>
+            <Select value={enrollSequenceId} onValueChange={setEnrollSequenceId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select an active sequence" />
+              </SelectTrigger>
+              <SelectContent>
+                {activeSequences.map((s: any) => (
+                  <SelectItem key={s.id} value={String(s.id)}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {activeSequences.length === 0 && (
+              <p className="text-xs text-muted-foreground">No active sequences found. Activate a sequence first.</p>
+            )}
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button
+            disabled={!enrollSequenceId || bulkEnrollMutation.isPending}
+            onClick={() => {
+              bulkEnrollMutation.mutate({
+                sequenceId: Number(enrollSequenceId),
+                contactIds: Array.from(selectedIds),
+                accountId,
+                source: "manual",
+              });
+            }}
+          >
+            {bulkEnrollMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+            Enroll Contacts
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

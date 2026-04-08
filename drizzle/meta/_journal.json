@@ -617,6 +617,13 @@
       "when": 1775588800213,
       "tag": "0087_goofy_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "5",
+      "when": 1775606873281,
+      "tag": "0088_unique_swordsman",
+      "breakpoints": true
     }
   ]
 }

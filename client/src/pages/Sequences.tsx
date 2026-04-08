@@ -66,6 +66,8 @@ import {
   Copy,
   TrendingUp,
   Activity,
+  CalendarClock,
+  Loader2,
 } from "lucide-react";
 
 // ─── Types ───
@@ -90,6 +92,7 @@ interface Sequence {
   stepCount: number;
   activeEnrollments: number;
   completedCount: number;
+  activateAt: string | Date | null;
   steps?: SequenceStep[];
 }
 
@@ -305,6 +308,12 @@ export default function Sequences() {
                     {seq.description && (
                       <p className="text-sm text-muted-foreground truncate mt-0.5">
                         {seq.description}
+                      </p>
+                    )}
+                    {seq.activateAt && (
+                      <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                        <CalendarClock className="h-3 w-3" />
+                        Activates {new Date(seq.activateAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                       </p>
                     )}
                     <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
@@ -637,6 +646,8 @@ function SequenceBuilder({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState("");
   const [showConfigureDialog, setShowConfigureDialog] = useState(false);
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduleDate, setScheduleDate] = useState("");
 
   // Auto-open Configure dialog for pending template clones
   useEffect(() => {
@@ -774,8 +785,14 @@ function SequenceBuilder({
                 )}
               </div>
             )}
-            <div className="flex items-center gap-2 mt-1">
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
               <StatusBadge status={sequence.status} />
+              {sequence.activateAt && (
+                <Badge className="bg-amber-100 text-amber-700 border-amber-300 text-xs gap-1">
+                  <CalendarClock className="h-3 w-3" />
+                  Activates {new Date(sequence.activateAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </Badge>
+              )}
               <span className="text-sm text-muted-foreground">
                 {steps.length} step{steps.length !== 1 ? "s" : ""} · {sequence.activeEnrollments} enrolled · {sequence.completedCount} completed
               </span>
@@ -791,6 +808,23 @@ function SequenceBuilder({
             >
               <Settings2 className="h-4 w-4 mr-2" />
               Configure Event
+            </Button>
+          )}
+          {sequence.status === "draft" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setScheduleDate(
+                  sequence.activateAt
+                    ? new Date(sequence.activateAt).toISOString().slice(0, 16)
+                    : ""
+                );
+                setShowScheduleDialog(true);
+              }}
+            >
+              <CalendarClock className="h-4 w-4 mr-2" />
+              Schedule
             </Button>
           )}
           <Button
@@ -1082,6 +1116,70 @@ function SequenceBuilder({
         accountId={accountId}
         stepCount={steps.length}
       />
+
+      {/* Schedule Activation Dialog */}
+      <Dialog open={showScheduleDialog} onOpenChange={setShowScheduleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Schedule Auto-Activation</DialogTitle>
+            <DialogDescription>
+              Set a date and time for this sequence to automatically activate. Great for coordinating webinar campaigns.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Activate On</Label>
+              <Input
+                type="datetime-local"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            {sequence.activateAt && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  updateSeq.mutate(
+                    { id: sequenceId, accountId, activateAt: null },
+                    {
+                      onSuccess: () => {
+                        toast.success("Schedule cleared");
+                        setShowScheduleDialog(false);
+                      },
+                    }
+                  );
+                }}
+                disabled={updateSeq.isPending}
+              >
+                Clear Schedule
+              </Button>
+            )}
+            <Button
+              disabled={!scheduleDate || updateSeq.isPending}
+              onClick={() => {
+                const dt = new Date(scheduleDate);
+                updateSeq.mutate(
+                  { id: sequenceId, accountId, activateAt: dt.toISOString() },
+                  {
+                    onSuccess: () => {
+                      toast.success(
+                        `Sequence will activate on ${dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" })}`
+                      );
+                      setShowScheduleDialog(false);
+                    },
+                  }
+                );
+              }}
+            >
+              {updateSeq.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Set Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1227,44 +1325,8 @@ function PerformanceTab({
         </Card>
       </div>
 
-      {/* Row 2: Step-by-Step Progress */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg">Where Contacts Are in the Sequence</CardTitle>
-          <CardDescription>Active contacts distributed across each step</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {steps.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No steps in this sequence.</p>
-          ) : (
-            <div className="space-y-3">
-              {steps.map((step) => {
-                const cnt = stepCountMap[step.position] || 0;
-                const pct = maxStepCount > 0 ? (cnt / maxStepCount) * 100 : 0;
-                return (
-                  <div key={step.id} className="flex items-center gap-3">
-                    <div className="w-24 shrink-0 text-sm text-muted-foreground">
-                      <span className="font-medium">Step {step.position}</span>
-                      <span className="ml-1 text-xs">
-                        {step.messageType === "email" ? "📧" : "💬"}
-                      </span>
-                    </div>
-                    <div className="flex-1 h-6 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          step.messageType === "email" ? "bg-blue-500" : "bg-green-500"
-                        }`}
-                        style={{ width: `${Math.max(pct, cnt > 0 ? 2 : 0)}%` }}
-                      />
-                    </div>
-                    <div className="w-10 text-right text-sm font-medium">{cnt}</div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Row 2: Step-Level Analytics */}
+      <StepAnalyticsSection sequenceId={sequenceId} accountId={accountId} steps={steps} />
 
       {/* Row 3: Trend + Sources */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1326,6 +1388,123 @@ function PerformanceTab({
         </Card>
       </div>
     </div>
+  );
+}
+
+// ─── Step-Level Analytics Section ───
+function StepAnalyticsSection({
+  sequenceId,
+  accountId,
+  steps,
+}: {
+  sequenceId: number;
+  accountId: number;
+  steps: SequenceStep[];
+}) {
+  const { data: stepAnalytics, isLoading } = trpc.sequences.getStepAnalytics.useQuery(
+    { sequenceId, accountId },
+    { enabled: !!sequenceId }
+  );
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="pt-4">
+          <Skeleton className="h-48 w-full rounded-lg" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const analytics = stepAnalytics ?? [];
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg">Step-by-Step Analytics</CardTitle>
+        <CardDescription>
+          Message delivery and reply metrics per step
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4">
+          Analytics tracked from messages sent after this feature was enabled. Historical steps show 0.
+        </div>
+        {analytics.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No steps in this sequence.</p>
+        ) : (
+          <div className="space-y-4">
+            {analytics.map((sa) => {
+              const total = sa.sent;
+              const deliveredPct = total > 0 ? (sa.delivered / total) * 100 : 0;
+              const failedPct = total > 0 ? (sa.failed / total) * 100 : 0;
+              const pendingPct = Math.max(0, 100 - deliveredPct - failedPct);
+              const preview = (sa.content || "").slice(0, 60) + ((sa.content || "").length > 60 ? "…" : "");
+              return (
+                <div key={sa.position} className="border rounded-lg p-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-xs font-mono">
+                      Step {sa.position}
+                    </Badge>
+                    <Badge
+                      variant="secondary"
+                      className={sa.messageType === "email" ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"}
+                    >
+                      {sa.messageType === "email" ? "EMAIL" : "SMS"}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      Day {sa.delayDays}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-auto truncate max-w-[300px]">
+                      {preview}
+                    </span>
+                  </div>
+                  {/* Mini metrics */}
+                  <div className="flex items-center gap-6 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Sent:</span>{" "}
+                      <span className="font-medium">{sa.sent}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Delivered:</span>{" "}
+                      <span className="font-medium text-green-600">{sa.delivered}</span>
+                      {sa.sent > 0 && (
+                        <span className="text-xs text-muted-foreground ml-1">({sa.deliveryRate}%)</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Replies:</span>{" "}
+                      <span className="font-medium text-blue-600">{sa.replyCount}</span>
+                      {sa.sent > 0 && (
+                        <span className="text-xs text-muted-foreground ml-1">({sa.replyRate}%)</span>
+                      )}
+                    </div>
+                  </div>
+                  {/* Delivery progress bar */}
+                  <div className="h-2 bg-muted rounded-full overflow-hidden flex">
+                    <div
+                      className="h-full bg-green-500 transition-all"
+                      style={{ width: `${deliveredPct}%` }}
+                      title={`Delivered: ${sa.delivered}`}
+                    />
+                    <div
+                      className="h-full bg-red-500 transition-all"
+                      style={{ width: `${failedPct}%` }}
+                      title={`Failed: ${sa.failed}`}
+                    />
+                    <div
+                      className="h-full bg-gray-300 transition-all"
+                      style={{ width: `${pendingPct}%` }}
+                      title={`Pending/Unknown: ${total - sa.delivered - sa.failed}`}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
