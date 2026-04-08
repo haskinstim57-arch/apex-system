@@ -106,7 +106,7 @@ export const JARVIS_TOOLS: Tool[] = [
     type: "function",
     function: {
       name: "get_message_stats",
-      description: "Get messaging stats: total, sent, delivered, failed, emails, sms counts.",
+      description: "Get messaging stats: total, sent, delivered, failed, emails, sms counts. For details on WHY messages failed, use get_failed_messages instead.",
       parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
     },
   },
@@ -863,6 +863,34 @@ export const JARVIS_TOOLS: Tool[] = [
       },
     },
   },
+  // ── Failed Message Investigation ──
+  {
+    type: "function",
+    function: {
+      name: "get_failed_messages",
+      description: "Get details about failed messages including the contact name, message type, destination, error reason, and timestamp. Use this when asked why messages failed or to investigate delivery issues.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Max number of failed messages to return (default 10, max 50)",
+          },
+          contactId: {
+            type: "number",
+            description: "Optional — filter to failed messages for a specific contact",
+          },
+          type: {
+            type: "string",
+            enum: ["sms", "email"],
+            description: "Optional — filter by message type",
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // ═══════════════════════════════════════════════
@@ -895,7 +923,97 @@ export async function executeTool(
     case "get_campaign_stats":
       return getCampaignStats(accountId);
 
-    // ── Contact Management ──
+    case "get_failed_messages": {
+      const limit = Math.min((args.limit as number) || 10, 50);
+      const db = await getDb();
+      if (!db) return { total: 0, messages: [] };
+
+      // Build conditions
+      const conditions = [
+        eq(messages.accountId, accountId),
+        eq(messages.status, "failed"),
+      ];
+      if (args.contactId) conditions.push(eq(messages.contactId, args.contactId as number));
+      if (args.type) conditions.push(eq(messages.type, args.type as "sms" | "email"));
+
+      // Count total
+      const [{ cnt }] = await db
+        .select({ cnt: count() })
+        .from(messages)
+        .where(and(...conditions));
+
+      // Fetch rows joined with contacts for name
+      const rows = await db
+        .select({
+          id: messages.id,
+          contactId: messages.contactId,
+          contactFirstName: contacts.firstName,
+          contactLastName: contacts.lastName,
+          type: messages.type,
+          toAddress: messages.toAddress,
+          body: messages.body,
+          subject: messages.subject,
+          errorMessage: messages.errorMessage,
+          createdAt: messages.createdAt,
+        })
+        .from(messages)
+        .leftJoin(contacts, eq(messages.contactId, contacts.id))
+        .where(and(...conditions))
+        .orderBy(desc(messages.createdAt))
+        .limit(limit);
+
+      // Twilio SMS error code mapping
+      const twilioErrorMap: Record<string, string> = {
+        "30003": "Unreachable destination \u2014 phone may be off or out of service",
+        "30004": "Message blocked \u2014 carrier blocked this message",
+        "30005": "Unknown destination \u2014 number doesn\u2019t exist",
+        "30006": "Landline number \u2014 SMS cannot be delivered to landlines",
+        "30007": "Message filtered by carrier \u2014 may contain flagged content",
+        "30008": "Unknown error from carrier",
+        "21211": "Invalid phone number format",
+      };
+
+      const getHumanReason = (errorMsg: string | null, msgType: string): string => {
+        if (!errorMsg) {
+          return msgType === "email"
+            ? "Email delivery failed \u2014 server rejected the message or address bounced"
+            : "Delivery failed \u2014 carrier or server rejected the message";
+        }
+        // Try to extract a Twilio error code from the error message
+        const codeMatch = errorMsg.match(/\b(3000[3-8]|21211)\b/);
+        if (codeMatch && twilioErrorMap[codeMatch[1]]) {
+          return twilioErrorMap[codeMatch[1]];
+        }
+        // Check for common email bounce keywords
+        const lower = errorMsg.toLowerCase();
+        if (lower.includes("bounce")) return "Email bounced \u2014 recipient address is invalid or mailbox full";
+        if (lower.includes("spam") || lower.includes("blocked")) return "Message blocked \u2014 flagged as spam by recipient server";
+        if (lower.includes("invalid") && lower.includes("email")) return "Invalid email address";
+        if (lower.includes("unsubscribe") || lower.includes("suppression")) return "Recipient has unsubscribed or is on suppression list";
+        // Fallback: return the raw error message (truncated)
+        return errorMsg.length > 120 ? errorMsg.slice(0, 120) + "\u2026" : errorMsg;
+      }
+
+      return {
+        total: cnt,
+        messages: rows.map((m) => {
+          const contactName = [m.contactFirstName, m.contactLastName].filter(Boolean).join(" ");
+          return {
+            id: m.id,
+            contact: contactName || `Contact #${m.contactId}`,
+            contactId: m.contactId,
+            type: m.type,
+            sentTo: m.toAddress,
+            preview: m.body?.slice(0, 100) || null,
+            errorCode: m.errorMessage?.match(/\b(\d{5})\b/)?.[1] || null,
+            reason: getHumanReason(m.errorMessage, m.type),
+            failedAt: m.createdAt,
+          };
+        }),
+      };
+    }
+
+    // ── Contact Management ───
     case "search_contacts": {
       const searchTerm = (args.search as string | undefined) || "";
       const searchLimit = Math.min((args.limit as number) || 20, 50);

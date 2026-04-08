@@ -3892,4 +3892,13 @@
 ### Verification
 - [x] 0 TypeScript errors in all modified files
 - [x] Vitest tests: 16 tests passing (sequences-v2.test.ts)
+- [x] Save checkpoint (73061a5b)
+
+## Jarvis Tool: get_failed_messages
+
+- [x] Add get_failed_messages tool definition to JARVIS_TOOLS array
+- [x] Add executeTool case with messages+contacts join, error code mapping, limit/contactId/type filters
+- [x] Update get_message_stats description to reference get_failed_messages for failure details
+- [x] 0 TypeScript errors in jarvisTools.ts
+- [x] Vitest test: 24 tests passing (jarvis-failed-messages.test.ts)
 - [ ] Save checkpoint
