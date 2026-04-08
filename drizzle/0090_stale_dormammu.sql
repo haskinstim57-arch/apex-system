@@ -1,0 +1,23 @@
+CREATE TABLE `recurring_content_plans` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`account_id` int NOT NULL,
+	`name` varchar(255) NOT NULL,
+	`content_type` enum('blog','social') NOT NULL DEFAULT 'blog',
+	`platform` varchar(50),
+	`frequency` enum('daily','weekly','biweekly','monthly') NOT NULL,
+	`posts_per_cycle` int NOT NULL DEFAULT 1,
+	`topic_template` text NOT NULL,
+	`custom_prompt` text,
+	`ai_model` varchar(100) DEFAULT 'gemini-2.5-flash',
+	`enable_web_research` boolean DEFAULT false,
+	`enable_image_generation` boolean DEFAULT false,
+	`tone` varchar(50) DEFAULT 'professional',
+	`is_active` boolean NOT NULL DEFAULT true,
+	`last_run_at` timestamp,
+	`next_run_at` timestamp,
+	`run_count` int NOT NULL DEFAULT 0,
+	`last_run_result` text,
+	`created_at` timestamp DEFAULT (now()),
+	`updated_at` timestamp DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `recurring_content_plans_id` PRIMARY KEY(`id`)
+);

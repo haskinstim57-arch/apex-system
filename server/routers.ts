@@ -51,6 +51,7 @@ import { socialContentRouter } from "./routers/socialContent";
 import { leadMonitorRouter } from "./routers/leadMonitor";
 import { longFormContentRouter } from "./routers/longFormContent";
 import { emailContentRouter } from "./routers/emailContent";
+import { recurringContentPlansRouter } from "./routers/recurringContentPlans";
 
 export const appRouter = router({
   system: systemRouter,
@@ -113,6 +114,7 @@ export const appRouter = router({
   leadMonitor: leadMonitorRouter,
   longFormContent: longFormContentRouter,
   emailContent: emailContentRouter,
+  recurringContentPlans: recurringContentPlansRouter,
 });
 
 export type AppRouter = typeof appRouter;

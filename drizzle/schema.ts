@@ -2781,3 +2781,29 @@ export const emailSignatures = mysqlTable("email_signatures", {
 });
 export type EmailSignature = typeof emailSignatures.$inferSelect;
 export type InsertEmailSignature = typeof emailSignatures.$inferInsert;
+
+// ─── Recurring Content Plans ─────────────────────────────────────────────────
+export const recurringContentPlans = mysqlTable("recurring_content_plans", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  contentType: mysqlEnum("content_type", ["blog", "social"]).notNull().default("blog"),
+  platform: varchar("platform", { length: 50 }),
+  frequency: mysqlEnum("frequency", ["daily", "weekly", "biweekly", "monthly"]).notNull(),
+  postsPerCycle: int("posts_per_cycle").notNull().default(1),
+  topicTemplate: text("topic_template").notNull(),
+  customPrompt: text("custom_prompt"),
+  aiModel: varchar("ai_model", { length: 100 }).default("gemini-2.5-flash"),
+  enableWebResearch: boolean("enable_web_research").default(false),
+  enableImageGeneration: boolean("enable_image_generation").default(false),
+  tone: varchar("tone", { length: 50 }).default("professional"),
+  isActive: boolean("is_active").notNull().default(true),
+  lastRunAt: timestamp("last_run_at"),
+  nextRunAt: timestamp("next_run_at"),
+  runCount: int("run_count").notNull().default(0),
+  lastRunResult: text("last_run_result"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow(),
+});
+export type RecurringContentPlan = typeof recurringContentPlans.$inferSelect;
+export type InsertRecurringContentPlan = typeof recurringContentPlans.$inferInsert;

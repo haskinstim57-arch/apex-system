@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAccount } from "@/contexts/AccountContext";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -123,6 +123,10 @@ import {
   Phone,
   Globe,
   Award,
+  RefreshCw,
+  Play,
+  Repeat,
+  Zap,
 } from "lucide-react";
 import {
   AlertDialog,
@@ -4083,6 +4087,578 @@ function EmailTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Recurring Content Plans Tab
+// ═══════════════════════════════════════════════════════════════════════════
+
+const FREQUENCY_LABELS: Record<string, string> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  biweekly: "Every 2 Weeks",
+  monthly: "Monthly",
+};
+
+const TONE_OPTIONS = [
+  "professional",
+  "casual",
+  "funny",
+  "inspiring",
+  "educational",
+  "authoritative",
+  "conversational",
+];
+
+function RecurringPlansTab() {
+  const { currentAccountId: activeAccountId } = useAccount();
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<any | null>(null);
+  const [expandedPlanId, setExpandedPlanId] = useState<number | null>(null);
+  const [runningPlanId, setRunningPlanId] = useState<number | null>(null);
+
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formContentType, setFormContentType] = useState<"blog" | "social">("blog");
+  const [formPlatform, setFormPlatform] = useState("instagram");
+  const [formFrequency, setFormFrequency] = useState<"daily" | "weekly" | "biweekly" | "monthly">("weekly");
+  const [formPostsPerCycle, setFormPostsPerCycle] = useState(1);
+  const [formTopicTemplate, setFormTopicTemplate] = useState("");
+  const [formCustomPrompt, setFormCustomPrompt] = useState("");
+  const [formAiModel, setFormAiModel] = useState("gemini-2.5-flash");
+  const [formEnableWebResearch, setFormEnableWebResearch] = useState(false);
+  const [formEnableImageGeneration, setFormEnableImageGeneration] = useState(false);
+  const [formTone, setFormTone] = useState("professional");
+
+  const plansQuery = trpc.recurringContentPlans.list.useQuery(
+    { accountId: activeAccountId! },
+    { enabled: !!activeAccountId }
+  );
+  const utils = trpc.useUtils();
+
+  const createMutation = trpc.recurringContentPlans.create.useMutation({
+    onSuccess: () => {
+      utils.recurringContentPlans.list.invalidate();
+      setShowCreateDialog(false);
+      resetForm();
+      toast.success("Recurring plan created");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateMutation = trpc.recurringContentPlans.update.useMutation({
+    onSuccess: () => {
+      utils.recurringContentPlans.list.invalidate();
+      setEditingPlan(null);
+      resetForm();
+      toast.success("Plan updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = trpc.recurringContentPlans.delete.useMutation({
+    onSuccess: () => {
+      utils.recurringContentPlans.list.invalidate();
+      toast.success("Plan deleted");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const runNowMutation = trpc.recurringContentPlans.runNow.useMutation({
+    onSuccess: (results) => {
+      utils.recurringContentPlans.list.invalidate();
+      setRunningPlanId(null);
+      const succeeded = results.filter((r: any) => r.status === "success").length;
+      const failed = results.filter((r: any) => r.status === "failed").length;
+      if (failed === 0) {
+        toast.success(`Generated ${succeeded} piece${succeeded > 1 ? "s" : ""} of content`);
+      } else {
+        toast.warning(`Generated ${succeeded}, failed ${failed}`);
+      }
+    },
+    onError: (err) => {
+      setRunningPlanId(null);
+      toast.error(err.message);
+    },
+  });
+
+  const resetForm = () => {
+    setFormName("");
+    setFormContentType("blog");
+    setFormPlatform("instagram");
+    setFormFrequency("weekly");
+    setFormPostsPerCycle(1);
+    setFormTopicTemplate("");
+    setFormCustomPrompt("");
+    setFormAiModel("gemini-2.5-flash");
+    setFormEnableWebResearch(false);
+    setFormEnableImageGeneration(false);
+    setFormTone("professional");
+  };
+
+  const openEditDialog = (plan: any) => {
+    setEditingPlan(plan);
+    setFormName(plan.name);
+    setFormContentType(plan.contentType);
+    setFormPlatform(plan.platform || "instagram");
+    setFormFrequency(plan.frequency);
+    setFormPostsPerCycle(plan.postsPerCycle);
+    setFormTopicTemplate(plan.topicTemplate);
+    setFormCustomPrompt(plan.customPrompt || "");
+    setFormAiModel(plan.aiModel || "gemini-2.5-flash");
+    setFormEnableWebResearch(plan.enableWebResearch ?? false);
+    setFormEnableImageGeneration(plan.enableImageGeneration ?? false);
+    setFormTone(plan.tone || "professional");
+  };
+
+  const handleSubmit = () => {
+    if (!activeAccountId) return;
+    const base = {
+      accountId: activeAccountId,
+      name: formName,
+      contentType: formContentType,
+      platform: formContentType === "social" ? formPlatform : undefined,
+      frequency: formFrequency,
+      postsPerCycle: formPostsPerCycle,
+      topicTemplate: formTopicTemplate,
+      customPrompt: formCustomPrompt || undefined,
+      aiModel: formAiModel,
+      enableWebResearch: formEnableWebResearch,
+      enableImageGeneration: formEnableImageGeneration,
+      tone: formTone,
+    };
+    if (editingPlan) {
+      updateMutation.mutate({ ...base, id: editingPlan.id });
+    } else {
+      createMutation.mutate(base);
+    }
+  };
+
+  const handleRunNow = (planId: number) => {
+    if (!activeAccountId) return;
+    setRunningPlanId(planId);
+    runNowMutation.mutate({ accountId: activeAccountId, id: planId });
+  };
+
+  const handleToggleActive = (plan: any) => {
+    if (!activeAccountId) return;
+    updateMutation.mutate({
+      accountId: activeAccountId,
+      id: plan.id,
+      isActive: !plan.isActive,
+    });
+  };
+
+  const plans = plansQuery.data || [];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Recurring Content Plans</h2>
+          <p className="text-sm text-muted-foreground">
+            Automate content generation on a schedule — blog articles or social posts.
+          </p>
+        </div>
+        <Button
+          onClick={() => {
+            resetForm();
+            setShowCreateDialog(true);
+          }}
+          className="gap-2"
+        >
+          <Plus className="h-4 w-4" />
+          New Plan
+        </Button>
+      </div>
+
+      {/* Plans Table */}
+      {plansQuery.isLoading ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+          </CardContent>
+        </Card>
+      ) : plans.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Repeat className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
+            <h3 className="text-lg font-medium mb-2">No Recurring Plans Yet</h3>
+            <p className="text-muted-foreground text-sm mb-4">
+              Create a plan to automatically generate blog articles or social posts on a schedule.
+            </p>
+            <Button
+              onClick={() => {
+                resetForm();
+                setShowCreateDialog(true);
+              }}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Create First Plan
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Frequency</TableHead>
+                <TableHead className="text-center">Posts/Cycle</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Next Run</TableHead>
+                <TableHead>Last Run</TableHead>
+                <TableHead className="text-center">Runs</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {plans.map((plan) => {
+                let lastResult: any = null;
+                try {
+                  if (plan.lastRunResult) lastResult = JSON.parse(plan.lastRunResult as string);
+                } catch {}
+                const isExpanded = expandedPlanId === plan.id;
+                return (
+                  <React.Fragment key={plan.id}>
+                    <TableRow
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => setExpandedPlanId(isExpanded ? null : plan.id)}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {isExpanded ? (
+                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                          )}
+                          {plan.name}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="gap-1">
+                          {plan.contentType === "blog" ? (
+                            <FileText className="h-3 w-3" />
+                          ) : (
+                            <Share2 className="h-3 w-3" />
+                          )}
+                          {plan.contentType === "blog" ? "Blog" : `Social (${plan.platform})`}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{FREQUENCY_LABELS[plan.frequency] || plan.frequency}</TableCell>
+                      <TableCell className="text-center">{plan.postsPerCycle}</TableCell>
+                      <TableCell>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Switch
+                            checked={plan.isActive}
+                            onCheckedChange={() => handleToggleActive(plan)}
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {plan.nextRunAt
+                          ? format(new Date(plan.nextRunAt), "MMM d, h:mm a")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {plan.lastRunAt
+                          ? format(new Date(plan.lastRunAt), "MMM d, h:mm a")
+                          : "Never"}
+                      </TableCell>
+                      <TableCell className="text-center">{plan.runCount}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            disabled={runningPlanId === plan.id}
+                            onClick={() => handleRunNow(plan.id)}
+                            title="Run Now"
+                          >
+                            {runningPlanId === plan.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Play className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openEditDialog(plan)}
+                            title="Edit"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              if (!activeAccountId) return;
+                              deleteMutation.mutate({ accountId: activeAccountId, id: plan.id });
+                            }}
+                            title="Delete"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    {/* Expandable last run result */}
+                    {isExpanded && lastResult && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="bg-muted/30 p-4">
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-4 text-sm">
+                              <span className="font-medium">Last Run Summary:</span>
+                              <Badge variant="outline" className="gap-1">
+                                <CheckCircle className="h-3 w-3 text-green-500" />
+                                {lastResult.generated} generated
+                              </Badge>
+                              {lastResult.failed > 0 && (
+                                <Badge variant="destructive" className="gap-1">
+                                  <XCircle className="h-3 w-3" />
+                                  {lastResult.failed} failed
+                                </Badge>
+                              )}
+                            </div>
+                            {lastResult.topics && (
+                              <div className="space-y-1">
+                                {lastResult.topics.map((t: any, i: number) => (
+                                  <div key={i} className="flex items-center gap-2 text-sm">
+                                    {t.status === "success" ? (
+                                      <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                                    ) : (
+                                      <XCircle className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                    )}
+                                    <span className="truncate">{t.topic}</span>
+                                    {t.error && (
+                                      <span className="text-xs text-destructive">({t.error})</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {isExpanded && !lastResult && (
+                      <TableRow>
+                        <TableCell colSpan={9} className="bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+                          No run results yet. Click "Run Now" to generate content.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
+
+      {/* Create / Edit Dialog */}
+      <Dialog
+        open={showCreateDialog || !!editingPlan}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowCreateDialog(false);
+            setEditingPlan(null);
+            resetForm();
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? "Edit Plan" : "New Recurring Plan"}</DialogTitle>
+            <DialogDescription>
+              {editingPlan
+                ? "Update the plan settings below."
+                : "Set up automated content generation on a schedule."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Name */}
+            <div className="space-y-2">
+              <Label>Plan Name</Label>
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g., Weekly Mortgage Tips Blog"
+              />
+            </div>
+
+            {/* Content Type */}
+            <div className="space-y-2">
+              <Label>Content Type</Label>
+              <Select value={formContentType} onValueChange={(v) => setFormContentType(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="blog">Blog Article</SelectItem>
+                  <SelectItem value="social">Social Media Post</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Platform (social only) */}
+            {formContentType === "social" && (
+              <div className="space-y-2">
+                <Label>Platform</Label>
+                <Select value={formPlatform} onValueChange={setFormPlatform}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="linkedin">LinkedIn</SelectItem>
+                    <SelectItem value="twitter">Twitter / X</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Frequency */}
+            <div className="space-y-2">
+              <Label>Frequency</Label>
+              <Select value={formFrequency} onValueChange={(v) => setFormFrequency(v as any)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="biweekly">Every 2 Weeks</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Posts per cycle */}
+            <div className="space-y-2">
+              <Label>Posts per Cycle</Label>
+              <Input
+                type="number"
+                min={1}
+                max={10}
+                value={formPostsPerCycle}
+                onChange={(e) => setFormPostsPerCycle(Number(e.target.value) || 1)}
+              />
+              <p className="text-xs text-muted-foreground">
+                How many pieces of content to generate each cycle (1–10).
+              </p>
+            </div>
+
+            {/* Topic Template */}
+            <div className="space-y-2">
+              <Label>Topic Template</Label>
+              <Textarea
+                value={formTopicTemplate}
+                onChange={(e) => setFormTopicTemplate(e.target.value)}
+                placeholder="e.g., Tips for first-time homebuyers in [state]"
+                rows={2}
+              />
+              <p className="text-xs text-muted-foreground">
+                The AI will expand this into {formPostsPerCycle} distinct topic{formPostsPerCycle > 1 ? "s" : ""} each cycle.
+              </p>
+            </div>
+
+            {/* Custom Prompt */}
+            <div className="space-y-2">
+              <Label>Custom Prompt (optional)</Label>
+              <Textarea
+                value={formCustomPrompt}
+                onChange={(e) => setFormCustomPrompt(e.target.value)}
+                placeholder="Additional instructions for the AI..."
+                rows={2}
+              />
+            </div>
+
+            {/* Tone */}
+            <div className="space-y-2">
+              <Label>Tone</Label>
+              <Select value={formTone} onValueChange={setFormTone}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TONE_OPTIONS.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* AI Model */}
+            <div className="space-y-2">
+              <Label>AI Model</Label>
+              <Select value={formAiModel} onValueChange={setFormAiModel}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gemini-2.5-flash">Gemini 2.5 Flash (Fast)</SelectItem>
+                  <SelectItem value="gemini-2.5-pro">Gemini 2.5 Pro (Quality)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Toggles */}
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Web Research</Label>
+                <p className="text-xs text-muted-foreground">Search the web for context before generating.</p>
+              </div>
+              <Switch checked={formEnableWebResearch} onCheckedChange={setFormEnableWebResearch} />
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Image Generation</Label>
+                <p className="text-xs text-muted-foreground">Auto-generate a featured image.</p>
+              </div>
+              <Switch checked={formEnableImageGeneration} onCheckedChange={setFormEnableImageGeneration} />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowCreateDialog(false);
+                setEditingPlan(null);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={!formName || !formTopicTemplate || createMutation.isPending || updateMutation.isPending}
+              className="gap-2"
+            >
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {editingPlan ? "Save Changes" : "Create Plan"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Main Content Hub Page — Top-level Tabs
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -4143,6 +4719,10 @@ export default function ContentHub() {
             <Mail className="h-4 w-4" />
             Email
           </TabsTrigger>
+          <TabsTrigger value="recurring-plans" className="gap-2">
+            <Repeat className="h-4 w-4" />
+            Recurring Plans
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="blog-articles">
@@ -4155,6 +4735,10 @@ export default function ContentHub() {
 
         <TabsContent value="email">
           <EmailTab />
+        </TabsContent>
+
+        <TabsContent value="recurring-plans">
+          <RecurringPlansTab />
         </TabsContent>
       </Tabs>
     </div>

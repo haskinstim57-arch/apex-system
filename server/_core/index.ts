@@ -36,6 +36,7 @@ import { startPushBatchWorker } from "../services/pushBatcher";
 import { startJarvisTaskWorker } from "../services/jarvisTaskWorker";
 import { startSequenceActivationWorker } from "../services/sequenceActivationWorker";
 import { startMessageRetryWorker } from "../services/messageRetryWorker";
+import { startRecurringContentWorker } from "../services/recurringContentWorker";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -433,6 +434,9 @@ async function startServer() {
 
     // Start message retry worker (checks every 15 min, retries failed messages with transient errors)
     startMessageRetryWorker();
+
+    // Start recurring content worker (checks every 1 hour, generates content for due plans)
+    startRecurringContentWorker();
   });
 }
 

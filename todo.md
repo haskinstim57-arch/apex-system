@@ -3927,4 +3927,30 @@
 ### Verification
 - [x] 0 TypeScript errors in modified files
 - [x] Vitest tests: 31 tests passing (message-reliability.test.ts)
+- [x] Save checkpoint (a53ceb5b)
+
+## Recurring Content Plans for Content Hub
+
+### Schema
+- [x] Add recurringContentPlans table to drizzle/schema.ts
+- [x] Run pnpm db:push
+
+### Backend
+- [x] Extract generateLongFormContent from longFormContent router into server/services/longFormContentService.ts
+- [x] Create server/routers/recurringContentPlans.ts (list, create, update, delete, runNow)
+- [x] Create server/services/recurringContentWorker.ts (computeNextRunAt, runRecurringPlan, processDueRecurringPlans, startRecurringContentWorker)
+- [x] Register recurringContentPlansRouter in server/routers.ts
+- [x] Start recurringContentWorker in server/_core/index.ts
+
+### Frontend
+- [x] Add 4th top-level tab "Recurring Plans" to ContentHub.tsx
+- [x] Recurring Plans table with columns: Name, Type, Frequency, Posts/Cycle, Status toggle, Next Run, Last Run, Run Count, Actions
+- [x] Expandable last run result row
+- [x] New Plan dialog with all fields (name, contentType, platform, frequency, postsPerCycle, topicTemplate, customPrompt, aiModel, enableWebResearch, enableImageGeneration, tone)
+- [x] Run Now action with loading spinner and success/warning toast
+- [x] Edit and Delete actions
+
+### Verification
+- [x] 0 TypeScript errors in modified files
+- [x] Vitest tests: 17 tests passing (recurring-content.test.ts)
 - [ ] Save checkpoint
