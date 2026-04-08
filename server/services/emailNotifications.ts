@@ -43,6 +43,7 @@ function buildNotificationEmail(
     appointment_booked: { emoji: "📅", color: "#10B981", label: "Appointment Booked" },
     ai_call_completed: { emoji: "🤖", color: "#F59E0B", label: "AI Call Completed" },
     facebook_lead: { emoji: "📣", color: "#1D4ED8", label: "New Facebook Lead" },
+    message_delivery_failure: { emoji: "⚠️", color: "#EF4444", label: "Message Delivery Failure" },
   };
 
   const config = typeConfig[eventType] || { emoji: "🔔", color: "#6B7280", label: "Notification" };
@@ -135,6 +136,7 @@ function buildBatchedNotificationEmail(
     appointment_booked: { singular: "new appointment", plural: "new appointments", url: "/calendar" },
     ai_call_completed: { singular: "AI call completed", plural: "AI calls completed", url: "/ai-calls" },
     facebook_lead: { singular: "new Facebook lead", plural: "new Facebook leads", url: "/contacts" },
+    message_delivery_failure: { singular: "message delivery failure", plural: "message delivery failures", url: "/message-queue" },
   };
 
   const label = typeLabels[eventType] || { singular: "notification", plural: "notifications", url: "/" };

@@ -45,6 +45,7 @@ function buildNotificationSms(
     appointment_booked: "📅",
     ai_call_completed: "🤖",
     facebook_lead: "📣",
+    message_delivery_failure: "⚠️",
   };
 
   const emoji = typeEmoji[eventType] || "🔔";
@@ -89,6 +90,7 @@ function buildBatchedNotificationSms(
     appointment_booked: { singular: "new appointment", plural: "new appointments", url: "/calendar" },
     ai_call_completed: { singular: "AI call completed", plural: "AI calls completed", url: "/ai-calls" },
     facebook_lead: { singular: "new Facebook lead", plural: "new Facebook leads", url: "/contacts" },
+    message_delivery_failure: { singular: "message delivery failure", plural: "message delivery failures", url: "/message-queue" },
   };
 
   const typeEmoji: Record<PushEventType, string> = {
@@ -97,6 +99,7 @@ function buildBatchedNotificationSms(
     appointment_booked: "📅",
     ai_call_completed: "🤖",
     facebook_lead: "📣",
+    message_delivery_failure: "⚠️",
   };
 
   // For single events, use the detailed template

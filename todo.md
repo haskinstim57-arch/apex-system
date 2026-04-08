@@ -3901,4 +3901,30 @@
 - [x] Update get_message_stats description to reference get_failed_messages for failure details
 - [x] 0 TypeScript errors in jarvisTools.ts
 - [x] Vitest test: 24 tests passing (jarvis-failed-messages.test.ts)
+- [x] Save checkpoint (e04d360d)
+
+## Webhook Status Tracking + Failed Message Alerts + Auto-Retry
+
+### Feature 1 — Fix Webhook Status Tracking
+- [x] Bug 1: Fix twilio.ts statusCallback URL from .../twilio/delivery-status to .../twilio/status
+- [x] Bug 2: Bridge Twilio webhook updates to messages table in deliveryStatus.ts
+- [x] Bug 2: Bridge SendGrid webhook updates to messages table in deliveryStatus.ts
+- [x] Verify externalId is stored after send in messages.ts router (already correct)
+
+### Feature 2 — Failed Message Alerts
+- [x] Create server/services/messageFailureAlerts.ts (threshold=5, window=60min, cooldown=1hr)
+- [x] Add "message_delivery_failure" to PushEventType in pushBatcher.ts
+- [x] Wire checkAndAlertFailureThreshold into Twilio and SendGrid webhook handlers
+- [x] Add message_delivery_failure to emailNotifications.ts and smsNotifications.ts type maps
+
+### Feature 3 — Auto-Retry Failed Messages
+- [x] Schema: Add retryCount (int, default 0) and retryAt (timestamp, nullable) to messages table
+- [x] Run pnpm db:push
+- [x] Create server/services/messageRetryWorker.ts (retryable codes, exponential backoff, max 3 retries)
+- [x] Wire scheduleRetryByExternalId into webhook handlers after failed status
+- [x] Start messageRetryWorker in server/_core/index.ts
+
+### Verification
+- [x] 0 TypeScript errors in modified files
+- [x] Vitest tests: 31 tests passing (message-reliability.test.ts)
 - [ ] Save checkpoint

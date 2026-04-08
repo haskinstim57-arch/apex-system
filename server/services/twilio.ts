@@ -105,7 +105,7 @@ export async function sendSMS(
     // Build the StatusCallback URL for delivery status tracking
     const appUrl = process.env.VITE_APP_URL || process.env.APP_URL;
     const statusCallback = appUrl
-      ? `${appUrl}/api/webhooks/twilio/delivery-status`
+      ? `${appUrl}/api/webhooks/twilio/status`
       : undefined;
 
     const message = await creds.client.messages.create({

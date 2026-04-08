@@ -287,6 +287,10 @@ export const messages = mysqlTable("messages", {
   sequenceStepId: int("sequence_step_id"),
   /** Position of the step within the sequence (nullable) */
   sequenceStepPosition: int("sequence_step_position"),
+  /** Number of retry attempts made (0 = original send) */
+  retryCount: int("retry_count").default(0).notNull(),
+  /** When the next retry should fire (null = no retry scheduled) */
+  retryAt: timestamp("retry_at"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

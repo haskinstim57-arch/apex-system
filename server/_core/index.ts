@@ -35,6 +35,7 @@ import { startMessageQueueWorker } from "../services/messageQueue";
 import { startPushBatchWorker } from "../services/pushBatcher";
 import { startJarvisTaskWorker } from "../services/jarvisTaskWorker";
 import { startSequenceActivationWorker } from "../services/sequenceActivationWorker";
+import { startMessageRetryWorker } from "../services/messageRetryWorker";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -429,6 +430,9 @@ async function startServer() {
 
     // Start sequence activation worker (checks every 5 min, activates due draft sequences)
     startSequenceActivationWorker();
+
+    // Start message retry worker (checks every 15 min, retries failed messages with transient errors)
+    startMessageRetryWorker();
   });
 }
 

@@ -36,7 +36,8 @@ export type PushEventType =
   | "inbound_email"
   | "appointment_booked"
   | "ai_call_completed"
-  | "facebook_lead";
+  | "facebook_lead"
+  | "message_delivery_failure";
 
 // ─── Notification Preferences ────────────────────────
 export interface ChannelPreference {
@@ -51,6 +52,7 @@ export interface NotificationPreferences {
   appointment_booked: ChannelPreference;
   ai_call_completed: ChannelPreference;
   facebook_lead: ChannelPreference;
+  message_delivery_failure: ChannelPreference;
   quiet_hours_enabled: boolean;
   quiet_hours_start: string; // "22:00"
   quiet_hours_end: string;   // "07:00"
@@ -65,6 +67,7 @@ export const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   appointment_booked: { ...DEFAULT_CHANNEL },
   ai_call_completed: { ...DEFAULT_CHANNEL },
   facebook_lead: { ...DEFAULT_CHANNEL },
+  message_delivery_failure: { push: true, sms: false, email: true },
   quiet_hours_enabled: false,
   quiet_hours_start: "22:00",
   quiet_hours_end: "07:00",
@@ -105,6 +108,7 @@ export function parseNotificationPreferences(json: string | null): NotificationP
       appointment_booked: normalizeChannel(parsed.appointment_booked),
       ai_call_completed: normalizeChannel(parsed.ai_call_completed),
       facebook_lead: normalizeChannel(parsed.facebook_lead),
+      message_delivery_failure: normalizeChannel(parsed.message_delivery_failure),
       quiet_hours_enabled: typeof parsed.quiet_hours_enabled === "boolean" ? parsed.quiet_hours_enabled : false,
       quiet_hours_start: parsed.quiet_hours_start || "22:00",
       quiet_hours_end: parsed.quiet_hours_end || "07:00",
@@ -289,6 +293,7 @@ function buildBatchNotification(
     appointment_booked: { singular: "new appointment", plural: "new appointments", url: "/calendar" },
     ai_call_completed: { singular: "AI call completed", plural: "AI calls completed", url: "/ai-calls" },
     facebook_lead: { singular: "new Facebook lead", plural: "new Facebook leads", url: "/contacts" },
+    message_delivery_failure: { singular: "message delivery failure", plural: "message delivery failures", url: "/message-queue" },
   };
 
   const label = typeLabels[eventType] || { singular: "notification", plural: "notifications", url: "/" };

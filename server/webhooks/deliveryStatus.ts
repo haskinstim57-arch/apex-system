@@ -1,5 +1,8 @@
 import { Router } from "express";
 import { updateDeliveryStatus } from "../services/notificationLogger";
+import { getDb } from "../db";
+import { messages } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 // ─────────────────────────────────────────────
 // Delivery Status Webhooks
@@ -103,6 +106,38 @@ deliveryStatusRouter.post("/api/webhooks/sendgrid/status", async (req, res) => {
           `[DeliveryStatus] SendGrid: updated ${rowsUpdated} row(s) for messageId=${baseId} status=${deliveryStatus}`
         );
       }
+
+      // ── Bridge to messages table ──
+      const sgId = baseId;
+      const sgMsgStatus =
+        eventName === "delivered" ? "delivered" as const :
+        eventName === "bounce" || eventName === "dropped" ? "bounced" as const :
+        eventName === "deferred" ? "sent" as const : null;
+
+      if (sgId && sgMsgStatus) {
+        try {
+          const db = await getDb();
+          if (db) {
+            await db.update(messages)
+              .set({
+                status: sgMsgStatus,
+                errorMessage: event.reason || undefined,
+                deliveredAt: sgMsgStatus === "delivered" ? new Date() : undefined,
+              })
+              .where(eq(messages.externalId, sgId));
+
+            if (sgMsgStatus === "bounced") {
+              const { checkAndAlertFailureThreshold } = await import("../services/messageFailureAlerts");
+              await checkAndAlertFailureThreshold(sgId, "bounce").catch(() => {});
+
+              const { scheduleRetryByExternalId } = await import("../services/messageRetryWorker");
+              await scheduleRetryByExternalId(sgId, "bounce").catch(() => {});
+            }
+          }
+        } catch (bridgeErr: any) {
+          console.error(`[DeliveryStatus] SendGrid bridge to messages table failed:`, bridgeErr.message);
+        }
+      }
     }
 
     console.log(
@@ -171,6 +206,42 @@ deliveryStatusRouter.post("/api/webhooks/twilio/status", async (req, res) => {
       console.log(
         `[DeliveryStatus] Twilio: no matching notification_log for sid=${MessageSid} (may be a non-notification SMS)`
       );
+    }
+
+    // ── Bridge to messages table ──
+    const externalId = MessageSid;
+    if (externalId) {
+      const msgStatus =
+        MessageStatus === "delivered" ? "delivered" as const :
+        MessageStatus === "failed" || MessageStatus === "undelivered" ? "failed" as const :
+        MessageStatus === "sent" ? "sent" as const : null;
+
+      if (msgStatus) {
+        try {
+          const db = await getDb();
+          if (db) {
+            await db.update(messages)
+              .set({
+                status: msgStatus,
+                errorMessage: ErrorCode ? `[${ErrorCode}] ${ErrorMessage || ""}`.trim() : undefined,
+                deliveredAt: msgStatus === "delivered" ? new Date() : undefined,
+              })
+              .where(eq(messages.externalId, externalId));
+
+            // If failed, check failure threshold and schedule retry
+            if (msgStatus === "failed") {
+              const { checkAndAlertFailureThreshold } = await import("../services/messageFailureAlerts");
+              await checkAndAlertFailureThreshold(externalId, ErrorCode).catch(() => {});
+
+              // Schedule retry for transient errors
+              const { scheduleRetryByExternalId } = await import("../services/messageRetryWorker");
+              await scheduleRetryByExternalId(externalId, ErrorCode ? `[${ErrorCode}]` : undefined).catch(() => {});
+            }
+          }
+        } catch (bridgeErr: any) {
+          console.error(`[DeliveryStatus] Twilio bridge to messages table failed:`, bridgeErr.message);
+        }
+      }
     }
 
     // Twilio expects a 200 or 204 response
