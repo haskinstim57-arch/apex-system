@@ -42,7 +42,6 @@ import {
   PanelLeft,
   Phone,
   PhoneCall,
-  Search,
   Send,
   Settings,
   Users,
@@ -61,6 +60,7 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
+import { GlobalSearch } from "@/components/GlobalSearch";
 import { trpc } from "@/lib/trpc";
 import { AccountSwitcher } from "./AccountSwitcher";
 import { useAccount } from "@/contexts/AccountContext";
@@ -658,19 +658,8 @@ function DashboardLayoutContent({
             )}
 
             {/* Global search bar */}
-            <div className="relative hidden md:flex items-center">
-              <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search leads, campaigns..."
-                className="h-9 w-64 rounded-lg border border-border bg-accent/50 pl-9 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-colors"
-                onFocus={(e) => {
-                  toast.info("Search coming soon", {
-                    description: "Global search will be available in a future update.",
-                  });
-                  e.target.blur();
-                }}
-              />
+            <div className="hidden md:flex items-center">
+              <GlobalSearch />
             </div>
           </div>
 

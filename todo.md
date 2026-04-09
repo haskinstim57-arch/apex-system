@@ -4065,4 +4065,16 @@
 - [x] Fix incomplete circle icon: text-muted-foreground/40 (was text-gray-300)
 - [x] Fix Set Up button: border-amber-500/30 with dark:text-amber-400 variant
 - [x] Incomplete step styling unchanged
-- [ ] Save checkpoint
+- [x] Save checkpoint (c3366402)
+
+## Global Search — Platform-Wide Instant Search
+- [x] Backend: Create server/routers/search.ts with global search across contacts, campaigns, sequences, content, deals
+- [x] Backend: Register searchRouter in server/routers.ts
+- [x] Frontend: Create useDebounce hook (client/src/hooks/useDebounce.ts)
+- [x] Frontend: Create GlobalSearch component (client/src/components/GlobalSearch.tsx)
+- [x] Frontend: Wire GlobalSearch into DashboardLayout header, replace "Search coming soon" toast
+- [x] Keyboard shortcuts: Cmd+K / Ctrl+K focus, arrow keys navigate, Enter select, Escape close
+- [x] Dark mode compatibility: all search UI uses semantic tokens
+- [x] Vitest tests for search router (24 tests passing)
+- [x] Verify 0 new TypeScript errors
+- [x] Save checkpoint

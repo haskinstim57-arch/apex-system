@@ -53,6 +53,7 @@ import { longFormContentRouter } from "./routers/longFormContent";
 import { emailContentRouter } from "./routers/emailContent";
 import { recurringContentPlansRouter } from "./routers/recurringContentPlans";
 import { dashboardRouter } from "./routers/dashboard";
+import { searchRouter } from "./routers/search";
 
 export const appRouter = router({
   system: systemRouter,
@@ -117,6 +118,7 @@ export const appRouter = router({
   emailContent: emailContentRouter,
   recurringContentPlans: recurringContentPlansRouter,
   dashboard: dashboardRouter,
+  search: searchRouter,
 });
 
 export type AppRouter = typeof appRouter;
