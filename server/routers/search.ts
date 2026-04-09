@@ -143,27 +143,27 @@ export const searchRouter = router({
         contacts: contactResults.map((r) => ({
           ...r,
           type: "contact" as const,
-          path: `/contacts/${r.id}`,
+          path: `/contacts/${r.id}?account=${accountId}`,
         })),
         campaigns: campaignResults.map((r) => ({
           ...r,
           type: "campaign" as const,
-          path: `/campaigns/${r.id}`,
+          path: `/campaigns/${r.id}?accountId=${accountId}`,
         })),
         sequences: sequenceResults.map((r) => ({
           ...r,
           type: "sequence" as const,
-          path: `/sequences/${r.id}`,
+          path: `/sequences?account=${accountId}`,
         })),
         content: contentResults.map((r) => ({
           ...r,
           type: "content" as const,
-          path: `/content-hub`,
+          path: `/content-hub/${r.id}`,
         })),
         deals: dealResults.map((r) => ({
           ...r,
           type: "deal" as const,
-          path: `/pipeline`,
+          path: `/pipeline?account=${accountId}`,
         })),
         total:
           contactResults.length +

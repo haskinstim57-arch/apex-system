@@ -9,11 +9,29 @@ import {
   DollarSign,
   X,
   Loader2,
+  Clock,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAccount } from "@/contexts/AccountContext";
 import { cn } from "@/lib/utils";
+
+const RECENT_KEY = "apex-recent-searches";
+const MAX_RECENT = 5;
+
+function getRecentSearches(): string[] {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearch(query: string) {
+  const recent = getRecentSearches().filter((q) => q !== query);
+  recent.unshift(query);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, MAX_RECENT)));
+}
 
 const CATEGORY_CONFIG = {
   contacts: { label: "Contacts", icon: User, color: "text-blue-500" },
@@ -37,6 +55,7 @@ export function GlobalSearch() {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [, setRecentVersion] = useState(0); // force re-render when recent searches change
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [, setLocation] = useLocation();
@@ -65,20 +84,49 @@ export function GlobalSearch() {
   }, [data]);
 
   const hasResults = allResults.length > 0;
+  const recentSearches = getRecentSearches();
+  const showRecent = isOpen && query.length < 2 && recentSearches.length > 0;
 
   const handleSelect = useCallback(
     (path: string) => {
+      if (query.length >= 2) {
+        saveRecentSearch(query);
+        setRecentVersion((v) => v + 1);
+      }
       setLocation(path);
       setQuery("");
       setIsOpen(false);
       inputRef.current?.blur();
     },
-    [setLocation]
+    [setLocation, query]
   );
+
+  const handleRecentClick = useCallback(
+    (recent: string) => {
+      setQuery(recent);
+      setIsOpen(true);
+    },
+    []
+  );
+
+  const handleClearRecent = useCallback(() => {
+    localStorage.removeItem(RECENT_KEY);
+    setRecentVersion((v) => v + 1);
+    setIsOpen(false);
+  }, []);
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (!isOpen) return;
+
+    if (showRecent) {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+        inputRef.current?.blur();
+      }
+      return;
+    }
+
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((i) => Math.min(i + 1, allResults.length - 1));
@@ -136,7 +184,7 @@ export function GlobalSearch() {
             setQuery(e.target.value);
             setIsOpen(true);
           }}
-          onFocus={() => query.length >= 2 && setIsOpen(true)}
+          onFocus={() => setIsOpen(true)}
           onKeyDown={handleKeyDown}
           placeholder="Search leads, campaigns... ⌘K"
           className="w-full h-9 pl-9 pr-8 rounded-lg bg-muted/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all"
@@ -154,7 +202,32 @@ export function GlobalSearch() {
         )}
       </div>
 
-      {/* Dropdown */}
+      {/* Recent Searches Dropdown */}
+      {showRecent && (
+        <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden">
+          <div className="px-3 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/30 border-b border-border flex items-center justify-between">
+            Recent Searches
+            <button
+              onClick={handleClearRecent}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          </div>
+          {recentSearches.map((recent) => (
+            <button
+              key={recent}
+              onClick={() => handleRecentClick(recent)}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-muted/50 transition-colors"
+            >
+              <Clock className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <span className="text-sm text-foreground">{recent}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Search Results Dropdown */}
       {isOpen && query.length >= 2 && (
         <div className="absolute top-full left-0 right-0 mt-2 z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden max-h-[480px] overflow-y-auto">
           {isFetching && !data && (

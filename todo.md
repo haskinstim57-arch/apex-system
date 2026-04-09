@@ -4078,3 +4078,15 @@
 - [x] Vitest tests for search router (24 tests passing)
 - [x] Verify 0 new TypeScript errors
 - [x] Save checkpoint
+
+## Global Search Fixes + Recent Searches + Full-Text Index
+- [x] Fix: Add ?account= param to all search result paths (contacts, campaigns, sequences, content, deals)
+- [x] Fix: Match URL formats used by Campaigns.tsx, Sequences.tsx, ContentHub.tsx for detail pages
+- [x] Add Recent Searches persistence via localStorage (max 5, with Clock icons)
+- [x] Add "Clear" button to remove all recent searches
+- [x] Show recent searches dropdown when search bar focused and query < 2 chars
+- [x] Add standard composite indexes (TiDB does not support FULLTEXT) on contacts, campaigns, long_form_content, sequences, deals
+- [x] Keep LIKE queries (best approach for TiDB) with composite indexes for performance
+- [x] Update vitest tests for search router changes (36 tests passing)
+- [x] Verify 0 TypeScript errors
+- [x] Save checkpoint
