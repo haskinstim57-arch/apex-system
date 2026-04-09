@@ -44,6 +44,7 @@ import PublicForm from "./pages/PublicForm";
 import Reputation from "./pages/Reputation";
 import ContactMerge from "./pages/ContactMerge";
 import Sequences from "./pages/Sequences";
+import Jarvis from "./pages/Jarvis";
 import LandingPages from "./pages/LandingPages";
 import PageEditor from "./pages/PageEditor";
 import FunnelsPage from "./pages/Funnels";
@@ -334,6 +335,15 @@ function Router() {
         <DashboardLayout>
           <RequireAccount>
             <Suspense fallback={<LazyFallback />}><ContentDetail /></Suspense>
+          </RequireAccount>
+        </DashboardLayout>
+      </Route>
+
+      {/* Jarvis AI — full-page chat */}
+      <Route path="/jarvis">
+        <DashboardLayout>
+          <RequireAccount>
+            <Jarvis />
           </RequireAccount>
         </DashboardLayout>
       </Route>

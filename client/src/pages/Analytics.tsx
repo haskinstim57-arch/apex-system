@@ -122,7 +122,7 @@ function KpiCard({
 }) {
   if (loading) {
     return (
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardContent className="pt-5 pb-4 px-5">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
@@ -141,7 +141,7 @@ function KpiCard({
   const isNeutral = change === 0 || change === undefined;
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardContent className="pt-5 pb-4 px-5">
         <div className="flex items-start justify-between">
           <div className="space-y-1.5">
@@ -207,7 +207,7 @@ function ChartCard({
   actions?: React.ReactNode;
 }) {
   return (
-    <Card className={`bg-white border-0 card-shadow ${className ?? ""}`}>
+    <Card className={`bg-card border-0 card-shadow ${className ?? ""}`}>
       <CardHeader className="pb-2 pt-4 px-5">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -454,7 +454,7 @@ export default function Analytics() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white border border-border">
+        <TabsList className="bg-card border border-border">
           <TabsTrigger value="overview" className="gap-1.5">
             <BarChart3 className="h-3.5 w-3.5" />
             Overview
@@ -809,7 +809,7 @@ export default function Analytics() {
 
           {/* Call Completion Rate */}
           {kpis && (
-            <Card className="bg-white border-0 card-shadow">
+            <Card className="bg-card border-0 card-shadow">
               <CardContent className="pt-5 pb-4 px-5">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <div className="flex-1">
@@ -825,7 +825,7 @@ export default function Analytics() {
                       </span>
                     </div>
                   </div>
-                  <div className="w-full sm:w-64 h-3 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="w-full sm:w-64 h-3 bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{
@@ -843,7 +843,7 @@ export default function Analytics() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Revenue Summary */}
             <Card
-              className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow"
+              className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => setActiveTab("revenue")}
             >
               <CardContent className="pt-5 pb-4 px-5">
@@ -873,7 +873,7 @@ export default function Analytics() {
 
             {/* Workflow Summary */}
             <Card
-              className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow"
+              className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => setActiveTab("workflows")}
             >
               <CardContent className="pt-5 pb-4 px-5">
@@ -903,7 +903,7 @@ export default function Analytics() {
 
             {/* Campaign ROI Summary */}
             <Card
-              className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow"
+              className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow"
               onClick={() => setActiveTab("campaigns")}
             >
               <CardContent className="pt-5 pb-4 px-5">
@@ -1369,7 +1369,7 @@ export default function Analytics() {
                           </td>
                           <td className="py-2 px-2 text-right">
                             <div className="flex items-center justify-end gap-2">
-                              <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                                 <div
                                   className="h-full rounded-full"
                                   style={{
@@ -1577,7 +1577,7 @@ export default function Analytics() {
                         </td>
                         <td className="py-2.5 px-2 text-right">
                           <div className="flex items-center justify-end gap-2">
-                            <div className="w-12 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
                               <div
                                 className="h-full rounded-full"
                                 style={{

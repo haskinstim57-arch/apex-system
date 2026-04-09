@@ -357,7 +357,7 @@ export default function MessagingSettings() {
             </h1>
           </div>
         </div>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
               Please select an account to configure messaging settings.
@@ -402,7 +402,7 @@ export default function MessagingSettings() {
       ) : (
         <>
           {/* ─── Twilio SMS Settings ─── */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -494,7 +494,7 @@ export default function MessagingSettings() {
           <Separator className="bg-border/30" />
 
           {/* ─── SendGrid Email Settings ─── */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -587,7 +587,7 @@ export default function MessagingSettings() {
           <Separator className="bg-border/30" />
 
           {/* ─── Blooio SMS Settings ─── */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -683,7 +683,7 @@ export default function MessagingSettings() {
           <Separator className="bg-border/30" />
 
           {/* ─── Business Hours ─── */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -765,7 +765,7 @@ export default function MessagingSettings() {
                           key={day}
                           className={`flex items-center gap-3 px-3 py-2.5 transition-colors ${
                             ds.open
-                              ? "bg-white"
+                              ? "bg-card"
                               : "bg-muted/30"
                           }`}
                         >

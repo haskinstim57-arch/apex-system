@@ -42,7 +42,7 @@ export function ThemePreview({ primaryColor, secondaryColor, brandName }: ThemeP
   const secondaryFg = contrastColor(secondary);
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Eye className="h-4 w-4 text-muted-foreground" />
@@ -212,14 +212,14 @@ export function ThemePreview({ primaryColor, secondaryColor, brandName }: ThemeP
                   style={{ backgroundColor: primary }}
                 >
                   <div
-                    className="absolute top-0.5 right-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all"
+                    className="absolute top-0.5 right-0.5 h-3 w-3 rounded-full bg-card shadow-sm transition-all"
                   />
                 </div>
                 <span className="text-[10px]">Enabled</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="h-4 w-7 rounded-full relative cursor-pointer bg-muted">
-                  <div className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-all" />
+                  <div className="absolute top-0.5 left-0.5 h-3 w-3 rounded-full bg-card shadow-sm transition-all" />
                 </div>
                 <span className="text-[10px] text-muted-foreground">Disabled</span>
               </div>

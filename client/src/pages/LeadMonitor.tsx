@@ -76,7 +76,7 @@ function RoutingMethodLabel({ method }: { method: string }) {
   const labels: Record<string, { label: string; color: string }> = {
     manual_mapping: { label: "Admin Mapping", color: "text-blue-600 dark:text-blue-400" },
     oauth_page: { label: "OAuth Page", color: "text-purple-600 dark:text-purple-400" },
-    payload_explicit: { label: "Payload", color: "text-gray-600 dark:text-gray-400" },
+    payload_explicit: { label: "Payload", color: "text-muted-foreground dark:text-gray-400" },
     poller: { label: "Poller", color: "text-teal-600 dark:text-teal-400" },
     unknown: { label: "Unknown", color: "text-gray-400" },
   };

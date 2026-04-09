@@ -1538,7 +1538,7 @@ function NotificationUnblockInstructions() {
           <span className="text-[10px] text-muted-foreground">{expanded === "ios" ? "▲" : "▼"}</span>
         </button>
         {expanded === "ios" && (
-          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/10">
+          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-card/50 dark:bg-black/10">
             <ol className="list-decimal list-inside space-y-1.5 text-xs">
               {isPWA ? (
                 <>
@@ -1586,7 +1586,7 @@ function NotificationUnblockInstructions() {
           <span className="text-[10px] text-muted-foreground">{expanded === "android" ? "▲" : "▼"}</span>
         </button>
         {expanded === "android" && (
-          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/10">
+          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-card/50 dark:bg-black/10">
             <ol className="list-decimal list-inside space-y-1.5 text-xs">
               <li>Tap the <strong>three-dot menu</strong> (⋮) in Chrome's top-right corner</li>
               <li>Tap <strong>Settings</strong></li>
@@ -1622,7 +1622,7 @@ function NotificationUnblockInstructions() {
           <span className="text-[10px] text-muted-foreground">{expanded === "desktop" ? "▲" : "▼"}</span>
         </button>
         {expanded === "desktop" && (
-          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-white/50 dark:bg-black/10">
+          <div className="px-3 py-2 border-t border-red-200 dark:border-red-800 bg-card/50 dark:bg-black/10">
             {isChrome || isEdge ? (
               <ol className="list-decimal list-inside space-y-1.5 text-xs">
                 <li>Click the <strong>lock icon</strong> (or tune icon) in the address bar</li>

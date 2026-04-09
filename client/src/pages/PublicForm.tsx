@@ -278,10 +278,10 @@ export default function PublicForm({ slug }: { slug: string }) {
 
   if (error || !form) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-muted/50">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Form Not Found</h1>
-          <p className="text-gray-500">This form may have been deactivated or removed.</p>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Form Not Found</h1>
+          <p className="text-muted-foreground">This form may have been deactivated or removed.</p>
         </div>
       </div>
     );
@@ -295,10 +295,10 @@ export default function PublicForm({ slug }: { slug: string }) {
             className="h-16 w-16 mx-auto mb-4"
             style={{ color: primaryColor }}
           />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          <h2 className="text-2xl font-bold text-foreground mb-2">
             {settings.successMessage || "Thank you!"}
           </h2>
-          <p className="text-gray-500">
+          <p className="text-muted-foreground">
             {settings.successMessage
               ? ""
               : "Your submission has been received. We'll be in touch soon."}
@@ -314,17 +314,17 @@ export default function PublicForm({ slug }: { slug: string }) {
   return (
     <div className="min-h-screen py-8 px-4" style={{ backgroundColor: bgColor }}>
       <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+        <div className="bg-card rounded-xl shadow-lg border border-gray-100 overflow-hidden">
           {/* Header */}
           {(settings.headerText || settings.description) && (
             <div className="px-6 py-5 border-b" style={{ borderColor: `${primaryColor}20` }}>
               {settings.headerText && (
-                <h1 className="text-xl font-bold text-gray-900">
+                <h1 className="text-xl font-bold text-foreground">
                   {settings.headerText}
                 </h1>
               )}
               {settings.description && (
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-muted-foreground mt-1">
                   {settings.description}
                 </p>
               )}
@@ -342,7 +342,7 @@ export default function PublicForm({ slug }: { slug: string }) {
                   key={field.id}
                   className="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200"
                 >
-                  <Label className="text-sm font-medium text-gray-700">
+                  <Label className="text-sm font-medium text-foreground">
                     {field.label}
                     {field.required && (
                       <span className="text-red-500 ml-0.5">*</span>
@@ -417,7 +417,7 @@ export default function PublicForm({ slug }: { slug: string }) {
                           updateField(field.id, !!checked)
                         }
                       />
-                      <span className="text-sm text-gray-600">
+                      <span className="text-sm text-muted-foreground">
                         {field.placeholder || field.label}
                       </span>
                     </div>
@@ -457,7 +457,7 @@ export default function PublicForm({ slug }: { slug: string }) {
                           onClick={() => fileInputRefs.current[field.id]?.click()}
                         >
                           <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-muted-foreground">
                             Click to upload or drag and drop
                           </p>
                           <p className="text-xs text-gray-400 mt-1">
@@ -512,7 +512,7 @@ export default function PublicForm({ slug }: { slug: string }) {
           </form>
 
           {/* Footer */}
-          <div className="px-6 py-3 bg-gray-50 border-t text-center">
+          <div className="px-6 py-3 bg-muted/50 border-t text-center">
             <p className="text-[10px] text-gray-400">
               Powered by Sterling Marketing
             </p>

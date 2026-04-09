@@ -149,7 +149,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
   // Congratulations card
   if (showCongrats) {
     return (
-      <Card className="bg-white border-0 card-shadow overflow-hidden">
+      <Card className="bg-card border-0 card-shadow overflow-hidden">
         <div className="h-1 bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600" />
         <CardContent className="pt-6 pb-6 px-5">
           <div className="flex flex-col items-center text-center gap-3">
@@ -190,7 +190,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
   };
 
   return (
-    <Card className="bg-white border-0 card-shadow overflow-hidden">
+    <Card className="bg-card border-0 card-shadow overflow-hidden">
       {/* Gold accent bar at top */}
       <div className="h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
 
@@ -236,7 +236,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
 
         {/* Progress bar */}
         <div className="mb-4">
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${progressPercent}%` }}
@@ -259,7 +259,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                     step.complete
                       ? "bg-emerald-50/50"
-                      : "hover:bg-gray-50"
+                      : "hover:bg-muted/50"
                   }`}
                 >
                   {/* Status icon */}
@@ -274,7 +274,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                     className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
                       step.complete
                         ? "bg-emerald-100 text-emerald-600"
-                        : "bg-gray-100 text-gray-500"
+                        : "bg-muted text-muted-foreground"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -319,7 +319,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
 
 function OnboardingChecklistSkeleton() {
   return (
-    <Card className="bg-white border-0 card-shadow overflow-hidden">
+    <Card className="bg-card border-0 card-shadow overflow-hidden">
       <div className="h-1 bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600" />
       <CardContent className="pt-5 pb-4 px-5">
         <div className="flex items-start justify-between mb-4">

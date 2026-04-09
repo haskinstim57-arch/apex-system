@@ -409,7 +409,7 @@ export default function Forms() {
                         </div>
                         <Badge
                           variant="secondary"
-                          className={`text-[10px] ${TEMPLATE_COLORS[tpl.category] || "bg-gray-100 text-gray-700"}`}
+                          className={`text-[10px] ${TEMPLATE_COLORS[tpl.category] || "bg-muted text-foreground"}`}
                         >
                           {tpl.category}
                         </Badge>

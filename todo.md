@@ -4023,4 +4023,35 @@
 - [x] Sun/Moon toggle in header switches theme, persists on refresh
 - [x] Settings tab bar visible on /settings page with all sections grouped
 - [x] 0 TypeScript errors in DashboardLayout.tsx and Settings.tsx
+- [x] Save checkpoint (bac38340)
+
+## Fix: Jarvis 404 + Dark Mode White Cards + Settings Width
+
+### 1. Fix Jarvis 404
+- [x] Add /jarvis route to App.tsx inside authenticated route block
+- [x] Import Jarvis page component (client/src/pages/Jarvis.tsx)
+- [x] Wrap in DashboardLayout + RequireAccount like other authenticated routes
+
+### 2. Fix Dark Mode White Cards (global)
+- [x] Replace bg-white → bg-card across all pages/ and components/ (128 occurrences)
+- [x] Replace bg-gray-50 → bg-muted/50 (17 occurrences)
+- [x] Replace bg-gray-100 → bg-muted (10 occurrences)
+- [x] Replace text-gray-900 → text-foreground (3 occurrences)
+- [x] Replace text-gray-700 → text-foreground (2 occurrences)
+- [x] Replace text-gray-600 → text-muted-foreground (8 occurrences)
+- [x] Replace text-gray-500 → text-muted-foreground (6 occurrences)
+- [x] Replace border-gray-200 → border-border (5 occurrences)
+- [x] Fix slider.tsx thumb bg-white → bg-background
+- [x] Verified .dark CSS variables have distinct --card: oklch(0.17 0.008 260) (dark, not white)
+
+### 3. Fix Settings Sub-Page Width
+- [x] Changed max-w-4xl to w-full on Settings page wrapper
+- [x] AI & Voice tab now fills same width as all other tabs
+
+### Verification
+- [x] Jarvis nav → /jarvis route registered, no 404
+- [x] Dark mode: 178 replacements across 33 files, 0 remaining hardcoded gray classes
+- [x] .dark CSS vars verified (--card is dark oklch value)
+- [x] Settings w-full applied
+- [x] 0 TypeScript errors in modified files (23 pre-existing only)
 - [ ] Save checkpoint

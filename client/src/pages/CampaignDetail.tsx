@@ -271,7 +271,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
 
       {/* Performance Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -282,7 +282,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
             <p className="text-2xl font-semibold mt-1">{stats.total}</p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
               <Send className="h-4 w-4 text-blue-600" />
@@ -295,7 +295,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -308,7 +308,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
               <XCircle className="h-4 w-4 text-red-500" />
@@ -321,7 +321,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
             </p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center gap-2">
               <Clock className="h-4 w-4 text-amber-600" />
@@ -339,7 +339,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
       {/* Campaign Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Message Content */}
-        <Card className="bg-white border-0 card-shadow lg:col-span-2">
+        <Card className="bg-card border-0 card-shadow lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Message Content</CardTitle>
           </CardHeader>
@@ -364,7 +364,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
         </Card>
 
         {/* Campaign Details */}
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Details</CardTitle>
           </CardHeader>
@@ -428,7 +428,7 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
       </div>
 
       {/* Recipients Table */}
-      <Card className="bg-white border-0 card-shadow overflow-x-auto">
+      <Card className="bg-card border-0 card-shadow overflow-x-auto">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">

@@ -255,7 +255,7 @@ export function CustomFieldsCard({ accountId }: { accountId: number }) {
 
   return (
     <>
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div>
             <CardTitle className="text-sm font-medium flex items-center gap-2">

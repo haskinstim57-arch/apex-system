@@ -204,7 +204,7 @@ export default function Campaigns() {
       {/* Stats Cards */}
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Total
@@ -212,7 +212,7 @@ export default function Campaigns() {
               <p className="text-xl font-semibold mt-0.5">{stats.total}</p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Draft
@@ -220,7 +220,7 @@ export default function Campaigns() {
               <p className="text-xl font-semibold mt-0.5">{stats.draft}</p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Scheduled
@@ -230,7 +230,7 @@ export default function Campaigns() {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Sent
@@ -240,7 +240,7 @@ export default function Campaigns() {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Paused
@@ -250,7 +250,7 @@ export default function Campaigns() {
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                 Cancelled
@@ -355,7 +355,7 @@ export default function Campaigns() {
           </div>
 
           {/* Campaigns Table */}
-          <Card className="bg-white border-0 card-shadow overflow-x-auto">
+          <Card className="bg-card border-0 card-shadow overflow-x-auto">
             <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">
@@ -555,7 +555,7 @@ export default function Campaigns() {
 
         {/* Templates Tab */}
         <TabsContent value="templates" className="mt-4 space-y-4">
-          <Card className="bg-white border-0 card-shadow overflow-x-auto">
+          <Card className="bg-card border-0 card-shadow overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-border/30 hover:bg-transparent">

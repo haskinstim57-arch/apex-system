@@ -88,7 +88,7 @@ function AccountTeamSection({
       {members && members.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {members.map((member) => (
-            <Card key={member.memberId} className="bg-white border-0 card-shadow">
+            <Card key={member.memberId} className="bg-card border-0 card-shadow">
               <CardContent className="py-3 px-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-8 w-8 border border-border/50">

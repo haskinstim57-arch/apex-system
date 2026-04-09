@@ -261,7 +261,7 @@ export function ScheduledReportsCard({ accountId }: Props) {
               className={`flex items-start gap-3 p-3 rounded-lg border text-left transition-colors ${
                 formReportTypes.includes(key)
                   ? "border-[#c9a84c] bg-[#c9a84c]/5"
-                  : "border-gray-200 hover:border-gray-300"
+                  : "border-border hover:border-gray-300"
               }`}
             >
               <div
@@ -409,7 +409,7 @@ export function ScheduledReportsCard({ accountId }: Props) {
 
   return (
     <>
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>

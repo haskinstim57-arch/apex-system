@@ -406,7 +406,7 @@ export default function PowerDialer() {
                 .map((s: any) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between p-3 bg-white rounded-lg border"
+                    className="flex items-center justify-between p-3 bg-card rounded-lg border"
                   >
                     <div>
                       <p className="text-sm font-medium">

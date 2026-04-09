@@ -261,7 +261,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
 
   if (isLoading) {
     return (
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardContent className="py-8 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </CardContent>
@@ -271,7 +271,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
 
   return (
     <>
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Palette className="h-4 w-4 text-muted-foreground" />
@@ -689,7 +689,7 @@ export function AgencyBrandingCard({ accountId }: AgencyBrandingCardProps) {
                     onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   />
                 ) : (
-                  <div className="h-7 w-7 rounded bg-white/20 flex items-center justify-center">
+                  <div className="h-7 w-7 rounded bg-card/20 flex items-center justify-center">
                     <span className="text-white text-xs font-bold">
                       {(brandName || "A").charAt(0).toUpperCase()}
                     </span>

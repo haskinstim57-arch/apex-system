@@ -181,7 +181,7 @@ export default function SettingsPage() {
   }, [currentAccountId, isAdmin]);
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 w-full">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -569,7 +569,7 @@ function ChangePasswordCard() {
   };
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Lock className="h-4 w-4 text-muted-foreground" />
@@ -795,7 +795,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
   };
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Link2 className="h-4 w-4 text-muted-foreground" />
@@ -902,7 +902,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                       <div>
                         <p className="text-[11px] text-muted-foreground mb-1">Callback URL</p>
                         <div className="flex items-center gap-1.5">
-                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono truncate flex-1">
+                          <code className="text-[11px] bg-card px-2 py-1 rounded border font-mono truncate flex-1">
                             {window.location.origin}/api/webhooks/facebook
                           </code>
                           <Button
@@ -921,7 +921,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                       <div>
                         <p className="text-[11px] text-muted-foreground mb-1">Verify Token</p>
                         <div className="flex items-center gap-1.5">
-                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono flex-1">
+                          <code className="text-[11px] bg-card px-2 py-1 rounded border font-mono flex-1">
                             {webhookInfo?.verifyToken || "(not configured)"}
                           </code>
                           {webhookInfo?.verifyToken && (
@@ -989,7 +989,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                       <div>
                         <p className="text-[11px] text-muted-foreground mb-1">Callback URL</p>
                         <div className="flex items-center gap-1.5">
-                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono truncate flex-1">
+                          <code className="text-[11px] bg-card px-2 py-1 rounded border font-mono truncate flex-1">
                             {window.location.origin}/api/webhooks/facebook
                           </code>
                           <Button
@@ -1008,7 +1008,7 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
                       <div>
                         <p className="text-[11px] text-muted-foreground mb-1">Verify Token</p>
                         <div className="flex items-center gap-1.5">
-                          <code className="text-[11px] bg-white px-2 py-1 rounded border font-mono flex-1">
+                          <code className="text-[11px] bg-card px-2 py-1 rounded border font-mono flex-1">
                             {webhookInfo?.verifyToken || "(not configured)"}
                           </code>
                           {webhookInfo?.verifyToken && (
@@ -1154,7 +1154,7 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
   };
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
@@ -1351,7 +1351,7 @@ function MissedCallTextBackCard({ accountId }: { accountId: number }) {
   }
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <PhoneMissed className="h-4 w-4 text-muted-foreground" />
@@ -2554,7 +2554,7 @@ function CallScriptsCard({ accountId }: { accountId: number }) {
   };
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -2843,7 +2843,7 @@ function LeadRoutingRulesCard({ accountId }: { accountId: number }) {
   };
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -3245,7 +3245,7 @@ function AIVoiceCallingCard({ accountId }: { accountId: number }) {
   const hasAssistant = !!voiceStatus?.vapiAssistantId;
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader>
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <PhoneCall className="h-4 w-4 text-muted-foreground" />
@@ -3600,7 +3600,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                 <div
                   key={wh.id}
                   className={`p-3 border rounded-lg transition-colors ${
-                    wh.isActive ? "bg-white" : "bg-muted/30 opacity-70"
+                    wh.isActive ? "bg-card" : "bg-muted/30 opacity-70"
                   }`}
                 >
                   {editingId === wh.id ? (
@@ -3684,7 +3684,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
                               className={`text-[10px] ${
                                 wh.isActive
                                   ? "bg-green-500/10 text-green-600 border-green-500/20"
-                                  : "bg-gray-500/10 text-gray-500 border-gray-500/20"
+                                  : "bg-muted/500/10 text-muted-foreground border-gray-500/20"
                               }`}
                             >
                               {wh.isActive ? "Active" : "Paused"}

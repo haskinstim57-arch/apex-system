@@ -69,9 +69,9 @@ export function EmailPreview({
 
   // ─── Desktop Email Client View ─────────────────────────────────────
   const DesktopView = () => (
-    <div className="rounded-lg border bg-white dark:bg-zinc-950 shadow-sm overflow-hidden">
+    <div className="rounded-lg border bg-card dark:bg-zinc-950 shadow-sm overflow-hidden">
       {/* Email client toolbar */}
-      <div className="flex items-center gap-1 px-3 py-2 border-b bg-gray-50 dark:bg-zinc-900">
+      <div className="flex items-center gap-1 px-3 py-2 border-b bg-muted/50 dark:bg-zinc-900">
         <button className="p-1.5 rounded hover:bg-gray-200 dark:hover:bg-zinc-800 text-muted-foreground">
           <ChevronLeft className="h-4 w-4" />
         </button>
@@ -119,7 +119,7 @@ export function EmailPreview({
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <span className="text-xs text-muted-foreground">{formattedDate}</span>
-          <button className="p-1 rounded hover:bg-gray-100 dark:hover:bg-zinc-800 text-muted-foreground">
+          <button className="p-1 rounded hover:bg-muted dark:hover:bg-zinc-800 text-muted-foreground">
             <Star className="h-4 w-4" />
           </button>
         </div>
@@ -140,11 +140,11 @@ export function EmailPreview({
       </div>
 
       {/* Bottom bar */}
-      <div className="px-5 py-3 border-t bg-gray-50 dark:bg-zinc-900 flex items-center gap-2">
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm text-muted-foreground hover:bg-gray-100 dark:hover:bg-zinc-800">
+      <div className="px-5 py-3 border-t bg-muted/50 dark:bg-zinc-900 flex items-center gap-2">
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm text-muted-foreground hover:bg-muted dark:hover:bg-zinc-800">
           <Reply className="h-3.5 w-3.5" /> Reply
         </button>
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm text-muted-foreground hover:bg-gray-100 dark:hover:bg-zinc-800">
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm text-muted-foreground hover:bg-muted dark:hover:bg-zinc-800">
           <Forward className="h-3.5 w-3.5" /> Forward
         </button>
       </div>
@@ -155,23 +155,23 @@ export function EmailPreview({
   const MobileView = () => (
     <div className="mx-auto" style={{ maxWidth: "375px" }}>
       {/* Phone frame */}
-      <div className="rounded-[2rem] border-4 border-gray-800 dark:border-gray-600 bg-white dark:bg-zinc-950 shadow-xl overflow-hidden">
+      <div className="rounded-[2rem] border-4 border-gray-800 dark:border-gray-600 bg-card dark:bg-zinc-950 shadow-xl overflow-hidden">
         {/* Status bar */}
         <div className="flex items-center justify-between px-6 py-1.5 bg-gray-800 dark:bg-gray-700 text-white text-xs">
           <span className="font-medium">9:41</span>
           <div className="flex items-center gap-1">
             <div className="flex gap-0.5">
-              <div className="w-1 h-2 bg-white rounded-sm" />
-              <div className="w-1 h-2.5 bg-white rounded-sm" />
-              <div className="w-1 h-3 bg-white rounded-sm" />
-              <div className="w-1 h-3.5 bg-white rounded-sm" />
+              <div className="w-1 h-2 bg-card rounded-sm" />
+              <div className="w-1 h-2.5 bg-card rounded-sm" />
+              <div className="w-1 h-3 bg-card rounded-sm" />
+              <div className="w-1 h-3.5 bg-card rounded-sm" />
             </div>
             <span className="ml-1">100%</span>
           </div>
         </div>
 
         {/* Mail app header */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-gray-50 dark:bg-zinc-900">
+        <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-muted/50 dark:bg-zinc-900">
           <ChevronLeft className="h-5 w-5 text-primary" />
           <div className="flex-1 text-center">
             <span className="text-xs text-muted-foreground">Inbox</span>
@@ -199,7 +199,7 @@ export function EmailPreview({
         </div>
 
         {/* Divider */}
-        <div className="px-4 py-1.5 bg-gray-50 dark:bg-zinc-900 border-b">
+        <div className="px-4 py-1.5 bg-muted/50 dark:bg-zinc-900 border-b">
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Email Content</span>
         </div>
 
@@ -234,7 +234,7 @@ export function EmailPreview({
         </div>
 
         {/* Mobile action bar */}
-        <div className="flex items-center justify-around py-2.5 border-t bg-gray-50 dark:bg-zinc-900">
+        <div className="flex items-center justify-around py-2.5 border-t bg-muted/50 dark:bg-zinc-900">
           <button className="flex flex-col items-center gap-0.5 text-primary">
             <Reply className="h-4 w-4" />
             <span className="text-[10px]">Reply</span>
@@ -254,7 +254,7 @@ export function EmailPreview({
         </div>
 
         {/* Home indicator */}
-        <div className="flex justify-center py-2 bg-gray-50 dark:bg-zinc-900">
+        <div className="flex justify-center py-2 bg-muted/50 dark:bg-zinc-900">
           <div className="w-32 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
         </div>
       </div>

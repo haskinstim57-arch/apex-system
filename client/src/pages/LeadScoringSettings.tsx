@@ -390,25 +390,25 @@ export default function LeadScoringSettings() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="py-3 px-4">
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Total Rules</p>
             <p className="text-lg font-bold">{totalRules}</p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="py-3 px-4">
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Active</p>
             <p className="text-lg font-bold text-emerald-600">{activeCount}</p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="py-3 px-4">
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Boost Rules</p>
             <p className="text-lg font-bold text-blue-600">{positiveRules}</p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="py-3 px-4">
             <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Penalty Rules</p>
             <p className="text-lg font-bold text-red-600">{negativeRules}</p>
@@ -417,7 +417,7 @@ export default function LeadScoringSettings() {
       </div>
 
       {/* Scoring Tiers Reference */}
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Info className="h-4 w-4 text-muted-foreground" />
@@ -459,7 +459,7 @@ export default function LeadScoringSettings() {
       </Card>
 
       {/* Rules List */}
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium">Scoring Rules</CardTitle>
           <CardDescription className="text-xs">

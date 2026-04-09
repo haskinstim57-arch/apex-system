@@ -157,11 +157,11 @@ const PLATFORM_COLORS: Record<Platform, string> = {
   facebook: "bg-blue-500/10 text-blue-600 border-blue-200",
   instagram: "bg-pink-500/10 text-pink-600 border-pink-200",
   linkedin: "bg-sky-500/10 text-sky-600 border-sky-200",
-  twitter: "bg-gray-500/10 text-gray-600 border-gray-200",
+  twitter: "bg-muted/500/10 text-muted-foreground border-border",
 };
 
 const SOCIAL_STATUS_COLORS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
+  draft: "bg-muted text-muted-foreground",
   scheduled: "bg-blue-100 text-blue-600",
   published: "bg-green-100 text-green-600",
   failed: "bg-red-100 text-red-600",
@@ -1576,7 +1576,7 @@ function ContentCalendar() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, post.id)}
                     className={`text-[10px] leading-tight px-1.5 py-0.5 rounded cursor-grab active:cursor-grabbing truncate ${
-                      PILL_COLORS[post.platform as Platform] || "bg-gray-500 text-white"
+                      PILL_COLORS[post.platform as Platform] || "bg-muted/500 text-white"
                     }`}
                     title={`${post.platform}: ${post.content?.slice(0, 80)}`}
                   >
@@ -2621,7 +2621,7 @@ function EmailSignaturesTab() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {(templatesQuery.data || []).map((tmpl) => (
                   <div key={tmpl.id} className="border rounded-lg overflow-hidden hover:border-primary/50 transition-colors">
-                    <div className="p-3 bg-white">
+                    <div className="p-3 bg-card">
                       <div
                         className="text-sm max-h-28 overflow-hidden"
                         dangerouslySetInnerHTML={{ __html: fillTemplate(tmpl.html) }}
@@ -2801,7 +2801,7 @@ function EmailSignaturesTab() {
               {editingSignature.html.trim() && (
                 <div className="space-y-2">
                   <Label className="text-muted-foreground">Live Preview</Label>
-                  <div className="border rounded-md p-4 bg-white">
+                  <div className="border rounded-md p-4 bg-card">
                     <div dangerouslySetInnerHTML={{ __html: editingSignature.html }} />
                   </div>
                 </div>
@@ -2831,7 +2831,7 @@ function EmailSignaturesTab() {
           <DialogHeader>
             <DialogTitle>Signature Preview</DialogTitle>
           </DialogHeader>
-          <div className="border rounded-md p-6 bg-white">
+          <div className="border rounded-md p-6 bg-card">
             <div dangerouslySetInnerHTML={{ __html: previewHtml || "" }} />
           </div>
         </DialogContent>

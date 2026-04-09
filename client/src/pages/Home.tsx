@@ -180,7 +180,7 @@ export default function Home() {
       {currentAccountId && (
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* AI Activity Feed — 60% */}
-          <Card className="lg:col-span-3 bg-white dark:bg-card border-0 card-shadow">
+          <Card className="lg:col-span-3 bg-card dark:bg-card border-0 card-shadow">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -224,7 +224,7 @@ export default function Home() {
           </Card>
 
           {/* Jarvis Quick Actions — 40% */}
-          <Card className="lg:col-span-2 bg-white dark:bg-card border-0 card-shadow">
+          <Card className="lg:col-span-2 bg-card dark:bg-card border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
                 <Bot className="h-4 w-4 text-primary" />
@@ -280,7 +280,7 @@ export default function Home() {
             {accounts.slice(0, 12).map((account) => (
               <Card
                 key={account.id}
-                className="card-hover cursor-pointer bg-white dark:bg-card border-0 card-shadow"
+                className="card-hover cursor-pointer bg-card dark:bg-card border-0 card-shadow"
                 onClick={() => {
                   window.location.href = `/contacts`;
                 }}
@@ -297,7 +297,7 @@ export default function Home() {
                       className={`text-[11px] h-5 rounded-full px-2.5 font-medium ${
                         account.status === "active"
                           ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800"
-                          : "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                          : "bg-muted/50 text-muted-foreground border-border dark:bg-gray-800 dark:text-gray-400"
                       }`}
                     >
                       {account.status}
@@ -320,7 +320,7 @@ export default function Home() {
         <div>
           <h2 className="!text-lg mb-4">Quick Overview</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Card className="bg-white dark:bg-card border-0 card-shadow">
+            <Card className="bg-card dark:bg-card border-0 card-shadow">
               <CardContent className="pt-5 pb-4 px-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-blue-100/80 text-blue-600 dark:bg-blue-950/30 shrink-0">
@@ -335,7 +335,7 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-white dark:bg-card border-0 card-shadow">
+            <Card className="bg-card dark:bg-card border-0 card-shadow">
               <CardContent className="pt-5 pb-4 px-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/30 shrink-0">
@@ -350,7 +350,7 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-white dark:bg-card border-0 card-shadow">
+            <Card className="bg-card dark:bg-card border-0 card-shadow">
               <CardContent className="pt-5 pb-4 px-5">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-purple-100/80 text-purple-600 dark:bg-purple-950/30 shrink-0">
@@ -375,7 +375,7 @@ export default function Home() {
           {accounts.map((account) => (
             <Card
               key={account.id}
-              className="card-hover cursor-pointer bg-white dark:bg-card border-0 card-shadow"
+              className="card-hover cursor-pointer bg-card dark:bg-card border-0 card-shadow"
               onClick={() => {
                 window.location.href = `/accounts/${account.id}`;
               }}
@@ -392,7 +392,7 @@ export default function Home() {
                     className={`text-[11px] h-5 rounded-full px-2.5 font-medium ${
                       account.status === "active"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
-                        : "bg-gray-50 text-gray-600 border-gray-200 dark:bg-gray-800 dark:text-gray-400"
+                        : "bg-muted/50 text-muted-foreground border-border dark:bg-gray-800 dark:text-gray-400"
                     }`}
                   >
                     {account.status}
@@ -535,7 +535,7 @@ function StatsCard({
   trendUp?: boolean;
 }) {
   return (
-    <Card className="bg-white dark:bg-card border-0 card-shadow">
+    <Card className="bg-card dark:bg-card border-0 card-shadow">
       <CardContent className="pt-5 pb-4 px-5">
         <div className="flex items-start justify-between">
           <div className="space-y-2">
@@ -548,7 +548,7 @@ function StatsCard({
             <p className="text-xs text-muted-foreground">{description}</p>
           </div>
           <div
-            className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${iconColor || "bg-gray-50 text-gray-500"}`}
+            className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${iconColor || "bg-muted/50 text-muted-foreground"}`}
           >
             <Icon className="h-5 w-5" />
           </div>
@@ -576,7 +576,7 @@ function StatsCard({
 
 function StatsCardSkeleton() {
   return (
-    <Card className="bg-white dark:bg-card border-0 card-shadow">
+    <Card className="bg-card dark:bg-card border-0 card-shadow">
       <CardContent className="pt-5 pb-4 px-5">
         <div className="flex items-start justify-between">
           <div className="space-y-3">

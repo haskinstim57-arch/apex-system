@@ -91,7 +91,7 @@ export default function NotificationDeliveryDashboard() {
       sent: "bg-emerald-500/10 text-emerald-600 border-emerald-200",
     };
     return (
-      <Badge variant="outline" className={colors[deliveryStatus] || "bg-gray-500/10 text-gray-600 border-gray-200"}>
+      <Badge variant="outline" className={colors[deliveryStatus] || "bg-muted/500/10 text-muted-foreground border-border"}>
         {deliveryStatus}
       </Badge>
     );

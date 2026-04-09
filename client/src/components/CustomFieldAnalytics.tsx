@@ -52,7 +52,7 @@ export function CustomFieldAnalytics({ accountId }: CustomFieldAnalyticsProps) {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="bg-white border-0 card-shadow">
+            <Card key={i} className="bg-card border-0 card-shadow">
               <CardHeader className="pb-2">
                 <Skeleton className="h-4 w-32" />
               </CardHeader>
@@ -114,7 +114,7 @@ function DropdownCard({
   }));
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <PieChartIcon className="h-3.5 w-3.5" />
@@ -204,7 +204,7 @@ function NumberCard({
   ];
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Hash className="h-3.5 w-3.5" />
@@ -241,7 +241,7 @@ function CheckboxCard({
   ];
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <CheckSquare className="h-3.5 w-3.5" />
@@ -300,7 +300,7 @@ function DateCard({
   data: { name: string; slug: string; upcoming7d: number; upcoming30d: number; overdue: number; total: number };
 }) {
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Calendar className="h-3.5 w-3.5" />
@@ -324,7 +324,7 @@ function DateCard({
             <p className="text-xl font-semibold text-blue-600">{data.upcoming30d}</p>
             <p className="text-[10px] text-blue-500 uppercase tracking-wider">Next 30 Days</p>
           </div>
-          <div className="text-center p-3 rounded-lg bg-gray-50">
+          <div className="text-center p-3 rounded-lg bg-muted/50">
             <p className="text-xl font-semibold text-foreground">{data.total}</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
           </div>

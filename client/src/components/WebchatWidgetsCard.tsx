@@ -143,7 +143,7 @@ export function WebchatWidgetsCard({ accountId }: { accountId: number }) {
 
   return (
     <>
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>

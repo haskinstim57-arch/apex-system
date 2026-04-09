@@ -323,7 +323,7 @@ export default function ContactDetail({
         {/* Left Column — Contact Info */}
         <div className="lg:col-span-1 space-y-4">
           {/* Contact Details Card */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">
                 Contact Information
@@ -370,7 +370,7 @@ export default function ContactDetail({
 
           {/* Custom Fields Card */}
           {activeFieldDefs.length > 0 && (
-            <Card className="bg-white border-0 card-shadow">
+            <Card className="bg-card border-0 card-shadow">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <Database className="h-3.5 w-3.5 text-muted-foreground" />
@@ -433,7 +433,7 @@ export default function ContactDetail({
           )}
 
           {/* Assignment Card */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium">
                 Assigned To
@@ -471,7 +471,7 @@ export default function ContactDetail({
           </Card>
 
           {/* Tags Card */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Tag className="h-3.5 w-3.5" />
@@ -543,7 +543,7 @@ export default function ContactDetail({
             </CardContent>
           </Card>
           {/* DND Status Card */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
@@ -628,7 +628,7 @@ export default function ContactDetail({
         {/* Right Column — Notes + Activity */}
         <div className="lg:col-span-2 space-y-4">
           {/* Add Note */}
-          <Card className="bg-white border-0 card-shadow">
+          <Card className="bg-card border-0 card-shadow">
             <CardContent className="pt-4 pb-3">
               <div className="space-y-2">
                 <Textarea
@@ -671,7 +671,7 @@ export default function ContactDetail({
               notes.map((note) => (
                 <Card
                   key={note.id}
-                  className={`bg-white border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""}`}
+                  className={`bg-card border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""}`}
                 >
                   <CardContent className="pt-3 pb-3">
                     <div className="flex items-start justify-between gap-3">
@@ -733,7 +733,7 @@ export default function ContactDetail({
                 </Card>
               ))
             ) : (
-              <Card className="bg-white border-0 card-shadow">
+              <Card className="bg-card border-0 card-shadow">
                 <CardContent className="py-8 text-center">
                   <p className="text-sm text-muted-foreground">
                     No notes yet. Add a note above to get started.
@@ -1185,7 +1185,7 @@ function ActivityTimeline({
   }
 
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardHeader className="pb-3">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <History className="h-3.5 w-3.5" />

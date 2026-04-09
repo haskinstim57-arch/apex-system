@@ -111,7 +111,7 @@ export function ApiKeysCard({ accountId }: ApiKeysCardProps) {
 
   return (
     <>
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -222,7 +222,7 @@ export function ApiKeysCard({ accountId }: ApiKeysCardProps) {
               {activeKeys.map((key) => (
                 <div
                   key={key.id}
-                  className="p-3 border rounded-lg bg-white flex items-center justify-between gap-3"
+                  className="p-3 border rounded-lg bg-card flex items-center justify-between gap-3"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">

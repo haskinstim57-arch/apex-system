@@ -312,19 +312,19 @@ export default function Accounts() {
 
       {/* Stats Row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Total Accounts</p>
             <p className="text-xl font-semibold">{accounts?.length ?? 0}</p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Active</p>
             <p className="text-xl font-semibold text-green-600">{activeCount}</p>
           </CardContent>
         </Card>
-        <Card className="bg-white border-0 card-shadow">
+        <Card className="bg-card border-0 card-shadow">
           <CardContent className="pt-4 pb-3 px-4">
             <p className="text-xs text-muted-foreground mb-1">Suspended</p>
             <p className="text-xl font-semibold text-orange-600">{suspendedCount}</p>

@@ -1304,7 +1304,7 @@ export default function Contacts() {
       )}
 
       {/* Table */}
-      <Card className="bg-white border-0 card-shadow overflow-hidden">
+      <Card className="bg-card border-0 card-shadow overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -1921,7 +1921,7 @@ function MiniStat({
   color?: string;
 }) {
   return (
-    <Card className="bg-white border-0 card-shadow">
+    <Card className="bg-card border-0 card-shadow">
       <CardContent className="py-3 px-4">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</p>
         <p className={`text-lg font-bold ${color || "text-foreground"}`}>{value}</p>
