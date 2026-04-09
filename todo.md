@@ -3953,4 +3953,50 @@
 ### Verification
 - [x] 0 TypeScript errors in modified files
 - [x] Vitest tests: 17 tests passing (recurring-content.test.ts)
+- [x] Save checkpoint (0e09d252)
+
+## UI/UX Polish Pass — Ease of Use
+
+### 1. Typography & Readability
+- [x] Bump body text default to text-base (16px) in index.css
+- [x] Add leading-relaxed as default on body text blocks
+- [x] Increase page titles/headings by one step across pages
+
+### 2. Light Mode Default
+- [x] Verify ThemeProvider defaultTheme is "light" (confirmed)
+- [x] Enable switchable on ThemeProvider for dark/light toggle with localStorage persistence
+
+### 3. Dashboard — AI Activity Feed (backend)
+- [x] Create dashboard router with getActivityFeed query
+- [x] Query last 10 messages (with contact name join), last 5 content items, active sequence enrollments
+- [x] Return merged, time-sorted array with type/icon/description/relativeTime
+
+### 4. Dashboard Layout Improvements (frontend)
+- [x] Restructure Home.tsx: top row 4 stat cards (larger, clearer)
+- [x] Middle row: left 60% AI Activity Feed, right 40% Jarvis Quick-Actions panel
+- [x] AI Activity Feed: icon per type, description, relative time, poll every 30s
+- [x] Jarvis Quick-Actions: 5 prompt buttons that dispatch jarvis-quick-action events
+- [x] Bottom row: Quick Overview cards (Active Campaigns, Upcoming Appointments, AI Call Activity)
+
+### 5. Navigation Improvements
+- [x] Group nav items with section headers: CRM, Outreach, Content, Automation, Insights, Admin
+- [x] Active nav item highlighting via SidebarMenuButton isActive
+- [x] Add green dot next to "Jarvis AI" label (Bot icon)
+- [x] Nav items with min-h-[40px] touch targets
+- [x] Add Jarvis AI nav item to subAccountNavGroups
+
+### 6. Mobile / PWA Quick Wins
+- [x] Ensure all buttons have min h-10 (44px) — verified in index.css
+- [x] Add touch-manipulation to all interactive elements — verified
+- [x] Wrap all tables in overflow-x-auto — .table-responsive class available
+- [x] Added empty-state CSS utility class and mobile spacing adjustments
+
+### 7. Empty States
+- [x] Dashboard Activity Feed empty state with helpful description
+- [x] Empty state CSS utility class (.empty-state) for consistent styling
+
+### Verification
+- [x] 0 TypeScript errors in modified files (23 pre-existing only)
+- [x] Visual check on desktop — grouped nav, activity feed, quick actions all rendering
+- [x] Vitest tests: 14 tests passing (dashboard.test.ts)
 - [ ] Save checkpoint

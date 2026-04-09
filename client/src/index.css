@@ -144,9 +144,16 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased text-base leading-relaxed;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+  h1 { @apply text-3xl font-bold tracking-tight; }
+  h2 { @apply text-2xl font-semibold tracking-tight; }
+  h3 { @apply text-xl font-semibold; }
+  h4 { @apply text-lg font-medium; }
+  label { @apply text-sm font-medium; }
+  th { @apply text-sm font-medium; }
+  td { @apply text-base; }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
@@ -298,5 +305,42 @@
   textarea {
     -webkit-user-select: auto;
     user-select: auto;
+  }
+}
+
+/* ─── Empty State Utility ─── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+.empty-state svg {
+  color: var(--muted-foreground);
+  opacity: 0.3;
+  margin-bottom: 1rem;
+}
+.empty-state h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--foreground);
+  margin-bottom: 0.25rem;
+}
+.empty-state p {
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+  max-width: 20rem;
+}
+
+/* ─── Mobile: tighter spacing on small screens ─── */
+@media (max-width: 640px) {
+  .p-4.md\:p-6 {
+    padding: 0.75rem;
+  }
+  /* Slightly smaller card padding on mobile */
+  .card-shadow {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   }
 }

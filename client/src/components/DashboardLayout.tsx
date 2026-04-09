@@ -70,27 +70,66 @@ import { JarvisPanel } from "./JarvisPanel";
  * Sub-account pages — only shown when a specific account is selected.
  * These are the CLIENT PORTAL items.
  */
-const subAccountMenuItems = [
-  { icon: LayoutDashboard, label: "Overview", path: "/" },
-  { icon: Users, label: "Contacts", path: "/contacts" },
-  { icon: Inbox, label: "Conversations", path: "/inbox" },
-  { icon: Phone, label: "AI Calls", path: "/ai-calls" },
-  { icon: PhoneCall, label: "Power Dialer", path: "/power-dialer" },
-  { icon: Activity, label: "Dialer Analytics", path: "/dialer-analytics" },
-  { icon: CalendarDays, label: "Calendar", path: "/calendar" },
-  { icon: Send, label: "Campaigns", path: "/campaigns" },
-  { icon: Zap, label: "Automations", path: "/automations" },
-  { icon: ListOrdered, label: "Sequences", path: "/sequences" },
-  { icon: FileText, label: "Pages & Funnels", path: "/pages" },
-  { icon: BarChart3, label: "Analytics", path: "/analytics" },
-  { icon: ShieldCheck, label: "SMS Compliance", path: "/sms-compliance" },
-  { icon: Kanban, label: "Pipeline", path: "/pipeline" },
-  { icon: ClipboardList, label: "Forms", path: "/forms" },
-  { icon: BookOpen, label: "Content Hub", path: "/content-hub" },
-  { icon: Star, label: "Reputation", path: "/reputation" },
-  { icon: Clock, label: "Message Queue", path: "/message-queue" },
-  { icon: CreditCard, label: "Billing", path: "/billing" },
+type NavItem = { icon: React.ComponentType<{ className?: string }>; label: string; path: string; placeholder?: boolean; jarvis?: boolean };
+type NavGroup = { section: string; items: NavItem[] };
+
+const subAccountNavGroups: NavGroup[] = [
+  {
+    section: "",
+    items: [
+      { icon: LayoutDashboard, label: "Overview", path: "/" },
+      { icon: Bot, label: "Jarvis AI", path: "/jarvis", jarvis: true },
+    ],
+  },
+  {
+    section: "CRM",
+    items: [
+      { icon: Users, label: "Contacts", path: "/contacts" },
+      { icon: Inbox, label: "Conversations", path: "/inbox" },
+      { icon: Kanban, label: "Pipeline", path: "/pipeline" },
+      { icon: CalendarDays, label: "Calendar", path: "/calendar" },
+      { icon: ClipboardList, label: "Forms", path: "/forms" },
+      { icon: Star, label: "Reputation", path: "/reputation" },
+    ],
+  },
+  {
+    section: "Outreach",
+    items: [
+      { icon: Phone, label: "AI Calls", path: "/ai-calls" },
+      { icon: PhoneCall, label: "Power Dialer", path: "/power-dialer" },
+      { icon: Send, label: "Campaigns", path: "/campaigns" },
+      { icon: ListOrdered, label: "Sequences", path: "/sequences" },
+      { icon: ShieldCheck, label: "SMS Compliance", path: "/sms-compliance" },
+    ],
+  },
+  {
+    section: "Content",
+    items: [
+      { icon: BookOpen, label: "Content Hub", path: "/content-hub" },
+      { icon: FileText, label: "Pages & Funnels", path: "/pages" },
+    ],
+  },
+  {
+    section: "Automation",
+    items: [
+      { icon: Zap, label: "Automations", path: "/automations" },
+      { icon: Clock, label: "Message Queue", path: "/message-queue" },
+    ],
+  },
+  {
+    section: "Insights",
+    items: [
+      { icon: BarChart3, label: "Analytics", path: "/analytics" },
+      { icon: Activity, label: "Dialer Analytics", path: "/dialer-analytics" },
+    ],
+  },
 ];
+
+// Flat list for route matching (backward compat)
+const subAccountMenuItems: NavItem[] = subAccountNavGroups.flatMap(g => g.items);
+
+// Add billing separately (shown in footer area)
+const billingItem: NavItem = { icon: CreditCard, label: "Billing", path: "/billing" };
 
 /**
  * Agency-level pages — only shown to agency_admin in Agency Overview mode
@@ -426,52 +465,16 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent>
-            {/* Main nav section */}
-            <div className="px-2 py-2">
-              {!isCollapsed && (
-                <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 mb-1">
-                  {sectionLabel}
-                </p>
-              )}
-              <SidebarMenu>
-                {mainMenuItems.map((item) => {
-                  const isActive = item.path === location;
-                  const showBadge = item.path === "/inbox" && unreadCount > 0;
-                  return (
-                    <SidebarMenuItem key={item.path}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        onClick={() => handleNavClick(item)}
-                        tooltip={item.label}
-                        className="cursor-pointer touch-manipulation min-h-[44px]"
-                      >
-                        <item.icon className="h-4 w-4 shrink-0" />
-                        <span>{item.label}</span>
-                        {showBadge && (
-                          <Badge
-                            variant="destructive"
-                            className="ml-auto h-5 min-w-5 px-1 text-[10px] font-bold"
-                          >
-                            {unreadCount > 99 ? "99+" : unreadCount}
-                          </Badge>
-                        )}
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </div>
-
-            {/* Admin shortcut section */}
-            {showAdminSection && (
-              <div className="px-2 py-2 border-t border-sidebar-border">
+            {(isAdmin && isAgencyScope) ? (
+              /* Agency scope — flat list */
+              <div className="px-2 py-2">
                 {!isCollapsed && (
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 mb-1">
-                    Admin
+                    Agency
                   </p>
                 )}
                 <SidebarMenu>
-                  {adminMenuItems.map((item) => (
+                  {agencyMenuItems.map((item) => (
                     <SidebarMenuItem key={item.path}>
                       <SidebarMenuButton
                         isActive={item.path === location}
@@ -486,19 +489,116 @@ function DashboardLayoutContent({
                   ))}
                 </SidebarMenu>
               </div>
+            ) : (
+              /* Sub-account scope — grouped sections */
+              <>
+                {subAccountNavGroups.map((group) => (
+                  <div key={group.section || "_top"} className={`px-2 ${group.section ? "py-1" : "pt-2 pb-1"}`}>
+                    {group.section && !isCollapsed && (
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 mb-0.5 mt-1">
+                        {group.section}
+                      </p>
+                    )}
+                    {group.section && isCollapsed && (
+                      <div className="border-t border-sidebar-border my-1" />
+                    )}
+                    <SidebarMenu>
+                      {group.items.map((item) => {
+                        const isActive = item.path === location;
+                        const showBadge = item.path === "/inbox" && unreadCount > 0;
+                        const isJarvis = !!(item as NavItem).jarvis;
+                        return (
+                          <SidebarMenuItem key={item.path}>
+                            <SidebarMenuButton
+                              isActive={isActive}
+                              onClick={() => {
+                                if (isJarvis) {
+                                  // Toggle Jarvis panel open via custom event
+                                  window.dispatchEvent(new CustomEvent("jarvis-quick-action", { detail: { prompt: "" } }));
+                                  return;
+                                }
+                                handleNavClick(item);
+                              }}
+                              tooltip={item.label}
+                              className="cursor-pointer touch-manipulation min-h-[40px]"
+                            >
+                              <div className="relative">
+                                <item.icon className="h-4 w-4 shrink-0" />
+                                {isJarvis && (
+                                  <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-sidebar" />
+                                )}
+                              </div>
+                              <span>{item.label}</span>
+                              {showBadge && (
+                                <Badge
+                                  variant="destructive"
+                                  className="ml-auto h-5 min-w-5 px-1 text-[10px] font-bold"
+                                >
+                                  {unreadCount > 99 ? "99+" : unreadCount}
+                                </Badge>
+                              )}
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
+                        );
+                      })}
+                    </SidebarMenu>
+                  </div>
+                ))}
+
+                {/* Admin shortcut section */}
+                {showAdminSection && (
+                  <div className="px-2 py-1">
+                    {!isCollapsed && (
+                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground px-2 mb-0.5 mt-1">
+                        Admin
+                      </p>
+                    )}
+                    {isCollapsed && (
+                      <div className="border-t border-sidebar-border my-1" />
+                    )}
+                    <SidebarMenu>
+                      {adminMenuItems.map((item) => (
+                        <SidebarMenuItem key={item.path}>
+                          <SidebarMenuButton
+                            isActive={item.path === location}
+                            onClick={() => handleNavClick(item)}
+                            tooltip={item.label}
+                            className="cursor-pointer touch-manipulation min-h-[40px]"
+                          >
+                            <item.icon className="h-4 w-4 shrink-0" />
+                            <span>{item.label}</span>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      ))}
+                    </SidebarMenu>
+                  </div>
+                )}
+              </>
             )}
           </SidebarContent>
 
           <SidebarFooter className="border-t border-sidebar-border">
             <div className="px-2 py-2">
               <SidebarMenu>
+                {/* Billing link */}
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    isActive={location === "/billing"}
+                    onClick={() => handleNavClick(billingItem)}
+                    tooltip="Billing"
+                    className="cursor-pointer touch-manipulation min-h-[40px]"
+                  >
+                    <CreditCard className="h-4 w-4 shrink-0" />
+                    <span>Billing</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
                 {settingsMenuItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       isActive={location.startsWith("/settings")}
                       onClick={() => handleNavClick(item)}
                       tooltip={item.label}
-                      className="cursor-pointer touch-manipulation min-h-[44px]"
+                      className="cursor-pointer touch-manipulation min-h-[40px]"
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       <span>{item.label}</span>
