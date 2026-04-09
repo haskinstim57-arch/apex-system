@@ -4054,4 +4054,15 @@
 - [x] .dark CSS vars verified (--card is dark oklch value)
 - [x] Settings w-full applied
 - [x] 0 TypeScript errors in modified files (23 pre-existing only)
+- [x] Save checkpoint (9ba491a0)
+
+## Fix: Getting Started Checklist Dark Mode Readability
+- [x] Fix completed row background: bg-emerald-500/10 border border-emerald-500/20 (works in both modes)
+- [x] Fix completed step text: line-through text-muted-foreground (readable in dark)
+- [x] Fix completed step description: text-muted-foreground/70
+- [x] Fix checkmark icon: text-emerald-500 (vivid in both modes)
+- [x] Fix step icon box: bg-emerald-500/15 text-emerald-500 (alpha-based, works in both modes)
+- [x] Fix incomplete circle icon: text-muted-foreground/40 (was text-gray-300)
+- [x] Fix Set Up button: border-amber-500/30 with dark:text-amber-400 variant
+- [x] Incomplete step styling unchanged
 - [ ] Save checkpoint

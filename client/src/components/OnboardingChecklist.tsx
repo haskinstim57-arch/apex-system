@@ -258,22 +258,22 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                   key={step.id}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
                     step.complete
-                      ? "bg-emerald-50/50"
-                      : "hover:bg-muted/50"
+                      ? "bg-emerald-500/10 border border-emerald-500/20"
+                      : "hover:bg-muted/50 border border-transparent"
                   }`}
                 >
                   {/* Status icon */}
                   {step.complete ? (
                     <CheckCircle2 className="h-5 w-5 text-emerald-500 shrink-0" />
                   ) : (
-                    <Circle className="h-5 w-5 text-gray-300 shrink-0" />
+                    <Circle className="h-5 w-5 text-muted-foreground/40 shrink-0" />
                   )}
 
                   {/* Step icon */}
                   <div
                     className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
                       step.complete
-                        ? "bg-emerald-100 text-emerald-600"
+                        ? "bg-emerald-500/15 text-emerald-500"
                         : "bg-muted text-muted-foreground"
                     }`}
                   >
@@ -285,13 +285,17 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                     <p
                       className={`text-sm font-medium ${
                         step.complete
-                          ? "text-emerald-700 line-through"
+                          ? "line-through text-muted-foreground"
                           : "text-foreground"
                       }`}
                     >
                       {step.label}
                     </p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className={`text-xs truncate ${
+                      step.complete
+                        ? "text-muted-foreground/70"
+                        : "text-muted-foreground"
+                    }`}>
                       {description}
                     </p>
                   </div>
@@ -301,7 +305,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 text-xs px-3 shrink-0 border-amber-300 text-amber-700 hover:bg-amber-50 hover:border-amber-400"
+                      className="h-7 text-xs px-3 shrink-0 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 hover:border-amber-500/40"
                       onClick={() => navigate(link)}
                     >
                       Set Up
