@@ -3999,4 +3999,28 @@
 - [x] 0 TypeScript errors in modified files (23 pre-existing only)
 - [x] Visual check on desktop — grouped nav, activity feed, quick actions all rendering
 - [x] Vitest tests: 14 tests passing (dashboard.test.ts)
+- [x] Save checkpoint (5fa2fe18)
+
+## UI Polish: Jarvis Nav, Dark Mode Toggle, Settings Layout
+
+### 1. Jarvis Nav Link Fix
+- [x] Replace jarvis-quick-action dispatch with setLocation("/jarvis") in DashboardLayout sidebar
+- [x] Keep green dot indicator, jarvis: true styling, label unchanged
+
+### 2. Dark Mode Toggle Button
+- [x] Add Sun/Moon toggle in header between NotificationCenter and user avatar
+- [x] Add theme label + toggle in sidebar footer above Billing (expanded + collapsed states)
+- [x] Import useTheme from ThemeContext, Sun/Moon from lucide-react
+
+### 3. Settings Layout Cleanup
+- [x] Add horizontal tab bar to Settings.tsx with tabs: General, Messaging, Integrations, AI & Voice, Automation, Notifications, Admin
+- [x] Tab bar uses in-page state (activeTab) to show/hide sections without route changes
+- [x] All settings cards grouped into logical tabs
+- [x] Visual cleanup: bg-card for dark mode compat, consistent card-shadow, setLocation for sub-page navigation
+
+### Verification
+- [x] Clicking Jarvis AI in sidebar navigates to /jarvis
+- [x] Sun/Moon toggle in header switches theme, persists on refresh
+- [x] Settings tab bar visible on /settings page with all sections grouped
+- [x] 0 TypeScript errors in DashboardLayout.tsx and Settings.tsx
 - [ ] Save checkpoint

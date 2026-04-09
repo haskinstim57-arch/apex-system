@@ -53,6 +53,8 @@ import {
   Clock,
   Bot,
   BookOpen,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -65,6 +67,7 @@ import { useAccount } from "@/contexts/AccountContext";
 import { useBranding } from "@/contexts/BrandingContext";
 import { NotificationCenter } from "./NotificationCenter";
 import { JarvisPanel } from "./JarvisPanel";
+import { useTheme } from "@/contexts/ThemeContext";
 
 /**
  * Sub-account pages — only shown when a specific account is selected.
@@ -337,6 +340,7 @@ function DashboardLayoutContent({
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const { currentAccountId, isAdmin, isImpersonating, isAgencyScope, isLoading: accountLoading } = useAccount();
+  const { theme, toggleTheme, switchable } = useTheme();
   // ── Page context for Jarvis panel ──
   const pageContext = useMemo(() => {
     const exactPageMap: Record<string, string> = {
@@ -513,8 +517,8 @@ function DashboardLayoutContent({
                               isActive={isActive}
                               onClick={() => {
                                 if (isJarvis) {
-                                  // Toggle Jarvis panel open via custom event
-                                  window.dispatchEvent(new CustomEvent("jarvis-quick-action", { detail: { prompt: "" } }));
+                                  setLocation("/jarvis");
+                                  if (isMobile) setOpenMobile(false);
                                   return;
                                 }
                                 handleNavClick(item);
@@ -579,6 +583,22 @@ function DashboardLayoutContent({
 
           <SidebarFooter className="border-t border-sidebar-border">
             <div className="px-2 py-2">
+              {/* Theme toggle row */}
+              {switchable && !isCollapsed && (
+                <div className="flex items-center justify-between px-3 py-2 text-xs text-muted-foreground mb-1">
+                  <span>{theme === "dark" ? "Dark Mode" : "Light Mode"}</span>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleTheme}>
+                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
+              {switchable && isCollapsed && (
+                <div className="flex justify-center py-1 mb-1">
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={toggleTheme} title="Toggle theme">
+                    {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  </Button>
+                </div>
+              )}
               <SidebarMenu>
                 {/* Billing link */}
                 <SidebarMenuItem>
@@ -657,6 +677,16 @@ function DashboardLayoutContent({
           <div className="flex items-center gap-3">
             {/* Notification bell */}
             <NotificationCenter />
+
+            {/* Dark mode toggle */}
+            {switchable && (
+              <Button variant="ghost" size="icon" onClick={toggleTheme} title="Toggle theme" className="h-9 w-9">
+                {theme === "dark"
+                  ? <Sun className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                  : <Moon className="h-5 w-5 text-muted-foreground hover:text-foreground" />
+                }
+              </Button>
+            )}
 
             {/* User profile dropdown */}
             <DropdownMenu>

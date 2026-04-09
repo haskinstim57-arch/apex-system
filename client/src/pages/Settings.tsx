@@ -148,6 +148,7 @@ export default function SettingsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const { currentAccountId, currentAccount } = useAccount();
+  const [, setLocation] = useLocation();
 
   // Determine the user's role within the active account context
   const isAccountOwner = currentAccount && currentAccount.ownerId === user?.id;
@@ -164,8 +165,23 @@ export default function SettingsPage() {
   // Show messaging settings link to account owners or admins with an account selected
   const showMessagingSettings = !!currentAccountId;
 
+  const [activeTab, setActiveTab] = useState("general");
+
+  const settingsTabs = useMemo(() => {
+    const tabs = [
+      { id: "general", label: "General", icon: User },
+      ...(currentAccountId ? [{ id: "messaging", label: "Messaging", icon: MessageSquare }] : []),
+      ...(currentAccountId ? [{ id: "integrations", label: "Integrations", icon: Link2 }] : []),
+      ...(currentAccountId ? [{ id: "ai-voice", label: "AI & Voice", icon: Phone }] : []),
+      ...(currentAccountId ? [{ id: "automation", label: "Automation", icon: Zap }] : []),
+      { id: "notifications", label: "Notifications", icon: Bell },
+      ...(isAdmin ? [{ id: "admin", label: "Admin", icon: Shield }] : []),
+    ];
+    return tabs;
+  }, [currentAccountId, isAdmin]);
+
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6 max-w-4xl">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -173,8 +189,36 @@ export default function SettingsPage() {
         </p>
       </div>
 
+      {/* Tab Bar */}
+      <div className="border-b border-border">
+        <nav className="flex gap-1 overflow-x-auto pb-px -mb-px" aria-label="Settings tabs">
+          {settingsTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
+                  isActive
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* ═══ General Tab ═══ */}
+      {activeTab === "general" && (
+        <div className="space-y-6">
+
       {/* Profile Section */}
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <User className="h-4 w-4 text-muted-foreground" />
@@ -219,7 +263,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Security Section */}
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Shield className="h-4 w-4 text-muted-foreground" />
@@ -280,105 +324,7 @@ export default function SettingsPage() {
         <PhoneNumberCard accountId={currentAccountId} />
       )}
 
-      {/* Messaging Settings — visible to anyone with an account selected */}
-      {showMessagingSettings && (
-        <Card className="bg-white border-0 card-shadow">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              Messaging
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Configure SMS and email credentials for your account.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1 -mt-2">
-            <IntegrationLink
-              icon={MessageSquare}
-              label="Messaging Credentials"
-              description="Configure Twilio and SendGrid for this account"
-              href="/settings/messaging"
-              iconColor="text-emerald-500"
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Account Integrations — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <FacebookIntegrationCard accountId={currentAccountId} />
-      )}
-
-      {/* Calendar Sync — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <CalendarSyncCard accountId={currentAccountId} />
-      )}
-
-      {/* Missed Call Text-Back — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <MissedCallTextBackCard accountId={currentAccountId} />
-      )}
-
-      {/* Call Scripts — visible to account owners and admins with an account selected */}
-      {currentAccountId && (
-        <CallScriptsCard accountId={currentAccountId} />
-      )}
-
-      {/* Lead Routing Rules — visible to account owners and admins with an account selected */}
-      {currentAccountId && (
-        <LeadRoutingRulesCard accountId={currentAccountId} />
-      )}
-
-      {/* Lead Scoring Rules — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <Card className="bg-white border-0 card-shadow">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Zap className="h-4 w-4 text-amber-500" />
-              Lead Scoring
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Automatically score contacts based on their engagement and actions.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1 -mt-2">
-            <IntegrationLink
-              icon={Zap}
-              label="Scoring Rules"
-              description="Create and manage lead scoring rules for this account"
-              href="/settings/lead-scoring"
-              iconColor="text-amber-500"
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {/* AI Voice Calling Kill Switch — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <AIVoiceCallingCard accountId={currentAccountId} />
-      )}
-
-      {/* Custom Fields — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <CustomFieldsCard accountId={currentAccountId} />
-      )}
-
-      {/* Outbound Webhooks — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <OutboundWebhooksCard accountId={currentAccountId} />
-      )}
-
-      {/* API Keys — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <ApiKeysCard accountId={currentAccountId} />
-      )}
-
-      {/* Webchat Widgets — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <WebchatWidgetsCard accountId={currentAccountId} />
-      )}
-
-      {/* Agency Branding — visible to account owners and admins with an account selected */}
+      {/* Agency Branding */}
       {currentAccountId && (
         <>
           <AgencyBrandingCard accountId={currentAccountId} />
@@ -386,80 +332,158 @@ export default function SettingsPage() {
         </>
       )}
 
-      {/* Scheduled Reports — visible to anyone with an account selected */}
-      {currentAccountId && (
-        <ScheduledReportsCard accountId={currentAccountId} />
+        </div>
       )}
 
-      {/* Admin Integrations */}
-      {isAdmin && (
-        <Card className="bg-white border-0 card-shadow">
-          <CardHeader>
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Palette className="h-4 w-4 text-muted-foreground" />
-              Admin Integrations
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Manage platform-level service connections.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-1 -mt-2">
-            <IntegrationLink
-              icon={Facebook}
-              label="Facebook Pages"
-              description="Map Facebook pages to sub-accounts for lead routing"
-              href="/settings/facebook-pages"
-              iconColor="text-blue-500"
-            />
-          </CardContent>
-        </Card>
+      {/* ═══ Messaging Tab ═══ */}
+      {activeTab === "messaging" && currentAccountId && (
+        <div className="space-y-6">
+          <Card className="bg-card border-0 card-shadow">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-emerald-500" />
+                Messaging Credentials
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Configure Twilio and SendGrid for SMS and email delivery.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="-mt-2">
+              <IntegrationLink
+                icon={MessageSquare}
+                label="Configure Messaging"
+                description="Set up Twilio SID/Auth Token and SendGrid API key"
+                href="/settings/messaging"
+                iconColor="text-emerald-500"
+              />
+            </CardContent>
+          </Card>
+          <MissedCallTextBackCard accountId={currentAccountId} />
+          <WebchatWidgetsCard accountId={currentAccountId} />
+        </div>
       )}
 
-      {/* Placeholder sections for future modules */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/notifications'}>
-          <CardContent className="pt-5 pb-4 px-5">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Bell className="h-4 w-4 text-primary" />
+      {/* ═══ Integrations Tab ═══ */}
+      {activeTab === "integrations" && currentAccountId && (
+        <div className="space-y-6">
+          <FacebookIntegrationCard accountId={currentAccountId} />
+          <CalendarSyncCard accountId={currentAccountId} />
+          <OutboundWebhooksCard accountId={currentAccountId} />
+          <ApiKeysCard accountId={currentAccountId} />
+        </div>
+      )}
+
+      {/* ═══ AI & Voice Tab ═══ */}
+      {activeTab === "ai-voice" && currentAccountId && (
+        <div className="space-y-6">
+          <AIVoiceCallingCard accountId={currentAccountId} />
+          <CallScriptsCard accountId={currentAccountId} />
+        </div>
+      )}
+
+      {/* ═══ Automation Tab ═══ */}
+      {activeTab === "automation" && currentAccountId && (
+        <div className="space-y-6">
+          <LeadRoutingRulesCard accountId={currentAccountId} />
+          <Card className="bg-card border-0 card-shadow">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Lead Scoring
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Automatically score contacts based on their engagement and actions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="-mt-2">
+              <IntegrationLink
+                icon={Zap}
+                label="Scoring Rules"
+                description="Create and manage lead scoring rules for this account"
+                href="/settings/lead-scoring"
+                iconColor="text-amber-500"
+              />
+            </CardContent>
+          </Card>
+          <CustomFieldsCard accountId={currentAccountId} />
+          <ScheduledReportsCard accountId={currentAccountId} />
+        </div>
+      )}
+
+      {/* ═══ Notifications Tab ═══ */}
+      {activeTab === "notifications" && (
+        <div className="space-y-6">
+          <Card className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/settings/notifications")}>
+            <CardContent className="pt-5 pb-4 px-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Bell className="h-4 w-4 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Push Notifications</p>
+                  <p className="text-xs text-muted-foreground">Manage alerts & quiet hours</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Push Notifications</p>
-                <p className="text-xs text-muted-foreground">Manage alerts & quiet hours</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/settings/notification-log")}>
+            <CardContent className="pt-5 pb-4 px-5">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                  <Bell className="h-4 w-4 text-blue-500" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium">Notification Log</p>
+                  <p className="text-xs text-muted-foreground">View full notification history</p>
+                </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/notification-log'}>
-          <CardContent className="pt-5 pb-4 px-5">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                <Bell className="h-4 w-4 text-blue-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">Notification Log</p>
-                <p className="text-xs text-muted-foreground">View full notification history</p>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-white border-0 card-shadow opacity-60">
-          <CardContent className="pt-5 pb-4 px-5">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
-                <Key className="h-4 w-4 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">API Keys</p>
-                <p className="text-xs text-muted-foreground">Coming soon</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        {isAdmin && (
-          <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/ai-usage'}>
+            </CardContent>
+          </Card>
+          {isAdmin && (
+            <Card className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/settings/delivery-dashboard")}>
+              <CardContent className="pt-5 pb-4 px-5">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                    <BarChart3 className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Delivery Dashboard</p>
+                    <p className="text-xs text-muted-foreground">Monitor notification delivery rates</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ═══ Admin Tab ═══ */}
+      {activeTab === "admin" && isAdmin && (
+        <div className="space-y-6">
+          <Card className="bg-card border-0 card-shadow">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Palette className="h-4 w-4 text-muted-foreground" />
+                Admin Integrations
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Manage platform-level service connections.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="-mt-2">
+              <IntegrationLink
+                icon={Facebook}
+                label="Facebook Pages"
+                description="Map Facebook pages to sub-accounts for lead routing"
+                href="/settings/facebook-pages"
+                iconColor="text-blue-500"
+              />
+            </CardContent>
+          </Card>
+          <Card className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/settings/ai-usage")}>
             <CardContent className="pt-5 pb-4 px-5">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -473,9 +497,7 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
-        )}
-        {isAdmin && (
-          <Card className="bg-white border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => window.location.href = '/settings/lead-monitor'}>
+          <Card className="bg-card border-0 card-shadow cursor-pointer hover:shadow-md transition-shadow" onClick={() => setLocation("/settings/lead-monitor")}>
             <CardContent className="pt-5 pb-4 px-5">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
@@ -489,8 +511,8 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1320,7 +1342,7 @@ function MissedCallTextBackCard({ accountId }: { accountId: number }) {
 
   if (isLoading) {
     return (
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardContent className="py-8 flex items-center justify-center">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </CardContent>
@@ -1695,7 +1717,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
 
   return (
     <>
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Phone className="h-4 w-4 text-muted-foreground" />
@@ -3462,7 +3484,7 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
 
   return (
     <>
-      <Card className="bg-white border-0 card-shadow">
+      <Card className="bg-card border-0 card-shadow">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
