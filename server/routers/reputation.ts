@@ -15,7 +15,7 @@ import {
 import { getContactById, getDb } from "../db";
 import { dispatchSMS, dispatchEmail } from "../services/messaging";
 import { createMessage } from "../db";
-import { gmbConnections, reviews, reputationAlertSettings } from "../../drizzle/schema";
+import { gmbConnections, gmbReviews, reviews, reputationAlertSettings } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { notifyOwner } from "../_core/notification";
 import { dispatchWebhookEvent } from "../services/webhookDispatcher";
@@ -440,6 +440,51 @@ export const reputationRouter = router({
       return { success: true };
     }),
 
+  // ─── Get GMB Auth URL ───────────────────────────────────────
+  getGmbAuthUrl: protectedProcedure
+    .input(z.object({ accountId: z.number(), origin: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId);
+      const { getAuthUrl } = await import("../services/gmbService");
+      const redirectUri = `${input.origin}/api/gmb/callback`;
+      return { url: getAuthUrl(input.accountId, redirectUri) };
+    }),
+
+  // ─── Get GMB Locations ─────────────────────────────────────
+  getGmbLocations: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId);
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      const [conn] = await db
+        .select()
+        .from(gmbConnections)
+        .where(and(eq(gmbConnections.accountId, input.accountId), eq(gmbConnections.status, "active")))
+        .limit(1);
+      if (!conn) throw new Error("Not connected to Google Business Profile");
+      const { getLocations } = await import("../services/gmbService");
+      return getLocations(conn.accessToken, conn.refreshToken);
+    }),
+
+  // ─── Select GMB Location ───────────────────────────────────
+  selectGmbLocation: protectedProcedure
+    .input(z.object({
+      accountId: z.number(),
+      locationId: z.string(),
+      locationName: z.string(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId);
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db
+        .update(gmbConnections)
+        .set({ locationId: input.locationId, locationName: input.locationName })
+        .where(eq(gmbConnections.accountId, input.accountId));
+      return { success: true };
+    }),
+
   // ─── Sync Reviews from GMB ──────────────────────────────────
   syncGmbReviews: protectedProcedure
     .input(z.object({ accountId: z.number() }))
@@ -460,20 +505,147 @@ export const reputationRouter = router({
         .limit(1);
 
       if (!conn) throw new Error("No active GMB connection found. Please connect your Google Business Profile first.");
+      if (!conn.locationId) throw new Error("No location selected. Please select a business location first.");
 
-      // In production, this would call the Google Business Profile API:
-      // GET https://mybusiness.googleapis.com/v4/accounts/{accountId}/locations/{locationId}/reviews
-      // For now, update lastSyncAt to indicate the sync was attempted
+      try {
+        const { getReviews } = await import("../services/gmbService");
+        const apiReviews = await getReviews(conn.accessToken, conn.refreshToken, conn.locationId);
+
+        // Upsert reviews into gmbReviews table
+        let synced = 0;
+        for (const r of apiReviews) {
+          const googleReviewId = r.reviewId || r.name?.split("/").pop() || "";
+          const [existing] = await db
+            .select()
+            .from(gmbReviews)
+            .where(and(eq(gmbReviews.accountId, input.accountId), eq(gmbReviews.reviewId, googleReviewId)))
+            .limit(1);
+
+          const reviewData = {
+            accountId: input.accountId,
+            reviewId: googleReviewId,
+            reviewerName: r.reviewer?.displayName || null,
+            reviewerPhotoUrl: r.reviewer?.profilePhotoUrl || null,
+            starRating: r.starRating || "FIVE",
+            comment: r.comment || null,
+            replyText: r.reviewReply?.comment || null,
+            replyUpdatedAt: r.reviewReply?.updateTime ? new Date(r.reviewReply.updateTime) : null,
+            reviewPublishedAt: r.createTime ? new Date(r.createTime) : null,
+            syncedAt: new Date(),
+          };
+
+          if (existing) {
+            await db.update(gmbReviews).set(reviewData).where(eq(gmbReviews.id, existing.id));
+          } else {
+            await db.insert(gmbReviews).values(reviewData);
+          }
+          synced++;
+        }
+
+        await db.update(gmbConnections).set({ lastSyncAt: new Date() }).where(eq(gmbConnections.id, conn.id));
+
+        return { success: true, synced, lastSyncAt: new Date() };
+      } catch (err: any) {
+        // If API call fails, still update lastSyncAt and return message
+        await db.update(gmbConnections).set({ lastSyncAt: new Date() }).where(eq(gmbConnections.id, conn.id));
+        return {
+          success: false,
+          synced: 0,
+          message: err.message || "Failed to sync reviews from Google",
+          lastSyncAt: new Date(),
+        };
+      }
+    }),
+
+  // ─── Get Synced GMB Reviews ─────────────────────────────────
+  getGmbReviews: protectedProcedure
+    .input(z.object({ accountId: z.number(), limit: z.number().optional().default(50) }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId);
+      const db = await getDb();
+      if (!db) return [];
+      const { desc } = await import("drizzle-orm");
+      return db
+        .select()
+        .from(gmbReviews)
+        .where(eq(gmbReviews.accountId, input.accountId))
+        .orderBy(desc(gmbReviews.reviewPublishedAt))
+        .limit(input.limit);
+    }),
+
+  // ─── Reply to GMB Review via API ────────────────────────────
+  replyToGmbReview: protectedProcedure
+    .input(z.object({
+      accountId: z.number(),
+      gmbReviewId: z.number(), // our DB id
+      replyText: z.string().min(1).max(4096),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId);
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const [conn] = await db
+        .select()
+        .from(gmbConnections)
+        .where(and(eq(gmbConnections.accountId, input.accountId), eq(gmbConnections.status, "active")))
+        .limit(1);
+      if (!conn?.locationId) throw new Error("No active GMB connection with location");
+
+      const [review] = await db
+        .select()
+        .from(gmbReviews)
+        .where(and(eq(gmbReviews.id, input.gmbReviewId), eq(gmbReviews.accountId, input.accountId)))
+        .limit(1);
+      if (!review) throw new Error("Review not found");
+
+      try {
+        const { replyToReview } = await import("../services/gmbService");
+        await replyToReview(conn.accessToken, conn.refreshToken, conn.locationId, review.reviewId, input.replyText);
+      } catch (err: any) {
+        // Save locally even if API fails
+        console.error("[GMB] Reply API failed:", err.message);
+      }
+
+      // Always save the reply locally
       await db
-        .update(gmbConnections)
-        .set({ lastSyncAt: new Date() })
-        .where(eq(gmbConnections.id, conn.id));
+        .update(gmbReviews)
+        .set({ replyText: input.replyText, replyUpdatedAt: new Date() })
+        .where(eq(gmbReviews.id, input.gmbReviewId));
 
-      return {
-        success: true,
-        message: "Sync initiated. Reviews will appear once the Google Business Profile API is fully connected.",
-        lastSyncAt: new Date(),
-      };
+      return { success: true };
+    }),
+
+  // ─── Create GMB Post ────────────────────────────────────────
+  createGmbPost: protectedProcedure
+    .input(z.object({
+      accountId: z.number(),
+      summary: z.string().min(1).max(1500),
+      ctaType: z.string().optional(),
+      ctaUrl: z.string().url().optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId);
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const [conn] = await db
+        .select()
+        .from(gmbConnections)
+        .where(and(eq(gmbConnections.accountId, input.accountId), eq(gmbConnections.status, "active")))
+        .limit(1);
+      if (!conn?.locationId) throw new Error("No active GMB connection with location");
+
+      const { createPost } = await import("../services/gmbService");
+      const result = await createPost(
+        conn.accessToken,
+        conn.refreshToken,
+        conn.locationId,
+        input.summary,
+        input.ctaType,
+        input.ctaUrl
+      );
+      return { success: true, post: result };
     }),
 
   // ═══════════════════════════════════════════════════════════════

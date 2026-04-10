@@ -67,7 +67,7 @@ export function GlobalSearch() {
     { query: debouncedQuery, accountId: currentAccountId! },
     {
       enabled: debouncedQuery.length >= 2 && !!currentAccountId,
-      keepPreviousData: true,
+      placeholderData: (prev) => prev,
     }
   );
 

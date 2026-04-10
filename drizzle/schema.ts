@@ -1430,6 +1430,34 @@ export type GmbConnection = typeof gmbConnections.$inferSelect;
 export type InsertGmbConnection = typeof gmbConnections.$inferInsert;
 
 // ─────────────────────────────────────────────
+// GMB REVIEWS — Synced Google Business Profile reviews
+// ─────────────────────────────────────────────
+export const gmbReviews = mysqlTable("gmb_reviews", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** Google's unique review ID */
+  reviewId: varchar("review_id", { length: 255 }).notNull(),
+  /** Reviewer display name */
+  reviewerName: varchar("reviewer_name", { length: 255 }),
+  /** Reviewer profile photo URL */
+  reviewerPhotoUrl: text("reviewer_photo_url"),
+  /** Star rating */
+  starRating: mysqlEnum("star_rating", ["ONE", "TWO", "THREE", "FOUR", "FIVE"]).notNull(),
+  /** Review text body */
+  comment: text("comment"),
+  /** Owner's reply text */
+  replyText: text("reply_text"),
+  /** When the reply was last updated */
+  replyUpdatedAt: timestamp("reply_updated_at"),
+  /** When the review was originally published on Google */
+  reviewPublishedAt: timestamp("review_published_at"),
+  /** When we last synced this review */
+  syncedAt: timestamp("synced_at").defaultNow(),
+});
+export type GmbReview = typeof gmbReviews.$inferSelect;
+export type InsertGmbReview = typeof gmbReviews.$inferInsert;
+
+// ─────────────────────────────────────────────
 // REPUTATION ALERT SETTINGS — Per-account alert configuration
 // ─────────────────────────────────────────────
 export const reputationAlertSettings = mysqlTable("reputation_alert_settings", {

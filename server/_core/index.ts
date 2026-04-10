@@ -30,6 +30,7 @@ import { webchatWidgetRouter } from "../webhooks/webchatWidget";
 import { jarvisStreamRouter } from "../webhooks/jarvisStream";
 import { squareWebhookRouter } from "../webhooks/square";
 import { deliveryStatusRouter } from "../webhooks/deliveryStatus";
+import { gmbOAuthCallbackRouter } from "../webhooks/gmbOAuthCallback";
 import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 import { startMessageQueueWorker } from "../services/messageQueue";
 import { startPushBatchWorker } from "../services/pushBatcher";
@@ -90,6 +91,8 @@ async function startServer() {
   app.use(jarvisStreamRouter);
   // Square payment webhook
   app.use(squareWebhookRouter);
+  // Google My Business OAuth callback
+  app.use(gmbOAuthCallbackRouter);
   // Delivery status webhooks (SendGrid + Twilio)
   app.use(deliveryStatusRouter);
   // Public landing page serving

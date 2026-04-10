@@ -112,6 +112,7 @@ import { WebchatWidgetsCard } from "@/components/WebchatWidgetsCard";
 import { CustomFieldsCard } from "@/components/CustomFieldsCard";
 import { ScheduledReportsCard } from "@/components/ScheduledReportsCard";
 import { useAccount } from "@/contexts/AccountContext";
+import { GmbIntegrationCard as GmbIntegrationInline } from "@/components/GmbIntegrationCard";
 
 function IntegrationLink({
   icon: Icon,
@@ -367,6 +368,7 @@ export default function SettingsPage() {
       {activeTab === "integrations" && currentAccountId && (
         <div className="space-y-6">
           <FacebookIntegrationCard accountId={currentAccountId} />
+          <GmbIntegrationInline accountId={currentAccountId} />
           <CalendarSyncCard accountId={currentAccountId} />
           <OutboundWebhooksCard accountId={currentAccountId} />
           <ApiKeysCard accountId={currentAccountId} />
@@ -1037,23 +1039,6 @@ function FacebookIntegrationCard({ accountId }: { accountId: number }) {
           </div>
         </div>
 
-        {/* Google My Business Placeholder */}
-        <div className="flex items-start gap-4 p-3 rounded-lg border border-border/50 opacity-60">
-          <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center shrink-0">
-            <MapPin className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h4 className="text-sm font-medium">Google My Business</h4>
-              <Badge variant="secondary" className="text-[10px]">
-                Coming Soon
-              </Badge>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Sync reviews and manage your Google presence.
-            </p>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );

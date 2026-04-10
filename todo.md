@@ -4090,3 +4090,22 @@
 - [x] Update vitest tests for search router changes (36 tests passing)
 - [x] Verify 0 TypeScript errors
 - [x] Save checkpoint
+
+## Google My Business Integration
+- [x] Schema: gmbReviews table added to drizzle/schema.ts (gmbConnections already existed)
+- [x] Schema: Run pnpm db:push to create tables
+- [x] Backend: Create server/services/gmbService.ts (OAuth, locations, reviews, reply, post)
+- [x] Backend: Add OAuth callback route /api/gmb/callback in server index
+- [x] Backend: GMB procedures added to existing reputation router (getGmbAuthUrl, getGmbLocations, syncGmbReviews, replyToGmbReview, createGmbPost)
+- [x] Backend: googleapis npm package installed
+- [x] Frontend: Replace "Coming Soon" GMB card with full GmbIntegrationCard component
+- [x] Frontend: Not-connected state with Connect button
+- [x] Frontend: Connected state with location selector dropdown
+- [x] Frontend: Connected+location state with Reviews tab and Create Post tab
+- [x] Frontend: Review reply inline textarea
+- [x] Frontend: Create Post form with CTA type/URL
+- [x] Frontend: Handle ?gmb=connected and ?gmb=error URL params with toast
+- [x] Environment: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET already configured
+- [x] Tests: 64 vitest tests for GMB integration passing
+- [x] Verify 0 new TypeScript errors (24 pre-existing in automations.ts/leadRoutingMonitor.ts)
+- [x] Save checkpoint
