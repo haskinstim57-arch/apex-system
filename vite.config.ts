@@ -276,8 +276,27 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
-    // Let Vite/Rollup handle chunk splitting automatically to avoid circular dependencies
-    // Manual chunks were causing vendor-react to import from page-analytics, creating a hang
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Split heavy vendor libs into separate cacheable chunks
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
+              return 'vendor-react';
+            }
+            if (id.includes('chart.js') || id.includes('recharts') || id.includes('plotly')) {
+              return 'vendor-charts';
+            }
+            if (id.includes('@radix-ui') || id.includes('lucide-react') || id.includes('sonner') || id.includes('cmdk')) {
+              return 'vendor-ui';
+            }
+            if (id.includes('date-fns') || id.includes('zod') || id.includes('superjson')) {
+              return 'vendor-utils';
+            }
+          }
+        },
+      },
+    },
   },
   server: {
     host: true,

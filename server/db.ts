@@ -1200,7 +1200,8 @@ export async function listMessagesByContact(contactId: number, accountId: number
     .select()
     .from(messages)
     .where(and(eq(messages.contactId, contactId), eq(messages.accountId, accountId)))
-    .orderBy(desc(messages.createdAt));
+    .orderBy(desc(messages.createdAt))
+    .limit(200);
 }
 
 export async function updateMessageStatus(
@@ -1476,7 +1477,8 @@ export async function listCampaignTemplates(
     .select()
     .from(campaignTemplates)
     .where(and(...conditions))
-    .orderBy(desc(campaignTemplates.updatedAt));
+    .orderBy(desc(campaignTemplates.updatedAt))
+    .limit(100);
 }
 
 export async function getCampaignTemplate(id: number, accountId: number) {
@@ -4851,7 +4853,8 @@ export async function listSequences(accountId: number) {
     .select()
     .from(sequences)
     .where(eq(sequences.accountId, accountId))
-    .orderBy(desc(sequences.createdAt));
+    .orderBy(desc(sequences.createdAt))
+    .limit(100);
 }
 
 export async function getSequenceById(id: number, accountId: number) {
@@ -5012,7 +5015,8 @@ export async function listSequenceEnrollments(sequenceId: number, accountId: num
     .select()
     .from(sequenceEnrollments)
     .where(and(...conditions))
-    .orderBy(desc(sequenceEnrollments.enrolledAt));
+    .orderBy(desc(sequenceEnrollments.enrolledAt))
+    .limit(200);
 }
 
 export async function getContactEnrollments(contactId: number, accountId: number) {
@@ -5031,7 +5035,8 @@ export async function getContactEnrollments(contactId: number, accountId: number
         eq(sequenceEnrollments.accountId, accountId)
       )
     )
-    .orderBy(desc(sequenceEnrollments.enrolledAt));
+    .orderBy(desc(sequenceEnrollments.enrolledAt))
+    .limit(100);
 }
 
 export async function getDueEnrollments(limit: number = 100) {

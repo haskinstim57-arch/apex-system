@@ -11,16 +11,16 @@ import Home from "./pages/Home";
 import Accounts from "./pages/Accounts";
 import AccountDetail from "./pages/AccountDetail";
 import TeamMembers from "./pages/TeamMembers";
-import SettingsPage from "./pages/Settings";
+const SettingsPage = lazy(() => import("./pages/Settings"));
 import InviteAccept from "./pages/InviteAccept";
-import Contacts from "./pages/Contacts";
-import ContactDetail from "./pages/ContactDetail";
-import Messages from "./pages/Messages";
-import Campaigns from "./pages/Campaigns";
-import CampaignDetail from "./pages/CampaignDetail";
-import AICalls from "./pages/AICalls";
+const Contacts = lazy(() => import("./pages/Contacts"));
+const ContactDetail = lazy(() => import("./pages/ContactDetail"));
+const Messages = lazy(() => import("./pages/Messages"));
+const Campaigns = lazy(() => import("./pages/Campaigns"));
+const CampaignDetail = lazy(() => import("./pages/CampaignDetail"));
+const AICalls = lazy(() => import("./pages/AICalls"));
 const Automations = lazy(() => import("./pages/Automations"));
-import Pipeline from "./pages/Pipeline";
+const Pipeline = lazy(() => import("./pages/Pipeline"));
 import SubAccountLogin from "./pages/SubAccountLogin";
 import FacebookPages from "./pages/FacebookPages";
 import MessagingSettings from "./pages/MessagingSettings";
@@ -31,30 +31,30 @@ import AcceptInvite from "./pages/AcceptInvite";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 const CalendarPage = lazy(() => import("./pages/Calendar"));
-import Inbox from "./pages/Inbox";
+const Inbox = lazy(() => import("./pages/Inbox"));
 import BookingPage from "./pages/BookingPage";
 import EmailTemplates from "./pages/EmailTemplates";
 import EmailTemplateEditor from "./pages/EmailTemplateEditor";
 const Analytics = lazy(() => import("./pages/Analytics"));
 const PowerDialer = lazy(() => import("./pages/PowerDialer"));
 import DialerAnalytics from "./pages/DialerAnalytics";
-import Forms from "./pages/Forms";
-import FormBuilder from "./pages/FormBuilder";
+const Forms = lazy(() => import("./pages/Forms"));
+const FormBuilder = lazy(() => import("./pages/FormBuilder"));
 import PublicForm from "./pages/PublicForm";
-import Reputation from "./pages/Reputation";
+const Reputation = lazy(() => import("./pages/Reputation"));
 import ContactMerge from "./pages/ContactMerge";
-import Sequences from "./pages/Sequences";
-import Jarvis from "./pages/Jarvis";
-import LandingPages from "./pages/LandingPages";
-import PageEditor from "./pages/PageEditor";
-import FunnelsPage from "./pages/Funnels";
+const Sequences = lazy(() => import("./pages/Sequences"));
+const Jarvis = lazy(() => import("./pages/Jarvis"));
+const LandingPages = lazy(() => import("./pages/LandingPages"));
+const PageEditor = lazy(() => import("./pages/PageEditor"));
+const FunnelsPage = lazy(() => import("./pages/Funnels"));
 import SmsCompliance from "./pages/SmsCompliance";
 import MessageQueue from "./pages/MessageQueue";
 import GeminiUsage from "./pages/GeminiUsage";
 import LeadMonitor from "./pages/LeadMonitor";
 import NotificationLog from "./pages/NotificationLog";
 import NotificationDeliveryDashboard from "./pages/NotificationDeliveryDashboard";
-import Billing from "./pages/Billing";
+const Billing = lazy(() => import("./pages/Billing"));
 const ContentHub = lazy(() => import("./pages/ContentHub"));
 const ContentDetail = lazy(() => import("./pages/ContentDetail"));
 import Offline from "./pages/Offline";
@@ -136,28 +136,28 @@ function Router() {
       <Route path="/contacts">
         <DashboardLayout>
           <RequireAccount>
-            <Contacts />
+            <Suspense fallback={<LazyFallback />}><Contacts /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/messages">
         <DashboardLayout>
           <RequireAccount>
-            <Messages />
+            <Suspense fallback={<LazyFallback />}><Messages /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/inbox">
         <DashboardLayout>
           <RequireAccount>
-            <Inbox />
+            <Suspense fallback={<LazyFallback />}><Inbox /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/campaigns">
         <DashboardLayout>
           <RequireAccount>
-            <Campaigns />
+            <Suspense fallback={<LazyFallback />}><Campaigns /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -165,7 +165,7 @@ function Router() {
         {(params) => (
           <DashboardLayout>
             <RequireAccount>
-              <CampaignDetail params={params} />
+              <Suspense fallback={<LazyFallback />}><CampaignDetail params={params} /></Suspense>
             </RequireAccount>
           </DashboardLayout>
         )}
@@ -173,7 +173,7 @@ function Router() {
       <Route path="/ai-calls">
         <DashboardLayout>
           <RequireAccount>
-            <AICalls />
+            <Suspense fallback={<LazyFallback />}><AICalls /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -187,35 +187,35 @@ function Router() {
       <Route path="/sequences">
         <DashboardLayout>
           <RequireAccount>
-            <Sequences />
+            <Suspense fallback={<LazyFallback />}><Sequences /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/pages">
         <DashboardLayout>
           <RequireAccount>
-            <LandingPages />
+            <Suspense fallback={<LazyFallback />}><LandingPages /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/pages/:id/editor">
         <DashboardLayout>
           <RequireAccount>
-            <PageEditor />
+            <Suspense fallback={<LazyFallback />}><PageEditor /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/funnels">
         <DashboardLayout>
           <RequireAccount>
-            <FunnelsPage />
+            <Suspense fallback={<LazyFallback />}><FunnelsPage /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/pipeline">
         <DashboardLayout>
           <RequireAccount>
-            <Pipeline />
+            <Suspense fallback={<LazyFallback />}><Pipeline /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -240,7 +240,7 @@ function Router() {
           return (
             <DashboardLayout>
               <RequireAccount>
-                <ContactDetail id={parseInt(params.id)} accountId={accountId} />
+                <Suspense fallback={<LazyFallback />}><ContactDetail id={parseInt(params.id)} accountId={accountId} /></Suspense>
               </RequireAccount>
             </DashboardLayout>
           );
@@ -294,7 +294,7 @@ function Router() {
       <Route path="/forms">
         <DashboardLayout>
           <RequireAccount>
-            <Forms />
+            <Suspense fallback={<LazyFallback />}><Forms /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -302,7 +302,7 @@ function Router() {
         {(params) => (
           <DashboardLayout>
             <RequireAccount>
-              <FormBuilder id={parseInt(params.id)} />
+              <Suspense fallback={<LazyFallback />}><FormBuilder id={parseInt(params.id)} /></Suspense>
             </RequireAccount>
           </DashboardLayout>
         )}
@@ -311,7 +311,7 @@ function Router() {
       <Route path="/reputation">
         <DashboardLayout>
           <RequireAccount>
-            <Reputation />
+            <Suspense fallback={<LazyFallback />}><Reputation /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -343,7 +343,7 @@ function Router() {
       <Route path="/jarvis">
         <DashboardLayout>
           <RequireAccount>
-            <Jarvis />
+            <Suspense fallback={<LazyFallback />}><Jarvis /></Suspense>
           </RequireAccount>
         </DashboardLayout>
       </Route>
@@ -351,14 +351,14 @@ function Router() {
       {/* Billing — shows agency overview or sub-account billing depending on context */}
       <Route path="/billing">
         <DashboardLayout>
-          <Billing />
+          <Suspense fallback={<LazyFallback />}><Billing /></Suspense>
         </DashboardLayout>
       </Route>
 
       {/* Settings — accessible to all authenticated users */}
       <Route path="/settings">
         <DashboardLayout>
-          <SettingsPage />
+          <Suspense fallback={<LazyFallback />}><SettingsPage /></Suspense>
         </DashboardLayout>
       </Route>
       <Route path="/settings/messaging">

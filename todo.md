@@ -4109,3 +4109,20 @@
 - [x] Tests: 64 vitest tests for GMB integration passing
 - [x] Verify 0 new TypeScript errors (24 pre-existing in automations.ts/leadRoutingMonitor.ts)
 - [x] Save checkpoint
+
+## Pre-Launch Fix: Missing DB Tables + Recurring Plans UI + Performance Optimization
+- [x] DB: Run pnpm db:push to sync all schema tables
+- [x] DB: Verify recurring_content_plans, email_drafts, social_posts, jarvis_sessions tables exist
+- [x] DB: Add composite indexes on contacts, messages, campaigns, sequences, deals, activities, audit_logs, content, workflows (17 indexes total: 10 new + 7 existing)
+- [x] Backend: Audit routers for missing .limit() on queries — added limits to listSequences(100), listCampaignTemplates(100), listMessagesByContact(200), listSequenceEnrollments(200), getContactEnrollments(100). contacts.list/messages.list/campaigns.list/auditLogs already had pagination.
+- [x] Frontend: Recurring Plans tab already exists in ContentHub (4th tab after Email) — verified complete
+- [x] Frontend: Plans table with Name, Type, Frequency, Posts/Cycle, Status toggle, Next/Last Run, Run Count, Actions — already built
+- [x] Frontend: Create/Edit Plan Dialog with all fields — already built
+- [x] Frontend: Run Now button with loading spinner and toast — already built
+- [x] Frontend: Empty state for no plans — already built (Repeat icon + Create First Plan button)
+- [x] Frontend: Lazy loaded 20+ page components in App.tsx with Suspense + LazyFallback
+- [x] Frontend: Set staleTime=30s, gcTime=5min, refetchOnWindowFocus=false, retry=1 in QueryClient
+- [x] Build: Added Vite manualChunks for vendor-react, vendor-charts, vendor-ui, vendor-utils
+- [x] Verify: pnpm build succeeds (37.97s), vendor-react 622KB gzip, ContentHub 44KB gzip, Settings 68KB gzip
+- [x] Tests: 20 vitest performance tests passing
+- [x] Save checkpoint

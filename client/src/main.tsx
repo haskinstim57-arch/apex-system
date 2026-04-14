@@ -40,7 +40,16 @@ async function checkVersion() {
 checkVersion();
 
 try {
-  const queryClient = new QueryClient();
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000,    // 30s — avoid refetching on every mount
+        gcTime: 5 * 60_000,   // 5min — keep unused data in cache
+        refetchOnWindowFocus: false,
+        retry: 1,
+      },
+    },
+  });
 
   const redirectToLoginIfUnauthorized = (error: unknown) => {
     if (!(error instanceof TRPCClientError)) return;
