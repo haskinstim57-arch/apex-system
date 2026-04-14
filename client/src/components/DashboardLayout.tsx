@@ -243,7 +243,7 @@ export default function DashboardLayout({
   });
   const { loading, user } = useAuth();
   const { currentAccount, isAdmin, isImpersonating, isLoading: accountLoading } = useAccount();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -254,10 +254,12 @@ export default function DashboardLayout({
     if (loading || accountLoading) return;
     if (!user || !currentAccount) return;
     if (isAdmin && !isImpersonating) return;
+    // Don't redirect if already on the onboarding page
+    if (location.startsWith("/onboarding")) return;
     if ((currentAccount as any).onboardingComplete === false || (currentAccount as any).onboardingComplete === 0) {
       navigate("/onboarding");
     }
-  }, [loading, accountLoading, user, currentAccount, isAdmin, isImpersonating, navigate]);
+  }, [loading, accountLoading, user, currentAccount, isAdmin, isImpersonating, navigate, location]);
 
   if (loading) {
     return <DashboardLayoutSkeleton />;
@@ -337,7 +339,7 @@ function DashboardLayoutContent({
   setSidebarWidth,
 }: DashboardLayoutContentProps) {
   const { user, logout } = useAuth();
-  const [location, setLocation] = useLocation();
+  const [currentLocation, setLocation] = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
   const { currentAccountId, isAdmin, isImpersonating, isAgencyScope, isLoading: accountLoading } = useAccount();
   const { theme, toggleTheme, switchable } = useTheme();
@@ -363,7 +365,7 @@ function DashboardLayoutContent({
       "/settings/facebook-pages": "settings",
       "/accounts": "accounts",
     };
-    if (exactPageMap[location]) return exactPageMap[location];
+    if (exactPageMap[currentLocation]) return exactPageMap[currentLocation];
     const prefixMap: Array<[string, string]> = [
       ["/campaigns/", "campaigns"],
       ["/contacts/", "contacts"],
@@ -373,13 +375,13 @@ function DashboardLayoutContent({
       ["/pipeline/", "pipeline"],
     ];
     for (const [prefix, ctx] of prefixMap) {
-      if (location.startsWith(prefix)) return ctx;
+      if (currentLocation.startsWith(prefix)) return ctx;
     }
-    return location.replace(/^\//, "") || "dashboard";
-  }, [location]);
+    return currentLocation.replace(/^\//, "") || "dashboard";
+  }, [currentLocation]);
 
   // Show Jarvis panel on sub-account pages only (not agency-level or settings)
-  const showJarvis = !!currentAccountId && !isAgencyScope && !location.startsWith("/settings");
+  const showJarvis = !!currentAccountId && !isAgencyScope && !currentLocation.startsWith("/settings");
 
   // Unread message count for inbox badge
   const { data: unreadData } = trpc.inbox.getUnreadCount.useQuery(
@@ -397,7 +399,7 @@ function DashboardLayoutContent({
 
   const allNavItems = [...subAccountMenuItems, ...agencyMenuItems, ...adminMenuItems, ...settingsMenuItems, ...hiddenMenuItems];
   const activeMenuItem = allNavItems.find(
-    (item) => item.path === location
+    (item) => item.path === currentLocation
   );
   const isMobile = useIsMobile();
 
@@ -481,7 +483,7 @@ function DashboardLayoutContent({
                   {agencyMenuItems.map((item) => (
                     <SidebarMenuItem key={item.path}>
                       <SidebarMenuButton
-                        isActive={item.path === location}
+                        isActive={item.path === currentLocation}
                         onClick={() => handleNavClick(item)}
                         tooltip={item.label}
                         className="cursor-pointer touch-manipulation min-h-[44px]"
@@ -508,7 +510,7 @@ function DashboardLayoutContent({
                     )}
                     <SidebarMenu>
                       {group.items.map((item) => {
-                        const isActive = item.path === location;
+                        const isActive = item.path === currentLocation;
                         const showBadge = item.path === "/inbox" && unreadCount > 0;
                         const isJarvis = !!(item as NavItem).jarvis;
                         return (
@@ -564,7 +566,7 @@ function DashboardLayoutContent({
                       {adminMenuItems.map((item) => (
                         <SidebarMenuItem key={item.path}>
                           <SidebarMenuButton
-                            isActive={item.path === location}
+                            isActive={item.path === currentLocation}
                             onClick={() => handleNavClick(item)}
                             tooltip={item.label}
                             className="cursor-pointer touch-manipulation min-h-[40px]"
@@ -603,7 +605,7 @@ function DashboardLayoutContent({
                 {/* Billing link */}
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    isActive={location === "/billing"}
+                    isActive={currentLocation === "/billing"}
                     onClick={() => handleNavClick(billingItem)}
                     tooltip="Billing"
                     className="cursor-pointer touch-manipulation min-h-[40px]"
@@ -615,7 +617,7 @@ function DashboardLayoutContent({
                 {settingsMenuItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
-                      isActive={location.startsWith("/settings")}
+                      isActive={currentLocation.startsWith("/settings")}
                       onClick={() => handleNavClick(item)}
                       tooltip={item.label}
                       className="cursor-pointer touch-manipulation min-h-[40px]"

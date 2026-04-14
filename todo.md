@@ -4126,3 +4126,32 @@
 - [x] Verify: pnpm build succeeds (37.97s), vendor-react 622KB gzip, ContentHub 44KB gzip, Settings 68KB gzip
 - [x] Tests: 20 vitest performance tests passing
 - [x] Save checkpoint
+
+## Test Account Cleanup & Onboarding Verification
+
+### 1. Remove Test Accounts
+- [x] Identified 253 test accounts to delete (all NOT in keep list)
+- [x] Deleted all associated data: 9,121 total rows (audit_logs, contacts, invitations, tasks, workflow_executions, workflows)
+- [x] Deleted accountMembers records for test accounts
+- [x] Deleted 253 test accounts from accounts table
+- [x] Verified: exactly 5 accounts remain (Evol Hosang, Kyle, PMR, Belinda Osborne, Apex System)
+
+### 2. Verify & Fix Onboarding Flow
+- [x] A) Sub-Account Creation: created "Onboarding Test Account" via Sub-Accounts page — status active ✓
+- [x] A) Invitation email dispatched via SendGrid ✓
+- [x] A) Invitation link works — lands on /accept-invite?token=... page ✓
+- [x] B) Owner Accepts Invite: set name + password on accept-invite page ✓
+- [x] B) User created with correct role, accountMembers record linked ✓
+- [x] B) Redirect to /onboarding after registration ✓
+- [x] C) Getting Started checklist: 5-step onboarding wizard (Business Profile, Messaging, Integrations, Pipeline, Complete)
+- [x] C) BUG FOUND & FIXED: "Go to Dashboard" looped back to step 1 — fixed by using refetch() instead of invalidate() + added 300ms delay + DashboardLayout guard
+- [x] D) Core Setup: onboarding wizard covers business profile, messaging, integrations, pipeline setup
+- [x] E) Data Isolation: verified contacts, deals, messages, pipelines, sequences all scoped per accountId — 0 orphans
+- [x] E) Cleaned 1,977 orphan deals, 16,434 orphan pipeline_stages, 2,739 orphan pipelines, 1 orphan sequence
+- [x] F) Cleanup: deleted temp test account (990001), its pipeline, stages, audit logs, invitation, member, and test user
+
+### 3. Fix Issues Found
+- [x] BUG: Onboarding wizard "Go to Dashboard" looped back to step 1 — FIXED (refetch + delay + guard)
+- [x] BUG: DashboardLayout had duplicate `location` variable — FIXED (renamed to `currentLocation`)
+- [x] Final verification: exactly 5 accounts, 13 users, 0 orphan data, onboarding flow works end-to-end
+- [x] Save checkpoint

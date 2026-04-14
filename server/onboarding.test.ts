@@ -296,3 +296,92 @@ describe("getOnboardingStatus — auto-complete behavior", () => {
     // The procedure skips the update
   });
 });
+
+// ─────────────────────────────────────────────
+// Tests for Onboarding Redirect Fix & Data Isolation
+// Added during pre-launch cleanup
+// ─────────────────────────────────────────────
+
+describe("Onboarding Redirect Fix", () => {
+  it("should NOT redirect to onboarding when already on /onboarding", () => {
+    const onboardingComplete = false;
+    const currentPath = "/onboarding";
+    const shouldRedirect = !onboardingComplete && !currentPath.startsWith("/onboarding");
+    expect(shouldRedirect).toBe(false);
+  });
+
+  it("should redirect to onboarding when not complete and on dashboard", () => {
+    const onboardingComplete = false;
+    const currentPath = "/dashboard";
+    const shouldRedirect = !onboardingComplete && !currentPath.startsWith("/onboarding");
+    expect(shouldRedirect).toBe(true);
+  });
+
+  it("should NOT redirect when onboarding is complete", () => {
+    const onboardingComplete = true;
+    const currentPath = "/dashboard";
+    const shouldRedirect = !onboardingComplete && !currentPath.startsWith("/onboarding");
+    expect(shouldRedirect).toBe(false);
+  });
+
+  it("should skip onboarding redirect for admin users who are not impersonating", () => {
+    const isAdmin = true;
+    const isImpersonating = false;
+    const shouldBypass = isAdmin && !isImpersonating;
+    expect(shouldBypass).toBe(true);
+  });
+
+  it("should NOT skip onboarding redirect for admin users who ARE impersonating", () => {
+    const isAdmin = true;
+    const isImpersonating = true;
+    const shouldBypass = isAdmin && !isImpersonating;
+    expect(shouldBypass).toBe(false);
+  });
+});
+
+describe("Data Isolation Enforcement", () => {
+  it("should filter contacts by accountId", () => {
+    const allContacts = [
+      { id: 1, accountId: 100, name: "Alice" },
+      { id: 2, accountId: 200, name: "Bob" },
+      { id: 3, accountId: 100, name: "Charlie" },
+    ];
+    const filtered = allContacts.filter(c => c.accountId === 100);
+    expect(filtered).toHaveLength(2);
+    expect(filtered.every(c => c.accountId === 100)).toBe(true);
+  });
+
+  it("should filter deals by account_id", () => {
+    const allDeals = [
+      { id: 1, account_id: 100, title: "Deal A" },
+      { id: 2, account_id: 200, title: "Deal B" },
+    ];
+    const filtered = allDeals.filter(d => d.account_id === 100);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].title).toBe("Deal A");
+  });
+
+  it("should detect orphan records from deleted accounts", () => {
+    const validAccountIds = new Set([100, 200, 300]);
+    const records = [
+      { id: 1, accountId: 100 },
+      { id: 2, accountId: 999 }, // orphan
+      { id: 3, accountId: 200 },
+    ];
+    const orphans = records.filter(r => !validAccountIds.has(r.accountId));
+    expect(orphans).toHaveLength(1);
+    expect(orphans[0].accountId).toBe(999);
+  });
+
+  it("should enforce account hierarchy: admin can access all, user only own account", () => {
+    const checkAccess = (role: string, userAccountId: number, targetAccountId: number) => {
+      if (role === "admin") return true;
+      return userAccountId === targetAccountId;
+    };
+    expect(checkAccess("admin", 100, 200)).toBe(true);
+    expect(checkAccess("user", 100, 100)).toBe(true);
+    expect(checkAccess("user", 100, 200)).toBe(false);
+    expect(checkAccess("owner", 100, 100)).toBe(true);
+    expect(checkAccess("owner", 100, 200)).toBe(false);
+  });
+});

@@ -243,11 +243,12 @@ export default function Onboarding() {
     if (!currentAccountId) return;
     try {
       await completeOnboarding.mutateAsync({ accountId: currentAccountId });
-      // Invalidate the accounts list cache so DashboardLayout sees the updated
-      // onboardingComplete flag and does NOT redirect back to /onboarding.
-      await utils.accounts.list.invalidate();
+      // Invalidate AND refetch the accounts list cache so DashboardLayout sees
+      // the updated onboardingComplete flag and does NOT redirect back to /onboarding.
+      await utils.accounts.list.refetch();
       toast.success("Onboarding complete! Welcome to Sterling Marketing.");
-      setLocation("/");
+      // Small delay to ensure React state has propagated before navigating
+      setTimeout(() => setLocation("/"), 300);
     } catch (err: any) {
       toast.error(err.message || "Failed to complete onboarding");
     }
