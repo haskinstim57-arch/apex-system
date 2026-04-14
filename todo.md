@@ -4155,3 +4155,14 @@
 - [x] BUG: DashboardLayout had duplicate `location` variable — FIXED (renamed to `currentLocation`)
 - [x] Final verification: exactly 5 accounts, 13 users, 0 orphan data, onboarding flow works end-to-end
 - [x] Save checkpoint
+
+## Fix: Settings General Tab Shows Wrong Profile in Sub-Account View
+- [x] Backend: No new procedure needed — accounts.list already returns ownerName, ownerEmail, industry, createdAt
+- [x] Frontend: Added isViewingSubAccount detection (isAdmin && currentAccountId && isImpersonating)
+- [x] Frontend: Show Sub-Account Details card (company name, industry, status, created date) when viewing sub-account
+- [x] Frontend: Show Account Owner card (owner name, email, Owner badge) when viewing sub-account
+- [x] Frontend: Show blue info alert explaining admin is viewing sub-account
+- [x] Frontend: Hide Security section and Change Password when viewing sub-account
+- [x] Frontend: Show admin's own profile only in agency-level view (no sub-account selected)
+- [x] Tests: 16 vitest tests for profile display logic passing
+- [x] Save checkpoint

@@ -148,7 +148,15 @@ function IntegrationLink({
 export default function SettingsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const { currentAccountId, currentAccount } = useAccount();
+  const { currentAccountId, currentAccount, isImpersonating } = useAccount();
+
+  // When admin is viewing a sub-account, show that account's profile instead of admin's
+  const isViewingSubAccount = isAdmin && !!currentAccountId && isImpersonating;
+  const subAccountOwnerName = currentAccount?.ownerName as string | undefined;
+  const subAccountOwnerEmail = currentAccount?.ownerEmail as string | undefined;
+  const subAccountName = currentAccount?.name as string | undefined;
+  const subAccountIndustry = currentAccount?.industry as string | undefined;
+  const subAccountCreatedAt = currentAccount?.createdAt as string | number | undefined;
   const [, setLocation] = useLocation();
 
   // Determine the user's role within the active account context
@@ -218,107 +226,198 @@ export default function SettingsPage() {
       {activeTab === "general" && (
         <div className="space-y-6">
 
-      {/* Profile Section */}
-      <Card className="bg-card border-0 card-shadow">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
-            Profile
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Your personal information and login details.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16 border-2 border-border/50">
-              <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
-                {user?.name?.charAt(0).toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-medium">{user?.name || "User"}</h3>
-                {isAdmin && (
-                  <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 h-4 border-primary/30 text-primary"
-                  >
-                    Admin
+      {/* Profile Section — shows sub-account info when admin is viewing a sub-account */}
+      {isViewingSubAccount ? (
+        <>
+          {/* Sub-Account Details */}
+          <Card className="bg-card border-0 card-shadow">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                Sub-Account Details
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Company information for this sub-account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Company Name</p>
+                  <p className="text-sm font-medium">{subAccountName || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Industry</p>
+                  <p className="text-sm font-medium capitalize">{subAccountIndustry?.replace(/_/g, " ") || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+                  <Badge variant="outline" className="text-xs capitalize">
+                    {(currentAccount?.status as string) || "active"}
                   </Badge>
-                )}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Created</p>
+                  <p className="text-sm font-medium">
+                    {subAccountCreatedAt
+                      ? new Date(subAccountCreatedAt).toLocaleDateString("en-US", {
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                      : "—"}
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground">{user?.email || "No email"}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Member since{" "}
-                {user?.createdAt
-                  ? new Date(user.createdAt).toLocaleDateString("en-US", {
-                      month: "long",
-                      year: "numeric",
-                    })
-                  : "Unknown"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      {/* Security Section */}
-      <Card className="bg-card border-0 card-shadow">
-        <CardHeader>
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Shield className="h-4 w-4 text-muted-foreground" />
-            Security
-          </CardTitle>
-          <CardDescription className="text-xs">
-            Authentication and access control settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm font-medium">Authentication Method</p>
-              <p className="text-xs text-muted-foreground">
-                {user?.loginMethod || "OAuth"} authentication
-              </p>
-            </div>
-            <Badge variant="outline" className="text-xs">
-              Active
-            </Badge>
-          </div>
-          <Separator className="bg-border/50" />
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm font-medium">Platform Role</p>
-              <p className="text-xs text-muted-foreground">
-                {displayRoleDescription}
-              </p>
-            </div>
-            <Badge
-              variant={isAdmin ? "default" : isAccountOwner ? "default" : "secondary"}
-              className={`text-xs capitalize ${
-                isAccountOwner && !isAdmin ? "bg-amber-500/20 text-amber-600 border-amber-200" : ""
-              }`}
-            >
-              {displayRole}
-            </Badge>
-          </div>
-          <Separator className="bg-border/50" />
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <p className="text-sm font-medium">Last Sign In</p>
-              <p className="text-xs text-muted-foreground">
-                {user?.lastSignedIn
-                  ? new Date(user.lastSignedIn).toLocaleString()
-                  : "Unknown"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Sub-Account Owner */}
+          <Card className="bg-card border-0 card-shadow">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground" />
+                Account Owner
+              </CardTitle>
+              <CardDescription className="text-xs">
+                The owner of this sub-account.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-16 w-16 border-2 border-border/50">
+                  <AvatarFallback className="text-lg font-semibold bg-amber-500/10 text-amber-600">
+                    {subAccountOwnerName?.charAt(0).toUpperCase() || "O"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-medium">{subAccountOwnerName || "No owner assigned"}</h3>
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 h-4 bg-amber-500/20 text-amber-600 border-amber-200"
+                    >
+                      Owner
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{subAccountOwnerEmail || "No email"}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Change Password Section — only for email-authenticated users */}
-      {user?.loginMethod === "email" && <ChangePasswordCard />}
+          {/* Admin viewing notice */}
+          <Alert className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30">
+            <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+            <AlertDescription className="text-xs text-blue-700 dark:text-blue-300">
+              You are viewing this sub-account as an admin. Your own profile is visible in the agency-level settings.
+            </AlertDescription>
+          </Alert>
+        </>
+      ) : (
+        <Card className="bg-card border-0 card-shadow">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <User className="h-4 w-4 text-muted-foreground" />
+              Profile
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Your personal information and login details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16 border-2 border-border/50">
+                <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
+                  {user?.name?.charAt(0).toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-medium">{user?.name || "User"}</h3>
+                  {isAdmin && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] px-1.5 h-4 border-primary/30 text-primary"
+                    >
+                      Admin
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">{user?.email || "No email"}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Member since{" "}
+                  {user?.createdAt
+                    ? new Date(user.createdAt).toLocaleDateString("en-US", {
+                        month: "long",
+                        year: "numeric",
+                      })
+                    : "Unknown"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Security Section — hidden when viewing sub-account (admin's auth details are irrelevant) */}
+      {!isViewingSubAccount && (
+        <Card className="bg-card border-0 card-shadow">
+          <CardHeader>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Shield className="h-4 w-4 text-muted-foreground" />
+              Security
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Authentication and access control settings.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium">Authentication Method</p>
+                <p className="text-xs text-muted-foreground">
+                  {user?.loginMethod || "OAuth"} authentication
+                </p>
+              </div>
+              <Badge variant="outline" className="text-xs">
+                Active
+              </Badge>
+            </div>
+            <Separator className="bg-border/50" />
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium">Platform Role</p>
+                <p className="text-xs text-muted-foreground">
+                  {displayRoleDescription}
+                </p>
+              </div>
+              <Badge
+                variant={isAdmin ? "default" : isAccountOwner ? "default" : "secondary"}
+                className={`text-xs capitalize ${
+                  isAccountOwner && !isAdmin ? "bg-amber-500/20 text-amber-600 border-amber-200" : ""
+                }`}
+              >
+                {displayRole}
+              </Badge>
+            </div>
+            <Separator className="bg-border/50" />
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-sm font-medium">Last Sign In</p>
+                <p className="text-xs text-muted-foreground">
+                  {user?.lastSignedIn
+                    ? new Date(user.lastSignedIn).toLocaleString()
+                    : "Unknown"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Change Password Section — only for email-authenticated users, hidden in sub-account view */}
+      {!isViewingSubAccount && user?.loginMethod === "email" && <ChangePasswordCard />}
 
       {/* Phone Number — visible to anyone with an account selected */}
       {currentAccountId && (
