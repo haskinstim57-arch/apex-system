@@ -4166,3 +4166,21 @@
 - [x] Frontend: Show admin's own profile only in agency-level view (no sub-account selected)
 - [x] Tests: 16 vitest tests for profile display logic passing
 - [x] Save checkpoint
+
+## Fix: Settings General + Account Switching Bugs
+### Bug 1: Settings General Shows Admin Profile in Sub-Account View
+- [x] Backend: accounts.list already has LEFT JOIN with users — ownerName and ownerEmail populated
+- [x] Frontend: Changed isViewingSubAccount to `isAdmin && !!currentAccountId` (removed isImpersonating requirement)
+- [x] Frontend: Settings General shows sub-account details + owner profile when admin views sub-account
+
+### Bug 2: "Sign in as" / Account Switching Does Nothing
+- [x] Fix: AccountSwitcher calls impersonation.start → switchAccount → window.location.href = "/" (full reload)
+- [x] Fix: AccountSwitcher handleClear calls impersonation.stop → clearAccount → window.location.href = "/" (full reload)
+- [x] Fix: Accounts.tsx "Sign in as" sets correct localStorage key + window.location.href = "/contacts"
+- [x] Fix: ImpersonationBanner stop clears both localStorage keys + window.location.href = "/accounts"
+- [x] Fix: AccountContext impersonation.status uses staleTime: 0, refetchOnMount: true, refetchOnWindowFocus: true
+- [x] Fix: Corrected localStorage key from "apex_current_account" to "apex-selected-account" in Accounts.tsx
+
+### Verification
+- [x] Vitest tests: 21 tests passing (account-switching.test.ts)
+- [x] Save checkpoint

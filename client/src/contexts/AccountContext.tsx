@@ -107,7 +107,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
   const { data: impersonationStatus, isLoading: impersonationLoading } =
     trpc.impersonation.status.useQuery(undefined, {
       enabled: !!isAdmin,
-      refetchOnWindowFocus: false,
+      staleTime: 0,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true,
     });
 
   const isImpersonating = impersonationStatus?.isImpersonating ?? false;

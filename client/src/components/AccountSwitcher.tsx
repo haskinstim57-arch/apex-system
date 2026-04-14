@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useAccount } from "@/contexts/AccountContext";
+import { trpc } from "@/lib/trpc";
 import { Building2, Search, Clock, ChevronDown, ChevronUp, Check, X } from "lucide-react";
 import {
   Popover,
@@ -8,6 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { useIsMobile } from "@/hooks/useMobile";
+import { toast } from "sonner";
 
 /**
  * AccountSwitcher — admin-only dropdown to switch between sub-accounts.
@@ -16,6 +18,11 @@ import { useIsMobile } from "@/hooks/useMobile";
  * to avoid z-index conflicts with the sidebar Sheet.
  * On desktop: uses a Popover dropdown.
  * Clients never see this component.
+ *
+ * When switching accounts, this component:
+ * 1. Calls impersonation.start to set the server-side cookie
+ * 2. Invalidates ALL cached tRPC queries
+ * 3. Forces a full page reload so all contexts pick up the new account
  */
 export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
   const {
@@ -29,7 +36,12 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
     clearAccount,
   } = useAccount();
 
+  const utils = trpc.useUtils();
+  const impersonateStart = trpc.impersonation.start.useMutation();
+  const impersonateStop = trpc.impersonation.stop.useMutation();
+
   const [open, setOpen] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement>(null);
   const mobileSearchRef = useRef<HTMLInputElement>(null);
@@ -81,14 +93,50 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
 
   const displayName = currentAccount?.name ?? "Agency Overview";
 
-  const handleSelect = (accountId: number) => {
-    switchAccount(accountId);
+  const handleSelect = async (accountId: number) => {
+    if (switching) return;
+    setSwitching(true);
     setOpen(false);
+
+    try {
+      // 1. Start server-side impersonation (sets cookie)
+      await impersonateStart.mutateAsync({ accountId });
+
+      // 2. Update localStorage for client-side state
+      switchAccount(accountId);
+
+      // 3. Invalidate ALL cached queries so everything refetches with new account context
+      await utils.invalidate();
+
+      // 4. Force full page reload to ensure all contexts pick up the new cookie
+      window.location.href = "/";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error("Failed to switch account", { description: message });
+      setSwitching(false);
+    }
   };
 
-  const handleClear = () => {
-    clearAccount();
+  const handleClear = async () => {
+    if (switching) return;
+    setSwitching(true);
     setOpen(false);
+
+    try {
+      // Stop impersonation on the server (clears cookie)
+      await impersonateStop.mutateAsync();
+
+      // Clear localStorage selection
+      clearAccount();
+
+      // Invalidate all queries and reload
+      await utils.invalidate();
+      window.location.href = "/";
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      toast.error("Failed to return to agency view", { description: message });
+      setSwitching(false);
+    }
   };
 
   const accountListContent = (
@@ -118,6 +166,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
                   : "hover:bg-accent active:bg-accent"
               }`}
               onClick={handleClear}
+              disabled={switching}
             >
               <Building2 className="h-3.5 w-3.5 shrink-0" />
               <span className="font-medium">Agency Overview</span>
@@ -141,6 +190,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
                 account={account}
                 isSelected={currentAccountId === account.id}
                 onSelect={() => handleSelect(account.id)}
+                disabled={switching}
               />
             ))}
           </div>
@@ -166,6 +216,7 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
                 account={account}
                 isSelected={currentAccountId === account.id}
                 onSelect={() => handleSelect(account.id)}
+                disabled={switching}
               />
             ))
           )}
@@ -183,11 +234,13 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
         </p>
         <button
           className="w-full h-8 text-xs bg-sidebar-accent/30 border border-sidebar-border/50 rounded-md px-2.5 flex items-center gap-2 hover:bg-sidebar-accent/50 active:bg-sidebar-accent/60 transition-colors text-left touch-manipulation"
-          onClick={() => !isImpersonating && setOpen(!open)}
-          disabled={isImpersonating}
+          onClick={() => setOpen(!open)}
+          disabled={switching}
         >
           <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
-          <span className="truncate flex-1">{displayName}</span>
+          <span className="truncate flex-1">
+            {switching ? "Switching..." : displayName}
+          </span>
           {open ? (
             <ChevronUp className="h-3 w-3 text-muted-foreground shrink-0" />
           ) : (
@@ -224,10 +277,12 @@ export function AccountSwitcher({ collapsed }: { collapsed?: boolean }) {
         Active Account
       </p>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild disabled={isImpersonating}>
+        <PopoverTrigger asChild disabled={switching}>
           <button className="w-full h-8 text-xs bg-sidebar-accent/30 border border-sidebar-border/50 rounded-md px-2.5 flex items-center gap-2 hover:bg-sidebar-accent/50 transition-colors text-left">
             <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
-            <span className="truncate flex-1">{displayName}</span>
+            <span className="truncate flex-1">
+              {switching ? "Switching..." : displayName}
+            </span>
             <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />
           </button>
         </PopoverTrigger>
@@ -248,17 +303,20 @@ function AccountItem({
   account,
   isSelected,
   onSelect,
+  disabled,
 }: {
   account: { id: number; name: string; industry?: string | null; status?: string | null };
   isSelected: boolean;
   onSelect: () => void;
+  disabled?: boolean;
 }) {
   return (
     <button
       className={`w-full text-left text-xs px-2.5 py-2 rounded-md flex items-center gap-2 transition-colors touch-manipulation min-h-[40px] ${
         isSelected ? "bg-primary/10 text-primary" : "hover:bg-accent active:bg-accent"
-      }`}
+      } ${disabled ? "opacity-50 pointer-events-none" : ""}`}
       onClick={onSelect}
+      disabled={disabled}
     >
       <span className="truncate flex-1">{account.name}</span>
       {account.industry && (

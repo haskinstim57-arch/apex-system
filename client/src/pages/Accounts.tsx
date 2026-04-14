@@ -114,8 +114,10 @@ export default function Accounts() {
   const impersonateMutation = trpc.impersonation.start.useMutation({
     onSuccess: (data) => {
       toast.success(`Now viewing as ${data.accountName}`);
-      // Redirect to contacts page with the impersonated account selected
-      setLocation("/contacts");
+      // Set localStorage so AccountContext picks up the selected account
+      localStorage.setItem("apex-selected-account", String(data.accountId));
+      // Force full page reload so all contexts, queries, and cookies are fresh
+      window.location.href = "/contacts";
     },
     onError: (err) => {
       toast.error("Failed to impersonate", { description: err.message });

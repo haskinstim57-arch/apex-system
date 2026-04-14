@@ -151,7 +151,8 @@ export default function SettingsPage() {
   const { currentAccountId, currentAccount, isImpersonating } = useAccount();
 
   // When admin is viewing a sub-account, show that account's profile instead of admin's
-  const isViewingSubAccount = isAdmin && !!currentAccountId && isImpersonating;
+  // Check both impersonation (cookie-based) and account selection (localStorage-based)
+  const isViewingSubAccount = isAdmin && !!currentAccountId;
   const subAccountOwnerName = currentAccount?.ownerName as string | undefined;
   const subAccountOwnerEmail = currentAccount?.ownerEmail as string | undefined;
   const subAccountName = currentAccount?.name as string | undefined;
