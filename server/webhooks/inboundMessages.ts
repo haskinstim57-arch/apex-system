@@ -241,6 +241,15 @@ inboundMessageRouter.post(
           console.error("[Twilio Inbound] Trigger error:", err)
         );
 
+      // Auto-stop nurture sequences on inbound SMS reply (non-blocking)
+      import("../services/sequenceAutoStop")
+        .then(({ onInboundSmsAutoStop }) =>
+          onInboundSmsAutoStop(accountId, contact.id)
+        )
+        .catch((err) =>
+          console.error("[Twilio Inbound] Sequence auto-stop error:", err)
+        );
+
       // Return TwiML empty response (no auto-reply)
       res.type("text/xml").status(200).send("<Response></Response>");
     } catch (err: any) {
@@ -359,6 +368,15 @@ inboundMessageRouter.post(
         )
         .catch((err) =>
           console.error("[SendGrid Inbound] Trigger error:", err)
+        );
+
+      // Auto-stop nurture sequences on inbound email reply (non-blocking)
+      import("../services/sequenceAutoStop")
+        .then(({ onInboundEmailAutoStop }) =>
+          onInboundEmailAutoStop(accountId, contact.id)
+        )
+        .catch((err) =>
+          console.error("[SendGrid Inbound] Sequence auto-stop error:", err)
         );
 
       res.status(200).json({ received: true, matched: true, messageId: id });

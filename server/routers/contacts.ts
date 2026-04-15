@@ -312,6 +312,18 @@ export const contactsRouter = router({
             console.error("[Trigger] onPipelineStageChanged error:", err)
           );
         });
+
+        // Auto-stop nurture sequences on pipeline stage change (non-blocking)
+        import("../services/sequenceAutoStop").then(({ onPipelineStageChangedAutoStop }) => {
+          onPipelineStageChangedAutoStop(
+            accountId,
+            id,
+            existing.status || "new",
+            normalized.status as string
+          ).catch((err: unknown) =>
+            console.error("[Contacts] Sequence auto-stop error:", err)
+          );
+        });
       }
 
       await createAuditLog({

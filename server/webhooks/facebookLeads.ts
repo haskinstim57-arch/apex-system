@@ -7,11 +7,16 @@ import {
   createDeal,
   getAccountFacebookPageByFbPageId,
   createNotification,
+  enrollContactInSequence,
+  getDb,
 } from "../db";
 import { ENV } from "../_core/env";
 import { routeLead } from "../services/leadRoutingEngine";
 import { sendPushNotificationToAccount } from "../services/webPush";
 import { logRoutingEvent } from "../services/leadRoutingMonitor";
+import { notifyLeadRecipients } from "../services/leadNotification";
+import { sequences } from "../../drizzle/schema";
+import { and, eq, sql } from "drizzle-orm";
 
 const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 
@@ -527,6 +532,24 @@ async function processLead(
     tag: `fb-lead-${contactId}`,
   }).catch((err) => console.error(`[FB Leads Webhook] Push notification error:`, err));
 
+  // 6. Send lead notifications (SMS + email to all active account members)
+  notifyLeadRecipients({
+    contactId,
+    name: `${data.firstName} ${data.lastName}`,
+    email: data.email || "",
+    phone: data.phone || "",
+    accountId: data.accountId,
+    source: "Facebook Lead Ad",
+    timestamp: new Date(),
+  }).catch((err) => {
+    console.error(`[FB Leads Webhook] Lead notification error for contact ${contactId}:`, err);
+  });
+
+  // 7. Auto-enroll in "Purchase Lead - Didn't Book Nurture" sequence
+  webhookAutoEnrollInPurchaseSequence(contactId, data.accountId).catch((err) => {
+    console.error(`[FB Leads Webhook] Auto-enrollment error for contact ${contactId}:`, err);
+  });
+
   return { contactId, dealId };
 }
 
@@ -543,6 +566,43 @@ async function fireTriggers(accountId: number, contactId: number) {
   await onFacebookLeadReceived(accountId, contactId);
   // Facebook lead forms count as form submissions
   await onFormSubmitted(accountId, contactId, "facebook_lead_form");
+}
+
+// ─────────────────────────────────────────────
+// Auto-enroll lead in "Purchase Lead" sequence
+// ─────────────────────────────────────────────
+async function webhookAutoEnrollInPurchaseSequence(contactId: number, accountId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  // Find the purchase sequence for this account
+  const purchaseSequences = await db
+    .select({ id: sequences.id, name: sequences.name })
+    .from(sequences)
+    .where(
+      and(
+        eq(sequences.accountId, accountId),
+        sql`${sequences.name} LIKE '%Purchase Lead%'`
+      )
+    )
+    .limit(1);
+
+  if (purchaseSequences.length === 0) {
+    console.warn(`[FB Leads Webhook] No "Purchase Lead" sequence found for account ${accountId} — skipping auto-enrollment`);
+    return;
+  }
+
+  const seq = purchaseSequences[0];
+  await enrollContactInSequence({
+    sequenceId: seq.id,
+    contactId,
+    accountId,
+    currentStep: 0,
+    status: "active",
+    enrollmentSource: "facebook_lead_auto",
+  });
+
+  console.log(`[FB Leads Webhook] Auto-enrolled contact ${contactId} in sequence "${seq.name}" (id ${seq.id})`);
 }
 
 // ─────────────────────────────────────────────

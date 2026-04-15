@@ -210,6 +210,18 @@ export const pipelineRouter = router({
             console.error("[Trigger] onPipelineStageChanged error:", err)
           );
         });
+
+        // Auto-stop nurture sequences on pipeline stage change (non-blocking)
+        import("../services/sequenceAutoStop").then(({ onPipelineStageChangedAutoStop }) => {
+          onPipelineStageChangedAutoStop(
+            input.accountId,
+            deal.contactId,
+            fromStageName,
+            toStageName
+          ).catch((err: unknown) =>
+            console.error("[Pipeline] Sequence auto-stop error:", err)
+          );
+        });
       }
 
       return { success: true };

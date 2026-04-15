@@ -1033,6 +1033,8 @@ export const notifications = mysqlTable("notifications", {
     "new_contact_booking",
     "missed_call",
     "report_sent",
+    "system_alert",
+    "new_lead",
   ]).notNull(),
   title: varchar("title", { length: 500 }).notNull(),
   body: text("body"),
@@ -2864,3 +2866,22 @@ export const recurringContentPlans = mysqlTable("recurring_content_plans", {
 });
 export type RecurringContentPlan = typeof recurringContentPlans.$inferSelect;
 export type InsertRecurringContentPlan = typeof recurringContentPlans.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// System Events (Jarvis-ready event queue)
+// ─────────────────────────────────────────────
+export const systemEvents = mysqlTable("system_events", {
+  id: int("id").primaryKey().autoincrement(),
+  accountId: int("account_id"),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  severity: mysqlEnum("severity", ["info", "warning", "critical"]).notNull().default("info"),
+  title: varchar("title", { length: 500 }).notNull(),
+  details: text("details"),
+  resolved: boolean("resolved").notNull().default(false),
+  resolvedAt: timestamp("resolved_at"),
+  resolvedBy: varchar("resolved_by", { length: 100 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+export type SystemEvent = typeof systemEvents.$inferSelect;
+export type InsertSystemEvent = typeof systemEvents.$inferInsert;

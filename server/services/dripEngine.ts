@@ -56,13 +56,13 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
   }
 
   // Process each account with its own warming config
-  for (const [accountId, rows] of byAccount) {
+  for (const [accountId, rows] of Array.from(byAccount)) {
     // Get or create warming config for this account
     const warmingConfig = await getOrCreateWarmingConfig(accountId);
 
     // Reset daily counter if it's a new day
     const today = new Date().toISOString().split("T")[0];
-    if (warmingConfig.lastResetDate !== today) {
+    if (String(warmingConfig.lastResetDate ?? "") !== today) {
       await resetDailySendCount(warmingConfig.id, today);
       // Recalculate currentDailyLimit based on days since warming started
       const daysSinceStart = Math.floor(

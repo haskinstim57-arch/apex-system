@@ -930,6 +930,10 @@ export const calendarRouter = router({
         if (contact) {
           const { onAppointmentBooked } = await import("../services/workflowTriggers");
           await onAppointmentBooked(calendar.accountId, contact.id, result.id, calendar.id);
+
+          // Auto-stop nurture sequences when appointment is booked
+          const { onAppointmentBookedAutoStop } = await import("../services/sequenceAutoStop");
+          await onAppointmentBookedAutoStop(calendar.accountId, contact.id, result.id);
         }
       }).catch((err) => console.error("[Calendar] appointment_booked trigger error:", err));
 

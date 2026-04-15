@@ -4225,3 +4225,32 @@
 - [x] T4B: dripEngine — group by account, per-account warming limits, increment counter after email send
 - [x] T4C: Frontend — Email Warming UI in Sequences page (toggle, progress bars, configure, reset)
 - [x] T4C: Auto-create warming config on account creation (in accounts.ts create mutation)
+
+## Facebook Lead Reliability Layer
+
+### Lead Notifications
+- [x] Lead notification service (SMS via Blooio + email via SendGrid to all active account members)
+- [x] Wire lead notifications into Facebook lead poller (processPolledLead)
+- [x] Wire lead notifications into Facebook webhook handler (processLead)
+
+### Auto-Enrollment
+- [x] Auto-enroll new Facebook leads into "Purchase Lead - Didn't Book Nurture" sequence (poller)
+- [x] Auto-enroll new Facebook leads into "Purchase Lead - Didn't Book Nurture" sequence (webhook)
+
+### Circuit Breaker
+- [x] Circuit breaker for Facebook poller (3 consecutive failures → disable page, fire alerts)
+- [x] Multi-channel alerts on circuit breaker trip (owner notify, in-app, push, system_events)
+- [x] Reset circuit breaker on Facebook OAuth reconnection
+
+### Token Health Monitor
+- [x] Daily Graph API token health check per page
+- [x] Auto-refresh long-lived tokens when possible
+- [x] Multi-channel alerts on token failure
+- [x] Log events to system_events table for Jarvis
+
+### Auto-Sequence Stop (Unenroll on Engagement)
+- [x] Unenroll contact from nurture sequence on inbound SMS reply
+- [x] Unenroll contact from nurture sequence on inbound email reply
+- [x] Unenroll contact from nurture sequence on appointment booked
+- [x] Unenroll contact from nurture sequence on call answered/completed
+- [x] Unenroll contact from nurture sequence on pipeline stage change

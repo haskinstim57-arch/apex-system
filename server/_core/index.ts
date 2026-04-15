@@ -19,6 +19,7 @@ import { googleCalendarWebhookRouter } from "../webhooks/googleCalendarWebhook";
 import { outlookCalendarWebhookRouter } from "../webhooks/outlookCalendarWebhook";
 import { calendarOAuthCallbackRouter } from "../webhooks/calendarOAuthCallbacks";
 import { startFacebookLeadPoller } from "../services/facebookLeadPoller";
+import { startFacebookTokenHealthMonitor } from "../services/facebookTokenHealthMonitor";
 import { startDateTriggerCron } from "../services/dateTriggerCron";
 import { inboundMessageRouter } from "../webhooks/inboundMessages";
 import { twilioVoiceStatusRouter } from "../webhooks/twilioVoiceStatus";
@@ -416,6 +417,9 @@ async function startServer() {
 
     // Start Facebook lead polling fallback (every 60s, catches leads when webhooks fail)
     startFacebookLeadPoller();
+
+    // Start Facebook token health monitor (daily check on all page tokens)
+    startFacebookTokenHealthMonitor();
 
     // Start date trigger cron job (runs daily, scans contacts against date_trigger workflows)
     startDateTriggerCron();

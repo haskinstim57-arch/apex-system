@@ -3,7 +3,7 @@ import { protectedProcedure, router } from "../_core/trpc";
 import { ENV } from "../_core/env";
 import * as db from "../db";
 import { TRPCError } from "@trpc/server";
-import { pollAllPages } from "../services/facebookLeadPoller";
+import { pollAllPages, resetPageCircuitBreaker } from "../services/facebookLeadPoller";
 
 // ─────────────────────────────────────────────
 // Facebook OAuth Router
@@ -240,6 +240,14 @@ export const facebookOAuthRouter = router({
               mappingErr
             );
           }
+        }
+      }
+
+      // Reset circuit breaker for all reconnected pages
+      if (pagesData.data && Array.isArray(pagesData.data)) {
+        for (const page of pagesData.data) {
+          resetPageCircuitBreaker(page.id);
+          console.log(`[Facebook OAuth] Circuit breaker reset for page ${page.id} (${page.name})`);
         }
       }
 

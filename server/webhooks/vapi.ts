@@ -802,6 +802,13 @@ function fireCallCompletedTrigger(accountId: number, contactId: number) {
     .catch((err) =>
       console.error(`[VAPI Webhook] Error firing call_completed trigger:`, err)
     );
+
+  // Auto-stop nurture sequences when call is completed (non-blocking)
+  import("../services/sequenceAutoStop")
+    .then(({ onCallCompletedAutoStop }) => onCallCompletedAutoStop(accountId, contactId))
+    .catch((err) =>
+      console.error(`[VAPI Webhook] Sequence auto-stop error:`, err)
+    );
 }
 
 // ─────────────────────────────────────────────

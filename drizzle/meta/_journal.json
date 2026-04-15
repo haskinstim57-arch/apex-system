@@ -652,6 +652,20 @@
       "when": 1776272934579,
       "tag": "0092_premium_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "5",
+      "when": 1776278797611,
+      "tag": "0093_modern_captain_flint",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "5",
+      "when": 1776278973336,
+      "tag": "0094_tidy_tattoo",
+      "breakpoints": true
     }
   ]
 }

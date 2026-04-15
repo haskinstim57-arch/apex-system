@@ -1,21 +1,18 @@
 /**
- * Facebook Lead Polling Service
+ * Facebook Lead Polling Service — with Circuit Breaker & Lead Notifications
  *
  * Polls the Facebook Graph API every 60 seconds for new leads across all
- * connected Facebook pages. This serves as a **reliable fallback** to the
- * webhook-based approach — if Facebook fails to deliver a webhook (due to
- * timeouts, backoff, or network issues), the poller will catch it.
+ * connected Facebook pages. Serves as a reliable fallback to webhooks.
  *
- * Deduplication: Each lead is identified by its Facebook leadgen_id. Before
- * processing, we check if a contact with that fb_lead_id already exists in
- * the account. If so, we skip it.
+ * Circuit Breaker: After 3 consecutive failures for a page (e.g., dead token),
+ * polling is disabled for that page and multi-channel alerts are fired.
+ * Automatically re-enables when the token is refreshed via reconnection.
  *
- * Flow:
- * 1. List all account_facebook_pages with a valid page_access_token
- * 2. For each page, list its leadgen_forms
- * 3. For each form, fetch recent leads (last 24h window)
- * 4. Deduplicate against existing contacts by fb_lead_id
- * 5. Process new leads through the standard pipeline (contact + deal + routing + notifications)
+ * Lead Notifications: On every new lead, sends SMS (Blooio) + email (SendGrid)
+ * to all active account members with contact info on file.
+ *
+ * Auto-Enrollment: Every new lead is auto-enrolled into the "Purchase Lead -
+ * Didn't Book Nurture" sequence.
  */
 
 import {
@@ -24,19 +21,40 @@ import {
   listPipelineStages,
   createDeal,
   createNotification,
+  enrollContactInSequence,
+  getDb,
 } from "../db";
-import { getDb } from "../db";
-import { accountFacebookPages } from "../../drizzle/schema";
-import { isNotNull, and, sql } from "drizzle-orm";
+import { accountFacebookPages, systemEvents, sequences } from "../../drizzle/schema";
+import { isNotNull, and, sql, eq } from "drizzle-orm";
 import { normalizeToE164 } from "../../shared/phone";
 import { routeLead } from "./leadRoutingEngine";
 import { logRoutingEvent } from "./leadRoutingMonitor";
+import { notifyLeadRecipients } from "./leadNotification";
+import { notifyOwner } from "../_core/notification";
+import { sendPushNotificationToAccount } from "./webPush";
 
 const FACEBOOK_GRAPH_API = "https://graph.facebook.com/v19.0";
 const POLL_INTERVAL_MS = 60_000; // 60 seconds
-const LEAD_LOOKBACK_SECONDS = 86_400; // 24 hours — wide window to catch any missed leads
+const LEAD_LOOKBACK_SECONDS = 86_400; // 24 hours
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+// ─── Circuit Breaker State ───
+const MAX_CONSECUTIVE_FAILURES = 3;
+const pageFailureCounts = new Map<string, number>(); // pageId → consecutive failure count
+const disabledPages = new Set<string>(); // pages with tripped circuit breaker
+
+/**
+ * Reset the circuit breaker for a specific page (call after token refresh/reconnection).
+ */
+export function resetPageCircuitBreaker(pageId: string) {
+  const wasDisabled = disabledPages.has(pageId);
+  pageFailureCounts.delete(pageId);
+  disabledPages.delete(pageId);
+  if (wasDisabled) {
+    console.log(`[FacebookLeadPoller] Circuit breaker RESET for page ${pageId} — polling re-enabled`);
+  }
+}
 
 /**
  * Start the Facebook lead polling background job.
@@ -54,7 +72,7 @@ export function startFacebookLeadPoller() {
     }
   }, POLL_INTERVAL_MS);
 
-  // Run once on startup (delayed 15s to let DB connect and other services start)
+  // Run once on startup (delayed 15s to let DB connect)
   setTimeout(() => {
     pollAllPages().catch((err) =>
       console.error("[FacebookLeadPoller] Initial run error:", err)
@@ -75,7 +93,6 @@ export function stopFacebookLeadPoller() {
 
 /**
  * Poll all connected Facebook pages for new leads.
- * This is the main entry point — can also be called on-demand from a tRPC procedure.
  */
 export async function pollAllPages(): Promise<{
   pagesChecked: number;
@@ -86,7 +103,6 @@ export async function pollAllPages(): Promise<{
   const db = await getDb();
   if (!db) return { pagesChecked: 0, formsChecked: 0, leadsFound: 0, leadsCreated: 0 };
 
-  // Get all pages with a valid access token
   const pages = await db
     .select()
     .from(accountFacebookPages)
@@ -98,7 +114,6 @@ export async function pollAllPages(): Promise<{
     );
 
   if (pages.length === 0) {
-    // No pages with tokens — nothing to poll
     return { pagesChecked: 0, formsChecked: 0, leadsFound: 0, leadsCreated: 0 };
   }
 
@@ -107,16 +122,50 @@ export async function pollAllPages(): Promise<{
   let totalLeadsCreated = 0;
 
   for (const page of pages) {
+    // ─── Circuit Breaker Check ───
+    if (disabledPages.has(page.facebookPageId)) {
+      // Skip this page — circuit breaker is tripped
+      continue;
+    }
+
     try {
       const result = await pollPage(page);
       totalFormsChecked += result.formsChecked;
       totalLeadsFound += result.leadsFound;
       totalLeadsCreated += result.leadsCreated;
-    } catch (err) {
+
+      // Success — reset failure counter
+      if (pageFailureCounts.has(page.facebookPageId)) {
+        pageFailureCounts.set(page.facebookPageId, 0);
+      }
+    } catch (err: any) {
+      const failCount = (pageFailureCounts.get(page.facebookPageId) || 0) + 1;
+      pageFailureCounts.set(page.facebookPageId, failCount);
+
       console.error(
-        `[FacebookLeadPoller] Error polling page ${page.facebookPageId} (${page.pageName}):`,
-        err
+        `[FacebookLeadPoller] Error polling page ${page.facebookPageId} (${page.pageName}) — failure ${failCount}/${MAX_CONSECUTIVE_FAILURES}:`,
+        err?.message || err
       );
+
+      // Check if this is a token error (error codes 190, 460, etc.)
+      const isTokenError = err?.message?.includes("validating access token") ||
+        err?.message?.includes("OAuthException") ||
+        err?.message?.includes("Error code: 190") ||
+        err?.errorSubcode === 460 ||
+        err?.errorCode === 190;
+
+      if (failCount >= MAX_CONSECUTIVE_FAILURES || isTokenError) {
+        // ─── TRIP CIRCUIT BREAKER ───
+        disabledPages.add(page.facebookPageId);
+        console.error(
+          `[FacebookLeadPoller] CIRCUIT BREAKER TRIPPED for page ${page.facebookPageId} (${page.pageName}) — polling DISABLED`
+        );
+
+        // Fire multi-channel alerts
+        await fireTokenDeathAlerts(page, err?.message || "Unknown error").catch((alertErr) => {
+          console.error("[FacebookLeadPoller] Alert dispatch error:", alertErr);
+        });
+      }
     }
   }
 
@@ -132,6 +181,78 @@ export async function pollAllPages(): Promise<{
     leadsFound: totalLeadsFound,
     leadsCreated: totalLeadsCreated,
   };
+}
+
+/**
+ * Fire multi-channel alerts when a token dies.
+ */
+async function fireTokenDeathAlerts(
+  page: { accountId: number; facebookPageId: string; pageName: string | null },
+  errorMessage: string
+): Promise<void> {
+  const alertTitle = `CRITICAL: Facebook lead ingestion STOPPED for ${page.pageName || page.facebookPageId}`;
+  const alertBody = `The Facebook access token for page "${page.pageName}" is invalid or expired. ` +
+    `Lead ingestion has been automatically paused to prevent further errors. ` +
+    `Go to Settings → Integrations → Facebook → Disconnect & Reconnect to fix this. ` +
+    `Error: ${errorMessage}`;
+
+  const promises: Promise<any>[] = [];
+
+  // 1. Notify platform owner
+  promises.push(
+    notifyOwner({ title: alertTitle, content: alertBody }).catch((e) =>
+      console.error("[CircuitBreaker] notifyOwner failed:", e.message)
+    )
+  );
+
+  // 2. In-app notification for the account
+  promises.push(
+    createNotification({
+      accountId: page.accountId,
+      type: "system_alert",
+      title: alertTitle,
+      body: alertBody,
+      link: "/settings",
+    }).catch((e) =>
+      console.error("[CircuitBreaker] createNotification failed:", e.message)
+    )
+  );
+
+  // 3. Push notification to account
+  promises.push(
+    sendPushNotificationToAccount(page.accountId, {
+      title: "Facebook Lead Ingestion STOPPED",
+      body: `Token expired for ${page.pageName}. Go to Settings to reconnect.`,
+      url: "/settings",
+      eventType: "system_alert",
+    }).catch((e) =>
+      console.error("[CircuitBreaker] push notification failed:", e.message)
+    )
+  );
+
+  // 4. Log system event for Jarvis
+  try {
+    const db = await getDb();
+    if (db) {
+      await db.insert(systemEvents).values({
+        accountId: page.accountId,
+        eventType: "facebook_token_death",
+        severity: "critical",
+        title: alertTitle,
+        details: JSON.stringify({
+          pageId: page.facebookPageId,
+          pageName: page.pageName,
+          error: errorMessage,
+          action: "Reconnect Facebook in Settings → Integrations",
+        }),
+      });
+    }
+  } catch (e: any) {
+    console.error("[CircuitBreaker] system event log failed:", e.message);
+  }
+
+  await Promise.allSettled(promises);
+  console.log(`[CircuitBreaker] All alerts dispatched for page ${page.facebookPageId}`);
 }
 
 /**
@@ -200,27 +321,28 @@ async function pollPage(page: {
 
 /**
  * Fetch all leadgen forms for a Facebook page.
+ * Throws on token errors so the circuit breaker can catch them.
  */
 async function fetchPageForms(
   pageId: string,
   accessToken: string
 ): Promise<Array<{ id: string; name: string; status: string }>> {
-  try {
-    const url = `${FACEBOOK_GRAPH_API}/${pageId}/leadgen_forms?access_token=${accessToken}`;
-    const res = await fetch(url);
-    const data = await res.json();
-    if (data.error) {
-      console.error(
-        `[FacebookLeadPoller] Error fetching forms for page ${pageId}:`,
-        data.error
-      );
-      return [];
+  const url = `${FACEBOOK_GRAPH_API}/${pageId}/leadgen_forms?access_token=${accessToken}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.error) {
+    // Throw on token errors so circuit breaker can catch them
+    const errMsg = `Facebook API error: ${data.error.message} (code: ${data.error.code}, subcode: ${data.error.error_subcode || "none"})`;
+    if (data.error.code === 190 || data.error.error_subcode === 460 || data.error.error_subcode === 463) {
+      const tokenError = new Error(errMsg) as any;
+      tokenError.errorCode = data.error.code;
+      tokenError.errorSubcode = data.error.error_subcode;
+      throw tokenError;
     }
-    return data.data || [];
-  } catch (err) {
-    console.error(`[FacebookLeadPoller] Network error fetching forms for page ${pageId}:`, err);
+    console.error(`[FacebookLeadPoller] Error fetching forms for page ${pageId}:`, data.error);
     return [];
   }
+  return data.data || [];
 }
 
 /**
@@ -237,7 +359,6 @@ async function fetchFormLeads(
   }>
 > {
   try {
-    // Use filtering to only get leads from the last 24 hours
     const sinceTimestamp = Math.floor(Date.now() / 1000) - LEAD_LOOKBACK_SECONDS;
     const url = `${FACEBOOK_GRAPH_API}/${formId}/leads?access_token=${accessToken}&filtering=[{"field":"time_created","operator":"GREATER_THAN","value":${sinceTimestamp}}]&limit=50`;
     const res = await fetch(url);
@@ -257,7 +378,7 @@ async function fetchFormLeads(
 }
 
 /**
- * Process a single polled lead — deduplicate and create contact if new.
+ * Process a single polled lead — deduplicate, create contact, notify, and auto-enroll.
  */
 async function processPolledLead(
   lead: {
@@ -302,14 +423,14 @@ async function processPolledLead(
   const email = fields.email || "";
   const rawPhone = fields.phone_number || fields.phone || "";
 
-  // Normalize phone — skip invalid/test data from Meta
+  // Normalize phone
   let phone: string | undefined;
   if (rawPhone && !rawPhone.includes("<") && rawPhone.length <= 20) {
     const normalized = normalizeToE164(rawPhone);
     phone = normalized || rawPhone;
   }
 
-  // Skip test leads with dummy data (Meta test tool sends "<test lead: dummy data>")
+  // Skip test leads
   const isTestLead = firstName.includes("<test") || lastName.includes("dummy data") ||
     (email && email.includes("test@meta.com") && rawPhone.includes("<test"));
   if (isTestLead) {
@@ -319,7 +440,6 @@ async function processPolledLead(
 
   // Build custom fields
   const customFields: Record<string, string> = { fb_lead_id: lead.id };
-  // Store any extra form fields
   for (const [key, val] of Object.entries(fields)) {
     if (!["full_name", "name", "email", "phone_number", "phone"].includes(key)) {
       customFields[`fb_${key.replace(/[^a-z0-9_]/g, "_")}`] = val;
@@ -373,7 +493,7 @@ async function processPolledLead(
     console.error(`[FacebookLeadPoller] Lead routing failed for contact ${contactId}:`, err);
   });
 
-  // Log successful routing event for poller
+  // Log routing event
   logRoutingEvent({
     pageId: page.facebookPageId,
     leadId: lead.id,
@@ -388,7 +508,25 @@ async function processPolledLead(
     payloadSnippet: JSON.stringify(lead.field_data || []).substring(0, 500),
   }).catch(() => {});
 
-  // Create notification
+  // ─── NEW: Send lead notifications (SMS + email to Tim & Belinda) ───
+  notifyLeadRecipients({
+    contactId,
+    name: `${firstName} ${lastName}`,
+    email: email || "",
+    phone: phone || rawPhone || "",
+    accountId: page.accountId,
+    source: `Facebook - ${page.pageName || "Unknown Page"}`,
+    timestamp: lead.created_time ? new Date(lead.created_time) : new Date(),
+  }).catch((err) => {
+    console.error(`[FacebookLeadPoller] Lead notification error for contact ${contactId}:`, err);
+  });
+
+  // ─── NEW: Auto-enroll in "Purchase Lead - Didn't Book Nurture" sequence ───
+  autoEnrollInPurchaseSequence(contactId, page.accountId).catch((err) => {
+    console.error(`[FacebookLeadPoller] Auto-enrollment error for contact ${contactId}:`, err);
+  });
+
+  // Create in-app notification (legacy — kept for backward compat)
   createNotification({
     accountId: page.accountId,
     userId: null,
@@ -401,4 +539,41 @@ async function processPolledLead(
   );
 
   return true;
+}
+
+/**
+ * Auto-enroll a contact in the "Purchase Lead - Didn't Book Nurture" sequence.
+ */
+async function autoEnrollInPurchaseSequence(contactId: number, accountId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  // Find the purchase sequence for this account
+  const purchaseSequences = await db
+    .select({ id: sequences.id, name: sequences.name })
+    .from(sequences)
+    .where(
+      and(
+        eq(sequences.accountId, accountId),
+        sql`${sequences.name} LIKE '%Purchase Lead%'`
+      )
+    )
+    .limit(1);
+
+  if (purchaseSequences.length === 0) {
+    console.warn(`[FacebookLeadPoller] No "Purchase Lead" sequence found for account ${accountId} — skipping auto-enrollment`);
+    return;
+  }
+
+  const seq = purchaseSequences[0];
+  await enrollContactInSequence({
+    sequenceId: seq.id,
+    contactId,
+    accountId,
+    currentStep: 0,
+    status: "active",
+    enrollmentSource: "facebook_lead_auto",
+  });
+
+  console.log(`[FacebookLeadPoller] Auto-enrolled contact ${contactId} in sequence "${seq.name}" (id ${seq.id})`);
 }
