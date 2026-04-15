@@ -31,6 +31,20 @@ export function getOutlookOAuthUrl(params: {
   origin: string;
   redirectPath?: string;
 }): string {
+  // Validate Microsoft credentials are configured
+  if (!ENV.microsoftClientId) {
+    console.error("[Outlook OAuth] MICROSOFT_CLIENT_ID is not set in environment variables");
+    throw new Error(
+      "Microsoft OAuth is not configured. The MICROSOFT_CLIENT_ID environment variable is missing. Please contact your administrator."
+    );
+  }
+  if (!ENV.microsoftClientSecret) {
+    console.error("[Outlook OAuth] MICROSOFT_CLIENT_SECRET is not set in environment variables");
+    throw new Error(
+      "Microsoft OAuth is not configured. The MICROSOFT_CLIENT_SECRET environment variable is missing. Please contact your administrator."
+    );
+  }
+
   const state = JSON.stringify({
     accountId: params.accountId,
     userId: params.userId,
@@ -39,6 +53,8 @@ export function getOutlookOAuthUrl(params: {
   });
 
   const redirectUri = `${params.origin}/api/integrations/outlook/callback`;
+
+  console.log(`[Outlook OAuth] Generating OAuth URL with client_id=${ENV.microsoftClientId.substring(0, 8)}..., redirect_uri=${redirectUri}`);
 
   const queryParams = new URLSearchParams({
     client_id: ENV.microsoftClientId,
@@ -63,6 +79,8 @@ export async function exchangeOutlookCode(
   refreshToken: string | null;
   expiresIn: number;
 }> {
+  console.log(`[Outlook OAuth] Exchanging code for tokens. redirect_uri=${redirectUri}, client_id=${ENV.microsoftClientId.substring(0, 8)}...`);
+
   const res = await fetch(MS_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -77,7 +95,8 @@ export async function exchangeOutlookCode(
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Microsoft token exchange failed: ${err}`);
+    console.error(`[Outlook OAuth] Token exchange failed (HTTP ${res.status}): ${err}`);
+    throw new Error(`Microsoft token exchange failed (HTTP ${res.status}): ${err}`);
   }
 
   const data = await res.json();

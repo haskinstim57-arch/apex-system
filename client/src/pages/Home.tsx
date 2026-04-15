@@ -32,7 +32,7 @@ import OnboardingChecklist from "@/components/OnboardingChecklist";
 
 export default function Home() {
   const { user } = useAuth();
-  const { isAdmin, accounts, isAgencyScope, currentAccountId, currentAccount } = useAccount();
+  const { isAdmin, accounts, isAgencyScope, currentAccountId, currentAccount, isLoading: accountLoading } = useAccount();
 
   // Admin stats — only fetch when in agency scope
   const { data: adminStats, isLoading: adminStatsLoading } = trpc.accounts.adminStats.useQuery(undefined, {
@@ -60,6 +60,51 @@ export default function Home() {
     if (hour < 18) return "Good afternoon";
     return "Good evening";
   };
+
+  // ─── Full-page skeleton while AccountContext is still hydrating ───
+  // This prevents the blank dashboard flash after login when accounts haven't loaded yet.
+  if (accountLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+          <StatsCardSkeleton />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+          <Card className="lg:col-span-3 bg-card border-0 card-shadow">
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <Skeleton className="h-8 w-8 rounded-lg shrink-0" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-3.5 w-3/4" />
+                      <Skeleton className="h-3 w-1/3" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="lg:col-span-2 bg-card border-0 card-shadow">
+            <CardContent className="pt-6">
+              <div className="space-y-3">
+                {[...Array(4)].map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-lg" />
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

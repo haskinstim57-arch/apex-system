@@ -363,24 +363,165 @@ export async function invokeGemini(params: GeminiInvokeParams): Promise<InvokeRe
 }
 
 /**
- * Invoke Gemini with retry (1 retry after 2s) and 45s timeout.
+ * Invoke Gemini with a specific model override.
+ */
+async function invokeGeminiWithModel(params: GeminiInvokeParams, modelName: string): Promise<InvokeResult> {
+  const genAI = getGenAI();
+  const { systemInstruction, contents } = convertMessagesToGemini(params.messages);
+
+  const modelConfig: any = { model: modelName };
+  if (systemInstruction) modelConfig.systemInstruction = systemInstruction;
+  if (params.tools && params.tools.length > 0 && params.tool_choice !== "none") {
+    modelConfig.tools = convertToolsToGemini(params.tools);
+  }
+  if (params.response_format?.type === "json_schema" || params.response_format?.type === "json_object") {
+    modelConfig.generationConfig = { responseMimeType: "application/json" };
+    if (params.response_format.json_schema?.schema) {
+      modelConfig.generationConfig.responseSchema = sanitizeSchemaForGemini(
+        params.response_format.json_schema.schema
+      );
+    }
+  }
+
+  const model = genAI.getGenerativeModel(modelConfig);
+  const safeContents = contents.length === 0
+    ? [{ role: "user" as const, parts: [{ text: "Hello" }] }]
+    : contents;
+
+  const result = await model.generateContent({ contents: safeContents });
+  return convertGeminiResultToInvokeResult(result);
+}
+
+/**
+ * Check if an error is a 503 / overloaded / quota error that warrants fallback.
+ */
+function isOverloadedError(err: any): boolean {
+  const msg = (err?.message || String(err)).toLowerCase();
+  return msg.includes("503") || msg.includes("overloaded") || msg.includes("high demand") || msg.includes("resource exhausted") || msg.includes("429");
+}
+
+/**
+ * Invoke Gemini with retry, model fallback chain, and built-in LLM fallback.
+ *
+ * Fallback chain:
+ *   1. gemini-2.5-flash (primary)
+ *   2. gemini-2.0-flash (fallback on 503)
+ *   3. Built-in invokeLLM via platform (last resort on 503)
  */
 export async function invokeGeminiWithRetry(params: GeminiInvokeParams): Promise<InvokeResult> {
-  const callWithTimeout = () => {
+  const TIMEOUT_MS = 45_000;
+
+  const callWithTimeout = (modelName: string) => {
     return Promise.race([
-      invokeGemini(params),
+      invokeGeminiWithModel(params, modelName),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Gemini request timed out after 45 seconds")), 45_000)
+        setTimeout(() => reject(new Error(`Gemini request timed out after ${TIMEOUT_MS / 1000}s (model: ${modelName})`)), TIMEOUT_MS)
       ),
     ]);
   };
 
+  const startTime = Date.now();
+
+  // Attempt 1: gemini-2.5-flash
   try {
-    return await callWithTimeout();
+    const result = await callWithTimeout("gemini-2.5-flash");
+    // Log success
+    if (params._tracking) {
+      const usage = result.usage;
+      logGeminiUsage({
+        accountId: params._tracking.accountId ?? null,
+        userId: params._tracking.userId ?? null,
+        endpoint: params._tracking.endpoint,
+        model: "gemini-2.5-flash",
+        promptTokens: usage?.prompt_tokens ?? 0,
+        completionTokens: usage?.completion_tokens ?? 0,
+        totalTokens: usage?.total_tokens ?? 0,
+        estimatedCostUsd: "0",
+        success: true,
+        durationMs: Date.now() - startTime,
+      });
+    }
+    return result;
   } catch (err: any) {
-    console.error("[Jarvis] First Gemini attempt failed:", err.message);
-    // Retry once after 2 seconds
-    await new Promise(r => setTimeout(r, 2000));
-    return await callWithTimeout();
+    console.warn("[Jarvis] gemini-2.5-flash failed:", err.message);
+
+    if (!isOverloadedError(err)) {
+      // Non-overload error — retry once with same model
+      try {
+        await new Promise(r => setTimeout(r, 2000));
+        return await callWithTimeout("gemini-2.5-flash");
+      } catch (retryErr: any) {
+        console.error("[Jarvis] gemini-2.5-flash retry also failed:", retryErr.message);
+        throw retryErr;
+      }
+    }
+  }
+
+  // Attempt 2: gemini-2.0-flash (fallback for overload)
+  try {
+    console.log("[Jarvis] Falling back to gemini-2.0-flash...");
+    const result = await callWithTimeout("gemini-2.0-flash");
+    if (params._tracking) {
+      logGeminiUsage({
+        accountId: params._tracking.accountId ?? null,
+        userId: params._tracking.userId ?? null,
+        endpoint: params._tracking.endpoint,
+        model: "gemini-2.0-flash (fallback)",
+        promptTokens: result.usage?.prompt_tokens ?? 0,
+        completionTokens: result.usage?.completion_tokens ?? 0,
+        totalTokens: result.usage?.total_tokens ?? 0,
+        estimatedCostUsd: "0",
+        success: true,
+        durationMs: Date.now() - startTime,
+      });
+    }
+    return result;
+  } catch (err2: any) {
+    console.warn("[Jarvis] gemini-2.0-flash also failed:", err2.message);
+  }
+
+  // Attempt 3: Built-in platform LLM (last resort)
+  try {
+    console.log("[Jarvis] Falling back to built-in platform LLM...");
+    const { invokeLLM } = await import("../_core/llm");
+    const result = await invokeLLM({
+      messages: params.messages,
+      tools: params.tools,
+      tool_choice: params.tool_choice as any,
+      response_format: params.response_format as any,
+    });
+    if (params._tracking) {
+      logGeminiUsage({
+        accountId: params._tracking.accountId ?? null,
+        userId: params._tracking.userId ?? null,
+        endpoint: params._tracking.endpoint,
+        model: "platform-llm (fallback)",
+        promptTokens: result.usage?.prompt_tokens ?? 0,
+        completionTokens: result.usage?.completion_tokens ?? 0,
+        totalTokens: result.usage?.total_tokens ?? 0,
+        estimatedCostUsd: "0",
+        success: true,
+        durationMs: Date.now() - startTime,
+      });
+    }
+    return result;
+  } catch (err3: any) {
+    console.error("[Jarvis] All LLM fallbacks exhausted:", err3.message);
+    if (params._tracking) {
+      logGeminiUsage({
+        accountId: params._tracking.accountId ?? null,
+        userId: params._tracking.userId ?? null,
+        endpoint: params._tracking.endpoint,
+        model: "all-fallbacks-failed",
+        promptTokens: 0,
+        completionTokens: 0,
+        totalTokens: 0,
+        estimatedCostUsd: "0",
+        success: false,
+        errorMessage: err3.message || String(err3),
+        durationMs: Date.now() - startTime,
+      });
+    }
+    throw new Error(`All LLM providers failed. Last error: ${err3.message}`);
   }
 }

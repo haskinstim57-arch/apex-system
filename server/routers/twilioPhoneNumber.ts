@@ -30,23 +30,43 @@ async function getTwilioClient(accountId: number): Promise<{
   // Try per-account credentials first
   const settings = await getAccountMessagingSettings(accountId);
   if (settings?.twilioAccountSid && settings?.twilioAuthToken) {
-    return {
-      client: Twilio(settings.twilioAccountSid, settings.twilioAuthToken),
-      accountSid: settings.twilioAccountSid,
-    };
+    try {
+      const client = Twilio(settings.twilioAccountSid, settings.twilioAuthToken);
+      return { client, accountSid: settings.twilioAccountSid };
+    } catch (err: any) {
+      console.error(`[Twilio] Failed to initialize client with per-account credentials for account ${accountId}:`, err?.message || err);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: `Twilio initialization failed with your account credentials: ${err?.message || "Unknown error"}. Please verify your Twilio Account SID and Auth Token in Messaging Settings.`,
+      });
+    }
   }
 
   // Fall back to global env vars
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   if (!sid || !token) {
+    const missing = [];
+    if (!sid) missing.push("TWILIO_ACCOUNT_SID");
+    if (!token) missing.push("TWILIO_AUTH_TOKEN");
+    console.error(`[Twilio] Missing global env vars: ${missing.join(", ")}. No per-account credentials found for account ${accountId}.`);
     throw new TRPCError({
       code: "PRECONDITION_FAILED",
       message:
-        "Twilio is not configured. Please set up Twilio credentials in Messaging Settings first, or contact your administrator.",
+        `Twilio credentials are not configured. Missing: ${missing.join(", ")}. Please add your Twilio credentials in Settings → Messaging, or ask your administrator to configure the global Twilio credentials.`,
     });
   }
-  return { client: Twilio(sid, token), accountSid: sid };
+
+  try {
+    const client = Twilio(sid, token);
+    return { client, accountSid: sid };
+  } catch (err: any) {
+    console.error(`[Twilio] Failed to initialize client with global credentials:`, err?.message || err);
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: `Twilio initialization failed: ${err?.message || "Unknown error"}. Please verify the global Twilio credentials.`,
+    });
+  }
 }
 
 /**

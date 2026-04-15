@@ -4184,3 +4184,12 @@
 ### Verification
 - [x] Vitest tests: 21 tests passing (account-switching.test.ts)
 - [x] Save checkpoint
+
+## Launch Blockers — April 14
+
+- [x] Bug 1: Dashboard blank after login — added full-page skeleton while AccountContext hydrates, prevents blank flash
+- [x] Bug 2: Twilio "not configured" — improved error messages to surface exact missing env vars (TWILIO_ACCOUNT_SID/AUTH_TOKEN) and real API errors. Env vars need to be set.
+- [x] Bug 3: Microsoft OAuth client_id error — added credential validation before OAuth URL generation, improved error logging. MICROSOFT_CLIENT_ID/SECRET env vars need to be set.
+- [x] Bug 4: Google My Business "invalid connection" — added credential validation, improved error logging in gmbService.ts and gmbOAuthCallback.ts. GOOGLE_CLIENT_ID/SECRET are set; issue is likely OAuth consent screen or API enablement.
+- [x] Bug 5: Gemini failing — GEMINI_API_KEY is valid; issue is 503 overload on gemini-2.5-flash. Added 3-tier fallback chain: gemini-2.5-flash → gemini-2.0-flash → built-in platform LLM.
+- [x] Bug 6: Facebook "Feature unavailable" — SKIP (Facebook dashboard side, not code)

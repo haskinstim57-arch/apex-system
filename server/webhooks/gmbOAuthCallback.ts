@@ -73,8 +73,11 @@ gmbOAuthCallbackRouter.get("/api/gmb/callback", async (req, res) => {
     }
 
     res.redirect(`/settings?gmb=connected&account=${parsedAccountId}`);
-  } catch (err) {
-    console.error("[GMB OAuth] Error:", err);
-    res.redirect("/settings?gmb=error&reason=exchange_failed");
+  } catch (err: any) {
+    const errorMsg = err?.response?.data?.error_description || err?.message || String(err);
+    console.error(`[GMB OAuth] Callback error for account ${accountId}:`, errorMsg);
+    console.error(`[GMB OAuth] Full error:`, err?.response?.data || err);
+    const encodedReason = encodeURIComponent(errorMsg.substring(0, 200));
+    res.redirect(`/settings?gmb=error&reason=${encodedReason}`);
   }
 });

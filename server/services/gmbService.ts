@@ -9,6 +9,14 @@ import { ENV } from "../_core/env";
  */
 
 function createOAuth2Client(redirectUri?: string) {
+  if (!ENV.googleClientId) {
+    console.error("[GMB] GOOGLE_CLIENT_ID is not set in environment variables");
+    throw new Error("Google Business Profile integration is not configured. GOOGLE_CLIENT_ID is missing.");
+  }
+  if (!ENV.googleClientSecret) {
+    console.error("[GMB] GOOGLE_CLIENT_SECRET is not set in environment variables");
+    throw new Error("Google Business Profile integration is not configured. GOOGLE_CLIENT_SECRET is missing.");
+  }
   return new google.auth.OAuth2(
     ENV.googleClientId,
     ENV.googleClientSecret,
@@ -37,9 +45,16 @@ export function getAuthUrl(accountId: number, redirectUri: string): string {
  * Exchange an authorization code for tokens.
  */
 export async function exchangeCode(code: string, redirectUri: string) {
-  const client = createOAuth2Client(redirectUri);
-  const { tokens } = await client.getToken(code);
-  return tokens;
+  console.log(`[GMB] Exchanging code for tokens. redirect_uri=${redirectUri}`);
+  try {
+    const client = createOAuth2Client(redirectUri);
+    const { tokens } = await client.getToken(code);
+    console.log(`[GMB] Token exchange successful. Has access_token: ${!!tokens.access_token}, Has refresh_token: ${!!tokens.refresh_token}`);
+    return tokens;
+  } catch (err: any) {
+    console.error(`[GMB] Token exchange failed:`, err?.response?.data || err?.message || err);
+    throw new Error(`Google token exchange failed: ${err?.response?.data?.error_description || err?.message || "Unknown error"}`);
+  }
 }
 
 /**
@@ -84,12 +99,14 @@ export async function getLocations(accessToken: string, refreshToken: string | n
   const token = await getToken(auth);
 
   // Step 1: Get accounts
+  console.log(`[GMB] Fetching business accounts...`);
   const accountsRes = await fetch(
     "https://mybusinessaccountmanagement.googleapis.com/v1/accounts",
     { headers: { Authorization: `Bearer ${token}` } }
   );
   if (!accountsRes.ok) {
     const err = await accountsRes.text();
+    console.error(`[GMB] Failed to fetch accounts (HTTP ${accountsRes.status}):`, err);
     throw new Error(`Failed to fetch GMB accounts: ${accountsRes.status} — ${err}`);
   }
   const accountsData = await accountsRes.json();
