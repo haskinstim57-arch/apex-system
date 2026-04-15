@@ -158,6 +158,13 @@ export const accountsRouter = router({
         metadata: JSON.stringify({ name: input.name, ownerEmail: input.ownerEmail }),
       });
 
+      // Auto-create email warming config for the new account
+      try {
+        await db.getOrCreateWarmingConfig(result.id);
+      } catch (err) {
+        console.error(`[Accounts] Failed to create warming config for account ${result.id}:`, err);
+      }
+
       return { ...result, emailSent, inviteToken: token };
     }),
 

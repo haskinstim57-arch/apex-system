@@ -68,7 +68,13 @@ import {
   Activity,
   CalendarClock,
   Loader2,
+  Flame,
+  RotateCcw,
+  Power,
+  Gauge,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 
 // ─── Types ───
 interface SequenceStep {
@@ -245,6 +251,9 @@ export default function Sequences() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Email Warming Card */}
+      <EmailWarmingCard accountId={accountId} />
 
       {/* Sequence List */}
       {isLoading ? (
@@ -1781,6 +1790,250 @@ function EnrollmentPanel({
                 )}
               </div>
             ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+
+// ─── Email Warming Card ───
+function EmailWarmingCard({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+  const { data: config, isLoading } = trpc.sequences.getWarmingConfig.useQuery(
+    { accountId },
+    { enabled: !!accountId }
+  );
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValues, setEditValues] = useState({
+    startDailyLimit: 5,
+    maxDailyLimit: 200,
+    rampUpPerDay: 5,
+  });
+
+  const updateMutation = trpc.sequences.updateWarmingConfig.useMutation({
+    onSuccess: () => {
+      utils.sequences.getWarmingConfig.invalidate({ accountId });
+      setIsEditing(false);
+      toast.success("Warming settings updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const resetMutation = trpc.sequences.resetWarming.useMutation({
+    onSuccess: () => {
+      utils.sequences.getWarmingConfig.invalidate({ accountId });
+      toast.success("Warming period reset — starting from Day 1");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleToggle = (enabled: boolean) => {
+    updateMutation.mutate({ accountId, enabled });
+  };
+
+  const handleSaveSettings = () => {
+    updateMutation.mutate({
+      accountId,
+      startDailyLimit: editValues.startDailyLimit,
+      maxDailyLimit: editValues.maxDailyLimit,
+      rampUpPerDay: editValues.rampUpPerDay,
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="py-6">
+          <Skeleton className="h-6 w-48 mb-4" />
+          <Skeleton className="h-4 w-full mb-2" />
+          <Skeleton className="h-4 w-3/4" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!config) return null;
+
+  const progressPercent = Math.min(
+    (config.currentDailyLimit / config.maxDailyLimit) * 100,
+    100
+  );
+  const todayPercent = config.currentDailyLimit > 0
+    ? Math.min((config.todaySendCount / config.currentDailyLimit) * 100, 100)
+    : 0;
+
+  return (
+    <Card className="border-orange-200/50 bg-gradient-to-r from-orange-500/5 to-transparent">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+              <Flame className="h-4 w-4 text-orange-500" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-medium">Email Warming</CardTitle>
+              <CardDescription className="text-xs">
+                Gradually increase sending volume to build domain reputation
+              </CardDescription>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Switch
+              checked={config.enabled}
+              onCheckedChange={handleToggle}
+              disabled={updateMutation.isPending}
+            />
+            {config.warmingComplete ? (
+              <Badge className="bg-green-500/10 text-green-600 border-green-200 text-xs">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Complete
+              </Badge>
+            ) : config.enabled ? (
+              <Badge className="bg-orange-500/10 text-orange-600 border-orange-200 text-xs">
+                <Activity className="h-3 w-3 mr-1" />
+                Day {config.daysSinceStart + 1}
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                <Power className="h-3 w-3 mr-1" />
+                Disabled
+              </Badge>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Progress bars */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Warming progress */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Gauge className="h-3 w-3" />
+                Daily Limit Progress
+              </span>
+              <span className="font-medium">
+                {config.currentDailyLimit} / {config.maxDailyLimit} emails/day
+              </span>
+            </div>
+            <Progress value={progressPercent} className="h-2" />
+          </div>
+
+          {/* Today's sends */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground flex items-center gap-1">
+                <Send className="h-3 w-3" />
+                Sent Today
+              </span>
+              <span className="font-medium">
+                {config.todaySendCount} / {config.currentDailyLimit}
+              </span>
+            </div>
+            <Progress value={todayPercent} className="h-2" />
+          </div>
+        </div>
+
+        {/* Settings row */}
+        {isEditing ? (
+          <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">Start Daily Limit</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={editValues.startDailyLimit}
+                  onChange={(e) =>
+                    setEditValues((v) => ({ ...v, startDailyLimit: parseInt(e.target.value) || 1 }))
+                  }
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Max Daily Limit</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={10000}
+                  value={editValues.maxDailyLimit}
+                  onChange={(e) =>
+                    setEditValues((v) => ({ ...v, maxDailyLimit: parseInt(e.target.value) || 1 }))
+                  }
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Ramp-Up / Day</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={editValues.rampUpPerDay}
+                  onChange={(e) =>
+                    setEditValues((v) => ({ ...v, rampUpPerDay: parseInt(e.target.value) || 1 }))
+                  }
+                  className="mt-1 h-8 text-sm"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 justify-end">
+              <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveSettings}
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
+                Save
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center gap-4">
+              <span>Start: {config.startDailyLimit}/day</span>
+              <span>Max: {config.maxDailyLimit}/day</span>
+              <span>+{config.rampUpPerDay}/day ramp-up</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => {
+                  setEditValues({
+                    startDailyLimit: config.startDailyLimit,
+                    maxDailyLimit: config.maxDailyLimit,
+                    rampUpPerDay: config.rampUpPerDay,
+                  });
+                  setIsEditing(true);
+                }}
+              >
+                <Settings2 className="h-3 w-3 mr-1" />
+                Configure
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-orange-600 hover:text-orange-700"
+                onClick={() => {
+                  if (window.confirm("Reset warming? This will restart the ramp-up from Day 1.")) {
+                    resetMutation.mutate({ accountId });
+                  }
+                }}
+                disabled={resetMutation.isPending}
+              >
+                <RotateCcw className="h-3 w-3 mr-1" />
+                Reset
+              </Button>
+            </div>
           </div>
         )}
       </CardContent>

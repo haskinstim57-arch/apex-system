@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   decimal,
   int,
   json,
@@ -1923,6 +1924,34 @@ export const sequenceEnrollments = mysqlTable("sequence_enrollments", {
 });
 export type SequenceEnrollment = typeof sequenceEnrollments.$inferSelect;
 export type InsertSequenceEnrollment = typeof sequenceEnrollments.$inferInsert;
+
+// ─────────────────────────────────────────────
+// EMAIL WARMING — Per-account daily send limits with gradual ramp-up
+// ─────────────────────────────────────────────
+export const emailWarmingConfig = mysqlTable("email_warming_config", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  /** Whether warming mode is active */
+  enabled: boolean("enabled").default(true).notNull(),
+  /** Starting daily email limit */
+  startDailyLimit: int("start_daily_limit").default(5).notNull(),
+  /** Maximum daily email limit (target after warming completes) */
+  maxDailyLimit: int("max_daily_limit").default(200).notNull(),
+  /** How many additional emails to allow per day during ramp-up */
+  rampUpPerDay: int("ramp_up_per_day").default(5).notNull(),
+  /** Current calculated daily limit (updated daily by the warming engine) */
+  currentDailyLimit: int("current_daily_limit").default(5).notNull(),
+  /** When warming started */
+  warmingStartDate: timestamp("warming_start_date").defaultNow().notNull(),
+  /** Today's send count (reset daily) */
+  todaySendCount: int("today_send_count").default(0).notNull(),
+  /** Date of the last send count reset (to detect day rollover) */
+  lastResetDate: date("last_reset_date"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type EmailWarmingConfig = typeof emailWarmingConfig.$inferSelect;
+export type InsertEmailWarmingConfig = typeof emailWarmingConfig.$inferInsert;
 
 
 // ─────────────────────────────────────────────

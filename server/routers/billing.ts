@@ -994,4 +994,75 @@ export const billingRouter = router({
 
       return { success: true };
     }),
+
+  /**
+   * Process initial deposit for a new sub-account during onboarding.
+   * Charges $10.00 via Square and adds it to the account balance.
+   */
+  initialDeposit: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      if (!isSquareConfigured()) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Square payments are not configured" });
+      }
+
+      // Get billing record
+      const billingRows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+      const billing = billingRows[0];
+
+      if (!billing?.squareCustomerId) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No payment method on file. Please add a card first." });
+      }
+
+      // Get default payment method
+      const defaultCards = await db
+        .select()
+        .from(paymentMethods)
+        .where(
+          and(
+            eq(paymentMethods.accountId, input.accountId),
+            eq(paymentMethods.isDefault, true)
+          )
+        )
+        .limit(1);
+
+      const card = defaultCards[0];
+      if (!card) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No default payment method found." });
+      }
+
+      // Charge $10.00 via Square
+      const depositAmountCents = 1000; // $10.00
+      try {
+        const { chargeCard } = await import("../services/square");
+        await chargeCard({
+          customerId: billing.squareCustomerId,
+          cardId: card.squareCardId,
+          amountCents: depositAmountCents,
+          referenceId: `initial-deposit-${input.accountId}`,
+          note: "Initial account deposit",
+        });
+      } catch (err: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Payment failed: ${err.message || "Unknown error"}`,
+        });
+      }
+
+      // Add $10.00 to account balance
+      const currentBalance = Number(billing.currentBalance || 0);
+      const newBalance = currentBalance + 10;
+      await db
+        .update(accountBilling)
+        .set({ currentBalance: String(newBalance.toFixed(4)) })
+        .where(eq(accountBilling.accountId, input.accountId));
+
+      return { success: true, newBalance };
+    }),
 });

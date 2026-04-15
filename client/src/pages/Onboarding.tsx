@@ -42,14 +42,19 @@ import {
   Loader2,
   ExternalLink,
   MapPin,
+  Trash2,
+  Plus,
+  CreditCard,
 } from "lucide-react";
+import { SquareCardForm } from "@/components/SquareCardForm";
 
 const STEPS = [
   { id: 1, title: "Business Profile", icon: Building2 },
-  { id: 2, title: "Messaging Setup", icon: Mail },
-  { id: 3, title: "Integrations", icon: Link2 },
-  { id: 4, title: "Pipeline Setup", icon: Kanban },
-  { id: 5, title: "Finish", icon: Rocket },
+  { id: 2, title: "Payment Setup", icon: CreditCard },
+  { id: 3, title: "Messaging Setup", icon: Mail },
+  { id: 4, title: "Integrations", icon: Link2 },
+  { id: 5, title: "Pipeline Setup", icon: Kanban },
+  { id: 6, title: "Finish", icon: Rocket },
 ];
 
 /** Inline Facebook logo SVG */
@@ -107,8 +112,9 @@ export default function Onboarding() {
   const [showSendgridKey, setShowSendgridKey] = useState(false);
 
   // Step 3: Pipeline
-  const [stageNames, setStageNames] = useState<{ id: number; name: string }[]>([]);
+  const [stageNames, setStageNames] = useState<{ id: number; name: string; color: string; isNew?: boolean }[]>([]);
   const [isEditingStages, setIsEditingStages] = useState(false);
+  const [originalStageIds, setOriginalStageIds] = useState<Set<number>>(new Set());
 
   // Pre-fill from existing account data
   useEffect(() => {
@@ -145,9 +151,9 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (pipelineData?.stages) {
-      setStageNames(
-        pipelineData.stages.map((s: any) => ({ id: s.id, name: s.name }))
-      );
+      const mapped = pipelineData.stages.map((s: any) => ({ id: s.id, name: s.name, color: s.color || "#6b7280" }));
+      setStageNames(mapped);
+      setOriginalStageIds(new Set(mapped.map((s: any) => s.id)));
     }
   }, [pipelineData]);
 
@@ -156,6 +162,8 @@ export default function Onboarding() {
   const updateAccount = trpc.accounts.update.useMutation();
   const saveMessaging = trpc.messagingSettings.save.useMutation();
   const renameStages = trpc.pipeline.renameStages.useMutation();
+  const addStageMut = trpc.pipeline.addStage.useMutation();
+  const deleteStageMut = trpc.pipeline.deleteStage.useMutation();
   const completeOnboarding = trpc.accounts.completeOnboarding.useMutation();
 
   const progress = (step / STEPS.length) * 100;
@@ -176,13 +184,33 @@ export default function Onboarding() {
         industry: businessIndustry,
       });
       toast.success("Business profile saved");
-      setStep(2);
+      setStep(2); // Go to Payment Setup
     } catch (err: any) {
       toast.error(err.message || "Failed to save business profile");
     }
   };
 
-  // ─── Step 2: Save Messaging ───
+  // ─── Step 2: Payment Setup ───
+  const [cardSaved, setCardSaved] = useState(false);
+  const [depositDone, setDepositDone] = useState(false);
+  const initialDepositMut = trpc.billing.initialDeposit.useMutation({
+    onSuccess: () => {
+      setDepositDone(true);
+      toast.success("$10.00 initial deposit added to your account balance");
+    },
+    onError: (err) => {
+      toast.error(err.message || "Failed to process initial deposit");
+    },
+  });
+
+  const handleCardSaved = async () => {
+    setCardSaved(true);
+    if (currentAccountId) {
+      initialDepositMut.mutate({ accountId: currentAccountId });
+    }
+  };
+
+  // ─── Step 3: Save Messaging ───
   const handleSaveMessaging = async () => {
     if (!currentAccountId) return;
     try {
@@ -199,46 +227,87 @@ export default function Onboarding() {
     } catch (err: any) {
       toast.error(err.message || "Failed to save messaging settings");
     }
-    setStep(3);
-  };
-
-  const handleSkipMessaging = () => {
-    setStep(3);
-  };
-
-  // ─── Step 3: Skip Integrations ───
-  const handleSkipIntegrations = () => {
     setStep(4);
   };
 
-  // ─── Step 4: Save Pipeline ───
+  const handleSkipMessaging = () => {
+    setStep(4);
+  };
+
+  // ─── Step 4: Skip Integrations ───
+  const handleSkipIntegrations = () => {
+    setStep(5);
+  };
+
+  // ─── Step 5: Save Pipeline ───
+  const [isSavingPipeline, setIsSavingPipeline] = useState(false);
   const handleSavePipeline = async () => {
-    if (!currentAccountId) return;
+    if (!currentAccountId || !pipelineData?.pipeline) return;
     if (isEditingStages && stageNames.length > 0) {
+      setIsSavingPipeline(true);
       try {
-        await renameStages.mutateAsync({
-          accountId: currentAccountId,
-          stages: stageNames,
-        });
+        // 1. Delete stages that were removed
+        const currentIds = new Set(stageNames.filter(s => !s.isNew).map(s => s.id));
+        for (const origId of originalStageIds) {
+          if (!currentIds.has(origId)) {
+            await deleteStageMut.mutateAsync({ accountId: currentAccountId, stageId: origId });
+          }
+        }
+
+        // 2. Add new stages
+        for (const stage of stageNames) {
+          if (stage.isNew) {
+            await addStageMut.mutateAsync({
+              accountId: currentAccountId,
+              pipelineId: pipelineData.pipeline.id,
+              name: stage.name,
+              color: stage.color,
+            });
+          }
+        }
+
+        // 3. Rename existing stages that changed
+        const existingChanged = stageNames.filter(s => !s.isNew && originalStageIds.has(s.id));
+        if (existingChanged.length > 0) {
+          await renameStages.mutateAsync({
+            accountId: currentAccountId,
+            stages: existingChanged.map(s => ({ id: s.id, name: s.name })),
+          });
+        }
+
         toast.success("Pipeline stages updated");
+        utils.pipeline.getDefault.invalidate({ accountId: currentAccountId });
       } catch (err: any) {
         toast.error(err.message || "Failed to update pipeline stages");
+        setIsSavingPipeline(false);
+        return;
       }
+      setIsSavingPipeline(false);
     }
-    setStep(5);
+    setStep(6);
   };
 
   const handleUseDefaults = () => {
     setIsEditingStages(false);
     if (pipelineData?.stages) {
       setStageNames(
-        pipelineData.stages.map((s: any) => ({ id: s.id, name: s.name }))
+        pipelineData.stages.map((s: any) => ({ id: s.id, name: s.name, color: s.color || "#6b7280" }))
       );
     }
-    setStep(5);
+    setStep(6);
   };
 
-  // ─── Step 5: Complete ───
+  const STAGE_COLORS = ["#3b82f6", "#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#ec4899", "#06b6d4", "#f97316"];
+  let nextTempId = -1;
+  const handleAddStage = () => {
+    const color = STAGE_COLORS[stageNames.length % STAGE_COLORS.length];
+    setStageNames(prev => [...prev, { id: nextTempId--, name: "New Stage", color, isNew: true }]);
+  };
+  const handleRemoveStage = (idx: number) => {
+    setStageNames(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // ─── Step 6: Complete ───
   const handleComplete = async () => {
     if (!currentAccountId) return;
     try {
@@ -431,8 +500,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ─── STEP 2: Messaging Setup ─── */}
-        {step === 2 && (
+        {/* ─── STEP 3: Messaging Setup ─── */}
+        {step === 3 && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
@@ -568,7 +637,7 @@ export default function Onboarding() {
             </Card>
 
             <div className="flex justify-between">
-              <Button variant="ghost" onClick={() => setStep(1)}>
+              <Button variant="ghost" onClick={() => setStep(2)}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
@@ -598,8 +667,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ─── STEP 3: Integrations ─── */}
-        {step === 3 && (
+        {/* ─── STEP 4: Integrations ─── */}
+        {step === 4 && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
@@ -651,7 +720,7 @@ export default function Onboarding() {
             </Card>
 
             <div className="flex justify-between">
-              <Button variant="ghost" onClick={() => setStep(2)}>
+              <Button variant="ghost" onClick={() => setStep(3)}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
@@ -659,7 +728,7 @@ export default function Onboarding() {
                 <Button variant="outline" onClick={handleSkipIntegrations}>
                   Skip for now
                 </Button>
-                <Button onClick={() => setStep(4)} className="min-w-[140px]">
+                <Button onClick={() => setStep(5)} className="min-w-[140px]">
                   <span className="flex items-center gap-2">
                     Continue
                     <ArrowRight className="h-4 w-4" />
@@ -670,8 +739,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ─── STEP 4: Pipeline Setup ─── */}
-        {step === 4 && (
+        {/* ─── STEP 5: Pipeline Setup ─── */}
+        {step === 5 && (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">
@@ -714,6 +783,7 @@ export default function Onboarding() {
                             pipelineData.stages.map((s: any) => ({
                               id: s.id,
                               name: s.name,
+                              color: s.color || "#6b7280",
                             }))
                           );
                         }
@@ -737,8 +807,7 @@ export default function Onboarding() {
                       <div
                         className="h-3 w-3 rounded-full shrink-0"
                         style={{
-                          backgroundColor:
-                            pipelineData?.stages?.[idx]?.color || "#6b7280",
+                          backgroundColor: stage.color || "#6b7280",
                         }}
                       />
                       {isEditingStages ? (
@@ -765,8 +834,29 @@ export default function Onboarding() {
                       >
                         {idx + 1}
                       </Badge>
+                      {isEditingStages && stageNames.length > 1 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                          onClick={() => handleRemoveStage(idx)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   ))}
+                  {isEditingStages && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full mt-2 text-xs"
+                      onClick={handleAddStage}
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-1" />
+                      Add Stage
+                    </Button>
+                  )}
                   {stageNames.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">
                       Loading pipeline stages...
@@ -777,7 +867,7 @@ export default function Onboarding() {
             </Card>
 
             <div className="flex justify-between">
-              <Button variant="ghost" onClick={() => setStep(3)}>
+              <Button variant="ghost" onClick={() => setStep(4)}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back
               </Button>
@@ -789,10 +879,10 @@ export default function Onboarding() {
                 )}
                 <Button
                   onClick={handleSavePipeline}
-                  disabled={renameStages.isPending}
+                  disabled={isSavingPipeline}
                   className="min-w-[140px]"
                 >
-                  {renameStages.isPending ? (
+                  {isSavingPipeline ? (
                     <span className="flex items-center gap-2">
                       <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
                       Saving...
@@ -809,8 +899,8 @@ export default function Onboarding() {
           </div>
         )}
 
-        {/* ─── STEP 5: Finish ─── */}
-        {step === 5 && (
+        {/* ─── STEP 6: Finish ─── */}
+        {step === 6 && (
           <div className="space-y-8 animate-in fade-in duration-300">
             <div className="text-center pt-8">
               <div className="mx-auto h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center mb-6">
@@ -833,6 +923,16 @@ export default function Onboarding() {
                       Business Profile
                     </span>
                     <CheckCircle2 className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      Payment Setup
+                    </span>
+                    {cardSaved ? (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    ) : (
+                      <Badge variant="secondary" className="text-[10px]">Pending</Badge>
+                    )}
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
@@ -884,7 +984,7 @@ export default function Onboarding() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setStep(4)}
+                onClick={() => setStep(5)}
                 className="text-xs text-muted-foreground"
               >
                 <ArrowLeft className="h-3 w-3 mr-1" />

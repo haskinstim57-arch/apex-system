@@ -1181,6 +1181,9 @@ function OutlookCalendarIcon({ className }: { className?: string }) {
 function CalendarSyncCard({ accountId }: { accountId: number }) {
   const utils = trpc.useUtils();
 
+  // Check OAuth configuration status
+  const { data: oauthStatus } = trpc.system.oauthStatus.useQuery();
+
   // Fetch connected calendar integrations
   const { data: integrations, isLoading } = trpc.calendarSync.listIntegrations.useQuery(
     { accountId },
@@ -1293,15 +1296,22 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
                 <p className="text-xs text-muted-foreground mb-2">
                   Sync appointments and block busy times from your Google Calendar.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-blue-200 text-blue-600 hover:bg-blue-500/10"
-                  onClick={handleConnectGoogle}
-                >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Connect Google Calendar
-                </Button>
+                {oauthStatus && !oauthStatus.google.configured ? (
+                  <div className="text-xs text-amber-500 bg-amber-500/10 rounded-md p-2 flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    <span>Google Calendar integration is not configured. Contact your administrator to set up Google OAuth credentials.</span>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-blue-200 text-blue-600 hover:bg-blue-500/10"
+                    onClick={handleConnectGoogle}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Connect Google Calendar
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -1350,15 +1360,22 @@ function CalendarSyncCard({ accountId }: { accountId: number }) {
                 <p className="text-xs text-muted-foreground mb-2">
                   Sync appointments and block busy times from your Outlook Calendar.
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs border-sky-500/30 text-sky-400 hover:bg-sky-500/10"
-                  onClick={handleConnectOutlook}
-                >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  Connect Outlook Calendar
-                </Button>
+                {oauthStatus && !oauthStatus.microsoft.configured ? (
+                  <div className="text-xs text-amber-500 bg-amber-500/10 rounded-md p-2 flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    <span>Outlook Calendar integration is not configured. Contact your administrator to set up Microsoft OAuth credentials.</span>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs border-sky-500/30 text-sky-400 hover:bg-sky-500/10"
+                    onClick={handleConnectOutlook}
+                  >
+                    <ExternalLink className="h-3 w-3 mr-1" />
+                    Connect Outlook Calendar
+                  </Button>
+                )}
               </div>
             )}
           </div>

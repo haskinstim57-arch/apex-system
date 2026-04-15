@@ -19,6 +19,7 @@ import {
   getContactEnrollments,
   getDb,
   logContactActivity,
+  getOrCreateWarmingConfig,
 } from "../db";
 import { computeFirstStepAt } from "../services/dripEngine";
 import { sequenceSteps, sequenceEnrollments, messages } from "../../drizzle/schema";
@@ -640,5 +641,83 @@ export const sequencesRouter = router({
       }
 
       return { id: newId, name: newName, isTemplate: seq.name.includes("[TEMPLATE]") };
+    }),
+
+  // ─── Email Warming ───
+
+  /** Get warming config for an account */
+  getWarmingConfig: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const config = await getOrCreateWarmingConfig(input.accountId);
+      // Calculate days since warming started
+      const daysSinceStart = Math.floor(
+        (Date.now() - config.warmingStartDate.getTime()) / 86400000
+      );
+      return {
+        ...config,
+        daysSinceStart,
+        warmingComplete: config.currentDailyLimit >= config.maxDailyLimit,
+      };
+    }),
+
+  /** Update warming config settings */
+  updateWarmingConfig: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        enabled: z.boolean().optional(),
+        startDailyLimit: z.number().int().min(1).max(1000).optional(),
+        maxDailyLimit: z.number().int().min(1).max(10000).optional(),
+        rampUpPerDay: z.number().int().min(1).max(100).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const { emailWarmingConfig } = await import("../../drizzle/schema");
+      const config = await getOrCreateWarmingConfig(input.accountId);
+
+      const updates: Record<string, unknown> = {};
+      if (input.enabled !== undefined) updates.enabled = input.enabled;
+      if (input.startDailyLimit !== undefined) updates.startDailyLimit = input.startDailyLimit;
+      if (input.maxDailyLimit !== undefined) updates.maxDailyLimit = input.maxDailyLimit;
+      if (input.rampUpPerDay !== undefined) updates.rampUpPerDay = input.rampUpPerDay;
+
+      if (Object.keys(updates).length > 0) {
+        await db
+          .update(emailWarmingConfig)
+          .set(updates)
+          .where(eq(emailWarmingConfig.id, config.id));
+      }
+
+      return { success: true };
+    }),
+
+  /** Reset warming — restart the warming period from day 0 */
+  resetWarming: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const { emailWarmingConfig } = await import("../../drizzle/schema");
+      const config = await getOrCreateWarmingConfig(input.accountId);
+
+      await db
+        .update(emailWarmingConfig)
+        .set({
+          warmingStartDate: new Date(),
+          currentDailyLimit: config.startDailyLimit,
+          todaySendCount: 0,
+          lastResetDate: null,
+        })
+        .where(eq(emailWarmingConfig.id, config.id));
+
+      return { success: true };
     }),
 });

@@ -36,6 +36,10 @@ import {
   DollarSign,
   Phone,
   Mail,
+  Search,
+  Settings2,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { useMemo, useState, useRef, useCallback } from "react";
 import { useAccount } from "@/contexts/AccountContext";
@@ -137,7 +141,39 @@ export default function Pipeline() {
     onError: (err) => toast.error(err.message),
   });
 
+  // Stage management mutations
+  const addStageMut = trpc.pipeline.addStage.useMutation({
+    onSuccess: () => {
+      utils.pipeline.getDefault.invalidate({ accountId: accountId! });
+      utils.pipeline.listDeals.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const deleteStageMut = trpc.pipeline.deleteStage.useMutation({
+    onSuccess: () => {
+      utils.pipeline.getDefault.invalidate({ accountId: accountId! });
+      utils.pipeline.listDeals.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const reorderStagesMut = trpc.pipeline.reorderStages.useMutation({
+    onSuccess: () => {
+      utils.pipeline.getDefault.invalidate({ accountId: accountId! });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const renameStagesMut = trpc.pipeline.renameStages.useMutation({
+    onSuccess: () => {
+      utils.pipeline.getDefault.invalidate({ accountId: accountId! });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   // UI state
+  const [dealSearch, setDealSearch] = useState("");
+  const [showStageSettings, setShowStageSettings] = useState(false);
+  const [editStages, setEditStages] = useState<{ id: number; name: string; color: string; isNew?: boolean }[]>([]);
+  const [isSavingStages, setIsSavingStages] = useState(false);
   const [showAddDeal, setShowAddDeal] = useState(false);
   const [newDealContactId, setNewDealContactId] = useState<number | null>(null);
   const [newDealStageId, setNewDealStageId] = useState<number | null>(null);
@@ -148,7 +184,7 @@ export default function Pipeline() {
   const [draggedDealId, setDraggedDealId] = useState<number | null>(null);
   const [dragOverStageId, setDragOverStageId] = useState<number | null>(null);
 
-  // Group deals by stage
+  // Group deals by stage with search filter
   const dealsByStage = useMemo(() => {
     const map: Record<number, DealWithContact[]> = {};
     if (pipelineData?.stages) {
@@ -157,14 +193,25 @@ export default function Pipeline() {
       }
     }
     if (dealsData) {
+      const q = dealSearch.toLowerCase().trim();
       for (const item of dealsData) {
         if (map[item.deal.stageId]) {
+          if (q) {
+            const c = item.contact;
+            const match =
+              `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) ||
+              (c.email && c.email.toLowerCase().includes(q)) ||
+              (c.phone && c.phone.includes(q)) ||
+              (c.company && c.company.toLowerCase().includes(q)) ||
+              (item.deal.title && item.deal.title.toLowerCase().includes(q));
+            if (!match) continue;
+          }
           map[item.deal.stageId].push(item as DealWithContact);
         }
       }
     }
     return map;
-  }, [dealsData, pipelineData?.stages]);
+  }, [dealsData, pipelineData?.stages, dealSearch]);
 
   // Contacts not already in pipeline
   const availableContacts = useMemo(() => {
@@ -245,7 +292,28 @@ export default function Pipeline() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Account selector removed — use sidebar AccountSwitcher */}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Search deals..."
+              value={dealSearch}
+              onChange={(e) => setDealSearch(e.target.value)}
+              className="h-8 w-[180px] sm:w-[220px] pl-8 text-xs"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setEditStages(
+                stages.map((s) => ({ id: s.id, name: s.name, color: s.color }))
+              );
+              setShowStageSettings(true);
+            }}
+          >
+            <Settings2 className="h-4 w-4 mr-1" />
+            Stages
+          </Button>
           <Button
             size="sm"
             onClick={() => {
@@ -408,6 +476,165 @@ export default function Pipeline() {
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               )}
               Add Deal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Stage Management Dialog */}
+      <Dialog open={showStageSettings} onOpenChange={setShowStageSettings}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Manage Pipeline Stages</DialogTitle>
+            <DialogDescription>
+              Add, rename, reorder, or remove stages. Stages with active deals cannot be deleted.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2 max-h-[400px] overflow-y-auto">
+            {editStages.map((stage, idx) => (
+              <div key={stage.id} className="flex items-center gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    disabled={idx === 0}
+                    onClick={() => {
+                      const arr = [...editStages];
+                      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+                      setEditStages(arr);
+                    }}
+                  >
+                    <ArrowUp className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    disabled={idx === editStages.length - 1}
+                    onClick={() => {
+                      const arr = [...editStages];
+                      [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+                      setEditStages(arr);
+                    }}
+                  >
+                    <ArrowDown className="h-3 w-3" />
+                  </Button>
+                </div>
+                <input
+                  type="color"
+                  value={stage.color}
+                  onChange={(e) => {
+                    const arr = [...editStages];
+                    arr[idx] = { ...arr[idx], color: e.target.value };
+                    setEditStages(arr);
+                  }}
+                  className="h-8 w-8 rounded cursor-pointer border-0 p-0"
+                />
+                <Input
+                  value={stage.name}
+                  onChange={(e) => {
+                    const arr = [...editStages];
+                    arr[idx] = { ...arr[idx], name: e.target.value };
+                    setEditStages(arr);
+                  }}
+                  className="text-sm h-9 flex-1"
+                />
+                {editStages.length > 1 && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => setEditStages(prev => prev.filter((_, i) => i !== idx))}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+              onClick={() => {
+                const colors = ["#3b82f6", "#8b5cf6", "#f59e0b", "#10b981", "#ef4444", "#ec4899", "#06b6d4", "#f97316"];
+                const color = colors[editStages.length % colors.length];
+                setEditStages(prev => [...prev, { id: -(prev.length + 1), name: "New Stage", color, isNew: true }]);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5 mr-1" />
+              Add Stage
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowStageSettings(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={isSavingStages}
+              onClick={async () => {
+                if (!accountId || !pipelineData?.pipeline) return;
+                setIsSavingStages(true);
+                try {
+                  const origIds = new Set(stages.map(s => s.id));
+                  const currentIds = new Set(editStages.filter(s => !s.isNew).map(s => s.id));
+
+                  // Delete removed stages
+                  for (const origId of origIds) {
+                    if (!currentIds.has(origId)) {
+                      await deleteStageMut.mutateAsync({ accountId, stageId: origId });
+                    }
+                  }
+
+                  // Add new stages
+                  for (const stage of editStages) {
+                    if (stage.isNew) {
+                      await addStageMut.mutateAsync({
+                        accountId,
+                        pipelineId: pipelineData.pipeline.id,
+                        name: stage.name,
+                        color: stage.color,
+                      });
+                    }
+                  }
+
+                  // Rename existing stages
+                  const existingChanged = editStages.filter(s => !s.isNew && origIds.has(s.id));
+                  if (existingChanged.length > 0) {
+                    await renameStagesMut.mutateAsync({
+                      accountId,
+                      stages: existingChanged.map(s => ({ id: s.id, name: s.name })),
+                    });
+                  }
+
+                  // Reorder all stages
+                  const finalOrder = editStages
+                    .filter(s => !s.isNew)
+                    .map(s => s.id);
+                  if (finalOrder.length > 0) {
+                    await reorderStagesMut.mutateAsync({
+                      accountId,
+                      stageIds: finalOrder,
+                    });
+                  }
+
+                  toast.success("Pipeline stages updated");
+                  setShowStageSettings(false);
+                } catch (err: any) {
+                  toast.error(err.message || "Failed to update stages");
+                } finally {
+                  setIsSavingStages(false);
+                }
+              }}
+            >
+              {isSavingStages ? (
+                <span className="flex items-center gap-2">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Saving...
+                </span>
+              ) : (
+                "Save Changes"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

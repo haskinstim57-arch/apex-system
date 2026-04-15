@@ -14,6 +14,10 @@ import {
   deleteDeal,
   getPipelineStageById,
   updatePipelineStage,
+  insertPipelineStage,
+  deletePipelineStage,
+  countDealsByStage,
+  getMaxStageSortOrder,
   getContactById,
   getMember,
   logContactActivity,
@@ -254,6 +258,85 @@ export const pipelineRouter = router({
       await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       for (const stage of input.stages) {
         await updatePipelineStage(stage.id, input.accountId, { name: stage.name });
+      }
+      return { success: true };
+    }),
+
+  // ─── Add a new stage to a pipeline ───
+  addStage: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        pipelineId: z.number().int().positive(),
+        name: z.string().min(1).max(255),
+        color: z.string().max(20).default("#6b7280"),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      const pipeline = await getPipelineById(input.pipelineId, input.accountId);
+      if (!pipeline) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Pipeline not found" });
+      }
+
+      const maxOrder = await getMaxStageSortOrder(input.pipelineId);
+      const { id } = await insertPipelineStage(
+        input.pipelineId,
+        input.accountId,
+        input.name,
+        input.color,
+        maxOrder + 1
+      );
+
+      return { id, name: input.name, color: input.color, sortOrder: maxOrder + 1 };
+    }),
+
+  // ─── Delete a stage from a pipeline ───
+  deleteStage: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        stageId: z.number().int().positive(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      const stage = await getPipelineStageById(input.stageId, input.accountId);
+      if (!stage) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Stage not found" });
+      }
+
+      const dealCount = await countDealsByStage(input.stageId, input.accountId);
+      if (dealCount > 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Cannot delete a stage that contains deals. Move or delete the deals first.",
+        });
+      }
+
+      await deletePipelineStage(input.stageId, input.accountId);
+      return { success: true };
+    }),
+
+  // ─── Reorder stages by updating sortOrder ───
+  reorderStages: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number().int().positive(),
+        stages: z.array(
+          z.object({
+            id: z.number().int().positive(),
+            sortOrder: z.number().int().min(0),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      for (const stage of input.stages) {
+        await updatePipelineStage(stage.id, input.accountId, { sortOrder: stage.sortOrder });
       }
       return { success: true };
     }),

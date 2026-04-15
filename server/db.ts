@@ -109,6 +109,8 @@ import {
   type InsertJarvisSession,
   geminiUsageLogs,
   type InsertGeminiUsageLog,
+  emailWarmingConfig,
+  type EmailWarmingConfig,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2465,6 +2467,57 @@ export async function updatePipelineStage(
     .update(pipelineStages)
     .set(data)
     .where(and(eq(pipelineStages.id, id), eq(pipelineStages.accountId, accountId)));
+}
+
+// ─────────────────────────────────────────────
+// Pipeline Stage Management Helpers
+// ─────────────────────────────────────────────
+
+export async function insertPipelineStage(
+  pipelineId: number,
+  accountId: number,
+  name: string,
+  color: string,
+  sortOrder: number
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(pipelineStages).values({
+    pipelineId,
+    accountId,
+    name,
+    color,
+    sortOrder,
+  });
+  return { id: result.insertId };
+}
+
+export async function deletePipelineStage(stageId: number, accountId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .delete(pipelineStages)
+    .where(and(eq(pipelineStages.id, stageId), eq(pipelineStages.accountId, accountId)));
+}
+
+export async function countDealsByStage(stageId: number, accountId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(deals)
+    .where(and(eq(deals.stageId, stageId), eq(deals.accountId, accountId)));
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function getMaxStageSortOrder(pipelineId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const rows = await db
+    .select({ maxOrder: sql<number>`COALESCE(MAX(${pipelineStages.sortOrder}), 0)` })
+    .from(pipelineStages)
+    .where(eq(pipelineStages.pipelineId, pipelineId));
+  return Number(rows[0]?.maxOrder ?? 0);
 }
 
 // ─────────────────────────────────────────────
@@ -5812,4 +5865,84 @@ export async function getGeminiUsageStats(opts?: { accountId?: number; days?: nu
     failCount,
     dailyBreakdown,
   };
+}
+
+
+// ─────────────────────────────────────────────
+// EMAIL WARMING — DB Helpers
+// ─────────────────────────────────────────────
+
+/**
+ * Get or create an email warming config for an account.
+ * If no config exists, creates a default one and returns it.
+ */
+export async function getOrCreateWarmingConfig(accountId: number): Promise<EmailWarmingConfig> {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  const existing = await db
+    .select()
+    .from(emailWarmingConfig)
+    .where(eq(emailWarmingConfig.accountId, accountId))
+    .limit(1);
+
+  if (existing.length > 0) return existing[0];
+
+  // Create default warming config
+  await db.insert(emailWarmingConfig).values({
+    accountId,
+    enabled: true,
+    startDailyLimit: 5,
+    maxDailyLimit: 200,
+    rampUpPerDay: 5,
+    currentDailyLimit: 5,
+    todaySendCount: 0,
+  });
+
+  const created = await db
+    .select()
+    .from(emailWarmingConfig)
+    .where(eq(emailWarmingConfig.accountId, accountId))
+    .limit(1);
+
+  return created[0];
+}
+
+/**
+ * Reset the daily send count for a warming config (called on day rollover).
+ */
+export async function resetDailySendCount(configId: number, todayDate: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  await db
+    .update(emailWarmingConfig)
+    .set({ todaySendCount: 0, lastResetDate: todayDate })
+    .where(eq(emailWarmingConfig.id, configId));
+}
+
+/**
+ * Update the current daily limit for a warming config (recalculated daily).
+ */
+export async function updateCurrentDailyLimit(configId: number, newLimit: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  await db
+    .update(emailWarmingConfig)
+    .set({ currentDailyLimit: newLimit })
+    .where(eq(emailWarmingConfig.id, configId));
+}
+
+/**
+ * Increment the daily send count by 1 for a warming config.
+ */
+export async function incrementDailySendCount(configId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  await db
+    .update(emailWarmingConfig)
+    .set({ todaySendCount: sql`${emailWarmingConfig.todaySendCount} + 1` })
+    .where(eq(emailWarmingConfig.id, configId));
 }

@@ -4193,3 +4193,35 @@
 - [x] Bug 4: Google My Business "invalid connection" — added credential validation, improved error logging in gmbService.ts and gmbOAuthCallback.ts. GOOGLE_CLIENT_ID/SECRET are set; issue is likely OAuth consent screen or API enablement.
 - [x] Bug 5: Gemini failing — GEMINI_API_KEY is valid; issue is 503 overload on gemini-2.5-flash. Added 3-tier fallback chain: gemini-2.5-flash → gemini-2.0-flash → built-in platform LLM.
 - [x] Bug 6: Facebook "Feature unavailable" — SKIP (Facebook dashboard side, not code)
+
+## Tier 1 — Critical Launch Blockers (4 Tasks)
+
+### Task 1: Pipeline — Add/Delete Stages + Search + In-Pipeline Customization
+- [x] T1A: Backend — addStage mutation in pipeline router + db helper
+- [x] T1A: Backend — deleteStage mutation (with deals check) + db helper
+- [x] T1A: Backend — reorderStages mutation + db helper
+- [x] T1A: Backend — getMaxStageSortOrder + countDealsByStage db helpers
+- [x] T1B: Frontend — Onboarding Step 4 add/delete stages
+- [x] T1C: Frontend — Pipeline page search bar to filter deals
+- [x] T1C: Frontend — Pipeline page stage management dialog (add/delete/rename/reorder/color)
+
+### Task 2: Onboarding — Mandatory Payment Setup Step
+- [x] T2A: Extract SquareCardForm into shared component
+- [x] T2A: Add Step 2 Payment Setup in Onboarding (shift steps 2-5 to 3-6)
+- [x] T2A: Add usage pricing table in payment step
+- [x] T2B: Backend — initialDeposit mutation in billing router
+- [x] T2B: Backend — chargeCard integration for $10 initial deposit
+
+### Task 3: OAuth Configuration Fixes
+- [x] T3: Add getOAuthConfigStatus utility in env.ts
+- [x] T3: Add oauthStatus tRPC query in systemRouter
+- [x] T3: Guard OAuth endpoints (Google, Microsoft) with env validation (done in launch blockers)
+- [x] T3: Fix Google redirect URI to use APP_URL (already uses origin from frontend)
+- [x] T3: Frontend graceful fallbacks for unconfigured Google/Outlook integrations in Settingsiders
+
+### Task 4: Email Warming Sequence
+- [x] T4A: Schema — emailWarmingConfig table + migration (date import added, db:push successful)
+- [x] T4A: DB helpers — getOrCreateWarmingConfig, resetDailySendCount, updateCurrentDailyLimit, incrementDailySendCount
+- [x] T4B: dripEngine — group by account, per-account warming limits, increment counter after email send
+- [x] T4C: Frontend — Email Warming UI in Sequences page (toggle, progress bars, configure, reset)
+- [x] T4C: Auto-create warming config on account creation (in accounts.ts create mutation)
