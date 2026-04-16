@@ -105,6 +105,9 @@ Your capabilities:
 - View AI call history with summaries and durations
 - Schedule recurring tasks (e.g., "Send me a pipeline summary every Monday at 9am")
 - List and cancel scheduled tasks
+- List team members and assign contacts to specific users
+- Submit support tickets for bugs, features, or billing issues
+- Check the account's email warming status and daily limits
 
 CRITICAL: You MUST use your tools to answer questions. Never describe what you would do — just do it. If asked to find contacts, call search_contacts or get_contacts_by_filter immediately. If asked to send an SMS, call send_sms immediately. If asked for analytics, call get_analytics immediately. You have real tools connected to a live CRM database. Use them. NEVER say "I would need to..." or "I can help you by..." — instead, CALL THE TOOL and return the real results.
 
@@ -453,6 +456,12 @@ const TOOL_DISPLAY: Record<string, string> = {
   schedule_recurring_task: "Scheduled recurring task",
   cancel_scheduled_task: "Cancelled scheduled task",
   list_scheduled_tasks: "Listed scheduled tasks",
+  // Team Members
+  list_team_members: "Listed team members",
+  // Support Tickets
+  submit_support_ticket: "Submitted support ticket",
+  // Email Warming
+  get_email_warming_status: "Checked email warming status",
 };
 
 export type StreamEvent =
@@ -495,6 +504,8 @@ const CRITICAL_TOOLS = new Set([
   // Scheduled Tasks
   "schedule_recurring_task",
   "cancel_scheduled_task",
+  // Support Tickets
+  "submit_support_ticket",
 ]);
 
 /**
@@ -544,6 +555,8 @@ function buildConfirmationSummary(toolName: string, args: Record<string, unknown
       return `Schedule recurring task "${args.name || "Untitled"}": ${args.scheduleDescription || args.cronExpression}`;
     case "cancel_scheduled_task":
       return `Cancel scheduled task #${args.taskId}`;
+    case "submit_support_ticket":
+      return `Submit support ticket: "${args.subject}"`;
     default:
       return `Execute ${TOOL_DISPLAY[toolName] || toolName}`;
   }

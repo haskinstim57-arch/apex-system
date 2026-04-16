@@ -68,12 +68,14 @@ import {
   accounts,
   leadScoreHistory,
   jarvisScheduledTasks,
+  supportTickets,
 } from "../../drizzle/schema";
 import { dispatchSMS, dispatchEmail } from "./messaging";
 import { triggerWorkflow } from "./workflowEngine";
 import { generateSocialPost } from "./contentGenerator";
 import { invokeLLM } from "../_core/llm";
 import { trackUsage } from "./usageTracker";
+import { listMembers, getOrCreateWarmingConfig } from "../db";
 import { getAccountCustomFieldDefs } from "../routers/customFields";
 import { getScoreTier } from "./leadScoringEngine";
 import { createVapiCall, resolveAssistantId, mapVapiStatus, VapiApiError } from "./vapi";
@@ -202,7 +204,7 @@ export const JARVIS_TOOLS: Tool[] = [
     type: "function",
     function: {
       name: "update_contact",
-      description: "Update fields on an existing contact.",
+      description: "Update fields on an existing contact. Use assignedUserId to assign the contact to a team member.",
       parameters: {
         type: "object",
         properties: {
@@ -213,6 +215,7 @@ export const JARVIS_TOOLS: Tool[] = [
           phone: { type: "string" },
           company: { type: "string" },
           status: { type: "string", enum: ["new", "contacted", "qualified", "proposal", "negotiation", "won", "lost", "nurture"] },
+          assignedUserId: { type: "number", description: "ID of the team member to assign this contact to" },
         },
         required: ["contactId"],
         additionalProperties: false,
@@ -863,6 +866,45 @@ export const JARVIS_TOOLS: Tool[] = [
       },
     },
   },
+  // ── Team Members ──
+  {
+    type: "function",
+    function: {
+      name: "list_team_members",
+      description: "List all team members in the current account. Use this to find a user's ID before assigning a contact to them.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+
+  // ── Support Tickets ──
+  {
+    type: "function",
+    function: {
+      name: "submit_support_ticket",
+      description: "Submit a support ticket to the agency admin. Use this when the user reports a bug, requests a feature, or needs billing help.",
+      parameters: {
+        type: "object",
+        properties: {
+          subject: { type: "string", description: "Short summary of the issue" },
+          category: { type: "string", enum: ["bug", "feature", "billing", "general"] },
+          message: { type: "string", description: "Detailed description of the issue" },
+        },
+        required: ["subject", "category", "message"],
+        additionalProperties: false,
+      },
+    },
+  },
+
+  // ── Email Warming ──
+  {
+    type: "function",
+    function: {
+      name: "get_email_warming_status",
+      description: "Get the current email warming status, including the daily limit, max limit, and whether warming is complete.",
+      parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+
   // ── Failed Message Investigation ──
   {
     type: "function",
@@ -2269,6 +2311,45 @@ Return your response as valid JSON.`;
           lastRunAt: t.lastRunAt,
         })),
         total: tasks.length,
+      };
+    }
+
+    case "list_team_members": {
+      const members = await listMembers(accountId);
+      return {
+        members: members.map(m => ({
+          userId: m.userId,
+          name: m.userName,
+          email: m.userEmail,
+          role: m.role,
+          isActive: m.isActive
+        }))
+      };
+    }
+
+    case "submit_support_ticket": {
+      const db = await getDb();
+      const [result] = await db!.insert(supportTickets).values({
+        accountId,
+        userId,
+        subject: args.subject as string,
+        category: args.category as "bug" | "feature" | "billing" | "general",
+        message: args.message as string,
+        status: "open",
+      });
+      return { success: true, ticketId: result.insertId, message: "Support ticket submitted successfully." };
+    }
+
+    case "get_email_warming_status": {
+      const config = await getOrCreateWarmingConfig(accountId);
+      const daysSinceStart = Math.floor((Date.now() - config.warmingStartDate.getTime()) / 86400000);
+      return {
+        enabled: config.enabled,
+        currentDailyLimit: config.currentDailyLimit,
+        maxDailyLimit: config.maxDailyLimit,
+        todaySendCount: config.todaySendCount,
+        daysSinceStart,
+        warmingComplete: config.currentDailyLimit >= config.maxDailyLimit
       };
     }
 

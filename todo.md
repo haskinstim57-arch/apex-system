@@ -4308,3 +4308,12 @@
 - [x] Sticky header stays pinned while scrolling through contacts
 - [x] Scrollable table container with max-height calc(100vh-320px)
 - [x] Removed @tanstack/react-virtual (unnecessary complexity for 100-row pages)
+
+## Jarvis AI — New Tool Capabilities
+- [x] Add list_team_members tool definition and execution logic
+- [x] Add submit_support_ticket tool definition and execution logic
+- [x] Add get_email_warming_status tool definition and execution logic
+- [x] Update update_contact tool to include assignedUserId parameter
+- [x] Update jarvisService.ts system prompt with new capabilities
+- [x] Update TOOL_DESCRIPTIONS map with new tools
+- [x] Update getToolCallDescription (TOOL_DISPLAY + buildConfirmationSummary) with new tool cases
