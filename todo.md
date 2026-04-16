@@ -4276,3 +4276,7 @@
 - [x] T6: Support — Sidebar link with LifeBuoy icon
 - [x] T7: Sequences — Search bar to filter sequences by name/description
 - [x] T7: Automations — Search bar to filter workflows by name
+
+## Onboarding Step 2 Fix
+- [x] Insert missing Step 2 (Payment Setup) render block in Onboarding.tsx
+- [x] Verify Step 2 renders between Step 1 and Step 3

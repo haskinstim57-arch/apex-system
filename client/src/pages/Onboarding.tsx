@@ -500,6 +500,126 @@ export default function Onboarding() {
           </div>
         )}
 
+        {/* ─── STEP 2: Payment Setup ─── */}
+        {step === 2 && (
+          <div className="space-y-6 animate-in fade-in duration-300">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight">
+                Set up your payment method
+              </h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                A valid credit card is required to access the platform. You will be charged a $10.00 initial deposit, which will be added to your account balance for usage (emails, SMS, AI calls).
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Left Column: Pricing Info */}
+              <div className="space-y-4">
+                <Card className="bg-card border-0 card-shadow h-full">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" />
+                      Pay As You Go
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Your balance is only used when you consume services.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Emails</span>
+                        <span className="font-medium">$0.001 / email</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">SMS Messages</span>
+                        <span className="font-medium">$0.015 / segment</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">AI Content Generation</span>
+                        <span className="font-medium">$0.05 / request</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Power Dialer</span>
+                        <span className="font-medium">$0.02 / minute</span>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-muted/50 p-3 rounded-md text-xs text-muted-foreground mt-4">
+                      <p className="flex items-start gap-2">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                        <span>Your card will be automatically recharged when your balance falls below $1.00.</span>
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Right Column: Square Form */}
+              <div>
+                <Card className="bg-card border-0 card-shadow h-full">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-primary" />
+                      Payment Details
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                      Secure payment processing via Square.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {cardSaved && depositDone ? (
+                      <div className="flex flex-col items-center justify-center py-8 text-center space-y-3">
+                        <div className="h-12 w-12 rounded-full bg-green-500/10 flex items-center justify-center">
+                          <CheckCircle2 className="h-6 w-6 text-green-500" />
+                        </div>
+                        <div>
+                          <p className="font-medium">Payment Method Saved</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            $10.00 deposit added to your balance.
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="min-h-[250px]">
+                        {currentAccountId ? (
+                          <SquareCardForm 
+                            accountId={currentAccountId} 
+                            onSuccess={handleCardSaved}
+                            hideCancel={true}
+                            submitText="Save Card & Pay $10 Deposit"
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                            Loading account details...
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <div className="flex justify-between pt-4">
+              <Button variant="ghost" onClick={() => setStep(1)}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+              <Button
+                onClick={() => setStep(3)}
+                disabled={!cardSaved || !depositDone}
+                className="min-w-[140px]"
+              >
+                <span className="flex items-center gap-2">
+                  Continue
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* ─── STEP 3: Messaging Setup ─── */}
         {step === 3 && (
           <div className="space-y-6 animate-in fade-in duration-300">
