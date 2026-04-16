@@ -397,7 +397,7 @@ async function invokeGeminiWithModel(params: GeminiInvokeParams, modelName: stri
  */
 function isOverloadedError(err: any): boolean {
   const msg = (err?.message || String(err)).toLowerCase();
-  return msg.includes("503") || msg.includes("overloaded") || msg.includes("high demand") || msg.includes("resource exhausted") || msg.includes("429");
+  return msg.includes("503") || msg.includes("overloaded") || msg.includes("high demand") || msg.includes("resource exhausted") || msg.includes("429") || msg.includes("404") || msg.includes("not found");
 }
 
 /**
@@ -405,7 +405,7 @@ function isOverloadedError(err: any): boolean {
  *
  * Fallback chain:
  *   1. gemini-2.5-flash (primary)
- *   2. gemini-2.0-flash (fallback on 503)
+ *   2. gemini-2.5-flash (fallback retry on 503/404)
  *   3. Built-in invokeLLM via platform (last resort on 503)
  */
 export async function invokeGeminiWithRetry(params: GeminiInvokeParams): Promise<InvokeResult> {
@@ -457,16 +457,17 @@ export async function invokeGeminiWithRetry(params: GeminiInvokeParams): Promise
     }
   }
 
-  // Attempt 2: gemini-2.0-flash (fallback for overload)
+  // Attempt 2: gemini-2.5-flash (fallback retry after delay)
   try {
-    console.log("[Jarvis] Falling back to gemini-2.0-flash...");
-    const result = await callWithTimeout("gemini-2.0-flash");
+    console.log("[Jarvis] Falling back to gemini-2.5-flash...");
+    await new Promise(r => setTimeout(r, 3000));
+    const result = await callWithTimeout("gemini-2.5-flash");
     if (params._tracking) {
       logGeminiUsage({
         accountId: params._tracking.accountId ?? null,
         userId: params._tracking.userId ?? null,
         endpoint: params._tracking.endpoint,
-        model: "gemini-2.0-flash (fallback)",
+        model: "gemini-2.5-flash (fallback)",
         promptTokens: result.usage?.prompt_tokens ?? 0,
         completionTokens: result.usage?.completion_tokens ?? 0,
         totalTokens: result.usage?.total_tokens ?? 0,
@@ -477,7 +478,7 @@ export async function invokeGeminiWithRetry(params: GeminiInvokeParams): Promise
     }
     return result;
   } catch (err2: any) {
-    console.warn("[Jarvis] gemini-2.0-flash also failed:", err2.message);
+    console.warn("[Jarvis] gemini-2.5-flash fallback also failed:", err2.message);
   }
 
   // Attempt 3: Built-in platform LLM (last resort)

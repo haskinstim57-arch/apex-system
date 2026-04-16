@@ -143,6 +143,7 @@ const agencyMenuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/" },
   { icon: Building2, label: "Sub-Accounts", path: "/accounts" },
   { icon: Users, label: "Users", path: "/team" },
+  { icon: LifeBuoy, label: "Support Tickets", path: "/admin/support" },
   { icon: CreditCard, label: "Billing", path: "/billing" },
 ];
 

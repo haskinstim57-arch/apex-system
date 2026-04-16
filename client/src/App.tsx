@@ -59,6 +59,7 @@ const NotificationDeliveryDashboard = lazy(() => import("./pages/NotificationDel
 const Billing = lazy(() => import("./pages/Billing"));
 const ContentHub = lazy(() => import("./pages/ContentHub"));
 const ContentDetail = lazy(() => import("./pages/ContentDetail"));
+const SupportAdmin = lazy(() => import("./pages/SupportAdmin"));
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -419,6 +420,13 @@ function Router() {
         <DashboardLayout>
           <AdminRoute>
             <LeadMonitor />
+          </AdminRoute>
+        </DashboardLayout>
+      </Route>
+      <Route path="/admin/support">
+        <DashboardLayout>
+          <AdminRoute>
+            <Suspense fallback={<LazyFallback />}><SupportAdmin /></Suspense>
           </AdminRoute>
         </DashboardLayout>
       </Route>

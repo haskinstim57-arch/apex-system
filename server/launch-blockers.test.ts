@@ -169,7 +169,7 @@ describe("Bug 4: GMB credential validation", () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe("Bug 5: Gemini fallback chain", () => {
-  it("should detect 503 overloaded errors", () => {
+  it("should detect 503/404 overloaded and deprecated errors", () => {
     const isOverloadedError = (err: any): boolean => {
       const msg = (err?.message || String(err)).toLowerCase();
       return (
@@ -177,7 +177,9 @@ describe("Bug 5: Gemini fallback chain", () => {
         msg.includes("overloaded") ||
         msg.includes("high demand") ||
         msg.includes("resource exhausted") ||
-        msg.includes("429")
+        msg.includes("429") ||
+        msg.includes("404") ||
+        msg.includes("not found")
       );
     };
 
@@ -200,6 +202,19 @@ describe("Bug 5: Gemini fallback chain", () => {
       })
     ).toBe(true);
 
+    // 404 / deprecated model errors should also trigger fallback
+    expect(
+      isOverloadedError({
+        message: "[404 Not Found] This model models/gemini-2.0-flash is no longer available to new users.",
+      })
+    ).toBe(true);
+
+    expect(
+      isOverloadedError({
+        message: "Model not found: gemini-2.0-flash",
+      })
+    ).toBe(true);
+
     // Non-overload errors should return false
     expect(
       isOverloadedError({
@@ -217,12 +232,12 @@ describe("Bug 5: Gemini fallback chain", () => {
   it("should define correct fallback order", () => {
     const fallbackChain = [
       "gemini-2.5-flash",
-      "gemini-2.0-flash",
+      "gemini-2.5-flash",
       "platform-llm",
     ];
 
     expect(fallbackChain[0]).toBe("gemini-2.5-flash");
-    expect(fallbackChain[1]).toBe("gemini-2.0-flash");
+    expect(fallbackChain[1]).toBe("gemini-2.5-flash");
     expect(fallbackChain[2]).toBe("platform-llm");
     expect(fallbackChain.length).toBe(3);
   });
@@ -232,7 +247,7 @@ describe("Bug 5: Gemini fallback chain", () => {
 
     // Simulate fallback logging
     usageLogs.push({ model: "gemini-2.5-flash", success: false });
-    usageLogs.push({ model: "gemini-2.0-flash (fallback)", success: true });
+    usageLogs.push({ model: "gemini-2.5-flash (fallback)", success: true });
 
     expect(usageLogs[0].model).toBe("gemini-2.5-flash");
     expect(usageLogs[0].success).toBe(false);

@@ -4317,3 +4317,14 @@
 - [x] Update jarvisService.ts system prompt with new capabilities
 - [x] Update TOOL_DESCRIPTIONS map with new tools
 - [x] Update getToolCallDescription (TOOL_DISPLAY + buildConfirmationSummary) with new tool cases
+
+## Gemini Fallback Chain Fix
+- [x] Update isOverloadedError to catch 404 / "not found" errors
+- [x] Swap gemini-2.0-flash fallback to gemini-2.5-flash
+- [x] Update launch-blockers.test.ts to expect gemini-2.5-flash in fallback test
+
+## Support Ticket Admin UI
+- [x] Create SupportAdmin.tsx page with ticket list, status filter, and status update
+- [x] tRPC support.listAll and support.updateStatus endpoints already existed
+- [x] Wire route /admin/support in App.tsx (AdminRoute-protected)
+- [x] Add sidebar link in DashboardLayout.tsx agencyMenuItems (LifeBuoy icon)
