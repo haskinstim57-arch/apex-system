@@ -326,6 +326,19 @@ export const contactsRouter = router({
         });
       }
 
+      // Log the update to the activity timeline
+      import("../db").then(({ logContactActivity }) => {
+        const updatedFields = Object.keys(normalized).filter(k => k !== 'customFields');
+        if (updatedFields.length > 0 || mergedCustomFields) {
+          logContactActivity({
+            contactId: id,
+            accountId,
+            activityType: "note_added",
+            description: `Contact details updated: ${updatedFields.join(", ")}${mergedCustomFields ? " and custom fields" : ""}`,
+          });
+        }
+      }).catch(err => console.error("Failed to log contact update activity:", err));
+
       await createAuditLog({
         accountId,
         userId: ctx.user.id,

@@ -4328,3 +4328,14 @@
 - [x] tRPC support.listAll and support.updateStatus endpoints already existed
 - [x] Wire route /admin/support in App.tsx (AdminRoute-protected)
 - [x] Add sidebar link in DashboardLayout.tsx agencyMenuItems (LifeBuoy icon)
+
+## Jarvis Widget Position Fix
+- [x] Shrink floating trigger button from h-14 w-14 to h-12 w-12
+- [x] Move button up from bottom-6 to bottom-16
+- [x] Move expanded chat panel up from bottom-6 to bottom-16
+
+## Sequence Enrollment — Remove "New" Tag
+- [x] Update enrollContactInSequence in db.ts to delete "new" tag (case-insensitive) on enrollment
+
+## Contact Update Activity Logging
+- [x] Add logContactActivity call in contacts.ts update mutation before returning success

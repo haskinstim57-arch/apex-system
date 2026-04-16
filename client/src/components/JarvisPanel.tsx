@@ -725,10 +725,10 @@ function JarvisPanelInner({ pageContext, displayMode = "sidebar" }: { pageContex
         {!isWidgetOpen && (
           <button
             onClick={() => setIsWidgetOpen(true)}
-            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 group"
+            className="fixed bottom-16 right-6 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 group"
             aria-label="Open Jarvis AI"
           >
-            <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform" />
+            <Sparkles className="h-5 w-5 group-hover:rotate-12 transition-transform" />
             {/* Pulse ring */}
             <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: '3s' }} />
           </button>
@@ -737,8 +737,8 @@ function JarvisPanelInner({ pageContext, displayMode = "sidebar" }: { pageContex
         {/* Expanded chat panel */}
         {isWidgetOpen && (
           <div
-            className="fixed bottom-6 right-6 z-50 flex flex-col bg-background border border-border rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300"
-            style={{ width: isMobile ? 'calc(100vw - 2rem)' : 400, height: isMobile ? 'calc(100dvh - 6rem)' : 600, maxHeight: 'calc(100dvh - 3rem)' }}
+            className="fixed bottom-16 right-6 z-50 flex flex-col bg-background border border-border rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300"
+            style={{ width: isMobile ? 'calc(100vw - 2rem)' : 400, height: isMobile ? 'calc(100dvh - 8rem)' : 600, maxHeight: 'calc(100dvh - 5rem)' }}
           >
             {/* Widget Header */}
             <div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0 bg-muted/30">

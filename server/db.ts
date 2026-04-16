@@ -5038,6 +5038,19 @@ export async function enrollContactInSequence(data: InsertSequenceEnrollment) {
     .update(sequences)
     .set({ activeEnrollments: sql`active_enrollments + 1` })
     .where(eq(sequences.id, data.sequenceId));
+
+  // Automatically remove "New" and "new" tags when enrolled
+  try {
+    await db.delete(contactTags).where(
+      and(
+        eq(contactTags.contactId, data.contactId),
+        sql`LOWER(${contactTags.tag}) = 'new'`
+      )
+    );
+  } catch (err) {
+    console.error("[Enrollment] Failed to remove New tag:", err);
+  }
+
   return { id: result[0].insertId, alreadyEnrolled: false };
 }
 
