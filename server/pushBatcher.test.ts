@@ -47,6 +47,7 @@ describe("parseNotificationPreferences", () => {
       appointment_booked: { push: true, sms: false, email: false },
       ai_call_completed: { push: false, sms: false, email: false },
       facebook_lead: { push: true, sms: true, email: true },
+      message_delivery_failure: { push: true, sms: false, email: true },
       quiet_hours_enabled: true,
       quiet_hours_start: "23:00",
       quiet_hours_end: "06:00",
@@ -67,6 +68,7 @@ describe("isEventTypeEnabled", () => {
     expect(isEventTypeEnabled(prefs, "appointment_booked")).toBe(true);
     expect(isEventTypeEnabled(prefs, "ai_call_completed")).toBe(true);
     expect(isEventTypeEnabled(prefs, "facebook_lead")).toBe(true);
+    expect(isEventTypeEnabled(prefs, "message_delivery_failure")).toBe(true);
   });
 
   it("returns false for disabled event types", () => {

@@ -4290,3 +4290,7 @@
 - [x] T6: Inbox — Collapse/expand conversation list and detail panels with localStorage persist
 - [x] T7: Pages & Funnels — Fix dashboard layout overflow/CSS issues
 - [x] T8: CRM Performance — Lazy loading, prefetching, staleTime, skeletons, virtual scrolling
+
+## PushBatcher Test Fix
+- [x] Add message_delivery_failure to "parses a full preferences object" test
+- [x] Add message_delivery_failure assertion to "returns true for enabled event types" test
