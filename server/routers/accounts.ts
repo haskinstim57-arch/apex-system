@@ -9,6 +9,7 @@ import {
 import * as db from "../db";
 import { eq } from "drizzle-orm";
 import { dispatchEmail } from "../services/messaging";
+import { seedPmrWorkflow } from "../services/seedPmrWorkflow";
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -163,6 +164,14 @@ export const accountsRouter = router({
         await db.getOrCreateWarmingConfig(result.id);
       } catch (err) {
         console.error(`[Accounts] Failed to create warming config for account ${result.id}:`, err);
+      }
+
+      // Auto-seed PMR Facebook Lead workflow for every new sub-account
+      try {
+        await seedPmrWorkflow(result.id, ctx.user.id);
+        console.log(`[Accounts] PMR workflow auto-seeded for account ${result.id}`);
+      } catch (err) {
+        console.error(`[Accounts] Failed to auto-seed PMR workflow for account ${result.id}:`, err);
       }
 
       return { ...result, emailSent, inviteToken: token };

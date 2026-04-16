@@ -4280,3 +4280,13 @@
 ## Onboarding Step 2 Fix
 - [x] Insert missing Step 2 (Payment Setup) render block in Onboarding.tsx
 - [x] Verify Step 2 renders between Step 1 and Step 3
+
+## Tier 3 — Polish & Feature Improvements
+- [x] T1: Automations — Robot animation as empty state and header mini icon
+- [x] T2: VAPI AI Configure — Config button + dialog with API key, test connection, status indicator
+- [x] T3: Auto-seed PMR workflow for new sub-accounts + remove manual Install button
+- [x] T4: Overview — Calendar setup CTA when no calendar configured
+- [x] T5: Forms — Template preview dialog with read-only form rendering
+- [x] T6: Inbox — Collapse/expand conversation list and detail panels with localStorage persist
+- [x] T7: Pages & Funnels — Fix dashboard layout overflow/CSS issues
+- [x] T8: CRM Performance — Lazy loading, prefetching, staleTime, skeletons, virtual scrolling

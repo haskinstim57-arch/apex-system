@@ -669,6 +669,23 @@ export const formsRouter = router({
     }));
   }),
 
+  // ─── Get single template with full fields for preview ───
+  getTemplate: publicProcedure
+    .input(z.object({ templateId: z.string().min(1) }))
+    .query(async ({ input }) => {
+      const template = FORM_TEMPLATES.find((t) => t.id === input.templateId);
+      if (!template) throw new TRPCError({ code: "NOT_FOUND", message: "Template not found" });
+      return {
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        category: template.category,
+        fields: template.fields,
+        settings: template.settings,
+        submitAction: template.submitAction,
+      };
+    }),
+
   // ─── Create form from template ───
   createFromTemplate: protectedProcedure
     .input(

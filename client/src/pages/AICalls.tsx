@@ -48,8 +48,13 @@ import {
   XCircle,
   AlertCircle,
   Users,
+  Settings,
+  Eye,
+  EyeOff,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
 import { toast } from "sonner";
@@ -197,6 +202,33 @@ export default function AICalls() {
   const [selectedContactIds, setSelectedContactIds] = useState<number[]>([]);
   const [bulkSearch, setBulkSearch] = useState("");
   const [contactSearch, setContactSearch] = useState("");
+  const [showVapiConfig, setShowVapiConfig] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [vapiPhone, setVapiPhone] = useState("");
+
+  // VAPI config query
+  const vapiConfig = trpc.aiCalls.getVapiConfig.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId }
+  );
+  const testConnectionMut = trpc.aiCalls.testConnection.useMutation({
+    onSuccess: (data) => {
+      if (data.success) toast.success(data.message);
+      else toast.error(data.message);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+  const updatePhoneMut = trpc.aiCalls.updateVapiPhone.useMutation({
+    onSuccess: () => {
+      toast.success("VAPI phone number updated");
+      vapiConfig.refetch();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  useEffect(() => {
+    if (vapiConfig.data?.phoneNumber) setVapiPhone(vapiConfig.data.phoneNumber);
+  }, [vapiConfig.data?.phoneNumber]);
 
   const contacts = contactsData?.data ?? [];
   const calls = callsData?.data ?? [];
@@ -261,6 +293,109 @@ export default function AICalls() {
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* VAPI Not Configured Banner */}
+      {vapiConfig.data && !vapiConfig.data.isConfigured && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <WifiOff className="h-4 w-4 text-amber-600" />
+            <span className="text-sm text-amber-700 dark:text-amber-400">
+              VAPI is not configured. Click Configure to set up your API key.
+            </span>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowVapiConfig(true)} className="text-amber-700 border-amber-300">
+            Configure
+          </Button>
+        </div>
+      )}
+
+      {/* VAPI Config Dialog */}
+      <Dialog open={showVapiConfig} onOpenChange={setShowVapiConfig}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              VAPI Configuration
+            </DialogTitle>
+            <DialogDescription>
+              Manage your VAPI AI calling integration settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Connection Status */}
+            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+              <span className="text-sm font-medium">Connection Status</span>
+              <div className="flex items-center gap-2">
+                <div className={`w-2.5 h-2.5 rounded-full ${vapiConfig.data?.isConfigured ? 'bg-green-500' : 'bg-red-500'}`} />
+                <span className="text-sm text-muted-foreground">
+                  {vapiConfig.data?.isConfigured ? 'Connected' : 'Not Configured'}
+                </span>
+              </div>
+            </div>
+
+            {/* API Key Status */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">API Key</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={vapiConfig.data?.hasApiKey ? '••••••••••••••••' : ''}
+                  placeholder="Set via environment variables"
+                  disabled
+                  className="flex-1"
+                />
+                <Button variant="ghost" size="icon" onClick={() => setShowApiKey(!showApiKey)}>
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">API key is managed via platform environment variables.</p>
+            </div>
+
+            {/* Agent ID */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Agent ID</label>
+              <Input
+                value={vapiConfig.data?.agentId ?? 'Not configured'}
+                disabled
+                className="font-mono text-sm"
+              />
+            </div>
+
+            {/* Per-Account Phone Number */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">VAPI Phone Number (this account)</label>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={vapiPhone}
+                  onChange={(e) => setVapiPhone(e.target.value)}
+                  placeholder="+15551234567"
+                  className="flex-1"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => accountId && updatePhoneMut.mutate({ accountId, phoneNumber: vapiPhone || null })}
+                  disabled={updatePhoneMut.isPending}
+                >
+                  {updatePhoneMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                </Button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => accountId && testConnectionMut.mutate({ accountId })}
+              disabled={testConnectionMut.isPending || !vapiConfig.data?.hasApiKey}
+              className="gap-2"
+            >
+              {testConnectionMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+              Test Connection
+            </Button>
+            <Button onClick={() => setShowVapiConfig(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -271,6 +406,16 @@ export default function AICalls() {
         </div>
         <div className="flex items-center gap-2">
           {/* Account selector removed — use sidebar AccountSwitcher */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowVapiConfig(true)}
+            className="gap-2"
+          >
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Configure VAPI</span>
+            <div className={`w-2 h-2 rounded-full ${vapiConfig.data?.isConfigured ? 'bg-green-500' : 'bg-red-500'}`} />
+          </Button>
           <Button
             variant="outline"
             onClick={() => setBulkCallOpen(true)}

@@ -434,7 +434,7 @@ export default function PageEditor() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)]">
+    <div className="flex flex-col flex-1 overflow-hidden">
       {/* Top toolbar */}
       <div className="flex items-center justify-between px-4 py-2 border-b bg-background shrink-0">
         <div className="flex items-center gap-3">

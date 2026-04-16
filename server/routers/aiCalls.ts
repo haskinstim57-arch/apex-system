@@ -24,6 +24,10 @@ import {
 } from "../services/vapi";
 import { isWithinBusinessHours, getBusinessHoursBlockMessage, BUSINESS_HOURS, type BusinessHoursConfig } from "../utils/businessHours";
 import { enqueueMessage } from "../services/messageQueue";
+import { ENV } from "../_core/env";
+import { getDb } from "../db";
+import { accounts } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -613,5 +617,55 @@ export const aiCallsRouter = router({
     .query(async ({ ctx, input }) => {
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
       return getAICallsByContact(input.contactId, input.accountId);
+    }),
+
+  /** Get VAPI configuration status for an account */
+  getVapiConfig: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+      const account = await getAccountById(input.accountId);
+      const hasGlobalKey = !!ENV.vapiApiKey;
+      const hasAgentId = !!ENV.vapiAgentId;
+      const phoneNumber = (account as any)?.vapiPhoneNumber ?? null;
+      return {
+        isConfigured: hasGlobalKey && hasAgentId,
+        hasApiKey: hasGlobalKey,
+        hasAgentId,
+        phoneNumber,
+        agentId: hasAgentId ? `${ENV.vapiAgentId.slice(0, 8)}...` : null,
+      };
+    }),
+
+  /** Test VAPI connection by hitting the assistants endpoint */
+  testConnection: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+      if (!ENV.vapiApiKey) {
+        return { success: false, message: "VAPI API key is not configured." };
+      }
+      try {
+        const res = await fetch("https://api.vapi.ai/assistant", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${ENV.vapiApiKey}` },
+        });
+        if (res.ok) {
+          return { success: true, message: "Connected to VAPI successfully." };
+        }
+        return { success: false, message: `VAPI returned status ${res.status}` };
+      } catch (err: any) {
+        return { success: false, message: err.message || "Connection failed" };
+      }
+    }),
+
+  /** Update per-account VAPI phone number */
+  updateVapiPhone: protectedProcedure
+    .input(z.object({ accountId: z.number(), phoneNumber: z.string().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
+      const db = await getDb();
+      await db.update(accounts).set({ vapiPhoneNumber: input.phoneNumber }).where(eq(accounts.id, input.accountId));
+      return { success: true };
     }),
 });

@@ -442,6 +442,18 @@ function DashboardLayoutContent({
     };
   }, [isResizing, setSidebarWidth]);
 
+  // Prefetch common pages after initial render for snappier navigation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      import("../pages/Contacts");
+      import("../pages/Pipeline");
+      import("../pages/Inbox");
+      import("../pages/Campaigns");
+      import("../pages/Calendar");
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const handleNavClick = (item: { label: string; path: string; placeholder?: boolean }) => {
     if (item.placeholder) {
       toast.info("Coming soon", {

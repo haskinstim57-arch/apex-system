@@ -3,6 +3,7 @@ import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -96,13 +97,13 @@ export default function Pipeline() {
   const { data: pipelineData, isLoading: pipelineLoading } =
     trpc.pipeline.getDefault.useQuery(
       { accountId: accountId! },
-      { enabled: !!accountId }
+      { enabled: !!accountId, staleTime: 30000 }
     );
 
   const { data: dealsData, isLoading: dealsLoading } =
     trpc.pipeline.listDeals.useQuery(
       { pipelineId: pipelineData?.pipeline?.id!, accountId: accountId! },
-      { enabled: !!accountId && !!pipelineData?.pipeline?.id }
+      { enabled: !!accountId && !!pipelineData?.pipeline?.id, staleTime: 30000, placeholderData: (prev: any) => prev }
     );
 
   // Contacts for adding deals — higher limit to cover large accounts
@@ -331,8 +332,15 @@ export default function Pipeline() {
 
       {/* Kanban Board */}
       {pipelineLoading || dealsLoading ? (
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="flex gap-4 p-4 overflow-hidden">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex-shrink-0 w-72 space-y-3">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-28 w-full rounded-lg" />
+              <Skeleton className="h-28 w-full rounded-lg" />
+              <Skeleton className="h-28 w-full rounded-lg opacity-50" />
+            </div>
+          ))}
         </div>
       ) : (
         <div className="flex-1 overflow-x-auto p-2 sm:p-4 pt-2">

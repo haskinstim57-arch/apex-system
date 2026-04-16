@@ -24,6 +24,8 @@ import {
   UserCheck,
   XCircle,
   Inbox as InboxIcon,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -45,7 +47,17 @@ export default function Inbox() {
   const [replyBody, setReplyBody] = useState("");
   const [replySubject, setReplySubject] = useState("");
   const [isMobileThreadOpen, setIsMobileThreadOpen] = useState(false);
+  const [isListCollapsed, setIsListCollapsed] = useState(() => {
+    try { return localStorage.getItem("inbox-list-collapsed") === "true"; } catch { return false; }
+  });
   const threadEndRef = useRef<HTMLDivElement>(null);
+
+  // Persist collapse state
+  useEffect(() => {
+    try { localStorage.setItem("inbox-list-collapsed", String(isListCollapsed)); } catch {}
+  }, [isListCollapsed]);
+
+  const toggleListCollapsed = () => setIsListCollapsed((prev) => !prev);
 
   // Stabilize search for query
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -223,63 +235,84 @@ export default function Inbox() {
     <div className="h-[calc(100vh-4rem)] flex overflow-hidden">
       {/* Left Panel — Conversation List */}
       <div
-        className={`w-full md:w-[380px] lg:w-[420px] border-r border-border/50 flex flex-col shrink-0 ${
+        className={`border-r border-border/50 flex flex-col shrink-0 transition-all duration-200 ${
           isMobileThreadOpen ? "hidden md:flex" : "flex"
-        }`}
+        } ${isListCollapsed ? "w-0 md:w-[60px] overflow-hidden" : "w-full md:w-[380px] lg:w-[420px]"}`}
       >
         {/* Header */}
-        <div className="p-4 border-b border-border/50 space-y-3">
-          <div className="flex items-center justify-between">
-            <h1 className="text-lg font-semibold tracking-tight">Inbox</h1>
-            {conversationsData && (
-              <span className="text-xs text-muted-foreground">
-                {conversationsData.total} conversation
-                {conversationsData.total !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
+        <div className={`border-b border-border/50 ${isListCollapsed ? "p-2 flex items-center justify-center" : "p-4 space-y-3"}`}>
+          {isListCollapsed ? (
+            <button
+              onClick={toggleListCollapsed}
+              className="p-2 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+              title="Expand conversation list"
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <h1 className="text-lg font-semibold tracking-tight">Inbox</h1>
+                <div className="flex items-center gap-2">
+                  {conversationsData && (
+                    <span className="text-xs text-muted-foreground">
+                      {conversationsData.total} conversation
+                      {conversationsData.total !== 1 ? "s" : ""}
+                    </span>
+                  )}
+                  <button
+                    onClick={toggleListCollapsed}
+                    className="p-1.5 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                    title="Collapse conversation list"
+                  >
+                    <PanelLeftClose className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
 
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search contacts..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-9 bg-muted/30 border-border/50"
-            />
-          </div>
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search contacts..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9 bg-muted/30 border-border/50"
+                />
+              </div>
 
-          {/* Filter tabs */}
-          <div className="flex gap-1">
-            {filterTabs.map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => {
-                  setActiveFilter(tab.key);
-                  setSelectedContactId(null);
-                  setIsMobileThreadOpen(false);
-                }}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
-                  activeFilter === tab.key
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted/30 text-muted-foreground hover:bg-accent"
-                }`}
-              >
-                {tab.icon}
-                {tab.label}
-                {tab.badge && tab.badge > 0 ? (
-                  <span className="ml-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
-                    {tab.badge}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
+              {/* Filter tabs */}
+              <div className="flex gap-1">
+                {filterTabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => {
+                      setActiveFilter(tab.key);
+                      setSelectedContactId(null);
+                      setIsMobileThreadOpen(false);
+                    }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                      activeFilter === tab.key
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted/30 text-muted-foreground hover:bg-accent"
+                    }`}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                    {tab.badge && tab.badge > 0 ? (
+                      <span className="ml-1 bg-red-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+                        {tab.badge}
+                      </span>
+                    ) : null}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* Conversation list */}
-        <div className="flex-1 overflow-y-auto">
+        <div className={`flex-1 overflow-y-auto ${isListCollapsed ? "hidden" : ""}`}>
           {activeFilter === "webchat" ? (
             /* Webchat sessions list */
             webchatLoading ? (

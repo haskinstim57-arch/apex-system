@@ -111,13 +111,13 @@ export default function Campaigns() {
         limit: pageSize,
         offset: page * pageSize,
       },
-      { enabled: !!accountId }
+      { enabled: !!accountId, staleTime: 30000, placeholderData: (prev: any) => prev }
     );
 
   // Campaign stats
   const { data: stats } = trpc.campaigns.stats.useQuery(
     { accountId: accountId! },
-    { enabled: !!accountId }
+    { enabled: !!accountId, staleTime: 30000 }
   );
 
   // Templates query

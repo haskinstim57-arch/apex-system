@@ -742,12 +742,18 @@ export async function getAccountDashboardStats(accountId: number) {
     .from(appointments)
     .where(eq(appointments.accountId, accountId));
 
+  const [calendarResult] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(calendars)
+    .where(eq(calendars.accountId, accountId));
+
   return {
     totalContacts: contactResult?.count ?? 0,
     totalMessages: messageResult?.count ?? 0,
     activeCampaigns: campaignResult?.count ?? 0,
     totalCalls: callResult?.count ?? 0,
     totalAppointments: appointmentResult?.count ?? 0,
+    hasCalendar: (calendarResult?.count ?? 0) > 0,
   };
 }
 

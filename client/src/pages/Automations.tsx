@@ -153,6 +153,45 @@ const CONDITION_OPERATORS = [
 ] as const;
 
 // ─── Main Component ───
+// ─── Robot Animation ───
+const RobotAnimation = ({ mini = false }: { mini?: boolean }) => {
+  if (mini) {
+    return (
+      <div className="relative inline-flex items-center ml-2">
+        <div className="w-6 h-5 bg-primary/20 rounded-md border border-primary/40 relative animate-bounce" style={{ animationDuration: '2s' }}>
+          <div className="absolute top-1 left-0.5 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+          <div className="absolute top-1 right-0.5 w-1.5 h-1.5 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-0.5 h-2 bg-primary/40" />
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-primary rounded-full animate-ping" style={{ animationDuration: '2s' }} />
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center justify-center py-12">
+      <div className="relative">
+        {/* Robot head */}
+        <div className="w-20 h-16 bg-primary/20 rounded-xl border-2 border-primary/40 relative mx-auto animate-bounce" style={{ animationDuration: '2s' }}>
+          {/* Eyes */}
+          <div className="absolute top-4 left-3 w-3 h-3 bg-primary rounded-full animate-pulse" />
+          <div className="absolute top-4 right-3 w-3 h-3 bg-primary rounded-full animate-pulse" style={{ animationDelay: '0.5s' }} />
+          {/* Antenna */}
+          <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-1 h-4 bg-primary/40" />
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full animate-ping" style={{ animationDuration: '2s' }} />
+        </div>
+        {/* Robot body */}
+        <div className="w-16 h-12 bg-primary/10 rounded-lg border-2 border-primary/30 mx-auto mt-1 flex items-center justify-center">
+          <div className="flex gap-1">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse" style={{ animationDelay: '0.3s' }} />
+            <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" style={{ animationDelay: '0.6s' }} />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function Automations() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -190,7 +229,7 @@ export default function Automations() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Automations</h1>
+          <h1 className="text-2xl font-bold tracking-tight flex items-center">Automations<RobotAnimation mini /></h1>
           <p className="text-sm text-muted-foreground mt-1">
             Create trigger-based workflows to automate your pipeline
           </p>
@@ -236,28 +275,7 @@ export default function Automations() {
               <Button onClick={() => setCreateOpen(true)} size="sm">
                 <Plus className="h-4 w-4 mr-1" /> New Workflow
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (!accountId) {
-                    toast.error("Select an account first");
-                    return;
-                  }
-                  installPresetMutation.mutate({
-                    accountId,
-                    preset: "facebook_lead_pmr",
-                  });
-                }}
-                disabled={installPresetMutation.isPending}
-              >
-                {installPresetMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Zap className="h-4 w-4 mr-2" />
-                )}
-                Install PMR Workflow
-              </Button>
+              {/* PMR Workflow is now auto-seeded on account creation */}
               <Button
                 variant="outline"
                 size="sm"
@@ -388,11 +406,11 @@ function WorkflowsList({
   if (workflows.length === 0) {
     return (
       <Card>
-        <CardContent className="py-16 text-center">
-          <Zap className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <h3 className="text-lg font-medium mb-2">No workflows yet</h3>
+        <CardContent className="py-8 text-center">
+          <RobotAnimation />
+          <h3 className="text-lg font-medium mb-2">No automations yet</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Create your first automation workflow or use a pre-built template.
+            Create your first automation to get started!
           </p>
         </CardContent>
       </Card>

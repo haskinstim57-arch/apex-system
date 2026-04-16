@@ -141,7 +141,7 @@ export default function Funnels() {
   if (editId) {
     const available = pages.filter((p: any) => !editSteps.some((s) => s.pageId === p.id));
     return (
-      <div className="space-y-6">
+      <div className="flex-1 overflow-auto p-6 space-y-6">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" onClick={() => setEditId(null)}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Back
@@ -214,7 +214,7 @@ export default function Funnels() {
 
   // ── List View ──
   return (
-    <div className="space-y-6">
+    <div className="flex-1 overflow-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Funnels</h1>

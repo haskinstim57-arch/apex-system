@@ -25,9 +25,11 @@ import {
   Sparkles,
   ListOrdered,
   BarChart3,
+  CalendarPlus,
 } from "lucide-react";
 import { useAccount } from "@/contexts/AccountContext";
 import { useMemo } from "react";
+import { Link } from "wouter";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 
 export default function Home() {
@@ -37,6 +39,7 @@ export default function Home() {
   // Admin stats — only fetch when in agency scope
   const { data: adminStats, isLoading: adminStatsLoading } = trpc.accounts.adminStats.useQuery(undefined, {
     enabled: isAdmin && isAgencyScope,
+    staleTime: 30000,
   });
 
   // Account-level stats — only fetch when a sub-account is selected
@@ -44,7 +47,7 @@ export default function Home() {
   const { data: accountStats, isLoading: accountStatsLoading } =
     trpc.accounts.accountDashboardStats.useQuery(
       { accountId: stableAccountId! },
-      { enabled: !!stableAccountId }
+      { enabled: !!stableAccountId, staleTime: 30000 }
     );
 
   // Activity feed — only fetch when a sub-account is selected
@@ -382,17 +385,34 @@ export default function Home() {
             </Card>
             <Card className="bg-card dark:bg-card border-0 card-shadow">
               <CardContent className="pt-5 pb-4 px-5">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/30 shrink-0">
-                    <CalendarCheck className="h-5 w-5" />
+                {accountStats && !accountStats.hasCalendar ? (
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-amber-100/80 text-amber-600 dark:bg-amber-950/30 shrink-0">
+                      <CalendarPlus className="h-5 w-5" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">Set Up Calendar</p>
+                      <p className="text-xs text-muted-foreground">No calendar configured yet</p>
+                    </div>
+                    <Link href="/calendar">
+                      <Button variant="outline" size="sm" className="shrink-0 text-xs">
+                        Set Up
+                      </Button>
+                    </Link>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Upcoming Appointments</p>
-                    <p className="text-xs text-muted-foreground">
-                      {accountStatsLoading ? "..." : `${accountStats?.totalAppointments ?? 0} booked`}
-                    </p>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-xl flex items-center justify-center bg-emerald-100/80 text-emerald-600 dark:bg-emerald-950/30 shrink-0">
+                      <CalendarCheck className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Upcoming Appointments</p>
+                      <p className="text-xs text-muted-foreground">
+                        {accountStatsLoading ? "..." : `${accountStats?.totalAppointments ?? 0} booked`}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
             <Card className="bg-card dark:bg-card border-0 card-shadow">

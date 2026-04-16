@@ -71,6 +71,7 @@ export default function Forms() {
   const [abTestFormId, setAbTestFormId] = useState<number | null>(null);
   const [abVariantName, setAbVariantName] = useState("");
   const [activeTab, setActiveTab] = useState("forms");
+  const [previewTemplateId, setPreviewTemplateId] = useState<string | null>(null);
 
   const accountId = currentAccountId ?? 0;
 
@@ -82,6 +83,11 @@ export default function Forms() {
   const { data: templates } = trpc.forms.listTemplates.useQuery(undefined, {
     enabled: activeTab === "templates",
   });
+
+  const { data: previewTemplate } = trpc.forms.getTemplate.useQuery(
+    { templateId: previewTemplateId! },
+    { enabled: !!previewTemplateId }
+  );
 
   const utils = trpc.useUtils();
 
@@ -423,25 +429,36 @@ export default function Forms() {
                         <span className="text-xs text-muted-foreground">
                           {tpl.fieldCount} fields
                         </span>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          onClick={() =>
-                            createFromTemplateMutation.mutate({
-                              accountId,
-                              templateId: tpl.id,
-                            })
-                          }
-                          disabled={createFromTemplateMutation.isPending}
-                        >
-                          {createFromTemplateMutation.isPending ? (
-                            <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                          ) : (
-                            <Plus className="h-3 w-3 mr-1" />
-                          )}
-                          Use Template
-                        </Button>
+                        <div className="flex gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => setPreviewTemplateId(tpl.id)}
+                          >
+                            <Eye className="h-3 w-3 mr-1" />
+                            Preview
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                            onClick={() =>
+                              createFromTemplateMutation.mutate({
+                                accountId,
+                                templateId: tpl.id,
+                              })
+                            }
+                            disabled={createFromTemplateMutation.isPending}
+                          >
+                            {createFromTemplateMutation.isPending ? (
+                              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                            ) : (
+                              <Plus className="h-3 w-3 mr-1" />
+                            )}
+                            Use Template
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -636,6 +653,102 @@ export default function Forms() {
               Delete
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Template Preview Dialog */}
+      <Dialog open={!!previewTemplateId} onOpenChange={(open) => !open && setPreviewTemplateId(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          {previewTemplate ? (
+            <>
+              <DialogHeader>
+                <div className="flex items-center gap-2">
+                  <LayoutTemplate className="h-5 w-5 text-primary" />
+                  <DialogTitle>{previewTemplate.name}</DialogTitle>
+                </div>
+                <DialogDescription>{previewTemplate.description}</DialogDescription>
+              </DialogHeader>
+
+              {/* Simulated form preview */}
+              <div className="rounded-lg border bg-muted/30 p-5 space-y-4">
+                {previewTemplate.settings.headerText && (
+                  <h3 className="text-base font-semibold text-foreground">
+                    {previewTemplate.settings.headerText}
+                  </h3>
+                )}
+                {previewTemplate.settings.description && (
+                  <p className="text-xs text-muted-foreground -mt-2">
+                    {previewTemplate.settings.description}
+                  </p>
+                )}
+
+                {previewTemplate.fields.map((field: any) => (
+                  <div key={field.id} className="space-y-1.5">
+                    <label className="text-sm font-medium text-foreground flex items-center gap-1">
+                      {field.label}
+                      {field.required && <span className="text-destructive">*</span>}
+                    </label>
+                    {field.type === "dropdown" ? (
+                      <select
+                        disabled
+                        className="w-full h-9 rounded-md border bg-background px-3 text-sm text-muted-foreground cursor-not-allowed"
+                      >
+                        <option>Select {field.label}...</option>
+                        {field.options?.map((opt: string) => (
+                          <option key={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    ) : field.type === "checkbox" ? (
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" disabled className="h-4 w-4 rounded border cursor-not-allowed" />
+                        <span className="text-xs text-muted-foreground">{field.label}</span>
+                      </div>
+                    ) : field.type === "textarea" ? (
+                      <textarea
+                        disabled
+                        placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+                        className="w-full rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground cursor-not-allowed resize-none h-20"
+                      />
+                    ) : (
+                      <input
+                        type={field.type === "email" ? "email" : field.type === "phone" ? "tel" : "text"}
+                        disabled
+                        placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}...`}
+                        className="w-full h-9 rounded-md border bg-background px-3 text-sm text-muted-foreground cursor-not-allowed"
+                      />
+                    )}
+                  </div>
+                ))}
+
+                <Button disabled className="w-full mt-2" style={{ backgroundColor: previewTemplate.settings.styling?.primaryColor || undefined }}>
+                  {previewTemplate.settings.submitButtonText || "Submit"}
+                </Button>
+              </div>
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setPreviewTemplateId(null)}>
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    setPreviewTemplateId(null);
+                    createFromTemplateMutation.mutate({
+                      accountId,
+                      templateId: previewTemplate.id,
+                    });
+                  }}
+                  disabled={createFromTemplateMutation.isPending}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1" />
+                  Use This Template
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
