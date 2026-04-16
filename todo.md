@@ -4294,3 +4294,17 @@
 ## PushBatcher Test Fix
 - [x] Add message_delivery_failure to "parses a full preferences object" test
 - [x] Add message_delivery_failure assertion to "returns true for enabled event types" test
+
+## Belinda Onboarding Fix
+- [x] Mark Belinda's onboarding as complete in the database to stop the onboarding loop
+
+## Belinda Contact Mirroring
+- [x] Copy all existing PMR (420001) contacts into Belinda's account (450001) — 219 contacts copied
+- [ ] Build automatic lead mirroring: any new lead into PMR auto-copies to Belinda's account
+
+## Contacts Table Performance & Sticky Header
+- [x] Increase pageSize from 25 to 100 for faster browsing
+- [x] Replace Table component with raw HTML table/thead for sticky header support
+- [x] Sticky header stays pinned while scrolling through contacts
+- [x] Scrollable table container with max-height calc(100vh-320px)
+- [x] Removed @tanstack/react-virtual (unnecessary complexity for 100-row pages)

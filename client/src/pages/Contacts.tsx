@@ -168,7 +168,7 @@ export default function Contacts() {
   const [scoreMin, setScoreMin] = useState<string>("");
   const [scoreMax, setScoreMax] = useState<string>("");
   const [page, setPage] = useState(0);
-  const pageSize = 25;
+  const pageSize = 100;
 
   // Selection state
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -581,6 +581,7 @@ export default function Contacts() {
   const contacts = contactsData?.data ?? [];
   const total = contactsData?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
+
 
   // Selection helpers
   const currentPageIds = useMemo(() => contacts.map((c) => c.id), [contacts]);
@@ -1306,10 +1307,10 @@ export default function Contacts() {
 
       {/* Table */}
       <Card className="bg-card border-0 card-shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-secondary hover:bg-secondary border-b border-border">
+        <div className="overflow-auto max-h-[calc(100vh-320px)] min-h-[400px] relative">
+          <table className="w-full caption-bottom text-sm">
+            <thead className="[&_tr]:border-b sticky top-0 z-10 bg-secondary">
+              <tr className="bg-secondary hover:bg-secondary border-b border-border">
                 <TableHead className="w-[40px]">
                   <Checkbox
                     checked={allOnPageSelected}
@@ -1387,8 +1388,8 @@ export default function Contacts() {
                 <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[50px]">
                   Actions
                 </TableHead>
-              </TableRow>
-            </TableHeader>
+              </tr>
+            </thead>
             <TableBody>
               {contactsLoading ? (
                 <>{[1,2,3,4,5,6,7,8].map((i) => (
@@ -1415,141 +1416,141 @@ export default function Contacts() {
                 </TableRow>
               ) : (
                 contacts.map((contact) => {
-                  const assignedMember = members?.find(
-                    (m) => m.userId === contact.assignedUserId
-                  );
-                  const isSelected = selectedIds.has(contact.id);
-                  return (
-                    <TableRow
-                      key={contact.id}
-                      className={`border-b border-border/50 cursor-pointer hover:bg-accent h-14 ${isSelected ? "bg-primary/5" : ""}`}
-                      onClick={() =>
-                        navigate(
-                          `/contacts/${contact.id}?account=${accountId}`
-                        )
-                      }
-                    >
-                      <TableCell onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => toggleSelect(contact.id)}
-                          aria-label={`Select ${contact.firstName} ${contact.lastName}`}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">
-                        {contact.firstName} {contact.lastName}
-                        {contact.company && (
-                          <span className="block text-xs text-muted-foreground">
-                            {contact.company}
-                          </span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {contact.email || "—"}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {contact.phone || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`text-[10px] font-medium ${STATUS_COLORS[contact.status] || ""}`}
-                        >
-                          {contact.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {contact.leadSource || "—"}
-                      </TableCell>
-                      <TableCell>
-                        <LeadScoreBadge score={(contact as any).leadScore ?? 0} />
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {assignedMember?.userName || "Unassigned"}
-                      </TableCell>
-                      {visibleCfColumns.map((slug) => {
-                        const cfData = contact.customFields as Record<string, any> | null;
-                        const val = cfData?.[slug];
-                        const fd = activeFieldDefs.find((d) => d.slug === slug);
-                        let display = "—";
-                        if (val !== undefined && val !== null && val !== "") {
-                          if (fd?.type === "checkbox") display = val ? "Yes" : "No";
-                          else if (fd?.type === "date" && val) display = new Date(val).toLocaleDateString();
-                          else if (fd?.type === "number") display = String(val);
-                          else display = String(val);
+                    const assignedMember = members?.find(
+                      (m) => m.userId === contact.assignedUserId
+                    );
+                    const isSelected = selectedIds.has(contact.id);
+                    return (
+                      <TableRow
+                        key={contact.id}
+                        className={`border-b border-border/50 cursor-pointer hover:bg-accent h-14 ${isSelected ? "bg-primary/5" : ""}`}
+                        onClick={() =>
+                          navigate(
+                            `/contacts/${contact.id}?account=${accountId}`
+                          )
                         }
-                        return (
-                          <TableCell key={slug} className="text-sm text-muted-foreground max-w-[150px] truncate">
-                            {display}
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            asChild
-                            onClick={(e) => e.stopPropagation()}
+                      >
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => toggleSelect(contact.id)}
+                            aria-label={`Select ${contact.firstName} ${contact.lastName}`}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium text-sm">
+                          {contact.firstName} {contact.lastName}
+                          {contact.company && (
+                            <span className="block text-xs text-muted-foreground">
+                              {contact.company}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {contact.email || "—"}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {contact.phone || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] font-medium ${STATUS_COLORS[contact.status] || ""}`}
                           >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0"
+                            {contact.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {contact.leadSource || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <LeadScoreBadge score={(contact as any).leadScore ?? 0} />
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {assignedMember?.userName || "Unassigned"}
+                        </TableCell>
+                        {visibleCfColumns.map((slug) => {
+                          const cfData = contact.customFields as Record<string, any> | null;
+                          const val = cfData?.[slug];
+                          const fd = activeFieldDefs.find((d) => d.slug === slug);
+                          let display = "—";
+                          if (val !== undefined && val !== null && val !== "") {
+                            if (fd?.type === "checkbox") display = val ? "Yes" : "No";
+                            else if (fd?.type === "date" && val) display = new Date(val).toLocaleDateString();
+                            else if (fd?.type === "number") display = String(val);
+                            else display = String(val);
+                          }
+                          return (
+                            <TableCell key={slug} className="text-sm text-muted-foreground max-w-[150px] truncate">
+                              {display}
+                            </TableCell>
+                          );
+                        })}
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger
+                              asChild
+                              onClick={(e) => e.stopPropagation()}
                             >
-                              <MoreHorizontal className="h-3.5 w-3.5" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(
-                                  `/contacts/${contact.id}?account=${accountId}`
-                                );
-                              }}
-                            >
-                              <Eye className="h-3.5 w-3.5 mr-2" />
-                              View
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditContact(contact);
-                              }}
-                            >
-                              <Pencil className="h-3.5 w-3.5 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            {contact.phone && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                              >
+                                <MoreHorizontal className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  startAICallMutation.mutate({ accountId: accountId!, contactId: contact.id });
+                                  navigate(
+                                    `/contacts/${contact.id}?account=${accountId}`
+                                  );
                                 }}
                               >
-                                <PhoneForwarded className="h-3.5 w-3.5 mr-2" />
-                                Start AI Call
+                                <Eye className="h-3.5 w-3.5 mr-2" />
+                                View
                               </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteConfirm(contact);
-                              }}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditContact(contact);
+                                }}
+                              >
+                                <Pencil className="h-3.5 w-3.5 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              {contact.phone && (
+                                <DropdownMenuItem
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    startAICallMutation.mutate({ accountId: accountId!, contactId: contact.id });
+                                  }}
+                                >
+                                  <PhoneForwarded className="h-3.5 w-3.5 mr-2" />
+                                  Start AI Call
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteConfirm(contact);
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
               )}
             </TableBody>
-          </Table>
+          </table>
         </div>
 
         {/* Pagination */}
