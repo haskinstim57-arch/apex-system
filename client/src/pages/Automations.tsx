@@ -55,6 +55,7 @@ import {
   Eye,
   Pause,
   RotateCcw,
+  Search,
 } from "lucide-react";
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { BarChart3, TrendingUp, Activity } from "lucide-react";
@@ -358,6 +359,8 @@ function WorkflowsList({
   onSelect: (id: number) => void;
   onRefresh: () => void;
 }) {
+  const [searchQuery, setSearchQuery] = useState("");
+
   const toggleMutation = trpc.automations.toggle.useMutation({
     onSuccess: (data) => {
       toast.success(data.isActive ? "Workflow activated" : "Workflow deactivated");
@@ -396,9 +399,24 @@ function WorkflowsList({
     );
   }
 
+  const filteredWorkflows = workflows.filter((wf: any) =>
+    !searchQuery.trim() ||
+    wf.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div className="grid gap-4">
-      {workflows.map((wf) => {
+    <div className="space-y-4">
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search workflows by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+      <div className="grid gap-4">
+      {filteredWorkflows.map((wf: any) => {
         const triggerInfo = TRIGGER_TYPES.find((t) => t.value === wf.triggerType);
         const TriggerIcon = triggerInfo?.icon ?? Zap;
         return (
@@ -456,7 +474,8 @@ function WorkflowsList({
             </CardContent>
           </Card>
         );
-      })}
+       })}
+      </div>
     </div>
   );
 }

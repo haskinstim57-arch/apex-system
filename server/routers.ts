@@ -54,6 +54,7 @@ import { emailContentRouter } from "./routers/emailContent";
 import { recurringContentPlansRouter } from "./routers/recurringContentPlans";
 import { dashboardRouter } from "./routers/dashboard";
 import { searchRouter } from "./routers/search";
+import { supportRouter } from "./routers/support";
 
 export const appRouter = router({
   system: systemRouter,
@@ -119,6 +120,7 @@ export const appRouter = router({
   recurringContentPlans: recurringContentPlansRouter,
   dashboard: dashboardRouter,
   search: searchRouter,
+  support: supportRouter,
 });
 
 export type AppRouter = typeof appRouter;

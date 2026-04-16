@@ -363,8 +363,7 @@ export default function Campaigns() {
                   <TableHead className="text-xs">Type</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
                   <TableHead className="text-xs">Recipients</TableHead>
-                  <TableHead className="text-xs">Sent</TableHead>
-                  <TableHead className="text-xs">Delivered</TableHead>
+                  <TableHead className="text-xs min-w-[160px]">Progress</TableHead>
                   <TableHead className="text-xs">Created</TableHead>
                   <TableHead className="text-xs w-[50px]">Actions</TableHead>
                 </TableRow>
@@ -372,14 +371,14 @@ export default function Campaigns() {
               <TableBody>
                 {campaignsLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
+                    <TableCell colSpan={7} className="text-center py-8">
                       <Loader2 className="h-5 w-5 animate-spin mx-auto text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 ) : campaigns.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={7}
                       className="text-center py-8 text-muted-foreground"
                     >
                       No campaigns found. Create one to get started.
@@ -425,11 +424,31 @@ export default function Campaigns() {
                       <TableCell className="text-sm text-muted-foreground">
                         {c.totalRecipients}
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {c.sentCount}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {c.deliveredCount}
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${
+                                c.status === "sent" || c.progressPercent === 100
+                                  ? "bg-emerald-500"
+                                  : c.status === "sending"
+                                  ? "bg-amber-500"
+                                  : c.status === "paused"
+                                  ? "bg-orange-400"
+                                  : c.status === "cancelled"
+                                  ? "bg-red-400"
+                                  : "bg-primary/40"
+                              }`}
+                              style={{ width: `${Math.min(c.progressPercent || 0, 100)}%` }}
+                            />
+                          </div>
+                          <span className="text-xs font-medium tabular-nums w-9 text-right">
+                            {c.progressPercent || 0}%
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          {c.contactsReached || 0} of {c.totalContacts || 0} reached
+                        </p>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(c.createdAt).toLocaleDateString()}

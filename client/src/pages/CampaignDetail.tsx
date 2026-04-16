@@ -336,6 +336,37 @@ export default function CampaignDetail({ params }: { params: { id: string } }) {
         </Card>
       </div>
 
+      {/* Overall Progress Bar */}
+      <Card className="bg-card border-0 card-shadow">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium">Campaign Progress</p>
+            <span className="text-sm font-semibold tabular-nums">
+              {campaign.progressPercent || 0}%
+            </span>
+          </div>
+          <div className="h-3 bg-muted rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${
+                campaign.status === "sent" || (campaign.progressPercent || 0) === 100
+                  ? "bg-emerald-500"
+                  : campaign.status === "sending"
+                  ? "bg-amber-500"
+                  : campaign.status === "paused"
+                  ? "bg-orange-400"
+                  : campaign.status === "cancelled"
+                  ? "bg-red-400"
+                  : "bg-primary/40"
+              }`}
+              style={{ width: `${Math.min(campaign.progressPercent || 0, 100)}%` }}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            {campaign.contactsReached || 0} of {campaign.totalContacts || 0} contacts reached
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Campaign Content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Message Content */}

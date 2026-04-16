@@ -2885,3 +2885,20 @@ export const systemEvents = mysqlTable("system_events", {
 });
 export type SystemEvent = typeof systemEvents.$inferSelect;
 export type InsertSystemEvent = typeof systemEvents.$inferInsert;
+
+// ── Support Tickets ──────────────────────────────────────────────────
+export const supportTickets = mysqlTable("support_tickets", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  userId: int("user_id").notNull(),
+  subject: varchar("subject", { length: 500 }).notNull(),
+  category: mysqlEnum("category", ["bug", "feature", "billing", "general"]).default("general").notNull(),
+  message: text("message").notNull(),
+  screenshotUrl: text("screenshot_url"),
+  status: mysqlEnum("status", ["open", "in_progress", "resolved", "closed"]).default("open").notNull(),
+  adminNotes: text("admin_notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type InsertSupportTicket = typeof supportTickets.$inferInsert;

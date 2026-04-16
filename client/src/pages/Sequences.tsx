@@ -72,6 +72,7 @@ import {
   RotateCcw,
   Power,
   Gauge,
+  Search,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
@@ -116,6 +117,7 @@ export default function Sequences() {
   const [selectedSequenceId, setSelectedSequenceId] = useState<number | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   // pendingConfigureId: after cloning a template, auto-open Configure dialog
   const [pendingConfigureId, setPendingConfigureId] = useState<number | null>(null);
 
@@ -255,6 +257,17 @@ export default function Sequences() {
       {/* Email Warming Card */}
       <EmailWarmingCard accountId={accountId} />
 
+      {/* Search Bar */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search sequences by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+
       {/* Sequence List */}
       {isLoading ? (
         <div className="space-y-3">
@@ -282,7 +295,13 @@ export default function Sequences() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {sequences.map((seq: Sequence) => (
+          {sequences
+            .filter((seq: Sequence) =>
+              !searchQuery.trim() ||
+              seq.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              (seq.description && seq.description.toLowerCase().includes(searchQuery.toLowerCase()))
+            )
+            .map((seq: Sequence) => (
             <Card
               key={seq.id}
               className="cursor-pointer hover:border-primary/30 transition-colors"

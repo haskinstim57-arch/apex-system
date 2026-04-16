@@ -1645,6 +1645,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [searchTriggered, setSearchTriggered] = useState(false);
+  const [digitFilter, setDigitFilter] = useState("");
 
   // Port form state
   const [portPhone, setPortPhone] = useState("");
@@ -1675,6 +1676,7 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
           : {}),
         ...(searchMode === "location" && numberType === "local" && city ? { locality: city } : {}),
         ...(searchMode === "location" && numberType === "local" && state ? { state } : {}),
+        ...(digitFilter.trim() ? { contains: digitFilter.trim() } : {}),
       }
     : null;
 
@@ -2269,6 +2271,25 @@ function PhoneNumberCard({ accountId }: { accountId: number }) {
                 </Button>
               </div>
             )}
+
+            {/* Digit Filter */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Filter by digits (optional)</label>
+              <Input
+                placeholder="e.g. 777 or 1234"
+                value={digitFilter}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/[^\d*]/g, "").slice(0, 10);
+                  setDigitFilter(val);
+                  setSearchTriggered(false);
+                }}
+                className="font-mono"
+                maxLength={10}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Twilio will match numbers containing these digits anywhere in the number
+              </p>
+            </div>
 
             {/* Error */}
             {searchError && (

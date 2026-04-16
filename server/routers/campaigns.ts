@@ -257,7 +257,17 @@ export const campaignsRouter = router({
     )
     .query(async ({ ctx, input }) => {
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
-      return listCampaigns(input.accountId, input);
+      const result = await listCampaigns(input.accountId, input);
+      // Enrich each campaign with progress data
+      const enriched = result.data.map((c) => {
+        const totalContacts = c.totalRecipients || 0;
+        const contactsReached = (c.sentCount || 0) + (c.deliveredCount || 0);
+        // Avoid double-counting: use the higher of sentCount or deliveredCount as "reached"
+        const reached = Math.max(c.sentCount || 0, c.deliveredCount || 0);
+        const progressPercent = totalContacts > 0 ? Math.round((reached / totalContacts) * 100) : 0;
+        return { ...c, totalContacts, contactsReached: reached, progressPercent };
+      });
+      return { data: enriched, total: result.total };
     }),
 
   get: protectedProcedure
@@ -271,7 +281,10 @@ export const campaignsRouter = router({
       await requireAccountAccess(ctx.user.id, input.accountId, ctx.user.role);
       const campaign = await getCampaign(input.id, input.accountId);
       if (!campaign) throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
-      return campaign;
+      const totalContacts = campaign.totalRecipients || 0;
+      const contactsReached = Math.max(campaign.sentCount || 0, campaign.deliveredCount || 0);
+      const progressPercent = totalContacts > 0 ? Math.round((contactsReached / totalContacts) * 100) : 0;
+      return { ...campaign, totalContacts, contactsReached, progressPercent };
     }),
 
   update: protectedProcedure

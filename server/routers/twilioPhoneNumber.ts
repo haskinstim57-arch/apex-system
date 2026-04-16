@@ -122,6 +122,8 @@ export const twilioPhoneNumberRouter = router({
         areaCode: z.string().regex(/^\d{3}$/).optional(),
         locality: z.string().max(100).optional(),
         state: z.string().max(2).optional(),
+        /** Digit pattern filter — Twilio 'contains' parameter matches anywhere in the number */
+        contains: z.string().max(20).optional(),
       })
     )
     .query(async ({ ctx, input }) => {
@@ -146,6 +148,7 @@ export const twilioPhoneNumberRouter = router({
               smsEnabled: true,
               voiceEnabled: true,
               ...(input.areaCode ? { areaCode: parseInt(input.areaCode, 10) } : {}),
+              ...(input.contains ? { contains: input.contains } : {}),
             });
         } else {
           numbers = await client
@@ -157,6 +160,7 @@ export const twilioPhoneNumberRouter = router({
               ...(input.areaCode ? { areaCode: parseInt(input.areaCode, 10) } : {}),
               ...(input.locality ? { inLocality: input.locality } : {}),
               ...(input.state ? { inRegion: input.state } : {}),
+              ...(input.contains ? { contains: input.contains } : {}),
             });
         }
 

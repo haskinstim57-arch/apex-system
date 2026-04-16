@@ -248,12 +248,18 @@ export default function Jarvis() {
 
               {isThinking && (
                 <div className="flex items-start gap-3">
-                  <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                     <Bot className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Thinking...
+                  <div>
+                    <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                        <span className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                        <span className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 ml-1">Jarvis is thinking...</p>
                   </div>
                 </div>
               )}

@@ -4254,3 +4254,25 @@
 - [x] Unenroll contact from nurture sequence on appointment booked
 - [x] Unenroll contact from nurture sequence on call answered/completed
 - [x] Unenroll contact from nurture sequence on pipeline stage change
+
+## Tier 2 — Major UX Fixes
+- [x] T1: Jarvis — Convert side panel to floating bottom-right widget
+- [x] T1: Jarvis — Remove side panel from DashboardLayout, render as floating widget
+- [x] T1: Jarvis — Replace Loader2 spinner with bouncing dots typing indicator
+- [x] T2: Campaigns — Backend progress data (totalContacts, contactsReached, progressPercent)
+- [x] T2: Campaigns — Progress bar on campaign list table
+- [x] T2: Campaigns — Progress bar on campaign detail page
+- [x] T2: Campaigns — Search bar already exists on campaign list (verified)
+- [x] T3: Pipeline — Search bar to filter deals by contact name or deal title (already exists)
+- [x] T4: Phone Number Purchase — Backend contains parameter for Twilio search
+- [x] T4: Phone Number Purchase — Frontend digit filter with contains input
+- [x] T5: Team Members — New /settings/team route (not AdminRoute)
+- [x] T5: Team Members — SubAccountTeamMembers.tsx page
+- [x] T5: Team Members — Backend already exists (members.list, updateRole, remove, invitations.create)
+- [x] T5: Team Members — Sidebar link in Settings section
+- [x] T6: Support — supportTickets table in schema
+- [x] T6: Support — server/routers/support.ts with submitTicket, listTickets, updateTicketStatus
+- [x] T6: Support — Support.tsx page with form and ticket list
+- [x] T6: Support — Sidebar link with LifeBuoy icon
+- [x] T7: Sequences — Search bar to filter sequences by name/description
+- [x] T7: Automations — Search bar to filter workflows by name

@@ -138,6 +138,7 @@ type PanelMode = "suggestions" | "chat" | "analytics" | "tasks";
 const PANEL_COLLAPSED_KEY = "jarvis-panel-collapsed";
 const ACTIVE_SESSION_KEY = "jarvis-active-session";
 const PANEL_WIDTH = 380;
+const WIDGET_KEY = "jarvis-widget-open";
 
 // ═══════════════════════════════════════════════
 // TOOL NAME DISPLAY MAP
@@ -320,15 +321,15 @@ async function streamChat(
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════
 
-export function JarvisPanel({ pageContext }: { pageContext: string }) {
+export function JarvisPanel({ pageContext, mode: displayMode = "sidebar" }: { pageContext: string; mode?: "sidebar" | "widget" }) {
   return (
     <JarvisErrorBoundary>
-      <JarvisPanelInner pageContext={pageContext} />
+      <JarvisPanelInner pageContext={pageContext} displayMode={displayMode} />
     </JarvisErrorBoundary>
   );
 }
 
-function JarvisPanelInner({ pageContext }: { pageContext: string }) {
+function JarvisPanelInner({ pageContext, displayMode = "sidebar" }: { pageContext: string; displayMode?: "sidebar" | "widget" }) {
   const { currentAccountId } = useAccount();
   const accountId = currentAccountId!;
   const isMobile = useIsMobile();
@@ -338,6 +339,10 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
     return localStorage.getItem(PANEL_COLLAPSED_KEY) === "true";
   });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isWidgetOpen, setIsWidgetOpen] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(WIDGET_KEY) === "true";
+  });
   // ── Restore active session from localStorage ──
   const [mode, setMode] = useState<PanelMode>(() => {
     if (typeof window === "undefined") return "suggestions";
@@ -384,6 +389,11 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
       localStorage.setItem(PANEL_COLLAPSED_KEY, collapsed.toString());
     }
   }, [collapsed, isMobile]);
+
+  // Persist widget open state
+  useEffect(() => {
+    localStorage.setItem(WIDGET_KEY, isWidgetOpen.toString());
+  }, [isWidgetOpen]);
 
   // Persist active session ID to localStorage
   useEffect(() => {
@@ -703,6 +713,117 @@ function JarvisPanelInner({ pageContext }: { pageContext: string }) {
     }
     return prompts.slice(0, 3);
   }, [messages]);
+
+  // ═══════════════════════════════════════════════
+  // WIDGET MODE: Floating bottom-right corner widget
+  // ═══════════════════════════════════════════════
+
+  if (displayMode === "widget") {
+    return (
+      <>
+        {/* Floating trigger button */}
+        {!isWidgetOpen && (
+          <button
+            onClick={() => setIsWidgetOpen(true)}
+            className="fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/25 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-200 group"
+            aria-label="Open Jarvis AI"
+          >
+            <Sparkles className="h-6 w-6 group-hover:rotate-12 transition-transform" />
+            {/* Pulse ring */}
+            <span className="absolute inset-0 rounded-full bg-primary/20 animate-ping" style={{ animationDuration: '3s' }} />
+          </button>
+        )}
+
+        {/* Expanded chat panel */}
+        {isWidgetOpen && (
+          <div
+            className="fixed bottom-6 right-6 z-50 flex flex-col bg-background border border-border rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 fade-in duration-300"
+            style={{ width: isMobile ? 'calc(100vw - 2rem)' : 400, height: isMobile ? 'calc(100dvh - 6rem)' : 600, maxHeight: 'calc(100dvh - 3rem)' }}
+          >
+            {/* Widget Header */}
+            <div className="h-12 border-b border-border flex items-center justify-between px-3 shrink-0 bg-muted/30">
+              <div className="flex items-center gap-2">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-primary" />
+                </div>
+                <span className="font-semibold text-sm text-foreground">Jarvis AI</span>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { setMode("suggestions"); setShowHistory(false); }}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                    mode === "suggestions" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Suggestions"
+                >
+                  <Lightbulb className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setMode("chat")}
+                  className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                    mode === "chat" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  title="Chat"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  onClick={() => setIsWidgetOpen(false)}
+                  className="p-1 rounded text-muted-foreground hover:text-foreground transition-colors ml-1"
+                  title="Minimize Jarvis"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Widget Content */}
+            <PanelContent
+              mode={mode}
+              setMode={setMode}
+              collapsed={false}
+              accountId={accountId}
+              suggestions={suggestions}
+              recommendationsLoading={recommendationsQuery.isLoading}
+              recommendationsError={recommendationsQuery.isError}
+              sessions={sessions}
+              showHistory={showHistory}
+              setShowHistory={setShowHistory}
+              activeSessionId={activeSessionId}
+              sessionQuery={sessionQuery}
+              messages={messages}
+              isThinking={isThinking}
+              streamingText={streamingText}
+              activeTools={activeTools}
+              lastToolsUsed={lastToolsUsed}
+              showTools={showTools}
+              setShowTools={setShowTools}
+              followUpPrompts={followUpPrompts}
+              input={input}
+              setInput={setInput}
+              inputRef={inputRef}
+              messagesEndRef={messagesEndRef}
+              handleSend={handleSend}
+              handleKeyDown={handleKeyDown}
+              handleNewChat={handleNewChat}
+              handleSuggestionClick={handleSuggestionClick}
+              handleDelete={handleDelete}
+              handleResumeSession={handleResumeSession}
+              createSessionPending={createSession.isPending}
+              pageContext={pageContext}
+              pendingConfirmation={pendingConfirmation}
+              resolvedConfirmations={resolvedConfirmations}
+              handleConfirm={handleConfirm}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
 
   // ═══════════════════════════════════════════════
   // MOBILE: Floating button + bottom sheet
@@ -2073,21 +2194,23 @@ function ToolCards({ tools, onDismiss }: { tools: string[]; onDismiss: () => voi
 
 function ThinkingIndicator({ activeTool }: { activeTool?: ToolEvent }) {
   return (
-    <div className="flex items-start gap-2">
-      <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-        <Bot className="h-3 w-3 text-primary" />
+    <div className="flex items-start gap-3 px-4 py-3">
+      <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+        <Sparkles className="h-4 w-4 text-primary" />
       </div>
-      <div className="flex items-center gap-2 bg-muted/60 rounded-xl px-3 py-2">
-        <div className="flex gap-1">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "0ms" }} />
-          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "150ms" }} />
-          <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "300ms" }} />
+      <div>
+        <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+            <span className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+            <span className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
         </div>
-        <span className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground mt-1 ml-1">
           {activeTool?.displayName
             ? `${activeTool.displayName}...`
             : "Jarvis is thinking..."}
-        </span>
+        </p>
       </div>
     </div>
   );

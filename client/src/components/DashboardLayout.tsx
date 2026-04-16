@@ -54,6 +54,7 @@ import {
   BookOpen,
   Sun,
   Moon,
+  LifeBuoy,
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -154,6 +155,8 @@ const adminMenuItems = [
 ];
 
 const settingsMenuItems = [
+  { icon: Users, label: "Team", path: "/settings/team" },
+  { icon: LifeBuoy, label: "Support", path: "/support" },
   { icon: Settings, label: "Settings", path: "/settings" },
 ];
 
@@ -380,8 +383,8 @@ function DashboardLayoutContent({
     return currentLocation.replace(/^\//, "") || "dashboard";
   }, [currentLocation]);
 
-  // Show Jarvis panel on sub-account pages only (not agency-level or settings)
-  const showJarvis = !!currentAccountId && !isAgencyScope && !currentLocation.startsWith("/settings");
+  // Show Jarvis floating widget on sub-account pages only (not agency-level or settings)
+  const showJarvisWidget = !!currentAccountId && !isAgencyScope;
 
   // Unread message count for inbox badge
   const { data: unreadData } = trpc.inbox.getUnreadCount.useQuery(
@@ -737,10 +740,11 @@ function DashboardLayoutContent({
               <div className="p-4 md:p-6">{children}</div>
             )}
           </main>
-          {showJarvis && (
-            <JarvisPanel pageContext={pageContext} />
-          )}
         </div>
+        {/* Floating Jarvis Widget — always available */}
+        {showJarvisWidget && (
+          <JarvisPanel pageContext={pageContext} mode="widget" />
+        )}
       </SidebarInset>
     </>
   );

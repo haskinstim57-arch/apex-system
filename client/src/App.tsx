@@ -11,6 +11,8 @@ import Home from "./pages/Home";
 import Accounts from "./pages/Accounts";
 import AccountDetail from "./pages/AccountDetail";
 import TeamMembers from "./pages/TeamMembers";
+const SubAccountTeamMembers = lazy(() => import("./pages/SubAccountTeamMembers"));
+const Support = lazy(() => import("./pages/Support"));
 const SettingsPage = lazy(() => import("./pages/Settings"));
 import InviteAccept from "./pages/InviteAccept";
 const Contacts = lazy(() => import("./pages/Contacts"));
@@ -129,6 +131,13 @@ function Router() {
           <AdminRoute>
             <TeamMembers />
           </AdminRoute>
+        </DashboardLayout>
+      </Route>
+      <Route path="/settings/team">
+        <DashboardLayout>
+          <RequireAccount>
+            <Suspense fallback={<LazyFallback />}><SubAccountTeamMembers /></Suspense>
+          </RequireAccount>
         </DashboardLayout>
       </Route>
 
@@ -411,6 +420,13 @@ function Router() {
           <AdminRoute>
             <LeadMonitor />
           </AdminRoute>
+        </DashboardLayout>
+      </Route>
+      <Route path="/support">
+        <DashboardLayout>
+          <RequireAccount>
+            <Suspense fallback={<LazyFallback />}><Support /></Suspense>
+          </RequireAccount>
         </DashboardLayout>
       </Route>
       <Route path="/404" component={NotFound} />

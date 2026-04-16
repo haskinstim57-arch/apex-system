@@ -666,6 +666,13 @@
       "when": 1776278973336,
       "tag": "0094_tidy_tattoo",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "5",
+      "when": 1776297405009,
+      "tag": "0095_striped_impossible_man",
+      "breakpoints": true
     }
   ]
 }
