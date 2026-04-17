@@ -1376,7 +1376,8 @@ function ActivityTimeline({
             </div>
 
             {/* Load More */}
-            {hasMore &&er pt-3">
+            {hasMore && (
+              <div className="flex justify-center pt-3">
                 <Button
                   variant="ghost"
                   size="sm"
