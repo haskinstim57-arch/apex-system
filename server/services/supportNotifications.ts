@@ -150,6 +150,56 @@ export async function notifyClientReply(params: {
   }
 }
 
+/**
+ * Send email notification to the ticket submitter when Apex staff replies.
+ */
+export async function notifyStaffReply(params: {
+  ticketId: number;
+  ticketSubject: string;
+  replyBody: string;
+  staffName: string;
+  clientEmail: string;
+  clientName: string;
+}): Promise<void> {
+  if (!params.clientEmail) {
+    console.warn("[SupportNotify] No client email for staff reply notification, skipping.");
+    return;
+  }
+
+  const ticketUrl = ENV.appUrl
+    ? `${ENV.appUrl}/support`
+    : "";
+
+  const plainBody = [
+    `Apex Systems Support — Reply on Ticket #${params.ticketId}`,
+    ``,
+    `Hi ${params.clientName || "there"},`,
+    ``,
+    `${params.staffName || "Apex Support"} has replied to your support ticket:`,
+    `"${params.ticketSubject}"`,
+    ``,
+    `Reply:`,
+    params.replyBody,
+    ``,
+    ticketUrl ? `View your ticket: ${ticketUrl}` : "",
+    ``,
+    `— Apex Systems Support Team`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    await sendEmail({
+      to: params.clientEmail,
+      subject: `[Apex Support] Reply on your ticket #${params.ticketId}: ${params.ticketSubject}`,
+      body: plainBody,
+    });
+    console.log(`[SupportNotify] Staff reply email sent to ${params.clientEmail}`);
+  } catch (err) {
+    console.error(`[SupportNotify] Failed to send staff reply email to ${params.clientEmail}:`, err);
+  }
+}
+
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, "&amp;")

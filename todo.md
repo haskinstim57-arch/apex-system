@@ -4392,3 +4392,17 @@
 - [ ] Update scheduledReports router for pipeline_summary type
 - [ ] Update Reports.tsx frontend with Pipeline Summary option
 - [ ] Tests in server/pipelineSummaryReport.test.ts
+
+## Support Admin Reply UI (Part 1)
+- [x] Add notifyStaffReply to supportNotifications.ts (email to ticket submitter when staff replies)
+- [x] Wire notifyStaffReply into support router reply mutation when authorType === 'apex_staff'
+- [x] Update SupportAdmin.tsx: ticket detail with thread view (client left-aligned, staff right-aligned)
+- [x] SupportAdmin.tsx: staff reply textarea + Send Reply button calling support.reply mutation
+- [x] Update Support.tsx: ticket detail with thread view (same pattern)
+- [x] Support.tsx: client reply textarea + Send Reply button calling support.reply mutation
+- [x] Tests: staff reply triggers email to client, client reply triggers email to admin list, thread order correct (9 tests pass)
+
+## Jarvis Third-Tier LLM Fallback (Part 2)
+- [x] Update invokeGeminiWithRetry: disable tool-calling for Forge fallback, return limited mode warning
+- [x] Log Forge fallback incidents with jarvis.llm_fallback=forge
+- [x] Tests: mock primary fail → fallback called; mock both fail → invokeLLM called; mock all three fail → user-facing error (6 tests pass)

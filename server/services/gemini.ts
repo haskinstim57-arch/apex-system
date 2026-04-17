@@ -481,33 +481,54 @@ export async function invokeGeminiWithRetry(params: GeminiInvokeParams): Promise
     console.warn("[Jarvis] gemini-2.5-flash fallback also failed:", err2.message);
   }
 
-  // Attempt 3: Built-in platform LLM (last resort)
+  // Attempt 3: Built-in Forge LLM (last resort)
+  // Forge may not support function calling the same way, so we:
+  //   - Disable tool-calling mode
+  //   - Prepend a limited-mode warning to the response
+  //   - Log the incident for tracking
   try {
-    console.log("[Jarvis] Falling back to built-in platform LLM...");
+    console.warn("[Jarvis] jarvis.llm_fallback=forge — Both Gemini attempts failed, falling back to Manus Forge built-in LLM");
     const { invokeLLM } = await import("../_core/llm");
-    const result = await invokeLLM({
+
+    // Strip tools and tool_choice — Forge may not support Gemini-style function calling
+    const forgeResult = await invokeLLM({
       messages: params.messages,
-      tools: params.tools,
-      tool_choice: params.tool_choice as any,
+      // No tools, no tool_choice — plain text completion only
       response_format: params.response_format as any,
     });
+
+    // Prepend limited-mode warning to the response content
+    const LIMITED_MODE_PREFIX = "[Jarvis is running in limited mode \u2014 tool actions unavailable. Try again shortly.]\n\n";
+    if (forgeResult.choices && forgeResult.choices.length > 0) {
+      const msg = forgeResult.choices[0].message;
+      if (typeof msg.content === "string") {
+        msg.content = LIMITED_MODE_PREFIX + msg.content;
+      }
+      // Ensure no tool_calls leak through
+      msg.tool_calls = undefined;
+      forgeResult.choices[0].finish_reason = "stop";
+    }
+
+    // Override model name for clarity
+    forgeResult.model = "forge-fallback";
+
     if (params._tracking) {
       logGeminiUsage({
         accountId: params._tracking.accountId ?? null,
         userId: params._tracking.userId ?? null,
         endpoint: params._tracking.endpoint,
-        model: "platform-llm (fallback)",
-        promptTokens: result.usage?.prompt_tokens ?? 0,
-        completionTokens: result.usage?.completion_tokens ?? 0,
-        totalTokens: result.usage?.total_tokens ?? 0,
+        model: "forge-fallback",
+        promptTokens: forgeResult.usage?.prompt_tokens ?? 0,
+        completionTokens: forgeResult.usage?.completion_tokens ?? 0,
+        totalTokens: forgeResult.usage?.total_tokens ?? 0,
         estimatedCostUsd: "0",
         success: true,
         durationMs: Date.now() - startTime,
       });
     }
-    return result;
+    return forgeResult;
   } catch (err3: any) {
-    console.error("[Jarvis] All LLM fallbacks exhausted:", err3.message);
+    console.error("[Jarvis] All LLM fallbacks exhausted (Gemini primary, Gemini fallback, Forge):", err3.message);
     if (params._tracking) {
       logGeminiUsage({
         accountId: params._tracking.accountId ?? null,
@@ -523,6 +544,6 @@ export async function invokeGeminiWithRetry(params: GeminiInvokeParams): Promise
         durationMs: Date.now() - startTime,
       });
     }
-    throw new Error(`All LLM providers failed. Last error: ${err3.message}`);
+    throw new Error(`All LLM providers failed (Gemini primary, Gemini fallback, Forge). Last error: ${err3.message}`);
   }
 }

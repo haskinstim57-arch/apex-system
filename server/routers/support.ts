@@ -9,7 +9,8 @@ import { supportTickets, supportTicketReplies } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import * as dbHelpers from "../db";
 import { getDb } from "../db";
-import { notifyNewTicket, notifyClientReply } from "../services/supportNotifications";
+import { notifyNewTicket, notifyClientReply, notifyStaffReply } from "../services/supportNotifications";
+import { getUserById } from "../db";
 
 export const supportRouter = router({
   /** Submit a new support ticket */
@@ -129,8 +130,9 @@ export const supportRouter = router({
           .where(eq(supportTickets.id, input.ticketId));
       }
 
-      // Send email notification only for client replies
+      // Send email notifications based on who replied
       if (input.authorType === "client") {
+        // Client replied → notify admin list
         try {
           const account = await dbHelpers.getAccountById(ticket.accountId);
           await notifyClientReply({
@@ -141,11 +143,76 @@ export const supportRouter = router({
             replierName: ctx.user.name || "Unknown",
           });
         } catch (err) {
-          console.error("[Support] Failed to send reply notification:", err);
+          console.error("[Support] Failed to send client reply notification:", err);
+        }
+      } else if (input.authorType === "apex_staff") {
+        // Staff replied → notify the ticket submitter (client)
+        try {
+          const ticketOwner = await getUserById(ticket.userId);
+          if (ticketOwner?.email) {
+            await notifyStaffReply({
+              ticketId: ticket.id,
+              ticketSubject: ticket.subject,
+              replyBody: input.body,
+              staffName: ctx.user.name || "Apex Support",
+              clientEmail: ticketOwner.email,
+              clientName: ticketOwner.name || "there",
+            });
+          }
+        } catch (err) {
+          console.error("[Support] Failed to send staff reply notification:", err);
         }
       }
 
       return { replyId: result.insertId, success: true };
+    }),
+
+  /** Get a single ticket by ID (with replies) */
+  getById: protectedProcedure
+    .input(
+      z.object({
+        ticketId: z.number().int().positive(),
+      })
+    )
+    .query(async ({ input, ctx }) => {
+      const db = await getDb();
+
+      const [ticket] = await db!
+        .select()
+        .from(supportTickets)
+        .where(eq(supportTickets.id, input.ticketId));
+
+      if (!ticket) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Ticket not found." });
+      }
+
+      // Verify access: admin or account member
+      if (ctx.user.role !== "admin") {
+        const member = await dbHelpers.getMember(ticket.accountId, ctx.user.id);
+        if (!member || !member.isActive) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You do not have access to this ticket.",
+          });
+        }
+      }
+
+      // Get submitter info
+      const submitter = await getUserById(ticket.userId);
+
+      // Get all replies
+      const replies = await db!
+        .select()
+        .from(supportTicketReplies)
+        .where(eq(supportTicketReplies.ticketId, input.ticketId))
+        .orderBy(supportTicketReplies.createdAt);
+
+      return {
+        ...ticket,
+        submitterName: submitter?.name || "Unknown",
+        submitterEmail: submitter?.email || "",
+        replies,
+      };
     }),
 
   /** List replies for a ticket */

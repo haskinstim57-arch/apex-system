@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { useAccount } from "@/contexts/AccountContext";
@@ -24,8 +24,12 @@ import {
   AlertCircle,
   XCircle,
   MessageSquare,
+  ArrowLeft,
+  User,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
 
 const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   open: { label: "Open", color: "bg-blue-500/10 text-blue-600 border-blue-200", icon: Clock },
@@ -50,6 +54,7 @@ export default function Support() {
   const [category, setCategory] = useState<"bug" | "feature" | "billing" | "general">("general");
   const [message, setMessage] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<number | null>(null);
 
   const { data: tickets, isLoading: ticketsLoading } = trpc.support.list.useQuery(
     { accountId: accountId! },
@@ -80,6 +85,18 @@ export default function Support() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  // If a ticket is selected, show the detail/thread view
+  if (selectedTicketId) {
+    return (
+      <ClientTicketDetail
+        ticketId={selectedTicketId}
+        onBack={() => setSelectedTicketId(null)}
+        userName={user?.name || "You"}
+        accountId={accountId}
+      />
     );
   }
 
@@ -222,7 +239,8 @@ export default function Support() {
                 return (
                   <div
                     key={ticket.id}
-                    className="p-3 rounded-lg border border-border/30 hover:bg-muted/30 transition-colors"
+                    className="p-3 rounded-lg border border-border/30 hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => setSelectedTicketId(ticket.id)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
@@ -252,15 +270,8 @@ export default function Support() {
                           {new Date(ticket.createdAt).toLocaleTimeString()}
                         </p>
                       </div>
+                      <MessageSquare className="h-4 w-4 text-muted-foreground/50 shrink-0 mt-1" />
                     </div>
-                    {ticket.adminNotes && (
-                      <div className="mt-2 pt-2 border-t border-border/30">
-                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
-                          Admin Response
-                        </p>
-                        <p className="text-xs text-foreground">{ticket.adminNotes}</p>
-                      </div>
-                    )}
                   </div>
                 );
               })}
@@ -273,6 +284,230 @@ export default function Support() {
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Click "New Ticket" to submit your first request.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Client Ticket Detail with Thread View ──────────────────────────────
+
+function ClientTicketDetail({
+  ticketId,
+  onBack,
+  userName,
+  accountId,
+}: {
+  ticketId: number;
+  onBack: () => void;
+  userName: string;
+  accountId: number;
+}) {
+  const [replyText, setReplyText] = useState("");
+  const threadEndRef = useRef<HTMLDivElement>(null);
+  const utils = trpc.useUtils();
+
+  const { data: ticket, isLoading } = trpc.support.getById.useQuery(
+    { ticketId },
+    { enabled: !!ticketId }
+  );
+
+  const replyMut = trpc.support.reply.useMutation({
+    onSuccess: () => {
+      setReplyText("");
+      utils.support.getById.invalidate({ ticketId });
+      utils.support.list.invalidate({ accountId });
+      toast.success("Reply sent");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // Scroll to bottom of thread when new messages arrive
+  useEffect(() => {
+    if (ticket?.replies) {
+      threadEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [ticket?.replies?.length]);
+
+  const handleSendReply = () => {
+    if (!replyText.trim()) return;
+    replyMut.mutate({
+      ticketId,
+      body: replyText.trim(),
+      authorType: "client",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-center p-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!ticket) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={onBack} className="gap-1.5">
+          <ArrowLeft className="h-4 w-4" /> Back to tickets
+        </Button>
+        <p className="text-muted-foreground">Ticket not found.</p>
+      </div>
+    );
+  }
+
+  const status = statusConfig[ticket.status] || statusConfig.open;
+  const StatusIcon = status.icon;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+      </div>
+
+      {/* Ticket metadata */}
+      <Card className="bg-card border-0 card-shadow">
+        <CardHeader className="pb-3">
+          <div className="flex justify-between items-start">
+            <div>
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] h-4 px-1.5 ${status.color}`}
+                >
+                  <StatusIcon className="h-2.5 w-2.5 mr-0.5" />
+                  {status.label}
+                </Badge>
+                <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+                  {categoryLabels[ticket.category] || ticket.category}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {format(new Date(ticket.createdAt), "MMM d, yyyy h:mm a")}
+                </span>
+              </div>
+              <CardTitle className="text-xl">
+                #{ticket.id} &mdash; {ticket.subject}
+              </CardTitle>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Thread view */}
+      <Card className="bg-card border-0 card-shadow">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <MessageSquare className="h-4 w-4 text-muted-foreground" />
+            Conversation
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+            {/* Original message */}
+            <div className="flex justify-start">
+              <div className="max-w-[80%]">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <User className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs font-medium">You</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {format(new Date(ticket.createdAt), "MMM d, h:mm a")}
+                  </span>
+                </div>
+                <div className="bg-muted/50 rounded-lg rounded-tl-sm px-3.5 py-2.5 text-sm whitespace-pre-wrap">
+                  {ticket.message}
+                </div>
+              </div>
+            </div>
+
+            {/* Replies */}
+            {ticket.replies?.map((reply: any) => {
+              const isStaff = reply.authorType === "apex_staff";
+              return (
+                <div
+                  key={reply.id}
+                  className={`flex ${isStaff ? "justify-start" : "justify-end"}`}
+                >
+                  <div className="max-w-[80%]">
+                    <div className={`flex items-center gap-1.5 mb-1 ${!isStaff ? "justify-end" : ""}`}>
+                      {isStaff ? (
+                        <ShieldCheck className="h-3 w-3 text-primary" />
+                      ) : (
+                        <User className="h-3 w-3 text-muted-foreground" />
+                      )}
+                      <span className="text-xs font-medium">
+                        {isStaff ? "Apex Support" : "You"}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {format(new Date(reply.createdAt), "MMM d, h:mm a")}
+                      </span>
+                    </div>
+                    <div
+                      className={`rounded-lg px-3.5 py-2.5 text-sm whitespace-pre-wrap ${
+                        !isStaff
+                          ? "bg-primary text-primary-foreground rounded-tr-sm"
+                          : "bg-muted/50 rounded-tl-sm"
+                      }`}
+                    >
+                      {reply.body}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={threadEndRef} />
+          </div>
+
+          {/* Reply input */}
+          {ticket.status !== "closed" && (
+            <div className="mt-4 pt-4 border-t border-border/30">
+              <div className="flex gap-2">
+                <Textarea
+                  placeholder="Type your reply..."
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                      handleSendReply();
+                    }
+                  }}
+                />
+              </div>
+              <div className="flex justify-between items-center mt-2">
+                <p className="text-[10px] text-muted-foreground">
+                  Ctrl+Enter to send
+                </p>
+                <Button
+                  size="sm"
+                  onClick={handleSendReply}
+                  disabled={!replyText.trim() || replyMut.isPending}
+                  className="gap-1.5"
+                >
+                  {replyMut.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  Send Reply
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {ticket.status === "closed" && (
+            <div className="mt-4 pt-4 border-t border-border/30 text-center">
+              <p className="text-sm text-muted-foreground">
+                This ticket is closed. Submit a new ticket if you need further help.
               </p>
             </div>
           )}
