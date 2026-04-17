@@ -153,6 +153,7 @@ export default function ContactDetail({
   const [editOpen, setEditOpen] = useState(false);
   const [newTag, setNewTag] = useState("");
   const [newNote, setNewNote] = useState("");
+  const [selectedDisposition, setSelectedDisposition] = useState<string | null>(null);
 
   // Mutations
   const updateMutation = trpc.contacts.update.useMutation({
@@ -637,7 +638,40 @@ export default function ContactDetail({
                   placeholder="Write a note about this contact..."
                   className="min-h-[80px] text-sm resize-none bg-muted/30 border-border/50"
                 />
-                <div className="flex justify-end">
+                {/* Smart Disposition Buttons */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { value: "left_voicemail", label: "Left VM", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+                    { value: "no_answer", label: "No Answer", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+                    { value: "answered", label: "Answered", color: "bg-green-500/10 text-green-400 border-green-500/20" },
+                    { value: "callback_requested", label: "Callback", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+                    { value: "appointment_set", label: "Appt Set", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+                    { value: "not_interested", label: "Not Interested", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+                    { value: "wrong_number", label: "Wrong #", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+                    { value: "do_not_call", label: "DNC", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+                    { value: "voicemail_full", label: "VM Full", color: "bg-gray-500/10 text-gray-400 border-gray-500/20" },
+                  ].map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      onClick={() => setSelectedDisposition(selectedDisposition === d.value ? null : d.value)}
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
+                        selectedDisposition === d.value
+                          ? d.color + " ring-1 ring-current scale-105"
+                          : "bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/50"
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between">
+                  {selectedDisposition && (
+                    <span className="text-[10px] text-muted-foreground">
+                      Disposition: <span className="font-medium text-foreground">{selectedDisposition.replace(/_/g, " ")}</span>
+                    </span>
+                  )}
+                  <div className="flex-1" />
                   <Button
                     size="sm"
                     className="h-8 gap-1.5"
@@ -648,7 +682,9 @@ export default function ContactDetail({
                           contactId: id,
                           accountId,
                           content: newNote.trim(),
+                          ...(selectedDisposition ? { disposition: selectedDisposition } : {}),
                         });
+                        setSelectedDisposition(null);
                       }
                     }}
                   >
@@ -676,15 +712,25 @@ export default function ContactDetail({
                   <CardContent className="pt-3 pb-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        {note.isPinned && (
-                          <Badge
-                            variant="outline"
-                            className="text-[9px] mb-2 border-primary/30 text-primary"
-                          >
-                            <Pin className="h-2.5 w-2.5 mr-0.5" />
-                            Pinned
-                          </Badge>
-                        )}
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          {note.isPinned && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] border-primary/30 text-primary"
+                            >
+                              <Pin className="h-2.5 w-2.5 mr-0.5" />
+                              Pinned
+                            </Badge>
+                          )}
+                          {note.disposition && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] border-blue-500/30 text-blue-400 bg-blue-500/5"
+                            >
+                              {note.disposition.replace(/_/g, " ")}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm whitespace-pre-wrap">
                           {note.content}
                         </p>
@@ -1330,8 +1376,7 @@ function ActivityTimeline({
             </div>
 
             {/* Load More */}
-            {hasMore && (
-              <div className="flex justify-center pt-3">
+            {hasMore &&er pt-3">
                 <Button
                   variant="ghost"
                   size="sm"

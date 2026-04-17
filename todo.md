@@ -4339,3 +4339,33 @@
 
 ## Contact Update Activity Logging
 - [x] Add logContactActivity call in contacts.ts update mutation before returning success
+
+## Part A — Jarvis Reads Contact Notes
+- [x] Fetch notes in get_contact_detail case in jarvisTools.ts
+- [x] Add notes to return object (id, body, disposition, createdAt, createdByUserId, authorName)
+- [x] Update Jarvis system prompt with NOTES & DISPOSITION AWARENESS section
+- [x] Add test in jarvisContactNotes.test.ts (5 tests pass)
+
+## Part B — Daily Activity Report
+- [x] Add "daily_activity" to reportType enum in schema (used existing reportType varchar)
+- [x] Generate migration (pnpm db:push — no schema change needed)
+- [x] Create generateDailyActivityReport in reportEmailGenerator.ts
+- [x] Update calculateNextRunAt for daily_activity (weekday logic, weekend consolidation)
+- [x] Add create/preview mutations in scheduledReports router
+- [x] Add Daily Activity Report template in ScheduledReportsCard.tsx frontend ("Daily Activity (Weekdays)" option)
+- [x] Add tests in dailyActivityReport.test.ts (12 tests pass)
+
+## Part C — Smart Disposition Buttons
+- [x] Add disposition column to contactNotes table in schema + ALTER TABLE migration
+- [x] Generate migration (ALTER TABLE contact_notes ADD disposition varchar(50))
+- [x] Update createContactNote mutation to accept disposition param (addNote + updateNote + power dialer)
+- [x] Disposition stored as separate column, not prepended to note body
+- [x] Add 9 color-coded disposition buttons UI in ContactDetail.tsx
+- [x] Show disposition badge on note cards
+- [x] Add Jarvis system prompt guidance for disposition values + repeated no-answer patterns
+- [x] Tests covered in jarvisContactNotes.test.ts (5 tests pass)
+
+## Part D — Cleanup
+- [x] Grep for socialAccounts references (only in schema.ts)
+- [x] Remove socialAccounts table from schema and DROP TABLE from database
+- [x] DROP TABLE social_accounts executed successfully

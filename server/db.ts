@@ -1083,6 +1083,7 @@ export async function listContactNotes(contactId: number) {
       contactId: contactNotes.contactId,
       authorId: contactNotes.authorId,
       content: contactNotes.content,
+      disposition: contactNotes.disposition,
       isPinned: contactNotes.isPinned,
       createdAt: contactNotes.createdAt,
       updatedAt: contactNotes.updatedAt,
@@ -1097,7 +1098,7 @@ export async function listContactNotes(contactId: number) {
 
 export async function updateContactNote(
   id: number,
-  data: { content?: string; isPinned?: boolean }
+  data: { content?: string; isPinned?: boolean; disposition?: string | null }
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

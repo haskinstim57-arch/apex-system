@@ -571,6 +571,7 @@ export const contactsRouter = router({
         contactId: z.number().int().positive(),
         accountId: z.number().int().positive(),
         content: z.string().min(1).max(5000),
+        disposition: z.string().max(50).nullish(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -586,6 +587,7 @@ export const contactsRouter = router({
         contactId: input.contactId,
         authorId: ctx.user.id,
         content: input.content,
+        ...(input.disposition ? { disposition: input.disposition } : {}),
       });
 
       // Log activity
@@ -607,6 +609,7 @@ export const contactsRouter = router({
         accountId: z.number().int().positive(),
         content: z.string().min(1).max(5000).optional(),
         isPinned: z.boolean().optional(),
+        disposition: z.string().max(50).nullish(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -626,9 +629,10 @@ export const contactsRouter = router({
           message: "Note does not belong to this account",
         });
       }
-      const updateData: { content?: string; isPinned?: boolean } = {};
+      const updateData: { content?: string; isPinned?: boolean; disposition?: string | null } = {};
       if (input.content !== undefined) updateData.content = input.content;
       if (input.isPinned !== undefined) updateData.isPinned = input.isPinned;
+      if (input.disposition !== undefined) updateData.disposition = input.disposition ?? null;
       await updateContactNote(input.noteId, updateData);
       return { success: true };
     }),

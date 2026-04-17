@@ -51,6 +51,7 @@ import {
   listAICalls,
   getAccountById,
   logContactActivity,
+  listContactNotes,
   getDb,
 } from "../db";
 import {
@@ -251,12 +252,17 @@ export const JARVIS_TOOLS: Tool[] = [
     type: "function",
     function: {
       name: "add_contact_note",
-      description: "Add a note to a contact's record.",
+      description: "Add a note to a contact's record. Include a disposition when the note is about a call or contact attempt outcome.",
       parameters: {
         type: "object",
         properties: {
           contactId: { type: "number" },
           content: { type: "string", description: "Note text" },
+          disposition: {
+            type: "string",
+            description: "Call/contact disposition. Use when the note is about a call or outreach attempt.",
+            enum: ["voicemail_full", "left_voicemail", "no_answer", "answered", "callback_requested", "wrong_number", "do_not_call", "appointment_set", "not_interested", "other"],
+          },
         },
         required: ["contactId", "content"],
         additionalProperties: false,
@@ -1108,6 +1114,7 @@ export async function executeTool(
       const tags = await getContactTags(contact.id);
       const recentMessages = await listMessagesByContact(contact.id, accountId);
       const enrollments = await getContactEnrollments(contact.id, accountId);
+      const notes = await listContactNotes(contact.id);
       return {
         ...contact,
         tags: tags.map(t => t.tag),
@@ -1115,6 +1122,14 @@ export async function executeTool(
           id: m.id, type: m.type, direction: m.direction,
           subject: m.subject, body: m.body?.substring(0, 200),
           status: m.status, createdAt: m.createdAt,
+        })),
+        notes: notes.slice(0, 10).map(n => ({
+          id: n.id,
+          body: n.content,
+          disposition: (n as any).disposition ?? null,
+          createdAt: n.createdAt,
+          createdByUserId: n.authorId,
+          authorName: n.authorName ?? null,
         })),
         activeSequences: enrollments
           .filter((e: any) => (e.enrollment?.status || e.status) === "active")
@@ -1180,6 +1195,7 @@ export async function executeTool(
         contactId: args.contactId as number,
         authorId: userId,
         content: args.content as string,
+        ...(args.disposition ? { disposition: args.disposition as string } : {}),
       });
       logContactActivity({
         contactId: args.contactId as number,

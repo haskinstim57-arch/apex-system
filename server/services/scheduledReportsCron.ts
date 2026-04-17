@@ -7,7 +7,7 @@ import { getDb } from "../db";
 import { accounts } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { sendEmail } from "./sendgrid";
-import { generateReportEmailHTML, generateReportCSV } from "./reportEmailGenerator";
+import { generateReportEmailHTML, generateReportCSV, generateDailyActivityReport, getDailyActivityDateWindow } from "./reportEmailGenerator";
 
 // ─────────────────────────────────────────────
 // Scheduled Reports Cron Job
@@ -49,7 +49,7 @@ export function stopScheduledReportsCron() {
 
 /** Calculate the next run time based on frequency */
 export function calculateNextRunAt(
-  frequency: "daily" | "weekly" | "monthly",
+  frequency: "daily" | "weekly" | "monthly" | "daily_activity",
   sendHour: number,
   timezone: string,
   dayOfWeek?: number | null,
@@ -61,7 +61,18 @@ export function calculateNextRunAt(
   // For simplicity, use a fixed offset approach
   const next = new Date(now);
 
-  if (frequency === "daily") {
+  if (frequency === "daily_activity") {
+    // Daily activity reports only run Mon-Fri at sendHour (default 7 AM)
+    const hour = sendHour ?? 7;
+    next.setUTCHours(hour, 0, 0, 0);
+    if (next <= now) {
+      next.setUTCDate(next.getUTCDate() + 1);
+    }
+    // Skip Saturday (6) and Sunday (0)
+    while (next.getUTCDay() === 0 || next.getUTCDay() === 6) {
+      next.setUTCDate(next.getUTCDate() + 1);
+    }
+  } else if (frequency === "daily") {
     // Next occurrence at sendHour
     next.setUTCHours(sendHour, 0, 0, 0);
     if (next <= now) {
@@ -121,7 +132,7 @@ async function executeReport(report: {
   id: number;
   accountId: number;
   name: string;
-  frequency: "daily" | "weekly" | "monthly";
+  frequency: "daily" | "weekly" | "monthly" | "daily_activity";
   sendHour: number;
   timezone: string;
   dayOfWeek: number | null;
@@ -145,27 +156,60 @@ async function executeReport(report: {
     `[ScheduledReportsCron] Generating report "${report.name}" for account ${report.accountId} (${accountName})`
   );
 
-  // Generate the HTML email
-  const htmlContent = await generateReportEmailHTML({
-    accountId: report.accountId,
-    accountName,
-    reportName: report.name,
-    reportTypes: report.reportTypes,
-    periodDays: report.periodDays,
-    brandColor,
-  });
-
-  // Generate CSV attachment for KPIs if included
+  let htmlContent: string;
   let attachments: Array<{ content: string; filename: string; type: string }> | undefined;
-  if (report.reportTypes.includes("kpis")) {
-    const csvContent = await generateReportCSV(report.accountId, report.periodDays, "kpis");
+
+  // ─── Daily Activity Report (special handling) ───
+  if (report.reportTypes.includes("daily_activity")) {
+    const dateWindow = getDailyActivityDateWindow(new Date());
+    if (!dateWindow) {
+      // Weekend — skip silently
+      console.log(`[ScheduledReportsCron] Skipping daily_activity on weekend`);
+      await updateScheduledReport(report.id, report.accountId, {
+        lastRunAt: new Date(),
+        lastRunStatus: "success",
+        lastRunError: null,
+        nextRunAt: calculateNextRunAt(report.frequency, report.sendHour, report.timezone, report.dayOfWeek, report.dayOfMonth),
+      });
+      return;
+    }
+
+    const result = await generateDailyActivityReport(
+      report.accountId,
+      dateWindow.startDate,
+      dateWindow.endDate,
+      accountName,
+      brandColor
+    );
+    htmlContent = result.html;
     attachments = [
       {
-        content: Buffer.from(csvContent).toString("base64"),
-        filename: `analytics-report-${report.periodDays}d.csv`,
+        content: Buffer.from(result.csv).toString("base64"),
+        filename: `daily-activity-report.csv`,
         type: "text/csv",
       },
     ];
+  } else {
+    // ─── Standard report types ───
+    htmlContent = await generateReportEmailHTML({
+      accountId: report.accountId,
+      accountName,
+      reportName: report.name,
+      reportTypes: report.reportTypes,
+      periodDays: report.periodDays,
+      brandColor,
+    });
+
+    if (report.reportTypes.includes("kpis")) {
+      const csvContent = await generateReportCSV(report.accountId, report.periodDays, "kpis");
+      attachments = [
+        {
+          content: Buffer.from(csvContent).toString("base64"),
+          filename: `analytics-report-${report.periodDays}d.csv`,
+          type: "text/csv",
+        },
+      ];
+    }
   }
 
   // Send to all recipients

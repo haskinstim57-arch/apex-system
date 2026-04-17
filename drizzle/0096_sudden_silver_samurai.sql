@@ -1,0 +1,1 @@
+ALTER TABLE `contact_notes` ADD `disposition` varchar(50);

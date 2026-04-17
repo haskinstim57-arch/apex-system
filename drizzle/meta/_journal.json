@@ -673,6 +673,20 @@
       "when": 1776297405009,
       "tag": "0095_striped_impossible_man",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "5",
+      "when": 1776424070385,
+      "tag": "0096_sudden_silver_samurai",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "5",
+      "when": 1776424556172,
+      "tag": "0097_broad_wendell_vaughn",
+      "breakpoints": true
     }
   ]
 }

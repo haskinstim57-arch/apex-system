@@ -228,12 +228,29 @@ export type InsertContactTag = typeof contactTags.$inferInsert;
 // ─────────────────────────────────────────────
 // CONTACT NOTES — timestamped notes per contact
 // ─────────────────────────────────────────────
+export const DISPOSITION_VALUES = [
+  "voicemail_full",
+  "left_voicemail",
+  "no_answer",
+  "answered",
+  "callback_requested",
+  "wrong_number",
+  "do_not_call",
+  "appointment_set",
+  "not_interested",
+  "other",
+] as const;
+
+export type DispositionType = (typeof DISPOSITION_VALUES)[number];
+
 export const contactNotes = mysqlTable("contact_notes", {
   id: int("id").autoincrement().primaryKey(),
   contactId: int("contactId").notNull(),
   /** User who wrote the note */
   authorId: int("authorId").notNull(),
   content: text("content").notNull(),
+  /** Call/contact disposition */
+  disposition: varchar("disposition", { length: 50 }),
   /** pinned notes float to top */
   isPinned: boolean("isPinned").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -2612,20 +2629,6 @@ export const socialPosts = mysqlTable("social_posts", {
 export type SocialPost = typeof socialPosts.$inferSelect;
 export type InsertSocialPost = typeof socialPosts.$inferInsert;
 
-export const socialAccounts = mysqlTable("social_accounts", {
-  id: int("id").autoincrement().primaryKey(),
-  accountId: int("account_id").notNull(),
-  platform: mysqlEnum("platform", ["facebook", "instagram", "linkedin", "twitter"]).notNull(),
-  platformAccountId: varchar("platform_account_id", { length: 255 }).notNull(),
-  platformAccountName: varchar("platform_account_name", { length: 255 }),
-  accessToken: text("access_token"),
-  refreshToken: text("refresh_token"),
-  tokenExpiresAt: timestamp("token_expires_at"),
-  isActive: boolean("is_active").default(true).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-export type SocialAccount = typeof socialAccounts.$inferSelect;
-export type InsertSocialAccount = typeof socialAccounts.$inferInsert;
 
 export const contentBrandVoice = mysqlTable("content_brand_voice", {
   id: int("id").autoincrement().primaryKey(),

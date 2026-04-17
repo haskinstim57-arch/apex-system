@@ -11,7 +11,7 @@ import {
   getMember,
 } from "../db";
 import { calculateNextRunAt } from "../services/scheduledReportsCron";
-import { generateReportEmailHTML, generateReportCSV } from "../services/reportEmailGenerator";
+import { generateReportEmailHTML, generateReportCSV, generateDailyActivityReport, getDailyActivityDateWindow } from "../services/reportEmailGenerator";
 import { sendEmail } from "../services/sendgrid";
 import { getDb } from "../db";
 import { accounts } from "../../drizzle/schema";
@@ -37,8 +37,8 @@ async function requireAccountMember(userId: number, accountId: number, userRole?
 // CRUD for report schedules + preview + test send
 // ─────────────────────────────────────────────
 
-const VALID_REPORT_TYPES = ["kpis", "campaignROI", "workflowPerformance", "revenueAttribution"];
-const VALID_FREQUENCIES = ["daily", "weekly", "monthly"] as const;
+const VALID_REPORT_TYPES = ["kpis", "campaignROI", "workflowPerformance", "revenueAttribution", "daily_activity"];
+const VALID_FREQUENCIES = ["daily", "weekly", "monthly", "daily_activity"] as const;
 const VALID_TIMEZONES = [
   "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
   "America/Phoenix", "America/Anchorage", "Pacific/Honolulu", "UTC",
@@ -283,6 +283,20 @@ export const scheduledReportsRouter = router({
         .from(accounts)
         .where(eq(accounts.id, input.accountId));
 
+      // Daily activity preview uses special date window
+      if (input.reportTypes.includes("daily_activity")) {
+        const dateWindow = getDailyActivityDateWindow(new Date());
+        // If weekend, show Friday's data as preview
+        const start = dateWindow?.startDate ?? (() => { const d = new Date(); d.setDate(d.getDate() - 1); d.setHours(0,0,0,0); return d; })();
+        const end = dateWindow?.endDate ?? (() => { const d = new Date(); d.setDate(d.getDate() - 1); d.setHours(23,59,59,999); return d; })();
+        const result = await generateDailyActivityReport(
+          input.accountId, start, end,
+          account?.name || "Sterling Marketing",
+          account?.primaryColor || undefined
+        );
+        return { html: result.html };
+      }
+
       const html = await generateReportEmailHTML({
         accountId: input.accountId,
         accountName: account?.name || "Sterling Marketing",
@@ -303,11 +317,13 @@ export const scheduledReportsRouter = router({
         { value: "campaignROI", label: "Campaign ROI", description: "Campaign delivery rates, recipients, and performance" },
         { value: "workflowPerformance", label: "Workflow Performance", description: "Execution counts, completion rates, failures" },
         { value: "revenueAttribution", label: "Revenue Attribution", description: "Revenue by source, deal and invoice totals" },
+        { value: "daily_activity", label: "Daily Activity Report", description: "Inbound calls, outbound SMS/email, contact updates, dispositions. Delivered Tue\u2013Fri; Monday covers Fri\u2013Sun." },
       ],
       frequencies: [
         { value: "daily", label: "Daily" },
         { value: "weekly", label: "Weekly" },
         { value: "monthly", label: "Monthly" },
+        { value: "daily_activity", label: "Daily Activity (Weekdays)" },
       ],
       timezones: VALID_TIMEZONES.map((tz) => ({ value: tz, label: tz.replace(/_/g, " ") })),
       periodOptions: [

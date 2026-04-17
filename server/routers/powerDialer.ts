@@ -356,6 +356,7 @@ export const powerDialerRouter = router({
           contactId: input.contactId,
           content: `[Power Dialer] ${input.disposition}: ${input.notes}`,
           authorId: ctx.user.id,
+          disposition: input.disposition,
         });
       }
 
