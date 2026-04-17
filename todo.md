@@ -4376,3 +4376,19 @@
 - [x] Add Reports nav item in DashboardLayout CRM section (between Calendar and Forms, FileBarChart icon)
 - [x] Remove ScheduledReportsCard from Settings.tsx
 - [x] Verified: Agency scope shows 'Select a sub-account' prompt, sub-account scope shows full Reports UI
+
+## Support Ticket Email Notifications
+- [x] Add SUPPORT_NOTIFICATION_EMAILS env var to server/_core/env.ts + appUrl
+- [x] Create supportNotifications.ts service (notifyNewTicket, notifyClientReply, getSupportNotificationEmails)
+- [x] Create support_ticket_replies table in schema + migration
+- [x] Rewrite support router with reply endpoint (authorType: client/apex_staff)
+- [x] Wire notifyNewTicket into submit mutation
+- [x] Wire notifyClientReply into reply mutation when authorType === 'client'
+- [x] Tests in server/support.test.ts (8 tests pass)
+
+## Pipeline Summary Report
+- [ ] Add generatePipelineSummaryReport in reportEmailGenerator.ts
+- [ ] Sections: Current Snapshot, Period Activity, Conversion Funnel, Stale Deals, Top Performers
+- [ ] Update scheduledReports router for pipeline_summary type
+- [ ] Update Reports.tsx frontend with Pipeline Summary option
+- [ ] Tests in server/pipelineSummaryReport.test.ts

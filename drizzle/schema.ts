@@ -2905,3 +2905,15 @@ export const supportTickets = mysqlTable("support_tickets", {
 });
 export type SupportTicket = typeof supportTickets.$inferSelect;
 export type InsertSupportTicket = typeof supportTickets.$inferInsert;
+
+// ─── Support Ticket Replies ──────────────────────────────────────────────
+export const supportTicketReplies = mysqlTable("support_ticket_replies", {
+  id: int("id").autoincrement().primaryKey(),
+  ticketId: int("ticket_id").notNull(),
+  userId: int("user_id").notNull(),
+  authorType: mysqlEnum("author_type", ["client", "apex_staff"]).notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type SupportTicketReply = typeof supportTicketReplies.$inferSelect;
+export type InsertSupportTicketReply = typeof supportTicketReplies.$inferInsert;

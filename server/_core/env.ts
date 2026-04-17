@@ -32,6 +32,8 @@ export const ENV = {
   squareWebhookSignatureKey: process.env.SQUARE_WEBHOOK_SIGNATURE_KEY ?? "",
   squareApplicationId: process.env.VITE_SQUARE_APPLICATION_ID ?? "",
   squareEnvironment: process.env.VITE_SQUARE_ENVIRONMENT ?? "production",
+  supportNotificationEmails: process.env.SUPPORT_NOTIFICATION_EMAILS ?? "thailersomerville1@gmail.com",
+  appUrl: process.env.VITE_APP_URL ?? "",
 };
 
 /**
