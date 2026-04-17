@@ -110,7 +110,7 @@ import { AgencyBrandingCard } from "@/components/AgencyBrandingCard";
 import { ThemePreview } from "@/components/ThemePreview";
 import { WebchatWidgetsCard } from "@/components/WebchatWidgetsCard";
 import { CustomFieldsCard } from "@/components/CustomFieldsCard";
-import { ScheduledReportsCard } from "@/components/ScheduledReportsCard";
+
 import { useAccount } from "@/contexts/AccountContext";
 import { GmbIntegrationCard as GmbIntegrationInline } from "@/components/GmbIntegrationCard";
 
@@ -508,7 +508,7 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
           <CustomFieldsCard accountId={currentAccountId} />
-          <ScheduledReportsCard accountId={currentAccountId} />
+
         </div>
       )}
 

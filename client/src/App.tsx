@@ -60,6 +60,7 @@ const Billing = lazy(() => import("./pages/Billing"));
 const ContentHub = lazy(() => import("./pages/ContentHub"));
 const ContentDetail = lazy(() => import("./pages/ContentDetail"));
 const SupportAdmin = lazy(() => import("./pages/SupportAdmin"));
+const Reports = lazy(() => import("./pages/Reports"));
 import Offline from "./pages/Offline";
 import { ImpersonationBanner } from "./components/ImpersonationBanner";
 import { PwaInstallPrompt } from "./components/PwaInstallPrompt";
@@ -323,6 +324,11 @@ function Router() {
           <RequireAccount>
             <Suspense fallback={<LazyFallback />}><Reputation /></Suspense>
           </RequireAccount>
+        </DashboardLayout>
+      </Route>
+      <Route path="/reports">
+        <DashboardLayout>
+          <Suspense fallback={<LazyFallback />}><Reports /></Suspense>
         </DashboardLayout>
       </Route>
 

@@ -4369,3 +4369,10 @@
 - [x] Grep for socialAccounts references (only in schema.ts)
 - [x] Remove socialAccounts table from schema and DROP TABLE from database
 - [x] DROP TABLE social_accounts executed successfully
+
+## Reports — Move to Top-Level CRM Nav
+- [x] Create Reports.tsx page with Scheduled Reports list + Run a Report on-demand generator
+- [x] Add /reports route in App.tsx
+- [x] Add Reports nav item in DashboardLayout CRM section (between Calendar and Forms, FileBarChart icon)
+- [x] Remove ScheduledReportsCard from Settings.tsx
+- [x] Verified: Agency scope shows 'Select a sub-account' prompt, sub-account scope shows full Reports UI
