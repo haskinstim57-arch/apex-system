@@ -1,1 +1,0 @@
-DROP TABLE `social_accounts`;

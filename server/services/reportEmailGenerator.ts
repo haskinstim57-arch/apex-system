@@ -17,6 +17,7 @@ import {
   contactNotes,
 } from "../../drizzle/schema";
 import { and, eq, gte, lte, sql, count, desc, isNotNull } from "drizzle-orm";
+import { generatePipelineSummarySection } from "./pipelineSummaryReport";
 
 // ─────────────────────────────────────────────
 // Report Email Generator
@@ -336,6 +337,9 @@ export async function generateReportEmailHTML(data: ReportEmailData): Promise<st
       case "revenueAttribution":
         sections += await generateRevenueSection(accountId, periodDays);
         break;
+      case "pipeline_summary":
+        sections += await generatePipelineSummarySection(accountId, periodDays);
+        break;
     }
   }
 
@@ -404,6 +408,16 @@ export async function generateReportCSV(
     const [appts] = await db.select({ count: count() }).from(appointments).where(and(eq(appointments.accountId, accountId), gte(appointments.createdAt, periodStart)));
 
     return `Metric,Value\nTotal Contacts,${totalContacts?.count ?? 0}\nNew Contacts,${newContacts?.count ?? 0}\nMessages Sent,${msgSent?.count ?? 0}\nAI Calls,${callsMade?.count ?? 0}\nPipeline Value,$${((Number(pipeVal?.total ?? 0)) / 100).toFixed(2)}\nAppointments,${appts?.count ?? 0}`;
+  }
+
+  if (reportType === "pipeline_summary") {
+    const { generatePipelineSummaryReport } = await import("./pipelineSummaryReport");
+    const { csv } = await generatePipelineSummaryReport({
+      accountId,
+      accountName: "Report",
+      periodDays,
+    });
+    return csv;
   }
 
   return `Report,${reportType}\nPeriod,${periodDays} days\nGenerated,${new Date().toISOString()}`;

@@ -4387,11 +4387,13 @@
 - [x] Tests in server/support.test.ts (8 tests pass)
 
 ## Pipeline Summary Report
-- [ ] Add generatePipelineSummaryReport in reportEmailGenerator.ts
-- [ ] Sections: Current Snapshot, Period Activity, Conversion Funnel, Stale Deals, Top Performers
-- [ ] Update scheduledReports router for pipeline_summary type
-- [ ] Update Reports.tsx frontend with Pipeline Summary option
-- [ ] Tests in server/pipelineSummaryReport.test.ts
+- [x] Schema: add stageChangedAt + lossReason + assignedUserId columns to deals table, migration applied
+- [x] Schema: add pipeline_summary to VALID_REPORT_TYPES in scheduledReports router
+- [x] Service: implement generatePipelineSummaryReport with 5 sections (snapshot, activity, funnel, stale, performers)
+- [x] Service: implement generatePipelineSummaryCSV for CSV attachment (embedded in main function)
+- [x] Router: wire pipeline_summary into generateReportEmailHTML switch + preview + options
+- [x] Frontend: add Pipeline Summary template to Reports.tsx and ScheduledReportsCard
+- [x] Tests: pipelineSummaryReport.test.ts with fixture data and all edge cases (13 tests pass)
 
 ## Support Admin Reply UI (Part 1)
 - [x] Add notifyStaffReply to supportNotifications.ts (email to ticket submitter when staff replies)

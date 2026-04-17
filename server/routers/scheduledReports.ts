@@ -37,7 +37,7 @@ async function requireAccountMember(userId: number, accountId: number, userRole?
 // CRUD for report schedules + preview + test send
 // ─────────────────────────────────────────────
 
-const VALID_REPORT_TYPES = ["kpis", "campaignROI", "workflowPerformance", "revenueAttribution", "daily_activity"];
+const VALID_REPORT_TYPES = ["kpis", "campaignROI", "workflowPerformance", "revenueAttribution", "daily_activity", "pipeline_summary"];
 const VALID_FREQUENCIES = ["daily", "weekly", "monthly", "daily_activity"] as const;
 const VALID_TIMEZONES = [
   "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",

@@ -58,6 +58,7 @@ const REPORT_TYPE_LABELS: Record<string, { label: string; description: string }>
   workflowPerformance: { label: "Workflow Performance", description: "Execution counts, completion rates, failures" },
   revenueAttribution: { label: "Revenue Attribution", description: "Revenue by source, deal and invoice totals" },
   daily_activity: { label: "Daily Activity Report", description: "Inbound calls, outbound SMS/email, contact updates, dispositions. Delivered Tue–Fri; Monday covers Fri–Sun." },
+  pipeline_summary: { label: "Pipeline Summary", description: "Snapshot of all stages, period activity, conversion funnel, stale deals, and top performers" },
 };
 
 const FREQUENCY_LABELS: Record<string, string> = {

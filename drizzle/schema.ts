@@ -705,8 +705,14 @@ export const deals = mysqlTable("deals", {
   pipelineId: int("pipeline_id").notNull(),
   stageId: int("stage_id").notNull(),
   contactId: int("contact_id").notNull(),
+  /** User who owns/is assigned this deal */
+  assignedUserId: int("assigned_user_id"),
   title: varchar("title", { length: 500 }),
   value: int("value").default(0),
+  /** Reason the deal was lost (free text, e.g. "Rate too high") */
+  lossReason: varchar("loss_reason", { length: 500 }),
+  /** Timestamp when the deal last changed stages */
+  stageChangedAt: timestamp("stage_changed_at").defaultNow().notNull(),
   sortOrder: int("sort_order").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
