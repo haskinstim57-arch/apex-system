@@ -2399,9 +2399,14 @@ export async function listDeals(pipelineId: number, accountId: number) {
         leadSource: contacts.leadSource,
         company: contacts.company,
       },
+      assignedUser: {
+        id: users.id,
+        name: users.name,
+      },
     })
     .from(deals)
     .innerJoin(contacts, eq(deals.contactId, contacts.id))
+    .leftJoin(users, eq(deals.assignedUserId, users.id))
     .where(
       and(
         eq(deals.pipelineId, pipelineId),
@@ -2414,7 +2419,7 @@ export async function listDeals(pipelineId: number, accountId: number) {
 export async function updateDeal(
   id: number,
   accountId: number,
-  data: Partial<Pick<InsertDeal, "stageId" | "title" | "value" | "sortOrder">>
+  data: Partial<Pick<InsertDeal, "stageId" | "title" | "value" | "sortOrder" | "assignedUserId" | "lossReason">>
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");

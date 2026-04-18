@@ -4408,3 +4408,14 @@
 - [x] Update invokeGeminiWithRetry: disable tool-calling for Forge fallback, return limited mode warning
 - [x] Log Forge fallback incidents with jarvis.llm_fallback=forge
 - [x] Tests: mock primary fail → fallback called; mock both fail → invokeLLM called; mock all three fail → user-facing error (6 tests pass)
+
+## Deal Assignment (assignedUserId)
+- [x] Router: add assignDeal mutation with role-based permissions (admin/owner can assign anyone, employee only self)
+- [x] Router: update createDeal to set default assignedUserId (manual → current user, automation → contact's assignedUserId)
+- [x] Router: add listTeamMembers query for assignment dropdown
+- [x] DB: update listDeals to join assigned user info (name, id)
+- [x] DB: update updateDeal to accept assignedUserId
+- [x] Frontend: add assigned user avatar/initials on kanban deal cards
+- [x] Frontend: click avatar → dropdown of team members → assignDeal mutation
+- [x] Frontend: deal detail modal with "Assigned To" dropdown
+- [x] Tests: assignment persists, role-based access, default assignment, Top Performers integration (10 tests pass)

@@ -20,6 +20,7 @@ import {
   getMaxStageSortOrder,
   getContactById,
   getMember,
+  listMembers,
   logContactActivity,
 } from "../db";
 
@@ -89,6 +90,65 @@ export const pipelineRouter = router({
       return listDeals(input.pipelineId, input.accountId);
     }),
 
+  // ─── List team members for assignment dropdown ───
+  listTeamMembers: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const members = await listMembers(input.accountId);
+      return members
+        .filter((m) => m.isActive)
+        .map((m) => ({
+          userId: m.userId,
+          name: m.userName || m.userEmail || `User ${m.userId}`,
+          email: m.userEmail,
+          role: m.role,
+        }));
+    }),
+
+  // ─── Assign a deal to a team member ───
+  assignDeal: protectedProcedure
+    .input(
+      z.object({
+        dealId: z.number().int().positive(),
+        accountId: z.number().int().positive(),
+        assignedUserId: z.number().int().positive().nullable(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const member = await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      const deal = await getDealById(input.dealId, input.accountId);
+      if (!deal) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Deal not found" });
+      }
+
+      // Role-based: employees can only assign to themselves
+      if (member.role === "employee" && input.assignedUserId !== null && input.assignedUserId !== ctx.user.id) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Employees can only assign deals to themselves",
+        });
+      }
+
+      // If assigning to someone, verify they are an active member of this account
+      if (input.assignedUserId !== null) {
+        const targetMember = await getMember(input.accountId, input.assignedUserId);
+        if (!targetMember || !targetMember.isActive) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Target user is not an active member of this account",
+          });
+        }
+      }
+
+      await updateDeal(input.dealId, input.accountId, {
+        assignedUserId: input.assignedUserId,
+      });
+
+      return { success: true };
+    }),
+
   // ─── Create a deal (add contact to pipeline) ───
   createDeal: protectedProcedure
     .input(
@@ -99,6 +159,7 @@ export const pipelineRouter = router({
         contactId: z.number().int().positive(),
         title: z.string().max(500).optional(),
         value: z.number().int().min(0).optional(),
+        assignedUserId: z.number().int().positive().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -131,6 +192,21 @@ export const pipelineRouter = router({
         });
       }
 
+      // Default assignment logic:
+      // 1. Explicit assignedUserId from input (e.g. automation passes contact's assignedUserId)
+      // 2. If created manually (no explicit assignment), default to current user
+      // 3. If null is explicitly desired, leave unassigned
+      let resolvedAssignedUserId: number | null = null;
+      if (input.assignedUserId !== undefined) {
+        resolvedAssignedUserId = input.assignedUserId;
+      } else if ((contact as any).assignedUserId) {
+        // Automation path: inherit from contact's assigned user
+        resolvedAssignedUserId = (contact as any).assignedUserId;
+      } else {
+        // Manual creation: default to current user
+        resolvedAssignedUserId = ctx.user.id;
+      }
+
       const stageName = stage.name;
       const { id } = await createDeal({
         accountId: input.accountId,
@@ -139,6 +215,7 @@ export const pipelineRouter = router({
         contactId: input.contactId,
         title: input.title || `${contact.firstName} ${contact.lastName}`,
         value: input.value || 0,
+        assignedUserId: resolvedAssignedUserId,
       });
 
       // Log activity

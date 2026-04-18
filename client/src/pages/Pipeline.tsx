@@ -25,8 +25,20 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   GripVertical,
   Loader2,
@@ -34,6 +46,8 @@ import {
   Plus,
   Trash2,
   User,
+  UserCircle,
+  UserX,
   DollarSign,
   Phone,
   Mail,
@@ -41,8 +55,9 @@ import {
   Settings2,
   ArrowUp,
   ArrowDown,
+  Check,
 } from "lucide-react";
-import { useMemo, useState, useRef, useCallback } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
 import { useLocation } from "wouter";
@@ -71,6 +86,18 @@ interface DealContact {
   company: string | null;
 }
 
+interface AssignedUser {
+  id: number | null;
+  name: string | null;
+}
+
+interface TeamMember {
+  userId: number;
+  name: string;
+  email: string | null;
+  role: string;
+}
+
 interface DealWithContact {
   deal: {
     id: number;
@@ -78,6 +105,7 @@ interface DealWithContact {
     pipelineId: number;
     stageId: number;
     contactId: number;
+    assignedUserId: number | null;
     title: string | null;
     value: number | null;
     sortOrder: number;
@@ -85,6 +113,26 @@ interface DealWithContact {
     updatedAt: Date;
   };
   contact: DealContact;
+  assignedUser: AssignedUser | null;
+}
+
+// ─── Helper: get initials from name ───
+function getInitials(name: string | null | undefined): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+}
+
+// ─── Deterministic avatar color from userId ───
+const AVATAR_COLORS = [
+  "bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500",
+  "bg-rose-500", "bg-cyan-500", "bg-indigo-500", "bg-orange-500",
+  "bg-teal-500", "bg-pink-500",
+];
+function avatarColor(userId: number | null): string {
+  if (!userId) return "bg-muted";
+  return AVATAR_COLORS[userId % AVATAR_COLORS.length];
 }
 
 export default function Pipeline() {
@@ -105,6 +153,12 @@ export default function Pipeline() {
       { pipelineId: pipelineData?.pipeline?.id!, accountId: accountId! },
       { enabled: !!accountId && !!pipelineData?.pipeline?.id, staleTime: 30000, placeholderData: (prev: any) => prev }
     );
+
+  // Team members for assignment
+  const { data: teamMembers } = trpc.pipeline.listTeamMembers.useQuery(
+    { accountId: accountId! },
+    { enabled: !!accountId }
+  );
 
   // Contacts for adding deals — higher limit to cover large accounts
   const [contactSearch, setContactSearch] = useState("");
@@ -138,6 +192,22 @@ export default function Pipeline() {
     onSuccess: () => {
       utils.pipeline.listDeals.invalidate();
       toast.success("Deal removed from pipeline");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const assignDealMutation = trpc.pipeline.assignDeal.useMutation({
+    onSuccess: () => {
+      utils.pipeline.listDeals.invalidate();
+      toast.success("Deal assignment updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateDealMutation = trpc.pipeline.updateDeal.useMutation({
+    onSuccess: () => {
+      utils.pipeline.listDeals.invalidate();
+      toast.success("Deal updated");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -180,6 +250,12 @@ export default function Pipeline() {
   const [newDealStageId, setNewDealStageId] = useState<number | null>(null);
   const [newDealTitle, setNewDealTitle] = useState("");
   const [newDealValue, setNewDealValue] = useState("");
+
+  // Deal detail modal
+  const [selectedDeal, setSelectedDeal] = useState<DealWithContact | null>(null);
+  const [detailTitle, setDetailTitle] = useState("");
+  const [detailValue, setDetailValue] = useState("");
+  const [detailAssignedUserId, setDetailAssignedUserId] = useState<string>("unassigned");
 
   // Drag state
   const [draggedDealId, setDraggedDealId] = useState<number | null>(null);
@@ -273,6 +349,44 @@ export default function Pipeline() {
     setDragOverStageId(null);
   }, []);
 
+  // ─── Deal detail handlers ───
+  const openDealDetail = useCallback((item: DealWithContact) => {
+    setSelectedDeal(item);
+    setDetailTitle(item.deal.title || "");
+    setDetailValue(String(item.deal.value || 0));
+    setDetailAssignedUserId(
+      item.deal.assignedUserId ? String(item.deal.assignedUserId) : "unassigned"
+    );
+  }, []);
+
+  const saveDealDetail = useCallback(() => {
+    if (!selectedDeal || !accountId) return;
+
+    // Save title/value changes
+    const titleChanged = detailTitle !== (selectedDeal.deal.title || "");
+    const valueChanged = detailValue !== String(selectedDeal.deal.value || 0);
+    if (titleChanged || valueChanged) {
+      updateDealMutation.mutate({
+        dealId: selectedDeal.deal.id,
+        accountId,
+        ...(titleChanged ? { title: detailTitle } : {}),
+        ...(valueChanged ? { value: parseInt(detailValue) || 0 } : {}),
+      });
+    }
+
+    // Save assignment change
+    const newAssigned = detailAssignedUserId === "unassigned" ? null : parseInt(detailAssignedUserId);
+    if (newAssigned !== selectedDeal.deal.assignedUserId) {
+      assignDealMutation.mutate({
+        dealId: selectedDeal.deal.id,
+        accountId,
+        assignedUserId: newAssigned,
+      });
+    }
+
+    setSelectedDeal(null);
+  }, [selectedDeal, accountId, detailTitle, detailValue, detailAssignedUserId, updateDealMutation, assignDealMutation]);
+
   // ─── Render ───
   if (!accountId) {
     return <NoAccountSelected />;
@@ -353,6 +467,7 @@ export default function Pipeline() {
                 isDragOver={dragOverStageId === stage.id}
                 draggedDealId={draggedDealId}
                 accountId={accountId!}
+                teamMembers={teamMembers || []}
                 onDragStart={handleDragStart}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
@@ -364,6 +479,10 @@ export default function Pipeline() {
                 onNavigateContact={(contactId) =>
                   navigate(`/contacts/${contactId}?account=${accountId}`)
                 }
+                onAssignDeal={(dealId, userId) =>
+                  assignDealMutation.mutate({ dealId, accountId: accountId!, assignedUserId: userId })
+                }
+                onOpenDetail={openDealDetail}
               />
             ))}
           </div>
@@ -484,6 +603,115 @@ export default function Pipeline() {
                 <Loader2 className="h-4 w-4 mr-1 animate-spin" />
               )}
               Add Deal
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deal Detail Modal */}
+      <Dialog open={!!selectedDeal} onOpenChange={(open) => !open && setSelectedDeal(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Deal Details</DialogTitle>
+            <DialogDescription>
+              {selectedDeal && (
+                <span>
+                  {selectedDeal.contact.firstName} {selectedDeal.contact.lastName}
+                  {selectedDeal.contact.company ? ` — ${selectedDeal.contact.company}` : ""}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedDeal && (
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label>Deal Title</Label>
+                <Input
+                  value={detailTitle}
+                  onChange={(e) => setDetailTitle(e.target.value)}
+                  placeholder="Deal title"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Deal Value ($)</Label>
+                <Input
+                  type="number"
+                  value={detailValue}
+                  onChange={(e) => setDetailValue(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Assigned To</Label>
+                <Select
+                  value={detailAssignedUserId}
+                  onValueChange={setDetailAssignedUserId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select team member" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unassigned">
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <UserX className="h-4 w-4" />
+                        Unassigned
+                      </span>
+                    </SelectItem>
+                    {(teamMembers || []).map((m) => (
+                      <SelectItem key={m.userId} value={String(m.userId)}>
+                        <span className="flex items-center gap-2">
+                          <span className={`inline-flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-medium text-white ${avatarColor(m.userId)}`}>
+                            {getInitials(m.name)}
+                          </span>
+                          {m.name}
+                          <span className="text-muted-foreground text-xs">({m.role})</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Contact info summary */}
+              <div className="rounded-md bg-muted/50 p-3 space-y-1.5">
+                <p className="text-xs font-medium text-muted-foreground">Contact Info</p>
+                {selectedDeal.contact.email && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Mail className="h-3 w-3 text-muted-foreground" />
+                    {selectedDeal.contact.email}
+                  </div>
+                )}
+                {selectedDeal.contact.phone && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Phone className="h-3 w-3 text-muted-foreground" />
+                    {selectedDeal.contact.phone}
+                  </div>
+                )}
+                {selectedDeal.contact.leadSource && (
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+                      {selectedDeal.contact.leadSource}
+                    </Badge>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedDeal(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={saveDealDetail}
+              disabled={updateDealMutation.isPending || assignDealMutation.isPending}
+            >
+              {(updateDealMutation.isPending || assignDealMutation.isPending) && (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              )}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -658,6 +886,7 @@ interface StageColumnProps {
   isDragOver: boolean;
   draggedDealId: number | null;
   accountId: number;
+  teamMembers: TeamMember[];
   onDragStart: (e: React.DragEvent, dealId: number) => void;
   onDragOver: (e: React.DragEvent, stageId: number) => void;
   onDragLeave: () => void;
@@ -665,6 +894,8 @@ interface StageColumnProps {
   onDragEnd: () => void;
   onDeleteDeal: (dealId: number) => void;
   onNavigateContact: (contactId: number) => void;
+  onAssignDeal: (dealId: number, userId: number | null) => void;
+  onOpenDetail: (item: DealWithContact) => void;
 }
 
 function StageColumn({
@@ -672,6 +903,7 @@ function StageColumn({
   deals,
   isDragOver,
   draggedDealId,
+  teamMembers,
   onDragStart,
   onDragOver,
   onDragLeave,
@@ -679,6 +911,8 @@ function StageColumn({
   onDragEnd,
   onDeleteDeal,
   onNavigateContact,
+  onAssignDeal,
+  onOpenDetail,
 }: StageColumnProps) {
   const totalValue = deals.reduce((sum, d) => sum + (d.deal.value || 0), 0);
 
@@ -725,10 +959,13 @@ function StageColumn({
             key={item.deal.id}
             item={item}
             isDragging={draggedDealId === item.deal.id}
+            teamMembers={teamMembers}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onDelete={onDeleteDeal}
             onNavigateContact={onNavigateContact}
+            onAssignDeal={onAssignDeal}
+            onOpenDetail={onOpenDetail}
           />
         ))}
 
@@ -746,21 +983,27 @@ function StageColumn({
 interface DealCardProps {
   item: DealWithContact;
   isDragging: boolean;
+  teamMembers: TeamMember[];
   onDragStart: (e: React.DragEvent, dealId: number) => void;
   onDragEnd: () => void;
   onDelete: (dealId: number) => void;
   onNavigateContact: (contactId: number) => void;
+  onAssignDeal: (dealId: number, userId: number | null) => void;
+  onOpenDetail: (item: DealWithContact) => void;
 }
 
 function DealCard({
   item,
   isDragging,
+  teamMembers,
   onDragStart,
   onDragEnd,
   onDelete,
   onNavigateContact,
+  onAssignDeal,
+  onOpenDetail,
 }: DealCardProps) {
-  const { deal, contact } = item;
+  const { deal, contact, assignedUser } = item;
 
   return (
     <Card
@@ -775,7 +1018,10 @@ function DealCard({
     >
       <CardContent className="p-3">
         <div className="flex items-start justify-between gap-1">
-          <div className="flex-1 min-w-0">
+          <div
+            className="flex-1 min-w-0 cursor-pointer"
+            onClick={() => onOpenDetail(item)}
+          >
             <div className="flex items-center gap-1.5">
               <GripVertical className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
               <p className="text-sm font-medium truncate">
@@ -788,26 +1034,96 @@ function DealCard({
               </p>
             )}
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
-                <MoreHorizontal className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onNavigateContact(contact.id)}>
-                <User className="h-4 w-4 mr-2" />
-                View Contact
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => onDelete(deal.id)}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Remove Deal
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+          {/* Assigned user avatar + actions */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            {/* Assignment avatar with popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-full"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        {deal.assignedUserId && assignedUser?.name ? (
+                          <Avatar className="h-6 w-6">
+                            <AvatarFallback
+                              className={`text-[10px] font-medium text-white ${avatarColor(deal.assignedUserId)}`}
+                            >
+                              {getInitials(assignedUser.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <span className="inline-flex items-center justify-center h-6 w-6 rounded-full border border-dashed border-muted-foreground/40 text-muted-foreground/60">
+                            <UserCircle className="h-3.5 w-3.5" />
+                          </span>
+                        )}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      {deal.assignedUserId && assignedUser?.name
+                        ? assignedUser.name
+                        : "Unassigned"}
+                    </TooltipContent>
+                  </Tooltip>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-48 p-1" align="end">
+                <div className="text-xs font-medium text-muted-foreground px-2 py-1.5">
+                  Assign to
+                </div>
+                <button
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors text-left"
+                  onClick={() => onAssignDeal(deal.id, null)}
+                >
+                  <UserX className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-muted-foreground">Unassigned</span>
+                  {!deal.assignedUserId && <Check className="h-3 w-3 ml-auto text-primary" />}
+                </button>
+                {teamMembers.map((m) => (
+                  <button
+                    key={m.userId}
+                    className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded-sm hover:bg-accent transition-colors text-left"
+                    onClick={() => onAssignDeal(deal.id, m.userId)}
+                  >
+                    <span className={`inline-flex items-center justify-center h-5 w-5 rounded-full text-[9px] font-medium text-white ${avatarColor(m.userId)}`}>
+                      {getInitials(m.name)}
+                    </span>
+                    <span className="truncate">{m.name}</span>
+                    {deal.assignedUserId === m.userId && <Check className="h-3 w-3 ml-auto text-primary" />}
+                  </button>
+                ))}
+              </PopoverContent>
+            </Popover>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                  <MoreHorizontal className="h-3.5 w-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onOpenDetail(item)}>
+                  <Settings2 className="h-4 w-4 mr-2" />
+                  Deal Details
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onNavigateContact(contact.id)}>
+                  <User className="h-4 w-4 mr-2" />
+                  View Contact
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => onDelete(deal.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Remove Deal
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Contact info */}
