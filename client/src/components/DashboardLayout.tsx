@@ -70,6 +70,8 @@ import { useBranding } from "@/contexts/BrandingContext";
 import { NotificationCenter } from "./NotificationCenter";
 import { JarvisPanel } from "./JarvisPanel";
 import { useTheme } from "@/contexts/ThemeContext";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Wallet } from "lucide-react";
 
 /**
  * Sub-account pages — only shown when a specific account is selected.
@@ -230,6 +232,55 @@ function MobileLogo() {
         {brandName || "Sterling Marketing"}
       </span>
     </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// BALANCE PILL — shows current balance in header
+// ─────────────────────────────────────────────
+
+function BalancePill({ accountId }: { accountId: number }) {
+  const [, setLocation] = useLocation();
+  const { data } = trpc.billing.getBalancePill.useQuery(
+    { accountId },
+    { refetchInterval: 30000, retry: 1 }
+  );
+
+  if (!data) return null;
+
+  const balance = data.balance;
+  const isLow = balance < 5 && !data.autoRechargeEnabled;
+  const isLocked = data.isLocked;
+
+  const pillColor = isLocked
+    ? "bg-destructive/15 text-destructive border-destructive/30"
+    : isLow
+      ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30"
+      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20";
+
+  const label = isLocked ? "Locked" : `$${balance.toFixed(2)}`;
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => setLocation("/billing")}
+            className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors hover:opacity-80 ${pillColor}`}
+          >
+            <Wallet className="h-3.5 w-3.5" />
+            {label}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="text-xs">
+          {isLocked
+            ? "Account billing is locked. Contact support."
+            : isLow
+              ? "Low balance — add funds or enable auto-recharge"
+              : `Balance: $${balance.toFixed(2)}${data.autoRechargeEnabled ? " · Auto-recharge on" : ""}`}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
 
@@ -684,6 +735,11 @@ function DashboardLayoutContent({
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Balance pill — sub-account only */}
+            {!!currentAccountId && !isAgencyScope && (
+              <BalancePill accountId={currentAccountId} />
+            )}
+
             {/* Notification bell */}
             <NotificationCenter />
 

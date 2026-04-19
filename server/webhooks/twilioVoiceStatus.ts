@@ -6,7 +6,7 @@ import {
   logContactActivity,
   createNotification,
 } from "../db";
-import { dispatchSMS } from "../services/messaging";
+import { billedDispatchSMS } from "../services/billedDispatch";
 import { resolveAccountByTwilioNumber, normalizePhone } from "./inboundMessages";
 
 // ─────────────────────────────────────────────
@@ -149,12 +149,13 @@ async function sendMissedCallTextBack(params: {
   // Find the contact by phone number
   const contact = await findContactByPhone(callerPhone, accountId);
 
-  // Send the SMS
-  const result = await dispatchSMS({
+  // Send the SMS (billed to account)
+  const result = await billedDispatchSMS({
+    accountId,
     to: callerPhone,
     body: message,
-    from: twilioNumber,
-    accountId,
+    contactId: contact?.id,
+    userId: 0,
   });
 
   if (!result.success) {

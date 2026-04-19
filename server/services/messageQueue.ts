@@ -16,7 +16,8 @@ import {
   updateQueuedMessage,
 } from "../db";
 import { isWithinAccountBusinessHours } from "../utils/businessHours";
-import { dispatchSMS, dispatchEmail, type MessageSendResult } from "./messaging";
+import { billedDispatchSMS, billedDispatchEmail } from "./billedDispatch";
+import { type MessageSendResult } from "./messaging";
 
 // ─────────────────────────────────────────────
 // Types
@@ -107,25 +108,23 @@ async function dispatchQueuedMessage(
     switch (msg.type) {
       case "sms": {
         const smsPayload = payload as QueuedSMSPayload;
-        result = await dispatchSMS({
+        result = await billedDispatchSMS({
+          accountId: msg.accountId,
           to: smsPayload.to,
           body: smsPayload.body,
-          from: smsPayload.from,
-          accountId: msg.accountId,
           contactId: smsPayload.contactId,
-          skipDndCheck: smsPayload.skipDndCheck,
+          userId: 0,
         });
         break;
       }
       case "email": {
         const emailPayload = payload as QueuedEmailPayload;
-        result = await dispatchEmail({
+        result = await billedDispatchEmail({
+          accountId: msg.accountId,
           to: emailPayload.to,
           subject: emailPayload.subject,
           body: emailPayload.body,
-          from: emailPayload.from,
-          fromName: emailPayload.fromName,
-          accountId: msg.accountId,
+          userId: 0,
         });
         break;
       }

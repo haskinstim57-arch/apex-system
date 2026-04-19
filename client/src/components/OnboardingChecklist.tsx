@@ -18,6 +18,7 @@ import {
   ChevronDown,
   ChevronUp,
   PartyPopper,
+  CreditCard,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -34,6 +35,11 @@ const STEP_CONFIG: Record<
     icon: Phone,
     link: "/settings#phone",
     description: "Set up a phone number for SMS and AI calls",
+  },
+  payment_method_added: {
+    icon: CreditCard,
+    link: "/billing",
+    description: "Add a payment method to enable messaging and AI calls",
   },
   first_contact: {
     icon: UserPlus,
@@ -164,7 +170,7 @@ export default function OnboardingChecklist({ accountId }: OnboardingChecklistPr
               and ready to go. Time to start closing deals.
             </p>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-muted-foreground">7/7 complete</span>
+              <span className="text-xs text-muted-foreground">8/8 complete</span>
               <div className="h-2 w-24 bg-emerald-100 rounded-full overflow-hidden">
                 <div className="h-full w-full bg-emerald-500 rounded-full" />
               </div>
@@ -334,7 +340,7 @@ function OnboardingChecklistSkeleton() {
         </div>
         <Skeleton className="h-2 w-full rounded-full mb-4" />
         <div className="space-y-2">
-          {Array.from({ length: 7 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 px-3 py-2.5">
               <Skeleton className="h-5 w-5 rounded-full" />
               <Skeleton className="h-8 w-8 rounded-lg" />

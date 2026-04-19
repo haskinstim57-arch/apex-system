@@ -13,6 +13,7 @@ import {
   generateReplySuggestion,
 } from "../services/googleMyBusiness";
 import { getContactById, getDb } from "../db";
+import { billedDispatchSMS, billedDispatchEmail } from "../services/billedDispatch";
 import { dispatchSMS, dispatchEmail } from "../services/messaging";
 import { createMessage } from "../db";
 import { gmbConnections, gmbReviews, reviews, reputationAlertSettings } from "../../drizzle/schema";
@@ -253,7 +254,7 @@ export const reputationRouter = router({
             body: message,
             toAddress: contact.phone,
           });
-          const result = await dispatchSMS({ to: contact.phone, body: message, accountId: input.accountId });
+          const result = await billedDispatchSMS({ accountId: input.accountId, to: contact.phone, body: message, contactId: input.contactId, userId: ctx.user.id });
           const { updateMessageStatus } = await import("../db");
           if (result.success) {
             await updateMessageStatus(msgId, "sent", { externalId: result.externalId, sentAt: new Date() });
@@ -273,11 +274,13 @@ export const reputationRouter = router({
             toAddress: contact.email,
             subject: "We'd love your feedback!",
           });
-          const result = await dispatchEmail({
+          const result = await billedDispatchEmail({
+            accountId: input.accountId,
             to: contact.email,
             subject: "We'd love your feedback!",
             body: message,
-            accountId: input.accountId,
+            contactId: input.contactId,
+            userId: ctx.user.id,
           });
           const { updateMessageStatus } = await import("../db");
           if (result.success) {

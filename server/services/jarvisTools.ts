@@ -71,11 +71,11 @@ import {
   jarvisScheduledTasks,
   supportTickets,
 } from "../../drizzle/schema";
-import { dispatchSMS, dispatchEmail } from "./messaging";
+import { billedDispatchSMS, billedDispatchEmail } from "./billedDispatch";
 import { triggerWorkflow } from "./workflowEngine";
 import { generateSocialPost } from "./contentGenerator";
 import { invokeLLM } from "../_core/llm";
-import { trackUsage } from "./usageTracker";
+import { trackUsage, chargeBeforeSend } from "./usageTracker";
 import { listMembers, getOrCreateWarmingConfig } from "../db";
 import { getAccountCustomFieldDefs } from "../routers/customFields";
 import { getScoreTier } from "./leadScoringEngine";
@@ -1211,11 +1211,12 @@ export async function executeTool(
       const contact = await getContactById(args.contactId as number, accountId);
       if (!contact) return { error: "Contact not found" };
       if (!contact.phone) return { error: "Contact has no phone number" };
-      const smsResult = await dispatchSMS({
+      const smsResult = await billedDispatchSMS({
+        accountId,
         to: contact.phone,
         body: args.body as string,
-        accountId,
         contactId: contact.id,
+        userId,
       });
       await createMessage({
         accountId,
@@ -1240,11 +1241,13 @@ export async function executeTool(
       const contact = await getContactById(args.contactId as number, accountId);
       if (!contact) return { error: "Contact not found" };
       if (!contact.email) return { error: "Contact has no email address" };
-      const emailResult = await dispatchEmail({
+      const emailResult = await billedDispatchEmail({
+        accountId,
         to: contact.email,
         subject: args.subject as string,
         body: args.body as string,
-        accountId,
+        contactId: contact.id,
+        userId,
       });
       await createMessage({
         accountId,
@@ -1536,11 +1539,12 @@ export async function executeTool(
           if (!contact) { failed++; errors.push(`Contact ${cid} not found`); continue; }
           if (!contact.phone) { failed++; errors.push(`${contact.firstName} ${contact.lastName} has no phone`); continue; }
 
-          const smsResult = await dispatchSMS({
+          const smsResult = await billedDispatchSMS({
+            accountId,
             to: contact.phone,
             body,
-            accountId,
             contactId: contact.id,
+            userId,
           });
 
           await createMessage({
@@ -1899,11 +1903,14 @@ Return your response as valid JSON.`;
       const contact = await getContactById(draft.contactId, accountId);
       if (!contact) return { error: "Contact not found" };
       if (!contact.email) return { error: "Contact has no email address" };
-      const emailResult = await dispatchEmail({
+      const emailResult = await billedDispatchEmail({
+        accountId,
         to: contact.email,
         subject: draft.subject,
         body: draft.body,
-        accountId,
+        contactId: contact.id,
+        userId,
+        metadata: { feature: "jarvis_send_draft" },
       });
       if (emailResult.success) {
         await db
@@ -1927,13 +1934,6 @@ Return your response as valid JSON.`;
           activityType: "message_sent",
           description: `Email draft sent by Jarvis AI: "${draft.subject}"`,
         });
-        await trackUsage({
-          accountId,
-          userId,
-          eventType: "email_sent",
-          quantity: 1,
-          metadata: { feature: "jarvis_send_draft" },
-        }).catch(() => {});
       }
       return { success: emailResult.success, sentTo: contact.email, error: emailResult.error };
     }

@@ -8,7 +8,7 @@ import {
   getEmailTemplate,
   createNotification,
 } from "../db";
-import { dispatchSMS, dispatchEmail } from "./messaging";
+import { billedCampaignSMS, billedCampaignEmail } from "./billedDispatch";
 import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
 
 // ─────────────────────────────────────────────
@@ -149,19 +149,21 @@ async function sendCampaign(campaignId: number, accountId: number) {
     try {
       let result;
       if (campaign.type === "email") {
-        result = await dispatchEmail({
+        result = await billedCampaignEmail({
+          accountId,
+          contactId: recipient.contactId ?? 0,
           to: recipient.toAddress,
           subject: campaign.subject || campaign.name,
           body: mergedBody,
           from: campaign.fromAddress || undefined,
-          accountId,
         });
       } else {
-        result = await dispatchSMS({
+        result = await billedCampaignSMS({
+          accountId,
+          contactId: recipient.contactId ?? 0,
           to: recipient.toAddress,
           body: mergedBody,
           from: campaign.fromAddress || undefined,
-          accountId,
         });
       }
 
@@ -170,6 +172,13 @@ async function sendCampaign(campaignId: number, accountId: number) {
         await updateCampaignRecipientStatus(recipient.id, "sent", {
           sentAt: new Date(),
         });
+      } else if (result.status === "failed_insufficient_balance") {
+        failedCount++;
+        await updateCampaignRecipientStatus(recipient.id, "failed", {
+          errorMessage: "Insufficient balance — campaign paused",
+        });
+        console.warn(`[CampaignScheduler] Campaign ${campaign.id} paused: insufficient balance`);
+        break;
       } else {
         failedCount++;
         await updateCampaignRecipientStatus(recipient.id, "failed", {

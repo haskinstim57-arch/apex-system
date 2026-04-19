@@ -53,7 +53,7 @@ export const accounts = mysqlTable("accounts", {
   email: varchar("email", { length: 320 }),
   address: text("address"),
   logoUrl: text("logoUrl"),
-  status: mysqlEnum("status", ["active", "suspended", "pending"])
+  status: mysqlEnum("status", ["active", "suspended", "pending", "billing_locked"])
     .default("active")
     .notNull(),
   onboardingComplete: boolean("onboardingComplete").default(false).notNull(),
@@ -2522,12 +2522,12 @@ export const accountBilling = mysqlTable("account_billing", {
   billingEmail: varchar("billing_email", { length: 255 }),
 
   // Per-service markup multipliers (1.00 = no markup, 1.10 = 10% markup)
-  smsMarkup: decimal("sms_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
-  emailMarkup: decimal("email_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
-  aiCallMarkup: decimal("ai_call_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
-  voiceCallMarkup: decimal("voice_call_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
-  llmMarkup: decimal("llm_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
-  dialerMarkup: decimal("dialer_markup", { precision: 5, scale: 3 }).notNull().default("1.100"),
+  smsMarkup: decimal("sms_markup", { precision: 5, scale: 3 }).notNull().default("2.500"),
+  emailMarkup: decimal("email_markup", { precision: 5, scale: 3 }).notNull().default("2.500"),
+  aiCallMarkup: decimal("ai_call_markup", { precision: 5, scale: 3 }).notNull().default("1.200"),
+  voiceCallMarkup: decimal("voice_call_markup", { precision: 5, scale: 3 }).notNull().default("2.500"),
+  llmMarkup: decimal("llm_markup", { precision: 5, scale: 3 }).notNull().default("1.500"),
+  dialerMarkup: decimal("dialer_markup", { precision: 5, scale: 3 }).notNull().default("2.500"),
 
   // Per-service rebilling toggles
   smsRebillingEnabled: boolean("sms_rebilling_enabled").notNull().default(true),
@@ -2536,6 +2536,15 @@ export const accountBilling = mysqlTable("account_billing", {
   voiceCallRebillingEnabled: boolean("voice_call_rebilling_enabled").notNull().default(true),
   llmRebillingEnabled: boolean("llm_rebilling_enabled").notNull().default(true),
   dialerRebillingEnabled: boolean("dialer_rebilling_enabled").notNull().default(true),
+
+  // Auto-recharge settings
+  autoRechargeEnabled: boolean("auto_recharge_enabled").notNull().default(false),
+  autoRechargeAmountCents: int("auto_recharge_amount_cents").notNull().default(5000),
+  autoRechargeThreshold: decimal("auto_recharge_threshold", { precision: 10, scale: 4 }).notNull().default("5.0000"),
+
+  // Auto-recharge safety limits
+  rechargeAttemptsToday: int("recharge_attempts_today").notNull().default(0),
+  rechargeAttemptsResetAt: timestamp("recharge_attempts_reset_at"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
@@ -2564,6 +2573,8 @@ export const usageEvents = mysqlTable("usage_events", {
   /** Whether this event has been included in an invoice */
   invoiced: boolean("invoiced").default(false).notNull(),
   invoiceId: int("invoice_id"),
+  /** Whether this charge was reversed (refunded on send failure) */
+  refunded: boolean("refunded").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export type UsageEvent = typeof usageEvents.$inferSelect;

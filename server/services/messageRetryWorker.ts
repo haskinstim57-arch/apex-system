@@ -1,7 +1,7 @@
 import { getDb } from "../db";
 import { messages } from "../../drizzle/schema";
 import { and, eq, lte, lt, isNotNull } from "drizzle-orm";
-import { dispatchSMS, dispatchEmail } from "./messaging";
+import { billedDispatchSMS, billedDispatchEmail } from "./billedDispatch";
 
 // ─────────────────────────────────────────────
 // Message Retry Worker
@@ -129,20 +129,22 @@ export async function processDueRetries() {
         })
         .where(eq(messages.id, msg.id));
 
-      // Re-send via the same channel
+      // Re-send via the same channel (billed)
       if (msg.type === "sms") {
-        await dispatchSMS({
+        await billedDispatchSMS({
+          accountId: msg.accountId,
           to: msg.toAddress,
           body: msg.body,
-          accountId: msg.accountId,
           contactId: msg.contactId,
+          userId: 0,
         });
       } else if (msg.type === "email") {
-        await dispatchEmail({
+        await billedDispatchEmail({
+          accountId: msg.accountId,
           to: msg.toAddress,
           subject: msg.subject || "(No subject)",
           body: msg.body,
-          accountId: msg.accountId,
+          userId: 0,
         });
       }
 

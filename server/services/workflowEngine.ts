@@ -22,7 +22,7 @@ import {
 } from "../db";
 import type { Workflow, WorkflowStep } from "../../drizzle/schema";
 import { createVapiCall, resolveAssistantId } from "./vapi";
-import { dispatchSMS, dispatchEmail } from "./messaging";
+import { billedDispatchSMS, billedDispatchEmail } from "./billedDispatch";
 import { isWithinBusinessHours, type BusinessHoursConfig } from "../utils/businessHours";
 import { enqueueMessage } from "./messageQueue";
 import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
@@ -395,8 +395,8 @@ async function executeAction(
         body: smsBody,
         toAddress: contact.phone,
       });
-      // Dispatch through real provider (per-account credentials)
-      const smsResult = await dispatchSMS({ to: contact.phone, body: smsBody, accountId });
+      // Dispatch through billed provider (charge-before-send)
+      const smsResult = await billedDispatchSMS({ accountId, to: contact.phone, body: smsBody, contactId, userId: 0 });
       const { updateMessageStatus } = await import("../db");
       if (smsResult.success) {
         await updateMessageStatus(id, "sent", { externalId: smsResult.externalId, sentAt: new Date() });
@@ -429,8 +429,8 @@ async function executeAction(
         body: emailBody,
         toAddress: contact.email,
       });
-      // Dispatch through real provider (per-account credentials)
-      const emailResult = await dispatchEmail({ to: contact.email, subject: emailSubject, body: emailBody, accountId });
+      // Dispatch through billed provider (charge-before-send)
+      const emailResult = await billedDispatchEmail({ accountId, to: contact.email, subject: emailSubject, body: emailBody, contactId, userId: 0 });
       const { updateMessageStatus: updateMsgStatus } = await import("../db");
       if (emailResult.success) {
         await updateMsgStatus(id, "sent", { externalId: emailResult.externalId, sentAt: new Date() });
@@ -630,15 +630,17 @@ async function executeAction(
 
       try {
         if (channel === "sms" && contact.phone) {
-          const { dispatchSMS } = await import("./messaging");
-          await dispatchSMS({ to: contact.phone, body: message, accountId });
+          const { billedDispatchSMS: bSMS } = await import("./billedDispatch");
+          await bSMS({ accountId, to: contact.phone, body: message, contactId, userId: 0 });
         } else if (channel === "email" && contact.email) {
-          const { dispatchEmail } = await import("./messaging");
-          await dispatchEmail({
+          const { billedDispatchEmail: bEmail } = await import("./billedDispatch");
+          await bEmail({
+            accountId,
             to: contact.email,
             subject: "We'd love your feedback!",
             body: message,
-            accountId,
+            contactId,
+            userId: 0,
           });
         } else {
           throw new Error(`Contact has no ${channel} address for review request`);

@@ -30,59 +30,11 @@ import {
 // Routes through Twilio (SMS) and SendGrid (Email)
 // Falls back to placeholder when providers are not configured
 // ─────────────────────────────────────────────
-import { dispatchSMS, dispatchEmail } from "../services/messaging";
-
-interface SendResult {
-  success: boolean;
-  externalId?: string;
-  error?: string;
-}
-
-/**
- * Send a campaign email via SendGrid (or placeholder fallback).
- */
-export async function sendCampaignEmail(params: {
-  to: string;
-  from: string;
-  subject: string;
-  body: string;
-  contactFirstName?: string;
-  contactLastName?: string;
-}): Promise<SendResult> {
-  const result = await dispatchEmail({
-    to: params.to,
-    subject: params.subject,
-    body: params.body,
-    from: params.from,
-  });
-  return {
-    success: result.success,
-    externalId: result.externalId,
-    error: result.error,
-  };
-}
-
-/**
- * Send a campaign SMS via Twilio (or placeholder fallback).
- */
-export async function sendCampaignSMS(params: {
-  to: string;
-  from: string;
-  body: string;
-  contactFirstName?: string;
-  contactLastName?: string;
-}): Promise<SendResult> {
-  const result = await dispatchSMS({
-    to: params.to,
-    body: params.body,
-    from: params.from,
-  });
-  return {
-    success: result.success,
-    externalId: result.externalId,
-    error: result.error,
-  };
-}
+import {
+  billedCampaignSMS,
+  billedCampaignEmail,
+  type CampaignRecipientResult,
+} from "../services/billedDispatch";
 
 // ─────────────────────────────────────────────
 // HELPER: Check account membership (admin bypass)
@@ -444,8 +396,9 @@ export const campaignsRouter = router({
 
       let sentCount = 0;
       let failedCount = 0;
+      let insufficientBalanceCount = 0;
 
-      // Process each recipient
+      // Process each recipient with billing enforcement
       for (const recipient of recipients) {
         const mergedBody = mergeTemplateVars(campaign.body, {
           firstName: recipient.contactFirstName || undefined,
@@ -454,23 +407,25 @@ export const campaignsRouter = router({
           phone: recipient.contactPhone || undefined,
         });
 
-        let result: SendResult;
+        let result: CampaignRecipientResult;
         if (campaign.type === "email") {
-          result = await sendCampaignEmail({
+          result = await billedCampaignEmail({
+            accountId: input.accountId,
+            contactId: recipient.contactId ?? 0,
             to: recipient.toAddress,
-            from: campaign.fromAddress || "noreply@sterlingmarketing.com",
             subject: campaign.subject || campaign.name,
             body: mergedBody,
-            contactFirstName: recipient.contactFirstName || undefined,
-            contactLastName: recipient.contactLastName || undefined,
+            from: campaign.fromAddress || undefined,
+            userId: ctx.user.id,
           });
         } else {
-          result = await sendCampaignSMS({
+          result = await billedCampaignSMS({
+            accountId: input.accountId,
+            contactId: recipient.contactId ?? 0,
             to: recipient.toAddress,
-            from: campaign.fromAddress || "+10000000000",
             body: mergedBody,
-            contactFirstName: recipient.contactFirstName || undefined,
-            contactLastName: recipient.contactLastName || undefined,
+            from: campaign.fromAddress || undefined,
+            userId: ctx.user.id,
           });
         }
 
@@ -479,6 +434,16 @@ export const campaignsRouter = router({
           await updateCampaignRecipientStatus(recipient.id, "sent", {
             sentAt: new Date(),
           });
+        } else if (result.status === "failed_insufficient_balance") {
+          insufficientBalanceCount++;
+          await updateCampaignRecipientStatus(recipient.id, "failed", {
+            errorMessage: "Insufficient balance — campaign paused",
+          });
+          // Stop the campaign — no point sending more if balance is exhausted
+          console.warn(
+            `[Campaigns] Campaign ${input.id} paused: insufficient balance after ${sentCount} sent`
+          );
+          break;
         } else {
           failedCount++;
           await updateCampaignRecipientStatus(recipient.id, "failed", {

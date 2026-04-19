@@ -294,6 +294,8 @@ export const accountsRouter = router({
         pipelines,
         accountMembers,
         accountMessagingSettings,
+        paymentMethods,
+        accountBilling,
       } = await import("../../drizzle/schema");
       const { count, and } = await import("drizzle-orm");
 
@@ -305,7 +307,15 @@ export const accountsRouter = router({
         .limit(1);
       const phoneConnected = !!(msgSettings?.twilioFromNumber);
 
-      // 2. First contact added — at least 1 contact row
+      // 2. Payment method added — check paymentMethods table for a default card
+      const [pmRow] = await database
+        .select({ cnt: count() })
+        .from(paymentMethods)
+        .where(and(eq(paymentMethods.accountId, input.accountId), eq(paymentMethods.isDefault, true)))
+        .limit(1);
+      const paymentMethodAdded = (pmRow?.cnt ?? 0) > 0;
+
+      // 3. First contact added — at least 1 contact row
       const [contactCount] = await database
         .select({ cnt: count() })
         .from(contacts)
@@ -349,6 +359,7 @@ export const accountsRouter = router({
 
       const steps = [
         { id: "phone_connected" as const, label: "Connect a phone number", complete: phoneConnected },
+        { id: "payment_method_added" as const, label: "Add a payment method", complete: paymentMethodAdded },
         { id: "first_contact" as const, label: "Add your first contact", complete: firstContact },
         { id: "first_campaign" as const, label: "Send your first campaign", complete: firstCampaignSent },
         { id: "automation_created" as const, label: "Create an automation", complete: automationCreated },
@@ -358,10 +369,10 @@ export const accountsRouter = router({
       ];
 
       const completedCount = steps.filter((s) => s.complete).length;
-      const totalCount = 7;
+      const totalCount = 8;
       const allComplete = completedCount === totalCount;
 
-      // Auto-mark onboarding as complete when all 7 steps are done
+      // Auto-mark onboarding as complete when all 8 steps are done
       if (allComplete) {
         await database
           .update(accounts)

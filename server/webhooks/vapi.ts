@@ -16,7 +16,7 @@ import {
 } from "../db";
 import { mapVapiStatus, mapVapiEndedReason } from "../services/vapi";
 import { sendPushNotificationToAccount } from "../services/webPush";
-import { trackUsage } from "../services/usageTracker";
+import { chargeBeforeSend, reverseCharge } from "../services/usageTracker";
 import {
   parseBusinessHoursJson,
   resolveBusinessHoursSchedule,
@@ -669,15 +669,33 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
     console.log(`[VAPI Webhook] Updated call ${call.id}: type=${message.type}`);
   }
 
-  // Track billable AI call minutes
-  if (message.type === "end-of-call-report" && call.accountId && updateData.durationSeconds) {
-    const minutes = Math.max(Math.ceil(updateData.durationSeconds / 60), 1);
-    trackUsage({
-      accountId: call.accountId,
-      eventType: "ai_call_minute",
-      quantity: minutes,
-      metadata: { callId: call.id, contactId: call.contactId, durationSeconds: updateData.durationSeconds },
-    }).catch(() => {});
+  // Track billable AI call minutes — reverse deposit, charge actual
+  if (message.type === "end-of-call-report" && call.accountId) {
+    // 1. Reverse the 3-minute deposit if it exists
+    let depositEventId: number | null = null;
+    try {
+      const meta = call.metadata ? (typeof call.metadata === "string" ? JSON.parse(call.metadata) : call.metadata) : null;
+      depositEventId = meta?.depositEventId ?? null;
+    } catch { /* ignore parse errors */ }
+
+    if (depositEventId) {
+      reverseCharge(depositEventId).catch((err) =>
+        console.error(`[VAPI Webhook] Failed to reverse deposit ${depositEventId}:`, err)
+      );
+    }
+
+    // 2. Charge actual minutes (minimum 1 minute)
+    if (updateData.durationSeconds && updateData.durationSeconds > 0) {
+      const actualMinutes = Math.max(Math.ceil(updateData.durationSeconds / 60), 1);
+      chargeBeforeSend(
+        call.accountId,
+        "ai_call_minute",
+        actualMinutes,
+        { type: "ai_call_actual", callId: call.id, contactId: call.contactId, durationSeconds: updateData.durationSeconds },
+      ).catch((err) => {
+        console.error(`[VAPI Webhook] Failed to charge actual minutes for call ${call.id}:`, err);
+      });
+    }
   }
 
   // Fire call_completed automation trigger when call ends

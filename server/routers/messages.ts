@@ -14,8 +14,7 @@ import {
   createAuditLog,
   logContactActivity,
 } from "../db";
-import { dispatchSMS, dispatchEmail } from "../services/messaging";
-import { trackUsage } from "../services/usageTracker";
+import { billedDispatchSMS, billedDispatchEmail } from "../services/billedDispatch";
 
 // ─── Tenant guard: verify user is a member of the account ───
 // Platform admins (role='admin' on users table) bypass this check
@@ -98,23 +97,29 @@ export const messagesRouter = router({
         fromAddress: input.fromAddress || null,
       });
 
-      // Dispatch through real provider (async, non-blocking)
+      // Dispatch through billed provider (charge-before-send)
       (async () => {
         try {
           let result;
           if (input.type === "sms") {
-            result = await dispatchSMS({
+            result = await billedDispatchSMS({
+              accountId: input.accountId,
               to: input.toAddress,
               body: input.body,
-              accountId: input.accountId,
+              userId: ctx.user.id,
+              contactId: input.contactId,
+              metadata: { messageId: id },
             });
           } else {
-            result = await dispatchEmail({
+            result = await billedDispatchEmail({
+              accountId: input.accountId,
               to: input.toAddress,
               subject: input.subject || "(no subject)",
               body: input.body,
               from: input.fromAddress || undefined,
-              accountId: input.accountId,
+              userId: ctx.user.id,
+              contactId: input.contactId,
+              metadata: { messageId: id },
             });
           }
 
@@ -129,21 +134,12 @@ export const messagesRouter = router({
             });
           }
         } catch (err: any) {
-          console.error(`[Messages] Provider dispatch failed for message ${id}:`, err);
+          console.error(`[Messages] Billed dispatch failed for message ${id}:`, err);
           await updateMessageStatus(id, "failed", {
             errorMessage: err?.message || String(err),
           });
         }
       })();
-
-      // Track billable usage (fire-and-forget)
-      trackUsage({
-        accountId: input.accountId,
-        userId: ctx.user.id,
-        eventType: input.type === "sms" ? "sms_sent" : "email_sent",
-        quantity: 1,
-        metadata: { contactId: input.contactId, messageId: id },
-      }).catch(() => {});
 
       // Log the action
       await createAuditLog({

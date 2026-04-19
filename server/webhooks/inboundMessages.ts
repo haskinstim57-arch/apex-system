@@ -18,6 +18,7 @@ import {
   processHelpRequest,
   logAutoReplySent,
 } from "../services/smsCompliance";
+import { billedDispatchSMS } from "../services/billedDispatch";
 import { dispatchSMS } from "../services/messaging";
 
 // ─────────────────────────────────────────────
@@ -103,10 +104,13 @@ inboundMessageRouter.post(
         // Send auto-reply via Twilio
         if (compliance.autoReply) {
           try {
-            await dispatchSMS({
+            // Compliance auto-replies are billed to the account
+            await billedDispatchSMS({
+              accountId,
               to: From,
               body: compliance.autoReply,
-              accountId,
+              contactId: contact?.id,
+              userId: 0,
             });
             await logAutoReplySent({
               accountId,

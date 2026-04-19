@@ -1065,4 +1065,119 @@ export const billingRouter = router({
 
       return { success: true, newBalance };
     }),
+
+  // ═══════════════════════════════════════════
+  // AUTO-RECHARGE SETTINGS
+  // ═══════════════════════════════════════════
+
+  /**
+   * Get auto-recharge settings for a sub-account.
+   */
+  getAutoRechargeSettings: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const rows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+      const billing = rows[0];
+
+      return {
+        autoRechargeEnabled: billing?.autoRechargeEnabled ?? false,
+        autoRechargeAmountCents: billing?.autoRechargeAmountCents ?? 5000,
+        autoRechargeThreshold: billing?.autoRechargeThreshold ? Number(billing.autoRechargeThreshold) : 5.0,
+        rechargeAttemptsToday: billing?.rechargeAttemptsToday ?? 0,
+      };
+    }),
+
+  /**
+   * Update auto-recharge settings for a sub-account.
+   */
+  updateAutoRechargeSettings: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        autoRechargeEnabled: z.boolean().optional(),
+        autoRechargeAmountCents: z.number().min(500).max(100000).optional(), // $5 to $1000
+        autoRechargeThreshold: z.number().min(0).max(500).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      const updateData: Record<string, unknown> = {};
+      if (input.autoRechargeEnabled !== undefined) updateData.autoRechargeEnabled = input.autoRechargeEnabled;
+      if (input.autoRechargeAmountCents !== undefined) updateData.autoRechargeAmountCents = input.autoRechargeAmountCents;
+      if (input.autoRechargeThreshold !== undefined) updateData.autoRechargeThreshold = input.autoRechargeThreshold.toFixed(4);
+
+      if (Object.keys(updateData).length === 0) {
+        return { success: true };
+      }
+
+      // Ensure billing row exists
+      const existing: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+
+      if (!existing[0]) {
+        const defaultRateRows = await db.select().from(billingRates).limit(1);
+        const rateId = defaultRateRows[0]?.id || 1;
+        await db.insert(accountBilling).values({
+          accountId: input.accountId,
+          billingRateId: rateId,
+          currentBalance: "0.0000",
+          autoInvoiceThreshold: "50.0000",
+          ...updateData,
+        });
+      } else {
+        await db
+          .update(accountBilling)
+          .set(updateData)
+          .where(eq(accountBilling.accountId, input.accountId));
+      }
+
+      return { success: true };
+    }),
+
+  /**
+   * Lightweight balance check for the header pill.
+   * Returns just the balance and status flags.
+   */
+  getBalancePill: protectedProcedure
+    .input(z.object({ accountId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return { balance: 0, hasCard: false, isLocked: false };
+
+      const billingRows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+      const billing = billingRows[0];
+
+      const cardRows = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(paymentMethods)
+        .where(eq(paymentMethods.accountId, input.accountId));
+      const hasCard = Number(cardRows[0]?.count || 0) > 0;
+
+      // Check if account is billing_locked
+      const acctRows = await db
+        .select({ status: accounts.status })
+        .from(accounts)
+        .where(eq(accounts.id, input.accountId));
+      const isLocked = acctRows[0]?.status === "billing_locked";
+
+      return {
+        balance: billing ? Number(billing.currentBalance) : 0,
+        hasCard,
+        isLocked,
+        autoRechargeEnabled: billing?.autoRechargeEnabled ?? false,
+      };
+    }),
 });

@@ -54,6 +54,9 @@ import {
 import { toast } from "sonner";
 import RebillingSettings from "@/components/RebillingSettings";
 import { SquareCardForm } from "@/components/SquareCardForm";
+import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
+import { RefreshCw, Zap } from "lucide-react";
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -178,6 +181,20 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
     { accountId, limit: 10 },
     { retry: 1 }
   );
+
+  const { data: autoRecharge } = trpc.billing.getAutoRechargeSettings.useQuery(
+    { accountId },
+    { retry: 1 }
+  );
+
+  const updateAutoRecharge = trpc.billing.updateAutoRechargeSettings.useMutation({
+    onSuccess: () => {
+      toast.success("Auto-recharge settings updated");
+      utils.billing.getAutoRechargeSettings.invalidate();
+      utils.billing.getBalancePill.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
 
   const chargeInvoiceMut = trpc.billing.chargeInvoice.useMutation({
     onSuccess: (data) => {
@@ -371,6 +388,141 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Real-time Usage Meter */}
+      {summary && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-base">Balance Meter</CardTitle>
+                <CardDescription>Current balance relative to auto-invoice threshold</CardDescription>
+              </div>
+              <Badge
+                variant={(() => {
+                  const pct = ((summary.currentBalance || 0) / (summary.autoInvoiceThreshold || 50)) * 100;
+                  if (pct >= 80) return "destructive";
+                  if (pct >= 50) return "secondary";
+                  return "outline";
+                })()}
+                className="gap-1"
+              >
+                <TrendingUp className="h-3 w-3" />
+                {Math.round(((summary.currentBalance || 0) / (summary.autoInvoiceThreshold || 50)) * 100)}% of threshold
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Progress
+                value={Math.min(((summary.currentBalance || 0) / (summary.autoInvoiceThreshold || 50)) * 100, 100)}
+                className="h-3"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{formatCurrency(0)}</span>
+                <span>Threshold: {formatCurrency(summary.autoInvoiceThreshold || 50)}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Auto-Recharge Settings */}
+      {hasCards && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-amber-500" />
+                  Auto-Recharge
+                </CardTitle>
+                <CardDescription>
+                  Automatically top up your balance when it drops below a threshold
+                </CardDescription>
+              </div>
+              <Switch
+                checked={autoRecharge?.autoRechargeEnabled ?? false}
+                onCheckedChange={(checked) =>
+                  updateAutoRecharge.mutate({
+                    accountId,
+                    autoRechargeEnabled: checked,
+                  })
+                }
+                disabled={updateAutoRecharge.isPending}
+              />
+            </div>
+          </CardHeader>
+          {autoRecharge?.autoRechargeEnabled && (
+            <CardContent>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Recharge Amount</Label>
+                  <Select
+                    value={String(autoRecharge.autoRechargeAmountCents)}
+                    onValueChange={(val) =>
+                      updateAutoRecharge.mutate({
+                        accountId,
+                        autoRechargeAmountCents: Number(val),
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1000">$10.00</SelectItem>
+                      <SelectItem value="2500">$25.00</SelectItem>
+                      <SelectItem value="5000">$50.00</SelectItem>
+                      <SelectItem value="10000">$100.00</SelectItem>
+                      <SelectItem value="25000">$250.00</SelectItem>
+                      <SelectItem value="50000">$500.00</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Amount charged to your default card each recharge
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Trigger When Balance Below</Label>
+                  <Select
+                    value={String(autoRecharge.autoRechargeThreshold)}
+                    onValueChange={(val) =>
+                      updateAutoRecharge.mutate({
+                        accountId,
+                        autoRechargeThreshold: Number(val),
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2">$2.00</SelectItem>
+                      <SelectItem value="5">$5.00</SelectItem>
+                      <SelectItem value="10">$10.00</SelectItem>
+                      <SelectItem value="25">$25.00</SelectItem>
+                      <SelectItem value="50">$50.00</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Auto-recharge triggers when balance drops below this amount
+                  </p>
+                </div>
+              </div>
+              {autoRecharge.rechargeAttemptsToday > 0 && (
+                <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                  <RefreshCw className="h-3 w-3" />
+                  {autoRecharge.rechargeAttemptsToday} recharge attempt{autoRecharge.rechargeAttemptsToday !== 1 ? "s" : ""} today
+                  {autoRecharge.rechargeAttemptsToday >= 3 && (
+                    <Badge variant="destructive" className="text-[10px] ml-1">Limit reached</Badge>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Payment Methods */}
       <Card>

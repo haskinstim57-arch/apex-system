@@ -24,10 +24,13 @@ import {
 } from "../services/vapi";
 import { isWithinBusinessHours, getBusinessHoursBlockMessage, BUSINESS_HOURS, type BusinessHoursConfig } from "../utils/businessHours";
 import { enqueueMessage } from "../services/messageQueue";
+import { chargeBeforeSend, reverseCharge } from "../services/usageTracker";
 import { ENV } from "../_core/env";
 import { getDb } from "../db";
 import { accounts } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+
+const AI_CALL_DEPOSIT_MINUTES = 3;
 
 // ─────────────────────────────────────────────
 // Access control helper
@@ -111,6 +114,24 @@ export const aiCallsRouter = router({
         };
       }
 
+      // ── Billing: pre-charge 3-minute deposit ──
+      let depositEventId: number | null = null;
+      try {
+        const chargeResult = await chargeBeforeSend(
+          input.accountId,
+          "ai_call_minute",
+          AI_CALL_DEPOSIT_MINUTES,
+          { type: "ai_call_deposit", contactId: input.contactId },
+          ctx.user.id
+        );
+        depositEventId = chargeResult.usageEventId;
+      } catch (billingErr: any) {
+        throw new TRPCError({
+          code: "PAYMENT_REQUIRED" as any,
+          message: billingErr.message || "Insufficient balance to initiate AI call. Please add funds.",
+        });
+      }
+
       // Create the call record first (status: queued)
       const { id } = await createAICall({
         accountId: input.accountId,
@@ -120,6 +141,7 @@ export const aiCallsRouter = router({
         status: "queued",
         direction: "outbound",
         assistantId,
+        metadata: depositEventId ? JSON.stringify({ depositEventId }) : undefined,
       });
 
       try {
@@ -161,6 +183,13 @@ export const aiCallsRouter = router({
           vapiStatus: vapiResponse.status,
         };
       } catch (err) {
+        // VAPI call failed — reverse the deposit charge
+        if (depositEventId) {
+          reverseCharge(depositEventId).catch((revErr) =>
+            console.error(`[aiCalls] Failed to reverse deposit for event ${depositEventId}:`, revErr)
+          );
+        }
+
         const errorMsg =
           err instanceof VapiApiError
             ? `VAPI error (${err.statusCode}): ${err.responseBody}`
@@ -252,6 +281,27 @@ export const aiCallsRouter = router({
         const assistantId = resolveAssistantId(contact.leadSource);
         const contactName = `${contact.firstName} ${contact.lastName}`.trim();
 
+        // Billing: pre-charge 3-minute deposit per call
+        let depositEventId: number | null = null;
+        try {
+          const chargeResult = await chargeBeforeSend(
+            input.accountId,
+            "ai_call_minute",
+            AI_CALL_DEPOSIT_MINUTES,
+            { type: "ai_call_deposit", contactId },
+            ctx.user.id
+          );
+          depositEventId = chargeResult.usageEventId;
+        } catch (billingErr: any) {
+          results.push({
+            contactId,
+            callId: 0,
+            success: false,
+            error: billingErr.message || "Insufficient balance for AI call",
+          });
+          continue;
+        }
+
         const { id } = await createAICall({
           accountId: input.accountId,
           contactId,
@@ -260,6 +310,7 @@ export const aiCallsRouter = router({
           status: "queued",
           direction: "outbound",
           assistantId,
+          metadata: depositEventId ? JSON.stringify({ depositEventId }) : undefined,
         });
 
         try {
@@ -285,6 +336,13 @@ export const aiCallsRouter = router({
 
           results.push({ contactId, callId: id, success: true });
         } catch (err) {
+          // Reverse deposit on VAPI failure
+          if (depositEventId) {
+            reverseCharge(depositEventId).catch((revErr) =>
+              console.error(`[aiCalls.bulkStart] Failed to reverse deposit ${depositEventId}:`, revErr)
+            );
+          }
+
           const errorMsg =
             err instanceof VapiApiError
               ? `VAPI error (${err.statusCode}): ${err.responseBody}`

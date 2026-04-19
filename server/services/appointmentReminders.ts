@@ -1,7 +1,7 @@
 import { getDb } from "../db";
 import { appointments, calendars } from "../../drizzle/schema";
 import { and, lte, gte, eq, inArray } from "drizzle-orm";
-import { dispatchEmail, dispatchSMS } from "./messaging";
+import { billedDispatchSMS, billedDispatchEmail } from "./billedDispatch";
 
 const INTERVAL_MS = 5 * 60 * 1000; // Check every 5 minutes
 
@@ -122,8 +122,9 @@ async function sendReminderForAppointment(
       ? `Reminder: Your appointment is in 1 hour`
       : `Reminder: Your appointment is tomorrow`;
 
-  // Email reminder to guest
-  await dispatchEmail({
+  // Email reminder to guest (billed to account)
+  await billedDispatchEmail({
+    accountId: appt.accountId,
     to: appt.guestEmail,
     subject,
     body: `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
@@ -138,17 +139,18 @@ async function sendReminderForAppointment(
       <p>If you need to make changes, please contact us directly.</p>
       <p style="color:#888;font-size:12px;margin-top:24px;">Powered by Sterling Marketing</p>
     </div>`,
-    accountId: appt.accountId,
+    userId: 0,
   }).catch((err) =>
     console.error(`[AppointmentReminders] Email failed for appt ${appt.id}:`, err)
   );
 
-  // SMS reminder to guest (if phone available)
+  // SMS reminder to guest (if phone available, billed to account)
   if (appt.guestPhone) {
-    await dispatchSMS({
+    await billedDispatchSMS({
+      accountId: appt.accountId,
       to: appt.guestPhone,
       body: `Reminder: Your appointment "${calName}" is ${urgency} at ${timeStr}. ${dateStr}.`,
-      accountId: appt.accountId,
+      userId: 0,
     }).catch((err) =>
       console.error(`[AppointmentReminders] SMS failed for appt ${appt.id}:`, err)
     );

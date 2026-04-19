@@ -4419,3 +4419,65 @@
 - [x] Frontend: click avatar → dropdown of team members → assignDeal mutation
 - [x] Frontend: deal detail modal with "Assigned To" dropdown
 - [x] Tests: assignment persists, role-based access, default assignment, Top Performers integration (10 tests pass)
+
+## Billing Enforcement — Charge-Before-Send (CRITICAL PRE-LAUNCH)
+
+### Part 1 — chargeBeforeSend + reverseCharge
+- [x] usageTracker.ts: add chargeBeforeSend(accountId, eventType, quantity) — calculates cost, checks balance, triggers auto-recharge if needed, debits atomically
+- [x] usageTracker.ts: add reverseCharge(usageEventId) — credits balance back + marks event refunded on send failure
+
+### Part 2 — billedDispatch wrapper + replace all direct dispatch calls
+- [x] Create server/services/billedDispatch.ts with billedDispatchSMS and billedDispatchEmail
+- [x] Replace dispatchSMS/Email in server/routers/messages.ts with billedDispatch
+- [x] Replace dispatchSMS/Email in server/routers/campaigns.ts send loop — fail mid-campaign with failed_insufficient_balance
+- [x] Replace dispatchSMS/Email in server/services/workflowEngine.ts send actions
+- [x] Replace dispatchSMS/Email in server/services/jarvisTools.ts send tools
+- [x] Replace dispatchSMS/Email in server/webhooks/inboundMessages.ts (bill inbound to account)
+- [x] Replace dispatchSMS/Email in server/services/campaignScheduler.ts
+- [x] Replace dispatchSMS/Email in server/routers/reputation.ts review requests
+- [x] Replace dispatchSMS/Email in server/services/appointmentReminders.ts
+- [x] Replace dispatchSMS/Email in server/services/messageQueue.ts
+- [x] Replace dispatchSMS/Email in server/services/messageRetryWorker.ts
+- [x] Replace dispatchSMS/Email in server/webhooks/twilioVoiceStatus.ts
+- [x] Exempt: support notifications, report delivery, auth emails, invitations, notification tests, reputation alerts — keep raw dispatch
+
+### Part 3 — AI call pre-validation
+- [x] aiCalls router: pre-charge 3-minute deposit via chargeBeforeSend before createVapiCall (single + bulk)
+- [x] VAPI webhook: on end-of-call-report, reverse deposit + charge actual minutes
+- [x] aiCalls router: reverse deposit on VAPI call failure (single + bulk)
+- [x] Block call initiation if balance insufficient for 3-min deposit
+
+### Part 4 — Onboarding payment gate
+- [x] OnboardingChecklist.tsx: add payment_method_added step at position 2 (with CreditCard icon, links to /billing)
+- [x] accounts router getOnboardingStatus: check paymentMethods table for default card
+- [x] billedDispatch.ts: chargeBeforeSend already checks hasCard OR balance > 0 (PAYMENT_METHOD_REQUIRED)
+
+### Part 5 — Auto-recharge safety
+- [x] Schema: rechargeAttemptsToday + rechargeAttemptsResetAt added to accountBilling (Part 1 migration)
+- [x] usageTracker.ts triggerAutoRecharge: enforces 3 attempts/day limit, billing_locked on exceed
+- [x] billing_locked added to accounts.status enum, chargeBeforeSend blocks sends when locked
+- [x] notifyOwner called on account lock (admin notification)
+
+### Part 6 — Real-time usage meter
+- [x] Billing.tsx: balance meter progress bar (balance vs threshold), auto-recharge settings card (enable/disable, amount, threshold)
+- [x] DashboardLayout.tsx: header balance pill (30s refresh), green/amber/red, click → /billing
+- [x] billing router: getBalancePill, getAutoRechargeSettings, updateAutoRechargeSettings endpoints
+
+### Part 7 — Markup defaults
+- [x] usageTracker.ts: DEFAULT_MARKUPS set to 2.5x SMS/email/voice, 1.2x AI, 1.5x LLM, 2.5x dialer
+- [x] Schema: updated accountBilling column defaults + migrated existing rows from 1.1x to new defaults
+
+### Part 8 — Comprehensive billing tests (41 tests pass)
+- [x] Test: markup defaults (2.5x SMS/email/voice, 1.2x AI, 1.5x LLM, 2.5x dialer)
+- [x] Test: support ticket email NOT charged (module design verification)
+- [x] Test: report delivery NOT charged (module design verification)
+- [x] Test: billedDispatch module exports (SMS, email, campaign SMS, campaign email)
+- [x] Test: campaign recipient result shape + billing error handling
+- [x] Test: usageTracker module exports (chargeBeforeSend, reverseCharge, trackUsage, getAccountBillingSummary, DEFAULT_MARKUPS)
+- [x] Test: reverse charge on send failure (SMS + email)
+- [x] Test: all 10 dispatch paths use billedDispatch (messages, campaigns, workflowEngine, jarvisTools, inbound, reputation, scheduler, reminders, queue, retry)
+- [x] Test: system emails exempt from billing (supportNotifications, reportEmailGenerator, emailNotifications)
+- [x] Test: VAPI 3-minute deposit + webhook reversal
+- [x] Test: auto-recharge safety (3-attempt daily limit, billing_locked)
+- [x] Test: onboarding payment gate (payment_method_added step)
+- [x] Test: balance pill in DashboardLayout
