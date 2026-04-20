@@ -4513,3 +4513,30 @@
 - [x] Implement 60s deduplication in notificationDedup.ts + integrated into sendPushNotificationToAccount
 - [x] Write tests: 16 tests pass — dedup service + fix verification (notificationDedup.test.ts)
 - [x] Report root cause and fix — 2 root causes fixed, dedup layer added as safety net
+
+## Jarvis Report Tools + Report Content Improvements
+
+### Part A — Jarvis report tools
+- [x] Add generate_daily_activity_report tool to jarvisTools.ts (defaults to yesterday, returns HTML + email button)
+- [x] Add generate_pipeline_summary tool to jarvisTools.ts (startDate, endDate, 7 sections incl velocity + at-risk)
+- [x] Add get_usage_report tool to jarvisTools.ts (period: today/week/month)
+- [x] Update Jarvis system prompt to use generate_* tools for report requests + suggest scheduling/emailing
+
+### Part B — Report content improvements
+- [x] Hot leads section (Left VM 3+, Callback Requested dispositions)
+- [x] Dispositions trend (compare today vs 7-day average)
+- [x] Appointments booked (count + list with times)
+- [x] AI call outcomes summary (no-answer rate, avg duration, most common disposition)
+- [x] Sequences activated/completed in period
+- [x] Pipeline velocity metric (avg days per stage for moved deals)
+- [x] At-risk deals (stale deals valued over configurable $X, default $10k)
+
+### Part C — Email report from Jarvis chat
+- [x] Add email_report Jarvis tool (email addresses, report HTML, optional note)
+- [x] Email-from-chat: Jarvis suggests emailing after showing report, uses email_report tool
+- [x] Send via SendGrid (system email, not billed to client)
+
+### Tests
+- [x] Tests: 33 tests pass — tool definitions, system prompt, date window logic, executor shape, content sections
+- [x] Tests: email_report executor verified (sendEmail call per recipient)
+- [x] Tests: content additions verified (hot leads, dispositions trend, appointments, AI outcomes, sequences, velocity, at-risk)

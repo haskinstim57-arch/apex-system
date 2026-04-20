@@ -15,8 +15,10 @@ import {
   accounts,
   contactActivities,
   contactNotes,
+  sequenceEnrollments,
+  sequences,
 } from "../../drizzle/schema";
-import { and, eq, gte, lte, sql, count, desc, isNotNull } from "drizzle-orm";
+import { and, eq, gte, lte, sql, count, desc, asc, isNotNull, inArray } from "drizzle-orm";
 import { generatePipelineSummarySection } from "./pipelineSummaryReport";
 
 // ─────────────────────────────────────────────
@@ -651,6 +653,362 @@ export async function generateDailyActivityReport(
       </table>`;
   }
 
+  // ─── 6. Hot Leads (Immediate Follow-up) ───
+  const hotLeadNotes = await db
+    .select({
+      contactId: contactNotes.contactId,
+      firstName: contacts.firstName,
+      lastName: contacts.lastName,
+      phone: contacts.phone,
+      disposition: contactNotes.disposition,
+    })
+    .from(contactNotes)
+    .innerJoin(contacts, eq(contactNotes.contactId, contacts.id))
+    .where(
+      and(
+        eq(contacts.accountId, accountId),
+        gte(contactNotes.createdAt, startDate),
+        lte(contactNotes.createdAt, endDate),
+        sql`${contactNotes.disposition} IN ('left_voicemail', 'no_answer', 'callback_requested', 'voicemail_full')`
+      )
+    );
+
+  // Group by contact and count attempts
+  const hotLeadMap = new Map<number, { name: string; phone: string; attempts: number; hasCallback: boolean }>();
+  for (const n of hotLeadNotes) {
+    const existing = hotLeadMap.get(n.contactId);
+    const isCallback = n.disposition === "callback_requested";
+    if (existing) {
+      existing.attempts++;
+      if (isCallback) existing.hasCallback = true;
+    } else {
+      hotLeadMap.set(n.contactId, {
+        name: [n.firstName, n.lastName].filter(Boolean).join(" ") || "Unknown",
+        phone: n.phone || "—",
+        attempts: 1,
+        hasCallback: isCallback,
+      });
+    }
+  }
+  // Filter: 3+ attempts OR callback requested
+  const hotLeads = [...hotLeadMap.entries()]
+    .filter(([, v]) => v.attempts >= 3 || v.hasCallback)
+    .sort((a, b) => (b[1].hasCallback ? 1 : 0) - (a[1].hasCallback ? 1 : 0) || b[1].attempts - a[1].attempts)
+    .slice(0, 15);
+
+  let hotLeadsHtml = "";
+  if (hotLeads.length === 0) {
+    hotLeadsHtml = `<p style="color:#6b7280;font-size:14px;">No hot leads flagged during this period.</p>`;
+  } else {
+    let hlRows = "";
+    for (let i = 0; i < hotLeads.length; i++) {
+      const [, lead] = hotLeads[i];
+      const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      const flag = lead.hasCallback
+        ? '<span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;">CALLBACK</span>'
+        : `<span style="background:#fee2e2;color:#991b1b;padding:2px 6px;border-radius:4px;font-size:11px;font-weight:600;">${lead.attempts}x VM/NA</span>`;
+      hlRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${lead.name}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${lead.phone}</td><td style="text-align:center;padding:8px 12px;border:1px solid #e5e7eb;">${flag}</td></tr>`;
+    }
+    hotLeadsHtml = `
+      <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">${hotLeads.length} contact${hotLeads.length !== 1 ? "s" : ""} flagged for immediate follow-up</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Contact</th>
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Phone</th>
+          <th style="text-align:center;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Flag</th>
+        </tr></thead>
+        <tbody>${hlRows}</tbody>
+      </table>`;
+  }
+
+  // ─── 7. Dispositions Trend (vs 7-day average) ───
+  const sevenDaysAgo = new Date(startDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const prevNotes = await db
+    .select({ disposition: contactNotes.disposition })
+    .from(contactNotes)
+    .innerJoin(contacts, eq(contactNotes.contactId, contacts.id))
+    .where(
+      and(
+        eq(contacts.accountId, accountId),
+        gte(contactNotes.createdAt, sevenDaysAgo),
+        lte(contactNotes.createdAt, startDate),
+        isNotNull(contactNotes.disposition)
+      )
+    )
+    .limit(2000);
+
+  const prevDispCounts: Record<string, number> = {};
+  for (const n of prevNotes) {
+    if (n.disposition) prevDispCounts[n.disposition] = (prevDispCounts[n.disposition] || 0) + 1;
+  }
+  // Calculate days in previous period for daily average
+  const prevDays = Math.max(1, Math.round((startDate.getTime() - sevenDaysAgo.getTime()) / (1000 * 60 * 60 * 24)));
+  const reportDays = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+  // Build current period disposition counts from the disposition field
+  const currentDispFromField: Record<string, number> = {};
+  const currentNotes = await db
+    .select({ disposition: contactNotes.disposition })
+    .from(contactNotes)
+    .innerJoin(contacts, eq(contactNotes.contactId, contacts.id))
+    .where(
+      and(
+        eq(contacts.accountId, accountId),
+        gte(contactNotes.createdAt, startDate),
+        lte(contactNotes.createdAt, endDate),
+        isNotNull(contactNotes.disposition)
+      )
+    )
+    .limit(2000);
+  for (const n of currentNotes) {
+    if (n.disposition) currentDispFromField[n.disposition] = (currentDispFromField[n.disposition] || 0) + 1;
+  }
+
+  let trendHtml = "";
+  const allDisps = new Set([...Object.keys(currentDispFromField), ...Object.keys(prevDispCounts)]);
+  if (allDisps.size === 0) {
+    trendHtml = `<p style="color:#6b7280;font-size:14px;">No disposition trend data available.</p>`;
+  } else {
+    const dispLabels: Record<string, string> = {
+      left_voicemail: "Left Voicemail", no_answer: "No Answer", answered: "Answered",
+      callback_requested: "Callback Requested", voicemail_full: "Voicemail Full",
+      wrong_number: "Wrong Number", do_not_call: "Do Not Call",
+      appointment_set: "Appointment Set", not_interested: "Not Interested", other: "Other",
+    };
+    let trendRows = "";
+    let idx = 0;
+    for (const disp of [...allDisps].sort()) {
+      const current = currentDispFromField[disp] || 0;
+      const prevAvgDaily = (prevDispCounts[disp] || 0) / prevDays;
+      const currentDaily = current / reportDays;
+      let changeStr = "—";
+      if (prevAvgDaily > 0) {
+        const pctChange = Math.round(((currentDaily - prevAvgDaily) / prevAvgDaily) * 100);
+        if (pctChange > 0) changeStr = `<span style="color:#dc2626;">\u25B2 ${pctChange}%</span>`;
+        else if (pctChange < 0) changeStr = `<span style="color:#16a34a;">\u25BC ${Math.abs(pctChange)}%</span>`;
+        else changeStr = `<span style="color:#6b7280;">— 0%</span>`;
+      } else if (current > 0) {
+        changeStr = `<span style="color:#6b7280;">New</span>`;
+      }
+      const bg = idx % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      trendRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${dispLabels[disp] || disp}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${fmtNum(current)}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;">${changeStr}</td></tr>`;
+      idx++;
+    }
+    trendHtml = `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Disposition</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Count</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">vs 7-Day Avg</th>
+        </tr></thead>
+        <tbody>${trendRows}</tbody>
+      </table>`;
+  }
+
+  // ─── 8. Appointments Booked ───
+  const apptRows = await db
+    .select({
+      id: appointments.id,
+      guestName: appointments.guestName,
+      guestEmail: appointments.guestEmail,
+      startTime: appointments.startTime,
+      endTime: appointments.endTime,
+      status: appointments.status,
+    })
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.accountId, accountId),
+        gte(appointments.createdAt, startDate),
+        lte(appointments.createdAt, endDate)
+      )
+    )
+    .orderBy(asc(appointments.startTime))
+    .limit(30);
+
+  let appointmentsHtml = "";
+  if (apptRows.length === 0) {
+    appointmentsHtml = `<p style="color:#6b7280;font-size:14px;">No appointments booked during this period.</p>`;
+  } else {
+    let apptTableRows = "";
+    for (let i = 0; i < apptRows.length; i++) {
+      const a = apptRows[i];
+      const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      const time = a.startTime ? new Date(a.startTime).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "—";
+      const statusColor = a.status === "confirmed" ? "#16a34a" : a.status === "cancelled" ? "#dc2626" : "#ca8a04";
+      apptTableRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${a.guestName}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${time}</td><td style="text-align:center;padding:8px 12px;border:1px solid #e5e7eb;"><span style="color:${statusColor};font-weight:600;">${a.status}</span></td></tr>`;
+    }
+    appointmentsHtml = `
+      <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">${apptRows.length} appointment${apptRows.length !== 1 ? "s" : ""} booked</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Guest</th>
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Time</th>
+          <th style="text-align:center;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Status</th>
+        </tr></thead>
+        <tbody>${apptTableRows}</tbody>
+      </table>`;
+  }
+
+  // ─── 9. AI Call Outcomes Summary ───
+  const allCalls = await db
+    .select({
+      status: aiCalls.status,
+      durationSeconds: aiCalls.durationSeconds,
+    })
+    .from(aiCalls)
+    .where(
+      and(
+        eq(aiCalls.accountId, accountId),
+        gte(aiCalls.createdAt, startDate),
+        lte(aiCalls.createdAt, endDate)
+      )
+    );
+
+  let aiCallOutcomesHtml = "";
+  if (allCalls.length === 0) {
+    aiCallOutcomesHtml = `<p style="color:#6b7280;font-size:14px;">No AI calls during this period.</p>`;
+  } else {
+    const statusCounts: Record<string, number> = {};
+    let totalDuration = 0;
+    let callsWithDuration = 0;
+    for (const c of allCalls) {
+      statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+      if (c.durationSeconds > 0) {
+        totalDuration += c.durationSeconds;
+        callsWithDuration++;
+      }
+    }
+    const totalCalls = allCalls.length;
+    const noAnswerCount = (statusCounts["no_answer"] || 0) + (statusCounts["busy"] || 0);
+    const noAnswerRate = totalCalls > 0 ? Math.round((noAnswerCount / totalCalls) * 100) : 0;
+    const avgDuration = callsWithDuration > 0 ? Math.round(totalDuration / callsWithDuration) : 0;
+    const avgMin = Math.floor(avgDuration / 60);
+    const avgSec = avgDuration % 60;
+    const mostCommon = Object.entries(statusCounts).sort((a, b) => b[1] - a[1])[0];
+
+    const statusLabels: Record<string, string> = {
+      completed: "Completed", failed: "Failed", no_answer: "No Answer",
+      busy: "Busy", cancelled: "Cancelled", queued: "Queued", calling: "In Progress",
+    };
+
+    let outcomeRows = "";
+    let oi = 0;
+    for (const [status, cnt] of Object.entries(statusCounts).sort((a, b) => b[1] - a[1])) {
+      const bg = oi % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      const pct = Math.round((cnt / totalCalls) * 100);
+      outcomeRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${statusLabels[status] || status}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${fmtNum(cnt)}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;">${pct}%</td></tr>`;
+      oi++;
+    }
+
+    aiCallOutcomesHtml = `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+        <tr>
+          <td style="padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;text-align:center;width:25%;">
+            <div style="font-size:12px;color:#6b7280;">Total Calls</div>
+            <div style="font-size:20px;font-weight:700;color:#2563eb;">${fmtNum(totalCalls)}</div>
+          </td>
+          <td style="padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;text-align:center;width:25%;">
+            <div style="font-size:12px;color:#6b7280;">No-Answer Rate</div>
+            <div style="font-size:20px;font-weight:700;color:#dc2626;">${noAnswerRate}%</div>
+          </td>
+          <td style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;text-align:center;width:25%;">
+            <div style="font-size:12px;color:#6b7280;">Avg Duration</div>
+            <div style="font-size:20px;font-weight:700;color:#16a34a;">${avgMin}m ${avgSec}s</div>
+          </td>
+          <td style="padding:12px;background:#fefce8;border:1px solid #fde68a;border-radius:6px;text-align:center;width:25%;">
+            <div style="font-size:12px;color:#6b7280;">Most Common</div>
+            <div style="font-size:16px;font-weight:700;color:#ca8a04;">${statusLabels[mostCommon[0]] || mostCommon[0]}</div>
+          </td>
+        </tr>
+      </table>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Outcome</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Count</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">%</th>
+        </tr></thead>
+        <tbody>${outcomeRows}</tbody>
+      </table>`;
+  }
+
+  // ─── 10. Sequences Activated/Completed ───
+  const [seqActivated] = await db
+    .select({ count: count() })
+    .from(sequenceEnrollments)
+    .where(
+      and(
+        eq(sequenceEnrollments.accountId, accountId),
+        gte(sequenceEnrollments.enrolledAt, startDate),
+        lte(sequenceEnrollments.enrolledAt, endDate)
+      )
+    );
+  const [seqCompleted] = await db
+    .select({ count: count() })
+    .from(sequenceEnrollments)
+    .where(
+      and(
+        eq(sequenceEnrollments.accountId, accountId),
+        gte(sequenceEnrollments.completedAt, startDate),
+        lte(sequenceEnrollments.completedAt, endDate)
+      )
+    );
+
+  // Get top sequences by enrollment count
+  const topSeqs = await db
+    .select({
+      sequenceId: sequenceEnrollments.sequenceId,
+      seqName: sequences.name,
+      enrollCount: count(),
+    })
+    .from(sequenceEnrollments)
+    .innerJoin(sequences, eq(sequenceEnrollments.sequenceId, sequences.id))
+    .where(
+      and(
+        eq(sequenceEnrollments.accountId, accountId),
+        gte(sequenceEnrollments.enrolledAt, startDate),
+        lte(sequenceEnrollments.enrolledAt, endDate)
+      )
+    )
+    .groupBy(sequenceEnrollments.sequenceId, sequences.name)
+    .orderBy(desc(count()))
+    .limit(5);
+
+  let sequencesHtml = "";
+  const activatedCount = seqActivated?.count ?? 0;
+  const completedCount = seqCompleted?.count ?? 0;
+  if (activatedCount === 0 && completedCount === 0) {
+    sequencesHtml = `<p style="color:#6b7280;font-size:14px;">No sequence activity during this period.</p>`;
+  } else {
+    let seqRows = "";
+    for (let i = 0; i < topSeqs.length; i++) {
+      const s = topSeqs[i];
+      const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      seqRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${s.seqName}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${fmtNum(s.enrollCount)}</td></tr>`;
+    }
+    sequencesHtml = `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+        <tr>
+          <td style="padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;text-align:center;width:50%;">
+            <div style="font-size:12px;color:#6b7280;">Enrollments Activated</div>
+            <div style="font-size:20px;font-weight:700;color:#2563eb;">${fmtNum(activatedCount)}</div>
+          </td>
+          <td style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;text-align:center;width:50%;">
+            <div style="font-size:12px;color:#6b7280;">Sequences Completed</div>
+            <div style="font-size:20px;font-weight:700;color:#16a34a;">${fmtNum(completedCount)}</div>
+          </td>
+        </tr>
+      </table>
+      ${topSeqs.length > 0 ? `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Sequence</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Enrollments</th>
+        </tr></thead>
+        <tbody>${seqRows}</tbody>
+      </table>` : ""}`;
+  }
+
   // ─── Assemble HTML ───
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -685,6 +1043,16 @@ export async function generateDailyActivityReport(
         ${contactUpdatesHtml}
         <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F3F7}\uFE0F Dispositions Summary</h2>
         ${dispositionsHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F525} Hot Leads (Immediate Follow-up)</h2>
+        ${hotLeadsHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4CA} Dispositions Trend (vs 7-Day Avg)</h2>
+        ${trendHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4C5} Appointments Booked</h2>
+        ${appointmentsHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F916} AI Call Outcomes</h2>
+        ${aiCallOutcomesHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F504} Sequences Activity</h2>
+        ${sequencesHtml}
       </td>
     </tr>
     <tr>
@@ -713,6 +1081,26 @@ export async function generateDailyActivityReport(
   for (const [label, cnt] of dispEntries) {
     csv += `Dispositions,${label},${cnt}\n`;
   }
+  // Hot leads
+  csv += `Hot Leads,Flagged Count,${hotLeads.length}\n`;
+  for (const [, lead] of hotLeads) {
+    csv += `Hot Leads,${lead.name},${lead.hasCallback ? "Callback Requested" : lead.attempts + "x VM/NA"}\n`;
+  }
+  // Dispositions trend
+  for (const disp of [...allDisps].sort()) {
+    const current = currentDispFromField[disp] || 0;
+    const prevAvgDaily = (prevDispCounts[disp] || 0) / prevDays;
+    const currentDaily = current / reportDays;
+    const pctChange = prevAvgDaily > 0 ? Math.round(((currentDaily - prevAvgDaily) / prevAvgDaily) * 100) : 0;
+    csv += `Dispositions Trend,${disp},${current} (${pctChange >= 0 ? "+" : ""}${pctChange}% vs avg)\n`;
+  }
+  // Appointments
+  csv += `Appointments,Total Booked,${apptRows.length}\n`;
+  // AI Call Outcomes
+  csv += `AI Calls,Total,${allCalls.length}\n`;
+  // Sequences
+  csv += `Sequences,Activated,${activatedCount}\n`;
+  csv += `Sequences,Completed,${completedCount}\n`;
 
   return { html, csv };
 }

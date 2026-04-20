@@ -82,6 +82,13 @@ import { getScoreTier } from "./leadScoringEngine";
 import { createVapiCall, resolveAssistantId, mapVapiStatus, VapiApiError } from "./vapi";
 import { isWithinBusinessHours, type BusinessHoursConfig } from "../utils/businessHours";
 import { enqueueMessage } from "./messageQueue";
+import { sendEmail } from "./sendgrid";
+import {
+  generateDailyActivityReport,
+  getDailyActivityDateWindow,
+} from "./reportEmailGenerator";
+import { generatePipelineSummaryReport } from "./pipelineSummaryReport";
+import { usageEvents, accountBilling } from "../../drizzle/schema";
 
 // ═══════════════════════════════════════════════
 // TOOL DEFINITIONS (OpenAI function-calling schema)
@@ -908,6 +915,98 @@ export const JARVIS_TOOLS: Tool[] = [
       name: "get_email_warming_status",
       description: "Get the current email warming status, including the daily limit, max limit, and whether warming is complete.",
       parameters: { type: "object", properties: {}, additionalProperties: false },
+    },
+  },
+
+  // ── Reports ──
+  {
+    type: "function",
+    function: {
+      name: "generate_daily_activity_report",
+      description: "Generate a daily activity report for the account. Includes inbound calls, outbound SMS/email, contact updates, dispositions, hot leads, appointments, AI call outcomes, and sequence activity. Defaults to yesterday. Returns HTML summary inline in chat.",
+      parameters: {
+        type: "object",
+        properties: {
+          date: {
+            type: "string",
+            description: "Date to report on in YYYY-MM-DD format. Defaults to yesterday if omitted.",
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "generate_pipeline_summary",
+      description: "Generate a pipeline summary report with 7 sections: pipeline snapshot, period activity, pipeline velocity, conversion funnel, stale deals, at-risk high-value deals, and top performers. Returns structured data + HTML.",
+      parameters: {
+        type: "object",
+        properties: {
+          startDate: {
+            type: "string",
+            description: "Start date in YYYY-MM-DD format. Required.",
+          },
+          endDate: {
+            type: "string",
+            description: "End date in YYYY-MM-DD format. Required.",
+          },
+        },
+        required: ["startDate", "endDate"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_usage_report",
+      description: "Get current billing period usage breakdown: total spend by category (SMS, email, AI calls, voice calls, LLM, dialer), current balance, and event counts. Use for questions about costs, spending, or billing.",
+      parameters: {
+        type: "object",
+        properties: {
+          period: {
+            type: "string",
+            enum: ["today", "week", "month"],
+            description: "Time period for the usage report. Defaults to 'month'.",
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "email_report",
+      description: "Send a previously generated report as a formatted email via SendGrid. Use this after generating a report when the user wants it emailed. This uses the system email sender (not billed to client).",
+      parameters: {
+        type: "object",
+        properties: {
+          reportHtml: {
+            type: "string",
+            description: "The HTML content of the report to email.",
+          },
+          recipientEmails: {
+            type: "array",
+            items: { type: "string" },
+            description: "Array of email addresses to send the report to.",
+          },
+          subject: {
+            type: "string",
+            description: "Email subject line.",
+          },
+          note: {
+            type: "string",
+            description: "Optional note to include at the top of the email.",
+          },
+        },
+        required: ["reportHtml", "recipientEmails", "subject"],
+        additionalProperties: false,
+      },
     },
   },
 
@@ -2366,6 +2465,201 @@ Return your response as valid JSON.`;
         todaySendCount: config.todaySendCount,
         daysSinceStart,
         warmingComplete: config.currentDailyLimit >= config.maxDailyLimit
+      };
+    }
+
+    // ── Reports ──
+    case "generate_daily_activity_report": {
+      const account = await getAccountById(accountId);
+      const accountName = account?.name || "Account";
+
+      let startDate: Date;
+      let endDate: Date;
+
+      if (args.date) {
+        // User specified a date
+        const d = new Date(args.date as string + "T00:00:00");
+        startDate = new Date(d);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(d);
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        // Default to yesterday (or use the business-day window)
+        const window = getDailyActivityDateWindow(new Date());
+        if (window) {
+          startDate = window.startDate;
+          endDate = window.endDate;
+        } else {
+          // Weekend fallback: use yesterday
+          const yesterday = new Date();
+          yesterday.setDate(yesterday.getDate() - 1);
+          startDate = new Date(yesterday);
+          startDate.setHours(0, 0, 0, 0);
+          endDate = new Date(yesterday);
+          endDate.setHours(23, 59, 59, 999);
+        }
+      }
+
+      const { html, csv } = await generateDailyActivityReport(
+        accountId,
+        startDate,
+        endDate,
+        accountName
+      );
+
+      const dateStr = startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+      return {
+        success: true,
+        reportType: "daily_activity",
+        date: dateStr,
+        html,
+        csvPreview: csv.split("\n").slice(0, 10).join("\n"),
+        message: `Daily Activity Report for ${dateStr} generated. You can ask me to email this report to anyone.`,
+        suggestFollowUp: "Would you like this scheduled daily? Or want me to email this to someone?",
+      };
+    }
+
+    case "generate_pipeline_summary": {
+      const account = await getAccountById(accountId);
+      const accountName = account?.name || "Account";
+      const start = new Date(args.startDate as string + "T00:00:00");
+      const end = new Date(args.endDate as string + "T23:59:59.999");
+      const periodDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+
+      const { html, csv } = await generatePipelineSummaryReport({
+        accountId,
+        accountName,
+        periodDays,
+        startDate: start,
+        endDate: end,
+      });
+
+      const dateRange = `${start.toLocaleDateString("en-US", { month: "short", day: "numeric" })} \u2014 ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+      return {
+        success: true,
+        reportType: "pipeline_summary",
+        dateRange,
+        periodDays,
+        html,
+        csvPreview: csv.split("\n").slice(0, 10).join("\n"),
+        message: `Pipeline Summary Report for ${dateRange} generated. Includes snapshot, activity, velocity, funnel, stale deals, at-risk deals, and top performers.`,
+        suggestFollowUp: "Would you like this scheduled weekly? Or want me to email this to someone?",
+      };
+    }
+
+    case "get_usage_report": {
+      const db = (await getDb())!;
+      const period = (args.period as string) || "month";
+
+      const now = new Date();
+      let periodStart: Date;
+      let periodLabel: string;
+
+      if (period === "today") {
+        periodStart = new Date(now);
+        periodStart.setHours(0, 0, 0, 0);
+        periodLabel = "Today";
+      } else if (period === "week") {
+        periodStart = new Date(now);
+        periodStart.setDate(periodStart.getDate() - 7);
+        periodLabel = "Last 7 Days";
+      } else {
+        periodStart = new Date(now);
+        periodStart.setDate(periodStart.getDate() - 30);
+        periodLabel = "Last 30 Days";
+      }
+
+      // Get usage breakdown by event type
+      const usageBreakdown = await db
+        .select({
+          eventType: usageEvents.eventType,
+          totalEvents: count(),
+          totalCost: sql<string>`CAST(SUM(${usageEvents.totalCost}) AS CHAR)`,
+          totalQuantity: sql<string>`CAST(SUM(${usageEvents.quantity}) AS CHAR)`,
+        })
+        .from(usageEvents)
+        .where(
+          and(
+            eq(usageEvents.accountId, accountId),
+            gte(usageEvents.createdAt, periodStart),
+            eq(usageEvents.refunded, false)
+          )
+        )
+        .groupBy(usageEvents.eventType);
+
+      // Get current balance
+      const [billing] = await db
+        .select({ currentBalance: accountBilling.currentBalance })
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, accountId))
+        .limit(1);
+
+      const eventTypeLabels: Record<string, string> = {
+        sms_sent: "SMS",
+        email_sent: "Email",
+        ai_call_minute: "AI Call Minutes",
+        voice_call_minute: "Voice Call Minutes",
+        llm_request: "LLM Requests",
+        power_dialer_call: "Power Dialer Calls",
+      };
+
+      const breakdown = usageBreakdown.map((u) => ({
+        category: eventTypeLabels[u.eventType] || u.eventType,
+        eventType: u.eventType,
+        events: u.totalEvents,
+        quantity: parseFloat(u.totalQuantity || "0"),
+        cost: `$${parseFloat(u.totalCost || "0").toFixed(2)}`,
+      }));
+
+      const totalSpend = usageBreakdown.reduce((sum, u) => sum + parseFloat(u.totalCost || "0"), 0);
+
+      return {
+        success: true,
+        reportType: "usage",
+        period: periodLabel,
+        currentBalance: billing ? `$${parseFloat(billing.currentBalance).toFixed(2)}` : "$0.00",
+        totalSpend: `$${totalSpend.toFixed(2)}`,
+        breakdown,
+        message: `Usage report for ${periodLabel}: Total spend $${totalSpend.toFixed(2)}, Current balance ${billing ? `$${parseFloat(billing.currentBalance).toFixed(2)}` : "$0.00"}.`,
+      };
+    }
+
+    case "email_report": {
+      const recipientEmails = args.recipientEmails as string[];
+      const subject = args.subject as string;
+      const reportHtml = args.reportHtml as string;
+      const note = args.note as string | undefined;
+
+      // Wrap with optional note at top
+      let emailBody = reportHtml;
+      if (note) {
+        emailBody = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;margin-bottom:16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+          <p style="margin:0;font-size:14px;color:#92400e;"><strong>Note:</strong> ${note}</p>
+        </div>` + emailBody;
+      }
+
+      const results: { email: string; success: boolean; error?: string }[] = [];
+      for (const email of recipientEmails) {
+        try {
+          const result = await sendEmail({
+            to: email,
+            subject,
+            body: emailBody,
+            // Use system sender (not billed to client)
+          });
+          results.push({ email, success: result.success, error: result.error });
+        } catch (err: any) {
+          results.push({ email, success: false, error: err.message });
+        }
+      }
+
+      const allSuccess = results.every((r) => r.success);
+      return {
+        success: allSuccess,
+        results,
+        message: allSuccess
+          ? `Report emailed to ${recipientEmails.join(", ")} successfully.`
+          : `Some emails failed: ${results.filter((r) => !r.success).map((r) => `${r.email}: ${r.error}`).join("; ")}`,
       };
     }
 

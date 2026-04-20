@@ -608,6 +608,205 @@ async function generatePerformersSection(
     </table>`;
 }
 
+// ─── Section 6: Velocity Metric ───
+
+async function generateVelocitySection(
+  accountId: number,
+  startDate: Date,
+  endDate: Date,
+  stages: StageSnapshot[]
+): Promise<string> {
+  const db = (await getDb())!;
+
+  // Get deals that moved stages during the period
+  const movedDeals = await db
+    .select({
+      dealId: deals.id,
+      stageId: deals.stageId,
+      stageChangedAt: deals.stageChangedAt,
+      createdAt: deals.createdAt,
+    })
+    .from(deals)
+    .where(
+      and(
+        eq(deals.accountId, accountId),
+        gte(deals.stageChangedAt, startDate),
+        lte(deals.stageChangedAt, endDate),
+        sql`${deals.stageChangedAt} != ${deals.createdAt}`
+      )
+    );
+
+  if (movedDeals.length === 0) {
+    return sectionHeader("Pipeline Velocity") +
+      '<p style="color:#6b7280;font-size:14px;">No deals moved stages during this period.</p>';
+  }
+
+  // Calculate average days between creation and last stage change
+  let totalDays = 0;
+  for (const d of movedDeals) {
+    const created = new Date(d.createdAt).getTime();
+    const changed = new Date(d.stageChangedAt).getTime();
+    totalDays += (changed - created) / (1000 * 60 * 60 * 24);
+  }
+  const avgDaysPerDeal = totalDays / movedDeals.length;
+
+  // Group by current stage to see avg time per stage
+  const stageMap = new Map(stages.map((s) => [s.stageId, s.stageName]));
+  const stageTimings: Record<number, { totalDays: number; count: number }> = {};
+  for (const d of movedDeals) {
+    if (!stageTimings[d.stageId]) stageTimings[d.stageId] = { totalDays: 0, count: 0 };
+    const created = new Date(d.createdAt).getTime();
+    const changed = new Date(d.stageChangedAt).getTime();
+    stageTimings[d.stageId].totalDays += (changed - created) / (1000 * 60 * 60 * 24);
+    stageTimings[d.stageId].count++;
+  }
+
+  let velocityRows = "";
+  let idx = 0;
+  for (const stage of stages) {
+    const timing = stageTimings[stage.stageId];
+    if (!timing) continue;
+    const avgDays = Math.round(timing.totalDays / timing.count);
+    velocityRows += `<tr${rowBg(idx)}>
+      <td style="${TD_STYLE}">${stage.stageName}</td>
+      <td style="${TD_STYLE_RB}">${fmtNum(timing.count)}</td>
+      <td style="${TD_STYLE_RB}">${avgDays}d</td>
+    </tr>`;
+    idx++;
+  }
+
+  return sectionHeader("Pipeline Velocity") + `
+    <table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+      <tr>
+        <td style="padding:14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;text-align:center;">
+          <div style="font-size:12px;color:#6b7280;">Avg Days to Move (All Deals)</div>
+          <div style="font-size:24px;font-weight:700;color:#2563eb;">${Math.round(avgDaysPerDeal)}d</div>
+          <div style="font-size:11px;color:#6b7280;">${fmtNum(movedDeals.length)} deals moved in period</div>
+        </td>
+      </tr>
+    </table>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+      <thead>
+        <tr style="background:#f8f9fa;">
+          <th style="${TH_STYLE}">Current Stage</th>
+          <th style="${TH_STYLE_R}">Deals Moved</th>
+          <th style="${TH_STYLE_R}">Avg Days</th>
+        </tr>
+      </thead>
+      <tbody>${velocityRows}</tbody>
+    </table>`;
+}
+
+// ─── Section 7: At-Risk Deals (High-Value Stale) ───
+
+async function generateAtRiskSection(
+  accountId: number,
+  stages: StageSnapshot[],
+  atRiskValueThreshold: number = 1000000 // $10,000 in cents
+): Promise<{ html: string; atRiskDeals: StaleDeal[] }> {
+  const db = (await getDb())!;
+
+  const closedStageIds = stages.filter((s) => s.isWon || s.isLost).map((s) => s.stageId);
+  const staleThreshold = new Date();
+  staleThreshold.setDate(staleThreshold.getDate() - 14);
+
+  let staleCondition = and(
+    eq(deals.accountId, accountId),
+    lte(deals.stageChangedAt, staleThreshold),
+    sql`${deals.value} >= ${atRiskValueThreshold}`
+  );
+
+  if (closedStageIds.length > 0) {
+    staleCondition = and(
+      staleCondition,
+      sql`${deals.stageId} NOT IN (${sql.join(closedStageIds.map(id => sql`${id}`), sql`, `)})`
+    );
+  }
+
+  const staleRows = await db
+    .select({
+      dealId: deals.id,
+      dealTitle: deals.title,
+      dealValue: deals.value,
+      stageId: deals.stageId,
+      stageChangedAt: deals.stageChangedAt,
+      assignedUserId: deals.assignedUserId,
+      contactFirstName: contacts.firstName,
+      contactLastName: contacts.lastName,
+    })
+    .from(deals)
+    .leftJoin(contacts, eq(deals.contactId, contacts.id))
+    .where(staleCondition!)
+    .orderBy(desc(deals.value))
+    .limit(10);
+
+  if (staleRows.length === 0) {
+    return {
+      html: sectionHeader("\u26A0\uFE0F At-Risk Deals (High-Value Stale)") +
+        `<p style="color:#6b7280;font-size:14px;">No high-value deals (>${fmtCurrency(atRiskValueThreshold)}) are stale.</p>`,
+      atRiskDeals: [],
+    };
+  }
+
+  const stageMap = new Map(stages.map((s) => [s.stageId, s.stageName]));
+  const userIds = [...new Set(staleRows.filter((r) => r.assignedUserId).map((r) => r.assignedUserId!))];
+  const userMap = new Map<number, string>();
+  if (userIds.length > 0) {
+    const userRows = await db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .where(sql`${users.id} IN (${sql.join(userIds.map(id => sql`${id}`), sql`, `)})`);
+    for (const u of userRows) {
+      userMap.set(u.id, u.name || "Unknown");
+    }
+  }
+
+  const now = new Date();
+  const atRiskDeals: StaleDeal[] = staleRows.map((r) => {
+    const changedAt = r.stageChangedAt ? new Date(r.stageChangedAt) : new Date(0);
+    const daysStagnant = Math.floor((now.getTime() - changedAt.getTime()) / (1000 * 60 * 60 * 24));
+    return {
+      dealId: r.dealId,
+      contactName: [r.contactFirstName, r.contactLastName].filter(Boolean).join(" ") || "Unknown",
+      stageName: stageMap.get(r.stageId) || "Unknown",
+      daysStagnant,
+      value: r.dealValue ?? 0,
+      assignedUserName: r.assignedUserId ? (userMap.get(r.assignedUserId) || "Unassigned") : "Unassigned",
+    };
+  });
+
+  let tableRows = "";
+  for (let i = 0; i < atRiskDeals.length; i++) {
+    const d = atRiskDeals[i];
+    tableRows += `<tr${rowBg(i)}>
+      <td style="${TD_STYLE}">${d.contactName}</td>
+      <td style="${TD_STYLE}">${d.stageName}</td>
+      <td style="${TD_STYLE_RB}">${d.daysStagnant}d</td>
+      <td style="${TD_STYLE_RB}">${fmtCurrency(d.value)}</td>
+      <td style="${TD_STYLE}">${d.assignedUserName}</td>
+    </tr>`;
+  }
+
+  const html = sectionHeader("\u26A0\uFE0F At-Risk Deals (High-Value Stale)") + `
+    <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">
+      ${fmtNum(atRiskDeals.length)} high-value deal${atRiskDeals.length !== 1 ? "s" : ""} (>${fmtCurrency(atRiskValueThreshold)}) stale 14+ days
+    </p>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+      <thead>
+        <tr style="background:#fef2f2;">
+          <th style="${TH_STYLE}">Contact</th>
+          <th style="${TH_STYLE}">Current Stage</th>
+          <th style="${TH_STYLE_R}">Days Stagnant</th>
+          <th style="${TH_STYLE_R}">Deal Value</th>
+          <th style="${TH_STYLE}">Assigned To</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>`;
+
+  return { html, atRiskDeals };
+}
+
 // ─── Main Pipeline Summary Generator ───
 
 export interface PipelineSummaryData {
@@ -618,6 +817,8 @@ export interface PipelineSummaryData {
   /** Override start/end for custom date ranges */
   startDate?: Date;
   endDate?: Date;
+  /** Minimum deal value (in cents) to flag as at-risk when stale. Default: $10,000 = 1000000 */
+  atRiskValueThreshold?: number;
 }
 
 export async function generatePipelineSummaryReport(
@@ -631,12 +832,14 @@ export async function generatePipelineSummaryReport(
 
   const dateRange = `${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })} — ${endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
 
-  // Generate all 5 sections
+  // Generate all 7 sections
   const { html: snapshotHtml, stages } = await generateSnapshotSection(accountId, endDate);
   const { html: activityHtml, activity } = await generateActivitySection(accountId, startDate, endDate, stages);
   const funnelHtml = await generateFunnelSection(accountId, startDate, endDate, stages);
   const { html: staleHtml, staleDeals } = await generateStaleDealSection(accountId, stages);
   const performersHtml = await generatePerformersSection(accountId, startDate, endDate, stages);
+  const velocityHtml = await generateVelocitySection(accountId, startDate, endDate, stages);
+  const { html: atRiskHtml, atRiskDeals } = await generateAtRiskSection(accountId, stages, data.atRiskValueThreshold);
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -665,8 +868,10 @@ export async function generatePipelineSummaryReport(
       <td style="padding:8px 32px 32px;">
         ${snapshotHtml}
         ${activityHtml}
+        ${velocityHtml}
         ${funnelHtml}
         ${staleHtml}
+        ${atRiskHtml}
         ${performersHtml}
       </td>
     </tr>
@@ -710,6 +915,11 @@ export async function generatePipelineSummaryReport(
     csv += `Stale Deals,${d.contactName} (${d.stageName}),${d.daysStagnant} days - $${(d.value / 100).toFixed(2)}\n`;
   }
 
+  // At-risk deals
+  for (const d of atRiskDeals) {
+    csv += `At-Risk Deals,${d.contactName} (${d.stageName}),${d.daysStagnant} days - $${(d.value / 100).toFixed(2)}\n`;
+  }
+
   return { html, csv };
 }
 
@@ -725,9 +935,11 @@ export async function generatePipelineSummarySection(
 
   const { html: snapshotHtml, stages } = await generateSnapshotSection(accountId, endDate);
   const { html: activityHtml } = await generateActivitySection(accountId, startDate, endDate, stages);
+  const velocityHtml = await generateVelocitySection(accountId, startDate, endDate, stages);
   const funnelHtml = await generateFunnelSection(accountId, startDate, endDate, stages);
   const { html: staleHtml } = await generateStaleDealSection(accountId, stages);
+  const { html: atRiskHtml } = await generateAtRiskSection(accountId, stages);
   const performersHtml = await generatePerformersSection(accountId, startDate, endDate, stages);
 
-  return snapshotHtml + activityHtml + funnelHtml + staleHtml + performersHtml;
+  return snapshotHtml + activityHtml + velocityHtml + funnelHtml + staleHtml + atRiskHtml + performersHtml;
 }
