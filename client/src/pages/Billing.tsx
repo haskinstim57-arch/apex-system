@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { useAccount } from "@/contexts/AccountContext";
 import { trpc } from "@/lib/trpc";
@@ -56,7 +57,7 @@ import RebillingSettings from "@/components/RebillingSettings";
 import { SquareCardForm } from "@/components/SquareCardForm";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
-import { RefreshCw, Zap } from "lucide-react";
+import { RefreshCw, Zap, Wallet, Lock } from "lucide-react";
 
 // ─────────────────────────────────────────────
 // HELPERS
@@ -156,6 +157,24 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
   const [billingEmail, setBillingEmail] = useState("");
   const [threshold, setThreshold] = useState("");
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const [addFundsOpen, setAddFundsOpen] = useState(false);
+  const [addFundsAmount, setAddFundsAmount] = useState<number | null>(null);
+  const [addFundsCustom, setAddFundsCustom] = useState("");
+  const [rechargeAmountLocal, setRechargeAmountLocal] = useState<number | null>(null);
+  const [rechargeAmountCustom, setRechargeAmountCustom] = useState("");
+  const [thresholdLocal, setThresholdLocal] = useState<number | null>(null);
+  const [thresholdCustom, setThresholdCustom] = useState("");
+  const [rechargeEnabledLocal, setRechargeEnabledLocal] = useState<boolean | null>(null);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+
+  // Role check: employees get read-only view
+  const { data: membership } = trpc.members.myMembership.useQuery(
+    { accountId },
+    { retry: 1 }
+  );
+  const { isAdmin } = useAccount();
+  const isEmployee = !isAdmin && membership?.role === "employee";
+  const canEditBilling = !isEmployee;
 
   const { data: summary, isLoading: summaryLoading } = trpc.billing.getUsageSummary.useQuery(
     { accountId },
@@ -189,12 +208,59 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
 
   const updateAutoRecharge = trpc.billing.updateAutoRechargeSettings.useMutation({
     onSuccess: () => {
-      toast.success("Auto-recharge settings updated");
+      toast.success("Auto-recharge settings saved");
+      setSettingsDirty(false);
       utils.billing.getAutoRechargeSettings.invalidate();
       utils.billing.getBalancePill.invalidate();
     },
     onError: (err) => toast.error(err.message),
   });
+
+  const addFundsMut = trpc.billing.addFunds.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Added ${formatCurrency(addFundsResolvedCents / 100)} to your balance`);
+      setAddFundsOpen(false);
+      setAddFundsAmount(null);
+      setAddFundsCustom("");
+      utils.billing.getUsageSummary.invalidate();
+      utils.billing.getBalancePill.invalidate();
+      utils.billing.getAutoRechargeSettings.invalidate();
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // Sync local state from server data
+  useEffect(() => {
+    if (autoRecharge && rechargeAmountLocal === null) {
+      const serverCents = autoRecharge.autoRechargeAmountCents;
+      const AMOUNT_PRESETS_CENTS = [1000, 2500, 5000, 10000, 25000, 50000];
+      if (AMOUNT_PRESETS_CENTS.includes(serverCents)) {
+        setRechargeAmountLocal(serverCents);
+      } else {
+        setRechargeAmountLocal(-1); // custom
+        setRechargeAmountCustom(String(serverCents / 100));
+      }
+    }
+    if (autoRecharge && thresholdLocal === null) {
+      const serverThreshold = autoRecharge.autoRechargeThreshold;
+      const THRESHOLD_PRESETS = [1, 5, 10, 25, 50];
+      if (THRESHOLD_PRESETS.includes(serverThreshold)) {
+        setThresholdLocal(serverThreshold);
+      } else {
+        setThresholdLocal(-1); // custom
+        setThresholdCustom(String(serverThreshold));
+      }
+    }
+    if (autoRecharge && rechargeEnabledLocal === null) {
+      setRechargeEnabledLocal(autoRecharge.autoRechargeEnabled);
+    }
+  }, [autoRecharge, rechargeAmountLocal, thresholdLocal, rechargeEnabledLocal]);
+
+  // Resolve add funds amount
+  const addFundsResolvedCents = addFundsAmount === -1
+    ? Math.round(Number(addFundsCustom) * 100)
+    : (addFundsAmount ?? 0);
+  const addFundsValid = addFundsResolvedCents >= 500 && addFundsResolvedCents <= 100000;
 
   const chargeInvoiceMut = trpc.billing.chargeInvoice.useMutation({
     onSuccess: (data) => {
@@ -427,102 +493,291 @@ function SubAccountBilling({ accountId }: { accountId: number }) {
         </Card>
       )}
 
-      {/* Auto-Recharge Settings */}
-      {hasCards && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Zap className="h-4 w-4 text-amber-500" />
-                  Auto-Recharge
-                </CardTitle>
-                <CardDescription>
-                  Automatically top up your balance when it drops below a threshold
-                </CardDescription>
-              </div>
-              <Switch
-                checked={autoRecharge?.autoRechargeEnabled ?? false}
-                onCheckedChange={(checked) =>
-                  updateAutoRecharge.mutate({
-                    accountId,
-                    autoRechargeEnabled: checked,
-                  })
-                }
-                disabled={updateAutoRecharge.isPending}
-              />
+      {/* Auto-Recharge & Add Funds */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Auto-Recharge & Funds
+              </CardTitle>
+              <CardDescription>
+                {canEditBilling
+                  ? "Manage automatic top-ups and manually add funds"
+                  : "View auto-recharge settings (contact an owner or manager to change)"}
+              </CardDescription>
             </div>
-          </CardHeader>
-          {autoRecharge?.autoRechargeEnabled && (
-            <CardContent>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Recharge Amount</Label>
-                  <Select
-                    value={String(autoRecharge.autoRechargeAmountCents)}
-                    onValueChange={(val) =>
-                      updateAutoRecharge.mutate({
-                        accountId,
-                        autoRechargeAmountCents: Number(val),
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1000">$10.00</SelectItem>
-                      <SelectItem value="2500">$25.00</SelectItem>
-                      <SelectItem value="5000">$50.00</SelectItem>
-                      <SelectItem value="10000">$100.00</SelectItem>
-                      <SelectItem value="25000">$250.00</SelectItem>
-                      <SelectItem value="50000">$500.00</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Amount charged to your default card each recharge
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Trigger When Balance Below</Label>
-                  <Select
-                    value={String(autoRecharge.autoRechargeThreshold)}
-                    onValueChange={(val) =>
-                      updateAutoRecharge.mutate({
-                        accountId,
-                        autoRechargeThreshold: Number(val),
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="2">$2.00</SelectItem>
-                      <SelectItem value="5">$5.00</SelectItem>
-                      <SelectItem value="10">$10.00</SelectItem>
-                      <SelectItem value="25">$25.00</SelectItem>
-                      <SelectItem value="50">$50.00</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Auto-recharge triggers when balance drops below this amount
-                  </p>
+            {isEmployee && (
+              <Badge variant="secondary" className="gap-1">
+                <Lock className="h-3 w-3" />
+                Read-only
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <Label className="text-sm font-medium">Auto-Recharge</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Automatically top up when balance drops below threshold
+              </p>
+            </div>
+            <Switch
+              checked={rechargeEnabledLocal ?? autoRecharge?.autoRechargeEnabled ?? false}
+              onCheckedChange={(checked) => {
+                setRechargeEnabledLocal(checked);
+                setSettingsDirty(true);
+              }}
+              disabled={!canEditBilling || updateAutoRecharge.isPending}
+            />
+          </div>
+
+          {/* Recharge Amount Presets */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Recharge Amount</Label>
+            <div className="flex flex-wrap gap-2">
+              {[1000, 2500, 5000, 10000, 25000, 50000].map((cents) => (
+                <Button
+                  key={cents}
+                  type="button"
+                  size="sm"
+                  variant={rechargeAmountLocal === cents ? "default" : "outline"}
+                  className={cn(
+                    "min-w-[70px]",
+                    rechargeAmountLocal === cents && "ring-2 ring-primary/30"
+                  )}
+                  disabled={!canEditBilling}
+                  onClick={() => {
+                    setRechargeAmountLocal(cents);
+                    setRechargeAmountCustom("");
+                    setSettingsDirty(true);
+                  }}
+                >
+                  ${cents / 100}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant={rechargeAmountLocal === -1 ? "default" : "outline"}
+                disabled={!canEditBilling}
+                onClick={() => {
+                  setRechargeAmountLocal(-1);
+                  setSettingsDirty(true);
+                }}
+              >
+                Custom
+              </Button>
+            </div>
+            {rechargeAmountLocal === -1 && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-sm text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  min={5}
+                  max={1000}
+                  step={1}
+                  value={rechargeAmountCustom}
+                  onChange={(e) => {
+                    setRechargeAmountCustom(e.target.value);
+                    setSettingsDirty(true);
+                  }}
+                  placeholder="5 - 1000"
+                  className="w-32"
+                  disabled={!canEditBilling}
+                />
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Amount charged to your default card each recharge
+            </p>
+          </div>
+
+          {/* Threshold Presets */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Trigger When Balance Below</Label>
+            <div className="flex flex-wrap gap-2">
+              {[1, 5, 10, 25, 50].map((val) => (
+                <Button
+                  key={val}
+                  type="button"
+                  size="sm"
+                  variant={thresholdLocal === val ? "default" : "outline"}
+                  className={cn(
+                    "min-w-[60px]",
+                    thresholdLocal === val && "ring-2 ring-primary/30"
+                  )}
+                  disabled={!canEditBilling}
+                  onClick={() => {
+                    setThresholdLocal(val);
+                    setThresholdCustom("");
+                    setSettingsDirty(true);
+                  }}
+                >
+                  ${val}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                size="sm"
+                variant={thresholdLocal === -1 ? "default" : "outline"}
+                disabled={!canEditBilling}
+                onClick={() => {
+                  setThresholdLocal(-1);
+                  setSettingsDirty(true);
+                }}
+              >
+                Custom
+              </Button>
+            </div>
+            {thresholdLocal === -1 && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-sm text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={500}
+                  step={1}
+                  value={thresholdCustom}
+                  onChange={(e) => {
+                    setThresholdCustom(e.target.value);
+                    setSettingsDirty(true);
+                  }}
+                  placeholder="1 - 500"
+                  className="w-32"
+                  disabled={!canEditBilling}
+                />
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Auto-recharge triggers when balance drops below this amount
+            </p>
+          </div>
+
+          {/* Recharge attempts today */}
+          {(autoRecharge?.rechargeAttemptsToday ?? 0) > 0 && (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <RefreshCw className="h-3 w-3" />
+              {autoRecharge!.rechargeAttemptsToday} recharge attempt{autoRecharge!.rechargeAttemptsToday !== 1 ? "s" : ""} today
+              {autoRecharge!.rechargeAttemptsToday >= 3 && (
+                <Badge variant="destructive" className="text-[10px] ml-1">Limit reached</Badge>
+              )}
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-3 pt-2 border-t">
+            <Button
+              onClick={() => {
+                const resolvedAmountCents = rechargeAmountLocal === -1
+                  ? Math.round(Number(rechargeAmountCustom) * 100)
+                  : (rechargeAmountLocal ?? 1000);
+                const resolvedThreshold = thresholdLocal === -1
+                  ? Number(thresholdCustom)
+                  : (thresholdLocal ?? 10);
+                updateAutoRecharge.mutate({
+                  accountId,
+                  autoRechargeEnabled: rechargeEnabledLocal ?? false,
+                  autoRechargeAmountCents: resolvedAmountCents,
+                  autoRechargeThreshold: resolvedThreshold,
+                });
+              }}
+              disabled={!canEditBilling || !settingsDirty || updateAutoRecharge.isPending}
+            >
+              {updateAutoRecharge.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Save Settings
+            </Button>
+            {hasCards && (
+              <Button
+                variant="outline"
+                onClick={() => setAddFundsOpen(true)}
+                disabled={!canEditBilling}
+              >
+                <Wallet className="h-4 w-4 mr-2" />
+                Add Funds
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Add Funds Modal */}
+      <Dialog open={addFundsOpen} onOpenChange={setAddFundsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Add Funds
+            </DialogTitle>
+            <DialogDescription>
+              Charge your card on file to top up your balance immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Label className="text-sm font-medium">Select Amount</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {[1000, 2500, 5000, 10000, 25000, 50000].map((cents) => (
+                <Button
+                  key={cents}
+                  type="button"
+                  variant={addFundsAmount === cents ? "default" : "outline"}
+                  className={cn(
+                    addFundsAmount === cents && "ring-2 ring-primary/30"
+                  )}
+                  onClick={() => {
+                    setAddFundsAmount(cents);
+                    setAddFundsCustom("");
+                  }}
+                >
+                  ${cents / 100}
+                </Button>
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Or enter custom amount</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  min={5}
+                  max={1000}
+                  step={1}
+                  value={addFundsCustom}
+                  onChange={(e) => {
+                    setAddFundsCustom(e.target.value);
+                    setAddFundsAmount(-1);
+                  }}
+                  placeholder="5 - 1000"
+                  className="w-40"
+                />
+              </div>
+            </div>
+            {addFundsResolvedCents > 0 && (
+              <div className="rounded-lg border bg-muted/50 p-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount to charge:</span>
+                  <span className="font-semibold">{formatCurrency(addFundsResolvedCents / 100)}</span>
                 </div>
               </div>
-              {autoRecharge.rechargeAttemptsToday > 0 && (
-                <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                  <RefreshCw className="h-3 w-3" />
-                  {autoRecharge.rechargeAttemptsToday} recharge attempt{autoRecharge.rechargeAttemptsToday !== 1 ? "s" : ""} today
-                  {autoRecharge.rechargeAttemptsToday >= 3 && (
-                    <Badge variant="destructive" className="text-[10px] ml-1">Limit reached</Badge>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          )}
-        </Card>
-      )}
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddFundsOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => addFundsMut.mutate({ accountId, amountCents: addFundsResolvedCents })}
+              disabled={!addFundsValid || addFundsMut.isPending}
+            >
+              {addFundsMut.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Add {addFundsValid ? formatCurrency(addFundsResolvedCents / 100) : "Funds"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Payment Methods */}
       <Card>

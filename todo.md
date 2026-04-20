@@ -4481,3 +4481,23 @@
 - [x] Test: auto-recharge safety (3-attempt daily limit, billing_locked)
 - [x] Test: onboarding payment gate (payment_method_added step)
 - [x] Test: balance pill in DashboardLayout
+
+## PMR + Kyle Pilot Billing Setup
+- [x] Create accountBilling row for Kyle (390025)
+- [x] Update PMR (420001) accountBilling: autoRechargeEnabled=true, threshold=$20, amount=$50
+- [x] Credit $50 to both accounts (billing_invoices type=paid + balance update)
+- [x] Check payment methods for both — NEITHER has a card on file
+- [x] Report: balance, auto-recharge config, card status for each
+
+## Billing Fixes — Reverse Credits + Recharge Defaults + UI
+- [x] Reverse $50 pilot credits on PMR (420001) and Kyle (390025) — voided originals + debit reversal invoices
+- [x] Check all accounts for "Pilot onboarding credit" invoices — only PMR + Kyle found, both reversed
+- [x] Fix global default autoRechargeAmountCents from $50 to $10 (1000) in schema + usageTracker + billing router
+- [x] Fix global default autoRechargeThreshold from $5/$20 to $10 in schema + billing router
+- [x] Update PMR + Kyle autoRechargeAmountCents to $10 (1000) + threshold to $10
+- [x] Billing.tsx: configurable recharge amount presets ($10/$25/$50/$100/$250/$500 + custom min $5 max $1000)
+- [x] Billing.tsx: configurable recharge threshold presets ($1/$5/$10/$25/$50 + custom min $1)
+- [x] Billing.tsx: manual "Add Funds" button with modal (preset amounts + custom, charges card immediately)
+- [x] billing router: addFunds mutation (charge card + credit balance + record invoice + unlock if locked)
+- [x] Role enforcement: owner + manager can edit recharge settings + addFunds, employees get 403
+- [x] Tests: UI rendering, settings persistence, Add Funds flow, employee 403 (19 tests pass)

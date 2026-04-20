@@ -26,6 +26,7 @@ import {
 } from "../../drizzle/schema";
 import { eq, desc, sql, and, gte, lte } from "drizzle-orm";
 import { getAccountBillingSummary } from "../services/usageTracker";
+import { accountMembers } from "../../drizzle/schema";
 import {
   generateInvoice,
   sendInvoice,
@@ -1087,8 +1088,8 @@ export const billingRouter = router({
 
       return {
         autoRechargeEnabled: billing?.autoRechargeEnabled ?? false,
-        autoRechargeAmountCents: billing?.autoRechargeAmountCents ?? 5000,
-        autoRechargeThreshold: billing?.autoRechargeThreshold ? Number(billing.autoRechargeThreshold) : 5.0,
+        autoRechargeAmountCents: billing?.autoRechargeAmountCents ?? 1000,
+        autoRechargeThreshold: billing?.autoRechargeThreshold ? Number(billing.autoRechargeThreshold) : 10.0,
         rechargeAttemptsToday: billing?.rechargeAttemptsToday ?? 0,
       };
     }),
@@ -1102,10 +1103,24 @@ export const billingRouter = router({
         accountId: z.number(),
         autoRechargeEnabled: z.boolean().optional(),
         autoRechargeAmountCents: z.number().min(500).max(100000).optional(), // $5 to $1000
-        autoRechargeThreshold: z.number().min(0).max(500).optional(),
+        autoRechargeThreshold: z.number().min(1).max(500).optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      // Role enforcement: owner/manager only, employees cannot edit
+      if (ctx.user.role !== "admin") {
+        const db2 = await getDb();
+        if (db2) {
+          const memberRows = await db2
+            .select({ role: accountMembers.role })
+            .from(accountMembers)
+            .where(and(eq(accountMembers.accountId, input.accountId), eq(accountMembers.userId, ctx.user.id)));
+          const memberRole = memberRows[0]?.role;
+          if (memberRole === "employee") {
+            throw new TRPCError({ code: "FORBIDDEN", message: "Only account owners and managers can edit billing settings" });
+          }
+        }
+      }
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
@@ -1148,6 +1163,111 @@ export const billingRouter = router({
    * Lightweight balance check for the header pill.
    * Returns just the balance and status flags.
    */
+  /**
+   * Add funds manually — charges the default card and credits the balance.
+   * Owner/manager only.
+   */
+  addFunds: protectedProcedure
+    .input(
+      z.object({
+        accountId: z.number(),
+        amountCents: z.number().min(500).max(100000), // $5 to $1000
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+      // Role enforcement: owner/manager only
+      if (ctx.user.role !== "admin") {
+        const memberRows = await db
+          .select({ role: accountMembers.role })
+          .from(accountMembers)
+          .where(and(eq(accountMembers.accountId, input.accountId), eq(accountMembers.userId, ctx.user.id)));
+        const memberRole = memberRows[0]?.role;
+        if (memberRole === "employee") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only account owners and managers can add funds" });
+        }
+      }
+
+      // Get default payment method
+      const cardRows = await db
+        .select()
+        .from(paymentMethods)
+        .where(and(eq(paymentMethods.accountId, input.accountId), eq(paymentMethods.isDefault, true)))
+        .limit(1);
+      let card = cardRows[0];
+      if (!card) {
+        // Fall back to any card
+        const anyCard = await db.select().from(paymentMethods).where(eq(paymentMethods.accountId, input.accountId)).limit(1);
+        card = anyCard[0];
+      }
+      if (!card) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No payment method on file. Please add a card first." });
+      }
+
+      // Get Square customer ID
+      const billingRows: AccountBillingRow[] = await db
+        .select()
+        .from(accountBilling)
+        .where(eq(accountBilling.accountId, input.accountId));
+      const billing = billingRows[0];
+      if (!billing?.squareCustomerId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "No billing profile found. Please contact support." });
+      }
+
+      // Charge the card
+      const invoiceNumber = `FUND-${input.accountId}-${Date.now().toString(36).toUpperCase()}`;
+      const chargeResult = await chargeCard({
+        cardId: card.squareCardId,
+        customerId: billing.squareCustomerId,
+        amountCents: input.amountCents,
+        referenceId: invoiceNumber,
+        note: `Manual funds deposit — $${(input.amountCents / 100).toFixed(2)}`,
+      });
+
+      // Record the invoice
+      await db.insert(billingInvoices).values({
+        accountId: input.accountId,
+        invoiceNumber,
+        amount: (input.amountCents / 100).toFixed(4),
+        status: "paid",
+        squarePaymentId: chargeResult.paymentId,
+        lineItems: JSON.stringify([{
+          description: "Manual funds deposit",
+          quantity: 1,
+          unitCost: (input.amountCents / 100).toFixed(2),
+          total: (input.amountCents / 100).toFixed(2),
+        }]),
+        paidAt: new Date(),
+        notes: `Manual add funds by user ${ctx.user.id}`,
+      });
+
+      // Credit the balance
+      const amountDecimal = (input.amountCents / 100).toFixed(4);
+      await db
+        .update(accountBilling)
+        .set({
+          currentBalance: sql`${accountBilling.currentBalance} + ${amountDecimal}`,
+        })
+        .where(eq(accountBilling.accountId, input.accountId));
+
+      // If account was billing_locked, unlock it
+      const acctRows = await db.select({ status: accounts.status }).from(accounts).where(eq(accounts.id, input.accountId));
+      if (acctRows[0]?.status === "billing_locked") {
+        await db.update(accounts).set({ status: "active" }).where(eq(accounts.id, input.accountId));
+        // Reset recharge attempts
+        await db.update(accountBilling).set({ rechargeAttemptsToday: 0 }).where(eq(accountBilling.accountId, input.accountId));
+      }
+
+      return {
+        success: true,
+        newBalance: Number(billing.currentBalance) + (input.amountCents / 100),
+        invoiceNumber,
+        receiptUrl: chargeResult.receiptUrl,
+      };
+    }),
+
   getBalancePill: protectedProcedure
     .input(z.object({ accountId: z.number() }))
     .query(async ({ input }) => {

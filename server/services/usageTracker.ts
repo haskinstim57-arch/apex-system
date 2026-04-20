@@ -469,7 +469,7 @@ async function triggerAutoRecharge(
     throw new Error("No Square customer ID for auto-recharge");
   }
 
-  const amountCents = billing.autoRechargeAmountCents || 5000;
+  const amountCents = billing.autoRechargeAmountCents || 1000;
 
   // Charge the card
   const { chargeCard, isSquareConfigured } = await import("./square");

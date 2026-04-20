@@ -1,0 +1,2 @@
+ALTER TABLE `account_billing` MODIFY COLUMN `auto_recharge_amount_cents` int NOT NULL DEFAULT 1000;--> statement-breakpoint
+ALTER TABLE `account_billing` MODIFY COLUMN `auto_recharge_threshold` decimal(10,4) NOT NULL DEFAULT '10.0000';

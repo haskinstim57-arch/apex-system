@@ -2539,8 +2539,8 @@ export const accountBilling = mysqlTable("account_billing", {
 
   // Auto-recharge settings
   autoRechargeEnabled: boolean("auto_recharge_enabled").notNull().default(false),
-  autoRechargeAmountCents: int("auto_recharge_amount_cents").notNull().default(5000),
-  autoRechargeThreshold: decimal("auto_recharge_threshold", { precision: 10, scale: 4 }).notNull().default("5.0000"),
+  autoRechargeAmountCents: int("auto_recharge_amount_cents").notNull().default(1000),
+  autoRechargeThreshold: decimal("auto_recharge_threshold", { precision: 10, scale: 4 }).notNull().default("10.0000"),
 
   // Auto-recharge safety limits
   rechargeAttemptsToday: int("recharge_attempts_today").notNull().default(0),
