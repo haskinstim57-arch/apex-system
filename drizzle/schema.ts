@@ -57,6 +57,14 @@ export const accounts = mysqlTable("accounts", {
     .default("active")
     .notNull(),
   onboardingComplete: boolean("onboardingComplete").default(false).notNull(),
+  /** V2 onboarding: selected goals (JSON array of goal IDs) */
+  onboardingGoals: json("onboardingGoals").$type<string[]>(),
+  /** V2 onboarding: checklist items state (JSON object keyed by item ID → boolean) */
+  onboardingChecklistItems: json("onboardingChecklistItems").$type<Record<string, boolean>>(),
+  /** V2 onboarding: when the full onboarding was completed */
+  onboardingCompletedAt: timestamp("onboardingCompletedAt"),
+  /** V2 onboarding: when the dashboard checklist was dismissed */
+  onboardingChecklistDismissedAt: timestamp("onboardingChecklistDismissedAt"),
   /** Missed Call Text-Back settings */
   missedCallTextBackEnabled: boolean("missedCallTextBackEnabled").default(false).notNull(),
   missedCallTextBackMessage: text("missedCallTextBackMessage"),
@@ -205,6 +213,8 @@ export const contacts = mysqlTable("contacts", {
   dndStatus: mysqlEnum("dnd_status", ["active", "dnd_sms", "dnd_email", "dnd_all"]).default("active").notNull(),
   /** Custom fields JSON */
   customFields: text("customFields"),
+  /** Flag for demo/seed data used in onboarding — filtered from real queries */
+  isDemoData: boolean("isDemoData").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -2957,3 +2967,23 @@ export const notificationAuditLog = mysqlTable("notification_audit_log", {
 });
 export type NotificationAuditLog = typeof notificationAuditLog.$inferSelect;
 export type InsertNotificationAuditLog = typeof notificationAuditLog.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// ONBOARDING EVENTS — analytics for onboarding funnel
+// Tracks each step completion, drop-off, and A/B test data
+// ─────────────────────────────────────────────
+export const onboardingEvents = mysqlTable("onboarding_events", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  userId: int("user_id").notNull(),
+  /** Onboarding step identifier (e.g. "welcome", "goals", "aha_moment", "setup_payment") */
+  step: varchar("step", { length: 100 }).notNull(),
+  /** Action taken (e.g. "viewed", "completed", "skipped", "back") */
+  action: varchar("action", { length: 50 }).notNull(),
+  /** Extra metadata (selected goals, time spent, etc.) */
+  metadata: json("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type OnboardingEvent = typeof onboardingEvents.$inferSelect;
+export type InsertOnboardingEvent = typeof onboardingEvents.$inferInsert;

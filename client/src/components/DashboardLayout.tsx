@@ -314,7 +314,7 @@ export default function DashboardLayout({
     // Don't redirect if already on the onboarding page
     if (location.startsWith("/onboarding")) return;
     if ((currentAccount as any).onboardingComplete === false || (currentAccount as any).onboardingComplete === 0) {
-      navigate("/onboarding");
+      navigate("/onboarding-v2");
     }
   }, [loading, accountLoading, user, currentAccount, isAdmin, isImpersonating, navigate, location]);
 

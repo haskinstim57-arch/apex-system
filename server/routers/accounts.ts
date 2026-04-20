@@ -830,4 +830,153 @@ export const accountsRouter = router({
 
       return { success: true, enabled: input.enabled };
     }),
+
+  // ─── V2 ONBOARDING PROCEDURES ───────────────────────────────
+
+  /** Save selected onboarding goals */
+  saveOnboardingGoals: protectedProcedure
+    .input(z.object({
+      accountId: z.number().int().positive(),
+      goals: z.array(z.string()),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+      await db.updateAccount(input.accountId, { onboardingGoals: input.goals } as any);
+      // Log analytics event
+      const database = await db.getDb();
+      const { onboardingEvents } = await import("../../drizzle/schema");
+      await database.insert(onboardingEvents).values({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        step: "goals",
+        action: "completed",
+        metadata: { goals: input.goals },
+      });
+      return { success: true };
+    }),
+
+  /** Seed demo data for the aha moment phase */
+  seedOnboardingDemo: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+      const { seedDemoOnboardingData, hasDemoData } = await import("../seed/demoOnboardingData");
+      const alreadySeeded = await hasDemoData(input.accountId);
+      if (alreadySeeded) return { success: true, alreadySeeded: true, contactIds: [] };
+      const result = await seedDemoOnboardingData(input.accountId, ctx.user.id);
+      // Log analytics event
+      const database = await db.getDb();
+      const { onboardingEvents } = await import("../../drizzle/schema");
+      await database.insert(onboardingEvents).values({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        step: "aha_moment",
+        action: "demo_seeded",
+        metadata: { contactIds: result.contactIds },
+      });
+      return { success: true, alreadySeeded: false, contactIds: result.contactIds };
+    }),
+
+  /** Clean up demo data after onboarding */
+  cleanupOnboardingDemo: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+      const { cleanupDemoData } = await import("../seed/demoOnboardingData");
+      await cleanupDemoData(input.accountId);
+      return { success: true };
+    }),
+
+  /** Log an onboarding analytics event */
+  logOnboardingEvent: protectedProcedure
+    .input(z.object({
+      accountId: z.number().int().positive(),
+      step: z.string(),
+      action: z.string(),
+      metadata: z.record(z.unknown()).optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const database = await db.getDb();
+      const { onboardingEvents } = await import("../../drizzle/schema");
+      await database.insert(onboardingEvents).values({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        step: input.step,
+        action: input.action,
+        metadata: input.metadata || null,
+      });
+      return { success: true };
+    }),
+
+  /** Save onboarding checklist item state */
+  updateOnboardingChecklist: protectedProcedure
+    .input(z.object({
+      accountId: z.number().int().positive(),
+      items: z.record(z.boolean()),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner", "manager"]);
+      }
+      await db.updateAccount(input.accountId, { onboardingChecklistItems: input.items } as any);
+      return { success: true };
+    }),
+
+  /** Dismiss the onboarding checklist from the dashboard */
+  dismissOnboardingChecklist: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+      await db.updateAccount(input.accountId, {
+        onboardingChecklistDismissedAt: new Date(),
+      } as any);
+      // Log analytics event
+      const database = await db.getDb();
+      const { onboardingEvents } = await import("../../drizzle/schema");
+      await database.insert(onboardingEvents).values({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        step: "checklist",
+        action: "dismissed",
+      });
+      return { success: true };
+    }),
+
+  /** Complete V2 onboarding — marks account as onboarded + records timestamp */
+  completeOnboardingV2: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== "admin") {
+        await requireAccountAccess(ctx.user.id, input.accountId, ["owner"]);
+      }
+      await db.updateAccount(input.accountId, {
+        onboardingComplete: true,
+        onboardingCompletedAt: new Date(),
+      } as any);
+      // Log analytics event
+      const database = await db.getDb();
+      const { onboardingEvents } = await import("../../drizzle/schema");
+      await database.insert(onboardingEvents).values({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        step: "complete",
+        action: "completed",
+      });
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "account.onboarding_v2_completed",
+        resourceType: "account",
+        resourceId: input.accountId,
+      });
+      return { success: true };
+    }),
 });

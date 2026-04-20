@@ -4549,3 +4549,68 @@
 - [x] Stub other chips as disabled/coming-soon with toast
 - [x] Mobile responsive: chips wrap (flex-wrap) on narrow screens
 - [x] Tests: 31 tests pass — chip definitions, report options, prompts, component structure, integration
+
+## Onboarding Redesign (Aha Moment)
+
+### Schema & Infrastructure
+- [x] Add onboardingGoals JSON column to accounts table
+- [x] Add onboardingChecklistItems JSON column to accounts table
+- [x] Add onboardingCompletedAt timestamp to accounts table
+- [x] Add onboardingDismissedAt timestamp to accounts table
+- [x] Create onboardingEvents analytics table (id, accountId, userId, step, action, metadata, createdAt)
+- [x] Add isDemoData boolean flag to contacts table
+- [x] Feature flag: NEW_ONBOARDING_V2 in shared/const.ts (currently enabled)
+
+### Demo Data Seeder
+- [x] Create server/seed/demoOnboardingData.ts with 5 fake contacts + notes + dispositions + fake messages
+- [x] Demo data scoped via isDemoData: true, filtered from real queries
+
+### Phase 1 — Welcome + Outcome Pitch
+- [x] Outcome-focused headline: "In 10 minutes, Jarvis will be booking appointments for you."
+- [x] Animated preview (CSS keyframe): FB lead → Jarvis calls → appointment booked → SMS sent
+- [x] CTA: "Let's set it up" + skip link: "Not ready? Try Jarvis first →"
+
+### Phase 2 — Multi-Goal Selection
+- [x] Multi-select screen: "What do you want Apex to do for you?" (6 goals)
+- [x] Store as account.onboardingGoals JSON array
+- [x] Pre-populate checklist based on goal selections (prePopulate arrays per goal)
+
+### Phase 3 — Aha Moment (Demo Jarvis)
+- [x] Demo account screen with 5 seeded contacts
+- [x] Auto-prompt Jarvis: "Here's what's happening in your business this week"
+- [x] User can interact with Jarvis on demo data (embedded Jarvis chat)
+- [x] CTA: "Ready to connect real data? →"
+- [x] Demo data clearly labeled "Sample Data — will be replaced"
+
+### Phase 4 — Required Setup (stripped down)
+- [x] Only 3 mandatory steps: payment method, business name + timezone, phone number
+- [x] Everything else moved to post-onboarding checklist (15 items in V2 checklist)
+
+### Phase 5 — Human Touch
+- [x] "You're in. Here's a note from Tariq." screen
+- [x] Handwritten-style note with signature font + italic styling
+- [x] CTA: "Go to dashboard"
+
+### Phase 6 — Persistent Onboarding Checklist
+- [x] Collapsible dashboard card with V2 checklist items (goal-personalized, priority-sorted)
+- [x] Progress bar: "X of N complete" with gradient animation
+- [x] Dismissable (saves to localStorage + server-side via dismissOnboardingChecklist mutation)
+- [x] Persistent checklist card on dashboard until all done or dismissed
+
+### Phase 7 — Microcopy + Loading Polish
+- [x] Meaningful loading messages ("Setting up your account..." with step-specific text)
+- [x] Slide + fade transitions between onboarding steps (CSS transitions)
+- [x] Real-time check marks on validation fields
+- [x] Helper text on form fields explaining WHY we ask
+
+### Phase 8 — Pre-Permission Framing
+- [x] Calendar permission explanation screen (in checklist items with descriptions)
+- [x] Notification permission explanation (in checklist items with descriptions)
+- [x] Facebook permission explanation (in checklist items with descriptions)
+
+### Tests
+- [x] Onboarding flow end-to-end: 37 tests pass (phase flow, goal definitions, pre-population, demo data, feature flag, router procedures, schema)
+- [x] Pre-populated data matches selected goals (verified in tests)
+- [x] Demo data scoped via isDemoData flag (verified in tests)
+- [x] Checklist persists via localStorage + server-side (verified in tests)
+- [x] Post-dismissal: checklist hidden, server-side dismissal recorded

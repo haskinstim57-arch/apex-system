@@ -29,6 +29,7 @@ const MessagingSettings = lazy(() => import("./pages/MessagingSettings"));
 const LeadScoringSettings = lazy(() => import("./pages/LeadScoringSettings"));
 const NotificationSettings = lazy(() => import("./pages/NotificationSettings"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
+const OnboardingV2 = lazy(() => import("./pages/OnboardingV2"));
 import AcceptInvite from "./pages/AcceptInvite";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
@@ -103,6 +104,7 @@ function Router() {
 
       {/* Onboarding wizard (full-screen, no sidebar) */}
       <Route path="/onboarding" component={Onboarding} />
+      <Route path="/onboarding-v2" component={OnboardingV2} />
 
       {/* Dashboard home — shows agency overview or sub-account overview depending on context */}
       <Route path="/">
