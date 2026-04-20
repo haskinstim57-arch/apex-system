@@ -526,17 +526,8 @@ async function processPolledLead(
     console.error(`[FacebookLeadPoller] Auto-enrollment error for contact ${contactId}:`, err);
   });
 
-  // Create in-app notification (legacy — kept for backward compat)
-  createNotification({
-    accountId: page.accountId,
-    userId: null,
-    type: "new_contact_facebook",
-    title: "New Facebook lead",
-    body: `${firstName} ${lastName}${email ? ` (${email})` : ""}`,
-    link: `/contacts/${contactId}`,
-  }).catch((err) =>
-    console.error(`[FacebookLeadPoller] Notification error:`, err)
-  );
+  // In-app notification removed — notifyLeadRecipients already creates in-app + push + email + SMS.
+  // Duplicate createNotification() was causing 2x in-app notifications (fixed 2026-04-20).
 
   return true;
 }

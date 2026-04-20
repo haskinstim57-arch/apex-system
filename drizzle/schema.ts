@@ -2934,3 +2934,26 @@ export const supportTicketReplies = mysqlTable("support_ticket_replies", {
 });
 export type SupportTicketReply = typeof supportTicketReplies.$inferSelect;
 export type InsertSupportTicketReply = typeof supportTicketReplies.$inferInsert;
+
+// ─── Notification Audit Log ──────────────────────────────────────────────
+// Records every notification send for debugging duplicates.
+// Rejects sends where (userId, eventType, dedupeKey) already logged within 60s.
+export const notificationAuditLog = mysqlTable("notification_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Account that owns this notification */
+  accountId: int("account_id").notNull(),
+  /** User who received the notification (null = account-wide) */
+  userId: int("user_id"),
+  /** Event type that triggered the notification (e.g. "facebook_lead", "inbound_sms") */
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  /** Delivery channel: push, email, sms, in_app */
+  channel: mysqlEnum("channel", ["push", "email", "sms", "in_app"]).notNull(),
+  /** Deduplication key — unique per event instance (e.g. "fb-lead-123", "inbound-sms-456") */
+  dedupeKey: varchar("dedupe_key", { length: 255 }).notNull(),
+  /** When the notification was sent */
+  sentAt: timestamp("sent_at").defaultNow().notNull(),
+  /** Extra metadata (title, body preview, provider, etc.) */
+  metadata: json("metadata"),
+});
+export type NotificationAuditLog = typeof notificationAuditLog.$inferSelect;
+export type InsertNotificationAuditLog = typeof notificationAuditLog.$inferInsert;

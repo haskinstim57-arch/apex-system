@@ -4501,3 +4501,15 @@
 - [x] billing router: addFunds mutation (charge card + credit balance + record invoice + unlock if locked)
 - [x] Role enforcement: owner + manager can edit recharge settings + addFunds, employees get 403
 - [x] Tests: UI rendering, settings persistence, Add Funds flow, employee 403 (19 tests pass)
+
+## Duplicate Notifications Fix
+- [x] Audit push batcher double-fire — FOUND: facebookLeads.ts called sendPushNotificationToAccount + notifyLeadRecipients (which also calls it)
+- [x] Audit worker duplicate processing — CLEAN: no workers dispatch notifications for events another worker handles
+- [x] Audit webhook idempotency — CLEAN: delivery status webhook acks 200 at end, no notification dispatch
+- [x] Audit multi-account membership — CLEAN: push subscriptions are per-account, events fire per-account not per-user
+- [x] Audit support ticket notifications — CLEAN: createTicket sends 1 email, replies send separate emails
+- [x] Audit email + push both firing — INTENTIONAL: batcher sends push + email + SMS per user preferences
+- [x] Add notificationAuditLog table (id, accountId, userId, eventType, channel, dedupeKey, sentAt, metadata)
+- [x] Implement 60s deduplication in notificationDedup.ts + integrated into sendPushNotificationToAccount
+- [x] Write tests: 16 tests pass — dedup service + fix verification (notificationDedup.test.ts)
+- [x] Report root cause and fix — 2 root causes fixed, dedup layer added as safety net

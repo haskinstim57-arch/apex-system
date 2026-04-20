@@ -6,13 +6,12 @@ import {
   listPipelineStages,
   createDeal,
   getAccountFacebookPageByFbPageId,
-  createNotification,
   enrollContactInSequence,
   getDb,
 } from "../db";
 import { ENV } from "../_core/env";
 import { routeLead } from "../services/leadRoutingEngine";
-import { sendPushNotificationToAccount } from "../services/webPush";
+// sendPushNotificationToAccount removed — notifyLeadRecipients handles push (dedup fix 2026-04-20)
 import { logRoutingEvent } from "../services/leadRoutingMonitor";
 import { notifyLeadRecipients } from "../services/leadNotification";
 import { sequences } from "../../drizzle/schema";
@@ -514,25 +513,10 @@ async function processLead(
     console.error(`[FB Leads Webhook] Error firing triggers for contact ${contactId}:`, err);
   });
 
-  // 5. Create in-app notification
-  createNotification({
-    accountId: data.accountId,
-    userId: null,
-    type: "new_contact_facebook",
-    title: `New Facebook lead`,
-    body: `${data.firstName} ${data.lastName}${data.email ? ` (${data.email})` : ""}`,
-    link: `/contacts/${contactId}`,
-  }).catch((err) => console.error(`[FB Leads Webhook] Notification error:`, err));
-
-  // Send push notification
-  sendPushNotificationToAccount(data.accountId, {
-    title: "New Facebook Lead",
-    body: `${data.firstName} ${data.lastName}${data.email ? ` (${data.email})` : ""}`,
-    url: `/contacts/${contactId}`,
-    tag: `fb-lead-${contactId}`,
-  }).catch((err) => console.error(`[FB Leads Webhook] Push notification error:`, err));
-
-  // 6. Send lead notifications (SMS + email to all active account members)
+  // 5. Send lead notifications (SMS + email + in-app + push to all active account members)
+  // NOTE: notifyLeadRecipients already handles ALL channels (SMS, email, in-app, push).
+  // Do NOT add separate createNotification() or sendPushNotificationToAccount() calls here
+  // — that was causing duplicate notifications (fixed 2026-04-20).
   notifyLeadRecipients({
     contactId,
     name: `${data.firstName} ${data.lastName}`,

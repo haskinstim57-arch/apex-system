@@ -297,6 +297,21 @@ export async function sendPushNotificationToAccount(
 
   if (!anyAwake) return;
 
+  // ─── Dedup check: prevent duplicate sends within 60s window ───
+  const { checkAndRecordNotification } = await import("./notificationDedup");
+  const dedupeKey = payload.tag || `${eventType}-${Date.now()}`;
+  const allowed = await checkAndRecordNotification({
+    accountId,
+    eventType,
+    channel: "push",
+    dedupeKey,
+    metadata: { title: payload.title, body: payload.body?.substring(0, 100) },
+  });
+  if (!allowed) {
+    console.log(`[WebPush] Dedup blocked push for account ${accountId}: ${eventType}/${dedupeKey}`);
+    return;
+  }
+
   // Route through batcher (handles push + email + SMS dispatch on flush)
   await enqueuePushEvent(accountId, eventType, {
     title: payload.title,
