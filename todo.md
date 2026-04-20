@@ -4540,3 +4540,12 @@
 - [x] Tests: 33 tests pass — tool definitions, system prompt, date window logic, executor shape, content sections
 - [x] Tests: email_report executor verified (sendEmail call per recipient)
 - [x] Tests: content additions verified (hot leads, dispositions trend, appointments, AI outcomes, sequences, velocity, at-risk)
+
+## Jarvis Quick-Action Chips
+
+- [x] Add quick-action chip row below chat input (Reports, Ask about contact, Create task, Draft message)
+- [x] Reports chip opens popover picker (Daily Activity, Pipeline Summary with date range, Usage Report with period)
+- [x] Auto-fill chat input + auto-submit on report selection
+- [x] Stub other chips as disabled/coming-soon with toast
+- [x] Mobile responsive: chips wrap (flex-wrap) on narrow screens
+- [x] Tests: 31 tests pass — chip definitions, report options, prompts, component structure, integration

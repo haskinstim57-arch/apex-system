@@ -14,6 +14,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { toast } from "sonner";
+import JarvisQuickActions from "@/components/JarvisQuickActions";
 
 interface JarvisMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -93,9 +94,8 @@ export default function Jarvis() {
     }
   }, [accountId, createSession]);
 
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
-    if (!trimmed || !activeSessionId || isThinking) return;
+  const sendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || !activeSessionId || isThinking) return;
 
     setInput("");
     setIsThinking(true);
@@ -104,7 +104,7 @@ export default function Jarvis() {
       await chatMutation.mutateAsync({
         accountId,
         sessionId: activeSessionId,
-        message: trimmed,
+        message: text.trim(),
       });
     } catch {
       toast.error("Failed to get response. Please try again.");
@@ -112,7 +112,16 @@ export default function Jarvis() {
       setIsThinking(false);
       inputRef.current?.focus();
     }
-  }, [input, activeSessionId, isThinking, accountId, chatMutation]);
+  }, [activeSessionId, isThinking, accountId, chatMutation]);
+
+  const handleSend = useCallback(async () => {
+    await sendMessage(input);
+  }, [input, sendMessage]);
+
+  const handleQuickPrompt = useCallback(async (prompt: string) => {
+    setInput(prompt);
+    await sendMessage(prompt);
+  }, [sendMessage]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -272,25 +281,31 @@ export default function Jarvis() {
         {/* Input area */}
         {activeSessionId && (
           <div className="border-t border-border p-4 flex-shrink-0">
-            <div className="max-w-3xl mx-auto flex gap-2">
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask Jarvis anything..."
-                rows={1}
-                className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 placeholder:text-muted-foreground"
+            <div className="max-w-3xl mx-auto">
+              <div className="flex gap-2">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask Jarvis anything..."
+                  rows={1}
+                  className="flex-1 resize-none rounded-lg border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 placeholder:text-muted-foreground"
+                  disabled={isThinking}
+                />
+                <Button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isThinking}
+                  size="icon"
+                  className="h-10 w-10 flex-shrink-0"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+              <JarvisQuickActions
+                onSubmitPrompt={handleQuickPrompt}
                 disabled={isThinking}
               />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || isThinking}
-                size="icon"
-                className="h-10 w-10 flex-shrink-0"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         )}
