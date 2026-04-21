@@ -1084,6 +1084,7 @@ export async function listContactNotes(contactId: number) {
       authorId: contactNotes.authorId,
       content: contactNotes.content,
       disposition: contactNotes.disposition,
+      isInternal: contactNotes.isInternal,
       isPinned: contactNotes.isPinned,
       createdAt: contactNotes.createdAt,
       updatedAt: contactNotes.updatedAt,

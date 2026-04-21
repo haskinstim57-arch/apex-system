@@ -31,6 +31,7 @@ import { useAccount } from "@/contexts/AccountContext";
 import { useMemo } from "react";
 import { Link } from "wouter";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
+import JarvisTaskQueue from "@/components/JarvisTaskQueue";
 
 export default function Home() {
   const { user } = useAuth();
@@ -177,6 +178,11 @@ export default function Home() {
       {/* ─── Onboarding Checklist (all users in sub-account mode) ─── */}
       {currentAccountId && (
         <OnboardingChecklist accountId={currentAccountId} />
+      )}
+
+      {/* ─── Jarvis Task Queue (when account is selected) ─── */}
+      {currentAccountId && (
+        <JarvisTaskQueue accountId={currentAccountId} />
       )}
 
       {/* ─── Sub-Account KPI Cards (when account is selected) ─── */}

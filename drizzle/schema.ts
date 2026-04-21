@@ -181,7 +181,14 @@ export const contacts = mysqlTable("contacts", {
   /** Pipeline status */
   status: mysqlEnum("status", [
     "new",
+    "uncontacted",
     "contacted",
+    "engaged",
+    "application_taken",
+    "application_in_progress",
+    "credit_repair",
+    "callback_scheduled",
+    "app_link_pending",
     "qualified",
     "proposal",
     "negotiation",
@@ -189,7 +196,7 @@ export const contacts = mysqlTable("contacts", {
     "lost",
     "nurture",
   ])
-    .default("new")
+    .default("uncontacted")
     .notNull(),
   /** User ID of the assigned team member */
   assignedUserId: int("assignedUserId"),
@@ -239,16 +246,15 @@ export type InsertContactTag = typeof contactTags.$inferInsert;
 // CONTACT NOTES — timestamped notes per contact
 // ─────────────────────────────────────────────
 export const DISPOSITION_VALUES = [
-  "voicemail_full",
-  "left_voicemail",
-  "no_answer",
-  "answered",
-  "callback_requested",
-  "wrong_number",
-  "do_not_call",
-  "appointment_set",
-  "not_interested",
-  "other",
+  "vm_full",
+  "left_vm",
+  "spoke_to_lead",
+  "took_application",
+  "borrower_doing_app",
+  "credit_repair",
+  "nurture",
+  "borrower_requested_callback",
+  "spoke_needs_loan_app_link",
 ] as const;
 
 export type DispositionType = (typeof DISPOSITION_VALUES)[number];
@@ -261,6 +267,8 @@ export const contactNotes = mysqlTable("contact_notes", {
   content: text("content").notNull(),
   /** Call/contact disposition */
   disposition: varchar("disposition", { length: 50 }),
+  /** Whether this note is internal (hidden from Jarvis AI) */
+  isInternal: boolean("isInternal").default(false).notNull(),
   /** pinned notes float to top */
   isPinned: boolean("isPinned").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -2987,3 +2995,23 @@ export const onboardingEvents = mysqlTable("onboarding_events", {
 });
 export type OnboardingEvent = typeof onboardingEvents.$inferSelect;
 export type InsertOnboardingEvent = typeof onboardingEvents.$inferInsert;
+
+// ─────────────────────────────────────────────
+// JARVIS TASK QUEUE — auto-enqueued tasks from dispositions/notes
+// ─────────────────────────────────────────────
+export const jarvisTaskQueue = mysqlTable("jarvis_task_queue", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("accountId").notNull(),
+  contactId: int("contactId").notNull(),
+  /** Task type: send_application_link, follow_up, credit_repair_referral, etc. */
+  taskType: varchar("taskType", { length: 100 }).notNull(),
+  /** pending | completed | dismissed */
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  /** JSON payload with task-specific data */
+  payload: text("payload"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: timestamp("completedAt"),
+});
+
+export type JarvisTaskQueueRow = typeof jarvisTaskQueue.$inferSelect;
+export type InsertJarvisTaskQueue = typeof jarvisTaskQueue.$inferInsert;

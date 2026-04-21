@@ -572,6 +572,7 @@ export const contactsRouter = router({
         accountId: z.number().int().positive(),
         content: z.string().min(1).max(5000),
         disposition: z.string().max(50).nullish(),
+        isInternal: z.boolean().optional().default(false),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -587,6 +588,7 @@ export const contactsRouter = router({
         contactId: input.contactId,
         authorId: ctx.user.id,
         content: input.content,
+        isInternal: input.isInternal,
         ...(input.disposition ? { disposition: input.disposition } : {}),
       });
 
@@ -598,6 +600,62 @@ export const contactsRouter = router({
         description: `Note added: ${input.content.substring(0, 100)}${input.content.length > 100 ? "..." : ""}`,
         metadata: JSON.stringify({ noteId: note.id }),
       });
+
+      // ── Part C: Auto-update contact status from disposition ──
+      if (input.disposition) {
+        const DISPOSITION_STATUS_MAP: Record<string, string> = {
+          vm_full: "contacted",
+          left_vm: "contacted",
+          spoke_to_lead: "engaged",
+          took_application: "application_taken",
+          borrower_doing_app: "application_in_progress",
+          credit_repair: "credit_repair",
+          nurture: "nurture",
+          borrower_requested_callback: "callback_scheduled",
+          spoke_needs_loan_app_link: "app_link_pending",
+        };
+        const newStatus = DISPOSITION_STATUS_MAP[input.disposition];
+        if (newStatus && contact.status !== newStatus) {
+          const oldStatus = contact.status;
+          await updateContact(input.contactId, input.accountId, { status: newStatus as any });
+          // Audit log for status change
+          await createAuditLog({
+            accountId: input.accountId,
+            userId: ctx.user.id,
+            action: "contact_status_auto_update",
+            entityType: "contact",
+            entityId: input.contactId,
+            details: JSON.stringify({
+              oldStatus,
+              newStatus,
+              triggeredBy: "disposition",
+              disposition: input.disposition,
+              noteId: note.id,
+            }),
+          });
+        }
+
+        // ── Part D: Auto-enqueue Jarvis task for app link disposition ──
+        if (input.disposition === "spoke_needs_loan_app_link") {
+          const { getDb } = await import("../db");
+          const { jarvisTaskQueue } = await import("../../drizzle/schema");
+          const db = await getDb();
+          if (db) {
+            await db.insert(jarvisTaskQueue).values({
+              accountId: input.accountId,
+              contactId: input.contactId,
+              taskType: "send_application_link",
+              status: "pending",
+              payload: JSON.stringify({
+                contactName: `${contact.firstName || ""} ${contact.lastName || ""}`.trim(),
+                contactEmail: contact.email,
+                contactPhone: contact.phone,
+                createdByUserId: ctx.user.id,
+              }),
+            });
+          }
+        }
+      }
 
       return note;
     }),

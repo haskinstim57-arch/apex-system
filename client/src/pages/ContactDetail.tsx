@@ -68,6 +68,9 @@ import {
   CheckSquare,
   Link,
   AlignLeft,
+  Lock,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
@@ -75,26 +78,62 @@ import { toast } from "sonner";
 import { isFieldVisibleClient } from "@/components/VisibilityRulesEditor";
 
 const STATUSES = [
-  "new",
+  "uncontacted",
   "contacted",
+  "engaged",
   "qualified",
-  "proposal",
-  "negotiation",
+  "application_taken",
+  "application_in_progress",
+  "credit_repair",
+  "callback_scheduled",
+  "app_link_pending",
+  "nurture",
   "won",
   "lost",
-  "nurture",
 ] as const;
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-50 text-blue-600 border-blue-200",
+  uncontacted: "bg-slate-50 text-slate-600 border-slate-200",
   contacted: "bg-amber-50 text-amber-600 border-amber-200",
+  engaged: "bg-blue-50 text-blue-600 border-blue-200",
   qualified: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  proposal: "bg-purple-50 text-purple-600 border-purple-200",
-  negotiation: "bg-orange-50 text-orange-600 border-orange-200",
+  application_taken: "bg-purple-50 text-purple-600 border-purple-200",
+  application_in_progress: "bg-indigo-50 text-indigo-600 border-indigo-200",
+  credit_repair: "bg-orange-50 text-orange-600 border-orange-200",
+  callback_scheduled: "bg-teal-50 text-teal-600 border-teal-200",
+  app_link_pending: "bg-cyan-50 text-cyan-600 border-cyan-200",
+  nurture: "bg-sky-50 text-sky-600 border-sky-200",
   won: "bg-green-50 text-green-600 border-green-200",
   lost: "bg-red-50 text-red-500 border-red-200",
-  nurture: "bg-cyan-50 text-cyan-600 border-cyan-200",
 };
+
+const STATUS_LABELS: Record<string, string> = {
+  uncontacted: "Uncontacted",
+  contacted: "Contacted",
+  engaged: "Engaged",
+  qualified: "Qualified",
+  application_taken: "Application Taken",
+  application_in_progress: "App In Progress",
+  credit_repair: "Credit Repair",
+  callback_scheduled: "Callback Scheduled",
+  app_link_pending: "App Link Pending",
+  nurture: "Nurture",
+  won: "Won",
+  lost: "Lost",
+};
+
+// Disposition buttons matching Tariq's exact wording
+const DISPOSITION_BUTTONS = [
+  { value: "vm_full", label: "VM Full", color: "bg-gray-500/10 text-gray-400 border-gray-500/20" },
+  { value: "left_vm", label: "Left VM", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  { value: "spoke_to_lead", label: "Spoke to Lead", color: "bg-green-500/10 text-green-400 border-green-500/20", requiresNote: true },
+  { value: "took_application", label: "Took Application", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  { value: "borrower_doing_app", label: "Borrower Doing App", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
+  { value: "credit_repair", label: "Credit Repair", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
+  { value: "nurture", label: "Nurture", color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
+  { value: "borrower_requested_callback", label: "Callback Requested", color: "bg-teal-500/10 text-teal-400 border-teal-500/20" },
+  { value: "spoke_needs_loan_app_link", label: "Send App Link", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+] as const;
 
 const LEAD_SOURCES = [
   "Website",
@@ -154,6 +193,16 @@ export default function ContactDetail({
   const [newTag, setNewTag] = useState("");
   const [newNote, setNewNote] = useState("");
   const [selectedDisposition, setSelectedDisposition] = useState<string | null>(null);
+  const [internalNoteMode, setInternalNoteMode] = useState(false);
+  const [spokeToLeadNote, setSpokeToLeadNote] = useState("");
+  const [showSpokeNoteInput, setShowSpokeNoteInput] = useState(false);
+
+  // Membership query for role-based internal notes visibility
+  const { data: membership } = trpc.members.myMembership.useQuery(
+    { accountId },
+    { enabled: !!contact }
+  );
+  const isOwnerOrManager = membership?.role === "owner" || membership?.role === "manager";
 
   // Mutations
   const updateMutation = trpc.contacts.update.useMutation({
@@ -273,7 +322,7 @@ export default function ContactDetail({
                 variant="outline"
                 className={`text-[10px] font-medium ${STATUS_COLORS[contact.status] || ""}`}
               >
-                {contact.status}
+                {STATUS_LABELS[contact.status] || contact.status}
               </Badge>
             </div>
             {contact.company && (
@@ -640,21 +689,23 @@ export default function ContactDetail({
                 />
                 {/* Smart Disposition Buttons */}
                 <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { value: "left_voicemail", label: "Left VM", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-                    { value: "no_answer", label: "No Answer", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
-                    { value: "answered", label: "Answered", color: "bg-green-500/10 text-green-400 border-green-500/20" },
-                    { value: "callback_requested", label: "Callback", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
-                    { value: "appointment_set", label: "Appt Set", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-                    { value: "not_interested", label: "Not Interested", color: "bg-red-500/10 text-red-400 border-red-500/20" },
-                    { value: "wrong_number", label: "Wrong #", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
-                    { value: "do_not_call", label: "DNC", color: "bg-red-500/10 text-red-400 border-red-500/20" },
-                    { value: "voicemail_full", label: "VM Full", color: "bg-gray-500/10 text-gray-400 border-gray-500/20" },
-                  ].map((d) => (
+                  {DISPOSITION_BUTTONS.map((d) => (
                     <button
                       key={d.value}
                       type="button"
-                      onClick={() => setSelectedDisposition(selectedDisposition === d.value ? null : d.value)}
+                      onClick={() => {
+                        if (selectedDisposition === d.value) {
+                          setSelectedDisposition(null);
+                          setShowSpokeNoteInput(false);
+                        } else {
+                          setSelectedDisposition(d.value);
+                          if ('requiresNote' in d && d.requiresNote) {
+                            setShowSpokeNoteInput(true);
+                          } else {
+                            setShowSpokeNoteInput(false);
+                          }
+                        }
+                      }}
                       className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
                         selectedDisposition === d.value
                           ? d.color + " ring-1 ring-current scale-105"
@@ -665,33 +716,74 @@ export default function ContactDetail({
                     </button>
                   ))}
                 </div>
+                {showSpokeNoteInput && selectedDisposition === "spoke_to_lead" && (
+                  <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-2">
+                    <p className="text-[10px] text-green-400 mb-1 font-medium">What did you discuss? (required for Spoke to Lead)</p>
+                    <textarea
+                      value={spokeToLeadNote}
+                      onChange={(e) => setSpokeToLeadNote(e.target.value)}
+                      placeholder="Brief summary of the conversation..."
+                      className="w-full min-h-[50px] text-xs resize-none bg-transparent border-0 focus:ring-0 p-0 text-foreground placeholder:text-muted-foreground"
+                    />
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
-                  {selectedDisposition && (
-                    <span className="text-[10px] text-muted-foreground">
-                      Disposition: <span className="font-medium text-foreground">{selectedDisposition.replace(/_/g, " ")}</span>
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {selectedDisposition && (
+                      <span className="text-[10px] text-muted-foreground">
+                        Disposition: <span className="font-medium text-foreground">
+                          {DISPOSITION_BUTTONS.find(d => d.value === selectedDisposition)?.label || selectedDisposition.replace(/_/g, " ")}
+                        </span>
+                      </span>
+                    )}
+                    {isOwnerOrManager && (
+                      <button
+                        type="button"
+                        onClick={() => setInternalNoteMode(!internalNoteMode)}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
+                          internalNoteMode
+                            ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20 ring-1 ring-yellow-500/30"
+                            : "bg-muted/30 text-muted-foreground border-border/50 hover:bg-muted/50"
+                        }`}
+                        title="Internal notes are hidden from employees and Jarvis AI"
+                      >
+                        {internalNoteMode ? <EyeOff className="h-2.5 w-2.5" /> : <Lock className="h-2.5 w-2.5" />}
+                        {internalNoteMode ? "Internal" : "Internal"}
+                      </button>
+                    )}
+                  </div>
                   <div className="flex-1" />
                   <Button
                     size="sm"
                     className="h-8 gap-1.5"
-                    disabled={!newNote.trim() || addNoteMutation.isPending}
+                    disabled={
+                      (!newNote.trim() && !(selectedDisposition === "spoke_to_lead" && spokeToLeadNote.trim())) ||
+                      addNoteMutation.isPending ||
+                      (selectedDisposition === "spoke_to_lead" && !spokeToLeadNote.trim())
+                    }
                     onClick={() => {
-                      if (newNote.trim()) {
+                      const content = selectedDisposition === "spoke_to_lead" && spokeToLeadNote.trim()
+                        ? (newNote.trim() ? newNote.trim() + "\n\n" + spokeToLeadNote.trim() : spokeToLeadNote.trim())
+                        : newNote.trim();
+                      if (content) {
                         addNoteMutation.mutate({
                           contactId: id,
                           accountId,
-                          content: newNote.trim(),
+                          content,
                           ...(selectedDisposition ? { disposition: selectedDisposition } : {}),
+                          ...(internalNoteMode ? { isInternal: true } : {}),
                         });
                         setSelectedDisposition(null);
+                        setInternalNoteMode(false);
+                        setSpokeToLeadNote("");
+                        setShowSpokeNoteInput(false);
                       }
                     }}
                   >
                     {addNoteMutation.isPending && (
                       <Loader2 className="h-3 w-3 animate-spin" />
                     )}
-                    Add Note
+                    {internalNoteMode ? "Add Internal Note" : "Add Note"}
                   </Button>
                 </div>
               </div>
@@ -701,18 +793,27 @@ export default function ContactDetail({
           {/* Notes List */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground">
-              Notes ({notes?.length || 0})
+              Notes ({(notes || []).filter(n => isOwnerOrManager || !n.isInternal).length})
             </h3>
-            {notes && notes.length > 0 ? (
-              notes.map((note) => (
+            {notes && notes.filter(n => isOwnerOrManager || !n.isInternal).length > 0 ? (
+              notes.filter(n => isOwnerOrManager || !n.isInternal).map((note) => (
                 <Card
                   key={note.id}
-                  className={`bg-card border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""}`}
+                  className={`bg-card border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""} ${(note as any).isInternal ? "border-l-2 border-l-yellow-500/50" : ""}`}
                 >
                   <CardContent className="pt-3 pb-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          {(note as any).isInternal && (
+                            <Badge
+                              variant="outline"
+                              className="text-[9px] border-yellow-500/30 text-yellow-400 bg-yellow-500/5"
+                            >
+                              <Lock className="h-2.5 w-2.5 mr-0.5" />
+                              Internal
+                            </Badge>
+                          )}
                           {note.isPinned && (
                             <Badge
                               variant="outline"
@@ -727,7 +828,7 @@ export default function ContactDetail({
                               variant="outline"
                               className="text-[9px] border-blue-500/30 text-blue-400 bg-blue-500/5"
                             >
-                              {note.disposition.replace(/_/g, " ")}
+                              {DISPOSITION_BUTTONS.find(d => d.value === note.disposition)?.label || note.disposition.replace(/_/g, " ")}
                             </Badge>
                           )}
                         </div>

@@ -4614,3 +4614,84 @@
 - [x] Demo data scoped via isDemoData flag (verified in tests)
 - [x] Checklist persists via localStorage + server-side (verified in tests)
 - [x] Post-dismissal: checklist hidden, server-side dismissal recorded
+
+## CRITICAL SECURITY: API Key Rotation (Vercel breach response)
+
+### Audit
+- [x] Read server/_core/env.ts and catalog all API keys
+- [x] Identify 13 third-party secrets requiring rotation
+- [x] Identify 3 platform-managed keys (Forge, JWT, DB) — separate rotation path
+- [x] Identify config values that are NOT secrets (no rotation needed)
+
+### Key Rotation (via webdev_request_secrets)
+- [ ] SENDGRID_API_KEY — rotate in SendGrid dashboard
+- [ ] GEMINI_API_KEY — rotate in Google AI Studio
+- [ ] FACEBOOK_APP_SECRET — rotate in Meta Developer Console
+- [ ] FACEBOOK_WEBHOOK_VERIFY_TOKEN — rotate (self-generated token)
+- [ ] GOOGLE_CLIENT_SECRET — rotate in Google Cloud Console
+- [ ] MICROSOFT_CLIENT_SECRET — rotate in Azure AD (if configured)
+- [ ] SQUARE_ACCESS_TOKEN — rotate in Square Developer Dashboard
+- [ ] SQUARE_WEBHOOK_SIGNATURE_KEY — rotate in Square webhook settings
+- [ ] VAPI_API_KEY — rotate in VAPI dashboard
+- [ ] ELEVENLABS_API_KEY — rotate in ElevenLabs dashboard
+- [ ] BLOOIO_API_KEY — rotate in Blooio dashboard
+- [ ] ENCRYPTION_KEY — rotate (requires re-encrypting stored tokens)
+- [ ] VAPID_PRIVATE_KEY — rotate (regenerate VAPID keypair)
+
+### Platform Keys (Manus-managed)
+- [ ] BUILT_IN_FORGE_API_KEY — flag for Manus support rotation
+- [ ] JWT_SECRET — flag (rotation logs out all users)
+- [ ] DATABASE_URL — flag for Manus DB panel rotation
+
+### Smoke Tests
+- [ ] SendGrid test email
+- [ ] Gemini LLM call
+- [ ] Facebook webhook signature validation
+- [ ] Square payment intent creation
+- [ ] Blooio SMS test
+
+### Documentation
+- [ ] Create docs/security/KEY_ROTATION_LOG.md with timestamps
+- [ ] Create docs/security/ROTATION_PROCEDURE.md with provider-specific instructions
+
+## Wednesday Client Feedback Bundle (PMR)
+
+### Part A — Internal Notes (Jarvis cannot read)
+- [x] Schema: add isInternal boolean to contactNotes, default false
+- [x] Backend: addNote accepts isInternal param
+- [x] Backend: listNotes filter for internal vs public
+- [x] Jarvis exclusion: filter isInternal=true from get_contact_detail
+- [x] Frontend: internal note toggle with Lock icon + amber badge on notes
+- [x] Frontend: internal note toggle integrated into note submission area
+- [x] Frontend: internal notes filtered for non-owner/manager roles
+
+### Part B — Custom Disposition Buttons
+- [x] Schema: update disposition enum to Tariq's exact 9 values
+- [x] Frontend: replace disposition buttons with new DISPOSITION_BUTTONS array
+- [x] Frontend: all dispositions create notes with proper labels
+- [x] Frontend: spoke_needs_loan_app_link disposition auto-enqueues Jarvis task
+
+### Part C — Status Auto-Update from Disposition
+- [x] Schema: deprecate "new" status, migrated existing to "uncontacted"
+- [x] Backend: disposition → status mapping in addNote (all 9 dispositions mapped)
+- [x] Backend: logContactActivity called on status change
+- [x] Frontend: status badge uses STATUS_LABELS + STATUS_COLORS for all new statuses
+
+### Part D — Jarvis Reads & Acts on Notes
+- [x] Schema: jarvisTaskQueue table (id, accountId, contactId, taskType, status, createdAt, completedAt, payload)
+- [x] Jarvis tool: check_notes_for_action_items (scan recent notes for actionable phrases)
+- [x] Jarvis tool: send_application_link (send app link via SMS/email)
+- [x] Auto-enqueue: spoke_needs_loan_app_link disposition creates Jarvis task
+- [x] Frontend: JarvisTaskQueue panel on dashboard with Execute/Dismiss buttons
+
+### Part E — Email/Password Login
+- [ ] Schema: add passwordHash column to users table (nullable) — DEFERRED (Part E not in scope for this build)
+- [ ] Backend: signUpWithEmail procedure (bcrypt, min 10 chars, 1 number, 1 uppercase)
+- [ ] Backend: signInWithEmail procedure
+- [ ] Backend: requestPasswordReset + resetPassword procedures (SendGrid email)
+- [ ] Frontend: "Sign in with email" toggle on login page
+- [ ] Frontend: "Forgot password?" link + reset flow
+- [ ] Tests: auth signup, signin, reset flow
+
+### All Parts
+- [x] Run pnpm vitest — 27 tests pass (wednesdayBundle.test.ts)

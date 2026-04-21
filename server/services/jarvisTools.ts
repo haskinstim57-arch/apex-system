@@ -1038,6 +1038,83 @@ export const JARVIS_TOOLS: Tool[] = [
       },
     },
   },
+  // ── Part D: Note action items + application link tools ──
+  {
+    type: "function" as const,
+    function: {
+      name: "check_notes_for_action_items",
+      description:
+        "Scan recent public notes across contacts in the account, identify actionable phrases (send application link, follow up, credit repair needed, callback requested), and return suggested actions.",
+      parameters: {
+        type: "object",
+        properties: {
+          lookbackDays: {
+            type: "number",
+            description: "Number of days to look back for notes (default 7)",
+          },
+        },
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "send_application_link",
+      description:
+        "Send a pre-configured loan application link to a contact via SMS or email. Uses the account's configured application URL or a default.",
+      parameters: {
+        type: "object",
+        properties: {
+          contactId: {
+            type: "number",
+            description: "The contact ID to send the application link to",
+          },
+          channel: {
+            type: "string",
+            enum: ["sms", "email"],
+            description: "Send via SMS or email (default: sms if phone available, else email)",
+          },
+        },
+        required: ["contactId"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "list_pending_tasks",
+      description:
+        "List pending Jarvis tasks in the task queue for the current account. Returns tasks that need approval (e.g., send application link, follow-up reminders).",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: [],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "complete_task",
+      description:
+        "Mark a Jarvis task queue item as completed after executing it.",
+      parameters: {
+        type: "object",
+        properties: {
+          taskId: {
+            type: "number",
+            description: "The task queue item ID to mark as completed",
+          },
+        },
+        required: ["taskId"],
+        additionalProperties: false,
+      },
+    },
+  },
 ];
 
 // ═══════════════════════════════════════════════
@@ -1214,6 +1291,8 @@ export async function executeTool(
       const recentMessages = await listMessagesByContact(contact.id, accountId);
       const enrollments = await getContactEnrollments(contact.id, accountId);
       const notes = await listContactNotes(contact.id);
+      // Internal notes are Jarvis-excluded per client requirement (PMR)
+      const publicNotes = notes.filter(n => !(n as any).isInternal);
       return {
         ...contact,
         tags: tags.map(t => t.tag),
@@ -1222,7 +1301,7 @@ export async function executeTool(
           subject: m.subject, body: m.body?.substring(0, 200),
           status: m.status, createdAt: m.createdAt,
         })),
-        notes: notes.slice(0, 10).map(n => ({
+        notes: publicNotes.slice(0, 10).map(n => ({
           id: n.id,
           body: n.content,
           disposition: (n as any).disposition ?? null,
@@ -2661,6 +2740,211 @@ Return your response as valid JSON.`;
           ? `Report emailed to ${recipientEmails.join(", ")} successfully.`
           : `Some emails failed: ${results.filter((r) => !r.success).map((r) => `${r.email}: ${r.error}`).join("; ")}`,
       };
+    }
+
+    // ── Part D: Note action items + application link tools ──
+    case "check_notes_for_action_items": {
+      const lookbackDays = (args.lookbackDays as number) || 7;
+      const cutoff = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000);
+      const { contactNotes, contacts } = await import("../../drizzle/schema");
+      const db = await (await import("../db")).getDb();
+      if (!db) return { error: "Database unavailable" };
+      const recentNotes = await db
+        .select({
+          noteId: contactNotes.id,
+          contactId: contactNotes.contactId,
+          content: contactNotes.content,
+          disposition: contactNotes.disposition,
+          isInternal: contactNotes.isInternal,
+          createdAt: contactNotes.createdAt,
+          firstName: contacts.firstName,
+          lastName: contacts.lastName,
+        })
+        .from(contactNotes)
+        .innerJoin(contacts, eq(contacts.id, contactNotes.contactId))
+        .where(
+          and(
+            eq(contacts.accountId, accountId),
+            eq(contactNotes.isInternal, false),
+            gte(contactNotes.createdAt, cutoff)
+          )
+        )
+        .orderBy(desc(contactNotes.createdAt))
+        .limit(200);
+
+      // Identify actionable phrases
+      const ACTION_PATTERNS = [
+        { pattern: /send.*app(lication)?.*link/i, action: "send_application_link" },
+        { pattern: /follow.?up/i, action: "follow_up" },
+        { pattern: /credit.?repair/i, action: "credit_repair_referral" },
+        { pattern: /call.?back|callback/i, action: "schedule_callback" },
+        { pattern: /needs?.?(loan|mortgage)/i, action: "send_application_link" },
+      ];
+
+      const actionItems = recentNotes
+        .filter(n => {
+          const text = (n.content || "").toLowerCase();
+          return ACTION_PATTERNS.some(p => p.pattern.test(text)) ||
+            n.disposition === "spoke_needs_loan_app_link" ||
+            n.disposition === "borrower_requested_callback" ||
+            n.disposition === "credit_repair";
+        })
+        .map(n => {
+          const matchedPattern = ACTION_PATTERNS.find(p => p.pattern.test(n.content || ""));
+          let suggestedAction = matchedPattern?.action || "review";
+          if (n.disposition === "spoke_needs_loan_app_link") suggestedAction = "send_application_link";
+          if (n.disposition === "borrower_requested_callback") suggestedAction = "schedule_callback";
+          if (n.disposition === "credit_repair") suggestedAction = "credit_repair_referral";
+          return {
+            noteId: n.noteId,
+            contactId: n.contactId,
+            contactName: `${n.firstName || ""} ${n.lastName || ""}`.trim(),
+            notePreview: (n.content || "").substring(0, 150),
+            disposition: n.disposition,
+            suggestedAction,
+            createdAt: n.createdAt,
+          };
+        });
+
+      return {
+        totalNotesScanned: recentNotes.length,
+        actionItemsFound: actionItems.length,
+        actionItems: actionItems.slice(0, 20),
+      };
+    }
+
+    case "send_application_link": {
+      const contact = await getContactById(args.contactId as number, accountId);
+      if (!contact) return { error: "Contact not found" };
+
+      // Get account for application URL (use website or a default)
+      const account = await getAccountById(accountId);
+      const appUrl = account?.website
+        ? `${account.website}/apply`
+        : "https://apply.pmrloans.com";
+
+      const contactName = `${contact.firstName || ""} ${contact.lastName || ""}`.trim() || "there";
+      const messageBody = `Hi ${contactName}, here is your loan application link: ${appUrl} — Let us know if you have any questions!`;
+
+      const channel = (args.channel as string) || (contact.phone ? "sms" : "email");
+
+      if (channel === "sms") {
+        if (!contact.phone) return { error: "Contact has no phone number. Try email channel." };
+        const smsResult = await billedDispatchSMS({
+          accountId,
+          to: contact.phone,
+          body: messageBody,
+          contactId: contact.id,
+          userId,
+        });
+        await createMessage({
+          accountId,
+          contactId: contact.id,
+          userId,
+          type: "sms",
+          direction: "outbound",
+          status: smsResult.success ? "sent" : "failed",
+          body: messageBody,
+          toAddress: contact.phone,
+          errorMessage: smsResult.error || undefined,
+        });
+        logContactActivity({
+          contactId: contact.id, accountId,
+          activityType: "message_sent",
+          description: "Application link sent via SMS by Jarvis",
+        });
+        return { success: smsResult.success, channel: "sms", error: smsResult.error };
+      } else {
+        if (!contact.email) return { error: "Contact has no email. Try sms channel." };
+        const emailResult = await billedDispatchEmail({
+          accountId,
+          to: contact.email,
+          subject: "Your Loan Application Link",
+          body: messageBody,
+          contactId: contact.id,
+          userId,
+        });
+        await createMessage({
+          accountId,
+          contactId: contact.id,
+          userId,
+          type: "email",
+          direction: "outbound",
+          status: emailResult.success ? "sent" : "failed",
+          subject: "Your Loan Application Link",
+          body: messageBody,
+          toAddress: contact.email,
+          errorMessage: emailResult.error || undefined,
+        });
+        logContactActivity({
+          contactId: contact.id, accountId,
+          activityType: "message_sent",
+          description: "Application link sent via email by Jarvis",
+        });
+        return { success: emailResult.success, channel: "email", error: emailResult.error };
+      }
+    }
+
+    case "list_pending_tasks": {
+      const { jarvisTaskQueue, contacts: contactsTable } = await import("../../drizzle/schema");
+      const db = await (await import("../db")).getDb();
+      if (!db) return { error: "Database unavailable" };
+      const tasks = await db
+        .select({
+          id: jarvisTaskQueue.id,
+          contactId: jarvisTaskQueue.contactId,
+          taskType: jarvisTaskQueue.taskType,
+          status: jarvisTaskQueue.status,
+          payload: jarvisTaskQueue.payload,
+          createdAt: jarvisTaskQueue.createdAt,
+          contactFirstName: contactsTable.firstName,
+          contactLastName: contactsTable.lastName,
+        })
+        .from(jarvisTaskQueue)
+        .leftJoin(contactsTable, eq(contactsTable.id, jarvisTaskQueue.contactId))
+        .where(
+          and(
+            eq(jarvisTaskQueue.accountId, accountId),
+            eq(jarvisTaskQueue.status, "pending")
+          )
+        )
+        .orderBy(desc(jarvisTaskQueue.createdAt))
+        .limit(20);
+
+      return {
+        pendingCount: tasks.length,
+        tasks: tasks.map(t => ({
+          id: t.id,
+          contactId: t.contactId,
+          contactName: `${t.contactFirstName || ""} ${t.contactLastName || ""}`.trim(),
+          taskType: t.taskType,
+          payload: t.payload ? JSON.parse(t.payload) : null,
+          createdAt: t.createdAt,
+        })),
+      };
+    }
+
+    case "complete_task": {
+      const { jarvisTaskQueue } = await import("../../drizzle/schema");
+      const db = await (await import("../db")).getDb();
+      if (!db) return { error: "Database unavailable" };
+      const [task] = await db
+        .select()
+        .from(jarvisTaskQueue)
+        .where(
+          and(
+            eq(jarvisTaskQueue.id, args.taskId as number),
+            eq(jarvisTaskQueue.accountId, accountId)
+          )
+        )
+        .limit(1);
+      if (!task) return { error: "Task not found" };
+      if (task.status !== "pending") return { error: `Task already ${task.status}` };
+      await db
+        .update(jarvisTaskQueue)
+        .set({ status: "completed", completedAt: new Date() })
+        .where(eq(jarvisTaskQueue.id, task.id));
+      return { success: true, taskId: task.id, taskType: task.taskType };
     }
 
     default:

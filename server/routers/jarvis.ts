@@ -20,7 +20,7 @@ import {
   getGeminiUsageStats,
   getDb,
 } from "../db";
-import { jarvisToolUsage, jarvisScheduledTasks } from "../../drizzle/schema";
+import { jarvisToolUsage, jarvisScheduledTasks, jarvisTaskQueue, contacts } from "../../drizzle/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 export const jarvisRouter = router({
@@ -414,6 +414,96 @@ Generate 4 suggestions as JSON array.`,
           eq(jarvisScheduledTasks.id, input.taskId),
           eq(jarvisScheduledTasks.accountId, input.accountId)
         ));
+      return { success: true };
+    }),
+
+  // ── Jarvis Task Queue (auto-enqueued tasks) ──
+
+  /** List pending tasks for the account */
+  listPendingTasks: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      const tasks = await db
+        .select({
+          id: jarvisTaskQueue.id,
+          accountId: jarvisTaskQueue.accountId,
+          contactId: jarvisTaskQueue.contactId,
+          taskType: jarvisTaskQueue.taskType,
+          status: jarvisTaskQueue.status,
+          payload: jarvisTaskQueue.payload,
+          createdAt: jarvisTaskQueue.createdAt,
+          contactFirstName: contacts.firstName,
+          contactLastName: contacts.lastName,
+          contactEmail: contacts.email,
+          contactPhone: contacts.phone,
+        })
+        .from(jarvisTaskQueue)
+        .leftJoin(contacts, eq(jarvisTaskQueue.contactId, contacts.id))
+        .where(
+          and(
+            eq(jarvisTaskQueue.accountId, input.accountId),
+            eq(jarvisTaskQueue.status, "pending")
+          )
+        )
+        .orderBy(desc(jarvisTaskQueue.createdAt))
+        .limit(50);
+      return tasks;
+    }),
+
+  /** Execute a pending task */
+  executeTask: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive(), taskId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      const [task] = await db
+        .select()
+        .from(jarvisTaskQueue)
+        .where(
+          and(
+            eq(jarvisTaskQueue.id, input.taskId),
+            eq(jarvisTaskQueue.accountId, input.accountId),
+            eq(jarvisTaskQueue.status, "pending")
+          )
+        )
+        .limit(1);
+      if (!task) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Task not found or already processed" });
+      }
+      // Execute based on task type
+      if (task.taskType === "send_application_link") {
+        const { executeJarvisTool } = await import("../services/jarvisTools");
+        await executeJarvisTool(
+          "send_application_link",
+          { contactId: task.contactId },
+          { accountId: input.accountId, userId: ctx.user.id }
+        );
+      }
+      // Mark as completed
+      await db
+        .update(jarvisTaskQueue)
+        .set({ status: "completed", completedAt: new Date() })
+        .where(eq(jarvisTaskQueue.id, input.taskId));
+      return { success: true };
+    }),
+
+  /** Dismiss a pending task */
+  dismissTask: protectedProcedure
+    .input(z.object({ accountId: z.number().int().positive(), taskId: z.number().int().positive() }))
+    .mutation(async ({ ctx, input }) => {
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const db = (await getDb())!;
+      await db
+        .update(jarvisTaskQueue)
+        .set({ status: "dismissed", completedAt: new Date() })
+        .where(
+          and(
+            eq(jarvisTaskQueue.id, input.taskId),
+            eq(jarvisTaskQueue.accountId, input.accountId)
+          )
+        );
       return { success: true };
     }),
 });
