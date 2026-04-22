@@ -7,7 +7,7 @@ import { getDb } from "../db";
 import { accounts } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { sendEmail } from "./sendgrid";
-import { generateReportEmailHTML, generateReportCSV, generateDailyActivityReport, getDailyActivityDateWindow } from "./reportEmailGenerator";
+import { generateReportEmailHTML, generateReportCSV, generateDailyActivityReport, getDailyActivityDateWindow, generateDailyMarketingReport, getDailyMarketingDateWindow, getWeekendReportSubject } from "./reportEmailGenerator";
 
 // ─────────────────────────────────────────────
 // Scheduled Reports Cron Job
@@ -49,7 +49,7 @@ export function stopScheduledReportsCron() {
 
 /** Calculate the next run time based on frequency */
 export function calculateNextRunAt(
-  frequency: "daily" | "weekly" | "monthly" | "daily_activity",
+  frequency: "daily" | "weekly" | "monthly" | "daily_activity" | "daily_marketing",
   sendHour: number,
   timezone: string,
   dayOfWeek?: number | null,
@@ -61,8 +61,8 @@ export function calculateNextRunAt(
   // For simplicity, use a fixed offset approach
   const next = new Date(now);
 
-  if (frequency === "daily_activity") {
-    // Daily activity reports only run Mon-Fri at sendHour (default 7 AM)
+  if (frequency === "daily_activity" || frequency === "daily_marketing") {
+    // Daily activity/marketing reports only run Mon-Fri at sendHour (default 7 AM)
     const hour = sendHour ?? 7;
     next.setUTCHours(hour, 0, 0, 0);
     if (next <= now) {
@@ -132,7 +132,7 @@ async function executeReport(report: {
   id: number;
   accountId: number;
   name: string;
-  frequency: "daily" | "weekly" | "monthly" | "daily_activity";
+  frequency: "daily" | "weekly" | "monthly" | "daily_activity" | "daily_marketing";
   sendHour: number;
   timezone: string;
   dayOfWeek: number | null;
@@ -158,12 +158,12 @@ async function executeReport(report: {
 
   let htmlContent: string;
   let attachments: Array<{ content: string; filename: string; type: string }> | undefined;
+  let emailSubject = `${report.name} — ${accountName} Analytics Report`;
 
   // ─── Daily Activity Report (special handling) ───
   if (report.reportTypes.includes("daily_activity")) {
     const dateWindow = getDailyActivityDateWindow(new Date());
     if (!dateWindow) {
-      // Weekend — skip silently
       console.log(`[ScheduledReportsCron] Skipping daily_activity on weekend`);
       await updateScheduledReport(report.id, report.accountId, {
         lastRunAt: new Date(),
@@ -189,6 +189,48 @@ async function executeReport(report: {
         type: "text/csv",
       },
     ];
+
+    // If Monday (weekend consolidation), use weekend subject line
+    const now = new Date();
+    if (now.getDay() === 1) {
+      emailSubject = getWeekendReportSubject(dateWindow.startDate, dateWindow.endDate);
+    }
+  } else if (report.reportTypes.includes("daily_marketing")) {
+    // ─── Daily Marketing Report ───
+    const dateWindow = getDailyMarketingDateWindow(new Date());
+    if (!dateWindow) {
+      console.log(`[ScheduledReportsCron] Skipping daily_marketing on weekend`);
+      await updateScheduledReport(report.id, report.accountId, {
+        lastRunAt: new Date(),
+        lastRunStatus: "success",
+        lastRunError: null,
+        nextRunAt: calculateNextRunAt(report.frequency, report.sendHour, report.timezone, report.dayOfWeek, report.dayOfMonth),
+      });
+      return;
+    }
+
+    const result = await generateDailyMarketingReport(
+      report.accountId,
+      dateWindow.startDate,
+      dateWindow.endDate,
+      accountName,
+      brandColor
+    );
+    htmlContent = result.html;
+    attachments = [
+      {
+        content: Buffer.from(result.csv).toString("base64"),
+        filename: `daily-marketing-report.csv`,
+        type: "text/csv",
+      },
+    ];
+    emailSubject = `Daily Marketing Report — ${accountName}`;
+
+    // If Monday (weekend consolidation), use weekend subject line
+    const now = new Date();
+    if (now.getDay() === 1) {
+      emailSubject = getWeekendReportSubject(dateWindow.startDate, dateWindow.endDate);
+    }
   } else {
     // ─── Standard report types ───
     htmlContent = await generateReportEmailHTML({
@@ -219,7 +261,7 @@ async function executeReport(report: {
   for (const recipient of report.recipients) {
     const result = await sendEmail({
       to: recipient,
-      subject: `${report.name} — ${accountName} Analytics Report`,
+      subject: emailSubject,
       body: htmlContent,
       accountId: report.accountId,
       attachments,

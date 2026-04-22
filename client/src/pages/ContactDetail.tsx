@@ -76,6 +76,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { isFieldVisibleClient } from "@/components/VisibilityRulesEditor";
+import { US_STATES } from "@shared/usStates";
 
 const STATUSES = [
   "uncontacted",
@@ -1221,11 +1222,17 @@ function EditContactDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">State</Label>
-                <Input
-                  value={state}
-                  onChange={(e) => setState(e.target.value)}
-                  className="h-9 text-sm"
-                />
+                <Select value={state || ""} onValueChange={(v) => setState(v)}>
+                  <SelectTrigger className="h-9 text-sm">
+                    <SelectValue placeholder="Select state" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="">None</SelectItem>
+                    {US_STATES.map((s) => (
+                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">ZIP</Label>

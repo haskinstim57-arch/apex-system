@@ -796,7 +796,7 @@ export async function getContactById(id: number, accountId: number) {
   const result = await db
     .select()
     .from(contacts)
-    .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)))
+    .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId), isNull(contacts.deletedAt)))
     .limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
@@ -805,7 +805,7 @@ export async function listContacts(filters: ContactListFilters) {
   const db = await getDb();
   if (!db) return { data: [], total: 0 };
 
-  const conditions = [eq(contacts.accountId, filters.accountId)];
+  const conditions = [eq(contacts.accountId, filters.accountId), isNull(contacts.deletedAt)];
 
   if (filters.status) {
     conditions.push(eq(contacts.status, filters.status as any));

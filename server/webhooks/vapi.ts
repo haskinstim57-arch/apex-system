@@ -376,6 +376,8 @@ async function handleBookAppointment(
       body: `${guestName} booked for ${humanDate}`,
       url: "/calendar",
       tag: `appointment-${appointment.id}`,
+      eventType: "appointment_booked",
+      contactName: guestName || "Unknown",
     }).catch((err) => console.error("[VAPI Webhook] Push notification error:", err));
 
     // ── Fire appointment_booked automation trigger (non-blocking) ──
@@ -721,6 +723,7 @@ async function handleNativeVapiPayload(message: any): Promise<{ success: boolean
       body: summary.substring(0, 100),
       url: "/ai-calls",
       tag: `call-${call.id}`,
+      eventType: "ai_call_completed",
     }).catch((err) => console.error("[VAPI Webhook] Push notification error:", err));
   }
 
@@ -805,6 +808,7 @@ async function handleSimplifiedPayload(body: any): Promise<{ success: boolean; e
       body: summary.substring(0, 100),
       url: "/ai-calls",
       tag: `call-${call.id}`,
+      eventType: "ai_call_completed",
     }).catch((err) => console.error("[VAPI Webhook] Push notification error:", err));
   }
 

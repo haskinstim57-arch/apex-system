@@ -17,6 +17,7 @@ import {
   contactNotes,
   sequenceEnrollments,
   sequences,
+  jarvisTaskQueue,
 } from "../../drizzle/schema";
 import { and, eq, gte, lte, sql, count, desc, asc, isNotNull, inArray } from "drizzle-orm";
 import { generatePipelineSummarySection } from "./pipelineSummaryReport";
@@ -1009,6 +1010,162 @@ export async function generateDailyActivityReport(
       </table>` : ""}`;
   }
 
+  // ─── 11. Application Emails Sent ───
+  const [appLinkTasks] = await db
+    .select({ count: count() })
+    .from(jarvisTaskQueue)
+    .where(
+      and(
+        eq(jarvisTaskQueue.accountId, accountId),
+        eq(jarvisTaskQueue.taskType, "send_application_link"),
+        gte(jarvisTaskQueue.createdAt, startDate),
+        lte(jarvisTaskQueue.createdAt, endDate)
+      )
+    );
+  const [appLinkCompleted] = await db
+    .select({ count: count() })
+    .from(jarvisTaskQueue)
+    .where(
+      and(
+        eq(jarvisTaskQueue.accountId, accountId),
+        eq(jarvisTaskQueue.taskType, "send_application_link"),
+        eq(jarvisTaskQueue.status, "completed"),
+        gte(jarvisTaskQueue.createdAt, startDate),
+        lte(jarvisTaskQueue.createdAt, endDate)
+      )
+    );
+  const appLinkTotal = appLinkTasks?.count ?? 0;
+  const appLinkCompletedCount = appLinkCompleted?.count ?? 0;
+  const appLinkPending = appLinkTotal - appLinkCompletedCount;
+
+  const appLinksHtml = `
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+      <tr>
+        <td style="padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;text-align:center;width:33%;">
+          <div style="font-size:12px;color:#6b7280;">Total Queued</div>
+          <div style="font-size:20px;font-weight:700;color:#2563eb;">${fmtNum(appLinkTotal)}</div>
+        </td>
+        <td style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;text-align:center;width:33%;">
+          <div style="font-size:12px;color:#6b7280;">Sent</div>
+          <div style="font-size:20px;font-weight:700;color:#16a34a;">${fmtNum(appLinkCompletedCount)}</div>
+        </td>
+        <td style="padding:12px;background:#fefce8;border:1px solid #fde68a;border-radius:6px;text-align:center;width:33%;">
+          <div style="font-size:12px;color:#6b7280;">Pending</div>
+          <div style="font-size:20px;font-weight:700;color:#ca8a04;">${fmtNum(appLinkPending)}</div>
+        </td>
+      </tr>
+    </table>`;
+
+  // ─── 12. Lead Source Breakdown ───
+  const newContactsInPeriod = await db
+    .select({
+      leadSource: contacts.leadSource,
+      cnt: count(),
+    })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.accountId, accountId),
+        gte(contacts.createdAt, startDate),
+        lte(contacts.createdAt, endDate)
+      )
+    )
+    .groupBy(contacts.leadSource)
+    .orderBy(desc(count()));
+
+  let leadSourceHtml = "";
+  const totalNewLeads = newContactsInPeriod.reduce((s, r) => s + (r.cnt ?? 0), 0);
+  if (totalNewLeads === 0) {
+    leadSourceHtml = `<p style="color:#6b7280;font-size:14px;">No new leads during this period.</p>`;
+  } else {
+    let lsRows = "";
+    for (let i = 0; i < newContactsInPeriod.length; i++) {
+      const r = newContactsInPeriod[i];
+      const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      const pct = Math.round(((r.cnt ?? 0) / totalNewLeads) * 100);
+      lsRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${r.leadSource || "Unknown"}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${fmtNum(r.cnt ?? 0)}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;">${pct}%</td></tr>`;
+    }
+    leadSourceHtml = `
+      <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">${fmtNum(totalNewLeads)} new lead${totalNewLeads !== 1 ? "s" : ""}</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Source</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Count</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">%</th>
+        </tr></thead>
+        <tbody>${lsRows}</tbody>
+      </table>`;
+  }
+
+  // ─── 13. Per-Contact Activity Summary ───
+  const contactActivityRows = await db
+    .select({
+      contactId: contactActivities.contactId,
+      firstName: contacts.firstName,
+      lastName: contacts.lastName,
+      phone: contacts.phone,
+      activityType: contactActivities.activityType,
+    })
+    .from(contactActivities)
+    .innerJoin(contacts, eq(contactActivities.contactId, contacts.id))
+    .where(
+      and(
+        eq(contactActivities.accountId, accountId),
+        gte(contactActivities.createdAt, startDate),
+        lte(contactActivities.createdAt, endDate)
+      )
+    )
+    .limit(500);
+
+  const contactMap = new Map<number, { name: string; phone: string; count: number; types: Set<string> }>();
+  for (const row of contactActivityRows) {
+    const existing = contactMap.get(row.contactId);
+    if (existing) {
+      existing.count++;
+      existing.types.add(row.activityType);
+    } else {
+      contactMap.set(row.contactId, {
+        name: [row.firstName, row.lastName].filter(Boolean).join(" ") || "Unknown",
+        phone: row.phone || "\u2014",
+        count: 1,
+        types: new Set([row.activityType]),
+      });
+    }
+  }
+
+  const topActiveContacts = [...contactMap.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 15);
+
+  let perContactHtml = "";
+  if (topActiveContacts.length === 0) {
+    perContactHtml = `<p style="color:#6b7280;font-size:14px;">No per-contact activity during this period.</p>`;
+  } else {
+    const typeShort: Record<string, string> = {
+      contact_created: "Created", note_added: "Note", message_sent: "Msg Out",
+      message_received: "Msg In", ai_call_made: "AI Call", appointment_booked: "Appt",
+      tag_added: "Tag", pipeline_stage_changed: "Stage\u0394", lead_score_changed: "Score\u0394",
+    };
+    let pcRows = "";
+    for (let i = 0; i < topActiveContacts.length; i++) {
+      const [, c] = topActiveContacts[i];
+      const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      const typeList = [...c.types].map(t => typeShort[t] || t).join(", ");
+      pcRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${c.name}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${c.phone}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${c.count}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;font-size:12px;">${typeList}</td></tr>`;
+    }
+    perContactHtml = `
+      <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">Top ${topActiveContacts.length} most active contacts</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Contact</th>
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Phone</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Activities</th>
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Types</th>
+        </tr></thead>
+        <tbody>${pcRows}</tbody>
+      </table>`;
+  }
+
   // ─── Assemble HTML ───
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1053,6 +1210,12 @@ export async function generateDailyActivityReport(
         ${aiCallOutcomesHtml}
         <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F504} Sequences Activity</h2>
         ${sequencesHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4E9} Application Emails Sent</h2>
+        ${appLinksHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4C8} Lead Source Breakdown</h2>
+        ${leadSourceHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F464} Per-Contact Activity</h2>
+        ${perContactHtml}
       </td>
     </tr>
     <tr>
@@ -1101,6 +1264,19 @@ export async function generateDailyActivityReport(
   // Sequences
   csv += `Sequences,Activated,${activatedCount}\n`;
   csv += `Sequences,Completed,${completedCount}\n`;
+  // Application Emails
+  csv += `Application Emails,Total Queued,${appLinkTotal}\n`;
+  csv += `Application Emails,Sent,${appLinkCompletedCount}\n`;
+  csv += `Application Emails,Pending,${appLinkPending}\n`;
+  // Lead Source Breakdown
+  csv += `Lead Source,Total New Leads,${totalNewLeads}\n`;
+  for (const r of newContactsInPeriod) {
+    csv += `Lead Source,${r.leadSource || "Unknown"},${r.cnt ?? 0}\n`;
+  }
+  // Per-Contact Activity
+  for (const [, c] of topActiveContacts) {
+    csv += `Per-Contact Activity,${c.name},${c.count} activities\n`;
+  }
 
   return { html, csv };
 }
@@ -1141,4 +1317,204 @@ export function getDailyActivityDateWindow(now: Date): { startDate: Date; endDat
   yesterdayEnd.setHours(23, 59, 59, 999);
 
   return { startDate: yesterday, endDate: yesterdayEnd };
+}
+
+
+/**
+ * Build the weekend marketing report subject line.
+ * "Weekend Marketing Report — Fri, Apr 18 to Sun, Apr 20"
+ */
+export function getWeekendReportSubject(startDate: Date, endDate: Date): string {
+  const fmt = (d: Date) =>
+    d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return `Weekend Marketing Report — ${fmt(startDate)} to ${fmt(endDate)}`;
+}
+
+/**
+ * Generate a lightweight Daily Marketing Report (Tue-Fri 7 AM).
+ * Contents: new leads yesterday, lead source breakdown, app emails sent, appointments booked.
+ */
+export async function generateDailyMarketingReport(
+  accountId: number,
+  startDate: Date,
+  endDate: Date,
+  accountName: string,
+  brandColor?: string
+): Promise<{ html: string; csv: string }> {
+  const db = (await getDb())!;
+  const primaryColor = brandColor || "#c9a84c";
+
+  const startStr = startDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  const endStr = endDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  const isMultiDay = startDate.toDateString() !== endDate.toDateString();
+  const dateRange = isMultiDay ? `${startStr} — ${endStr}` : startStr + ", " + endDate.getFullYear();
+
+  // ─── 1. New Leads ───
+  const [newLeadsCount] = await db
+    .select({ count: count() })
+    .from(contacts)
+    .where(and(eq(contacts.accountId, accountId), gte(contacts.createdAt, startDate), lte(contacts.createdAt, endDate)));
+
+  const newLeadsTotal = newLeadsCount?.count ?? 0;
+
+  // ─── 2. Lead Source Breakdown ───
+  const leadSources = await db
+    .select({ leadSource: contacts.leadSource, cnt: count() })
+    .from(contacts)
+    .where(and(eq(contacts.accountId, accountId), gte(contacts.createdAt, startDate), lte(contacts.createdAt, endDate)))
+    .groupBy(contacts.leadSource)
+    .orderBy(desc(count()));
+
+  let leadSourceRows = "";
+  for (let i = 0; i < leadSources.length; i++) {
+    const r = leadSources[i];
+    const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+    const pct = newLeadsTotal > 0 ? Math.round(((r.cnt ?? 0) / newLeadsTotal) * 100) : 0;
+    leadSourceRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${r.leadSource || "Unknown"}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${fmtNum(r.cnt ?? 0)}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;">${pct}%</td></tr>`;
+  }
+
+  // ─── 3. Application Emails Sent ───
+  const [appLinkTasks] = await db
+    .select({ count: count() })
+    .from(jarvisTaskQueue)
+    .where(and(eq(jarvisTaskQueue.accountId, accountId), eq(jarvisTaskQueue.taskType, "send_application_link"), gte(jarvisTaskQueue.createdAt, startDate), lte(jarvisTaskQueue.createdAt, endDate)));
+  const [appLinkDone] = await db
+    .select({ count: count() })
+    .from(jarvisTaskQueue)
+    .where(and(eq(jarvisTaskQueue.accountId, accountId), eq(jarvisTaskQueue.taskType, "send_application_link"), eq(jarvisTaskQueue.status, "completed"), gte(jarvisTaskQueue.createdAt, startDate), lte(jarvisTaskQueue.createdAt, endDate)));
+  const appTotal = appLinkTasks?.count ?? 0;
+  const appSent = appLinkDone?.count ?? 0;
+
+  // ─── 4. Appointments Booked ───
+  const apptRows = await db
+    .select({
+      guestName: appointments.guestName,
+      startTime: appointments.startTime,
+      status: appointments.status,
+    })
+    .from(appointments)
+    .where(and(eq(appointments.accountId, accountId), gte(appointments.createdAt, startDate), lte(appointments.createdAt, endDate)))
+    .orderBy(asc(appointments.startTime))
+    .limit(20);
+
+  let apptsHtml = "";
+  if (apptRows.length === 0) {
+    apptsHtml = `<p style="color:#6b7280;font-size:14px;">No appointments booked.</p>`;
+  } else {
+    let aRows = "";
+    for (let i = 0; i < apptRows.length; i++) {
+      const a = apptRows[i];
+      const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      const time = a.startTime ? new Date(a.startTime).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "\u2014";
+      const statusColor = a.status === "confirmed" ? "#16a34a" : a.status === "cancelled" ? "#dc2626" : "#ca8a04";
+      aRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${a.guestName}</td><td style="padding:8px 12px;border:1px solid #e5e7eb;">${time}</td><td style="text-align:center;padding:8px 12px;border:1px solid #e5e7eb;"><span style="color:${statusColor};font-weight:600;">${a.status}</span></td></tr>`;
+    }
+    apptsHtml = `
+      <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">${apptRows.length} appointment${apptRows.length !== 1 ? "s" : ""}</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Guest</th>
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Time</th>
+          <th style="text-align:center;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Status</th>
+        </tr></thead>
+        <tbody>${aRows}</tbody>
+      </table>`;
+  }
+
+  // ─── Assemble HTML ───
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table style="width:100%;max-width:680px;margin:0 auto;background:#ffffff;">
+    <tr>
+      <td style="background:${primaryColor};padding:24px 32px;">
+        <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">${accountName}</h1>
+        <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:14px;">Daily Marketing Report</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:20px 32px 0;">
+        <table style="width:100%;"><tr>
+          <td style="background:#f8f9fa;border:1px solid #e5e7eb;border-radius:8px;padding:12px 16px;">
+            <span style="font-size:13px;color:#6b7280;">Reporting Period:</span>
+            <span style="font-size:13px;font-weight:600;color:#1a1a2e;margin-left:8px;">${dateRange}</span>
+          </td>
+        </tr></table>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:8px 32px 32px;">
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4CA} New Leads</h2>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+          <tr>
+            <td style="padding:16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;text-align:center;">
+              <div style="font-size:14px;color:#6b7280;">New Leads Received</div>
+              <div style="font-size:28px;font-weight:700;color:#2563eb;">${fmtNum(newLeadsTotal)}</div>
+            </td>
+          </tr>
+        </table>
+
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4C8} Lead Source Breakdown</h2>
+        ${leadSources.length === 0
+          ? '<p style="color:#6b7280;font-size:14px;">No new leads during this period.</p>'
+          : `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              <thead><tr style="background:#f8f9fa;">
+                <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Source</th>
+                <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Count</th>
+                <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">%</th>
+              </tr></thead>
+              <tbody>${leadSourceRows}</tbody>
+            </table>`}
+
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4E9} Application Emails</h2>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+          <tr>
+            <td style="padding:12px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;text-align:center;width:50%;">
+              <div style="font-size:12px;color:#6b7280;">Queued</div>
+              <div style="font-size:20px;font-weight:700;color:#2563eb;">${fmtNum(appTotal)}</div>
+            </td>
+            <td style="padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;text-align:center;width:50%;">
+              <div style="font-size:12px;color:#6b7280;">Sent</div>
+              <div style="font-size:20px;font-weight:700;color:#16a34a;">${fmtNum(appSent)}</div>
+            </td>
+          </tr>
+        </table>
+
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4C5} Appointments Booked</h2>
+        ${apptsHtml}
+      </td>
+    </tr>
+    <tr>
+      <td style="background:#f8f9fa;padding:16px 32px;border-top:1px solid #e5e7eb;">
+        <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;">
+          This report was automatically generated by Sterling Marketing.
+          To manage your report schedules, visit Settings \u2192 Scheduled Reports.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  // ─── CSV ───
+  let csv = "Section,Metric,Value\n";
+  csv += `New Leads,Total,${newLeadsTotal}\n`;
+  for (const r of leadSources) {
+    csv += `Lead Source,${r.leadSource || "Unknown"},${r.cnt ?? 0}\n`;
+  }
+  csv += `Application Emails,Queued,${appTotal}\n`;
+  csv += `Application Emails,Sent,${appSent}\n`;
+  csv += `Appointments,Total,${apptRows.length}\n`;
+
+  return { html, csv };
+}
+
+/**
+ * Calculate the daily_marketing date window.
+ * Same logic as daily_activity — Tue-Fri covers previous day, Mon covers Fri-Sun.
+ * Sat/Sun returns null (no report).
+ */
+export function getDailyMarketingDateWindow(now: Date): { startDate: Date; endDate: Date } | null {
+  return getDailyActivityDateWindow(now);
 }

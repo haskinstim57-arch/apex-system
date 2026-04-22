@@ -603,7 +603,7 @@ function MergeDialog({
                   Merging & Removing: {loserContacts.length} contact(s)
                 </CardTitle>
                 <CardDescription>
-                  These contacts will be deleted after all their records are reassigned.
+                  These contacts will be archived (soft-deleted) after all their records are reassigned.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -687,7 +687,7 @@ function MergeDialog({
                   </p>
                   <p className="text-muted-foreground mt-1">
                     {totalRelatedFromLosers} related record(s) will be reassigned to the winner contact.
-                    {loserContacts.length} contact(s) will be permanently deleted.
+                    {loserContacts.length} contact(s) will be archived (soft-deleted).
                     Custom fields will be merged (winner values take priority).
                   </p>
                 </div>

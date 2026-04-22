@@ -43,19 +43,42 @@ try {
 
     if (event.action === "dismiss") return;
 
-    var urlToOpen = (event.notification.data && event.notification.data.url)
+    var relativeUrl = (event.notification.data && event.notification.data.url)
       ? event.notification.data.url
       : "/";
 
+    // Always construct a full absolute URL to ensure correct navigation
+    // in PWA standalone mode and across all mobile browsers
+    var urlToOpen = relativeUrl;
+    if (urlToOpen.indexOf("http") !== 0) {
+      urlToOpen = self.location.origin + (urlToOpen.charAt(0) === "/" ? "" : "/") + urlToOpen;
+    }
+
     event.waitUntil(
       self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(function(clientList) {
+        // Try to find an existing window/tab for this origin and navigate it
         for (var i = 0; i < clientList.length; i++) {
           var client = clientList[i];
           if (client.url.indexOf(self.location.origin) !== -1 && "focus" in client) {
-            client.navigate(urlToOpen);
-            return client.focus();
+            // Use navigate() to change the URL in the existing window
+            return client.navigate(urlToOpen).then(function(navigatedClient) {
+              if (navigatedClient) {
+                return navigatedClient.focus();
+              }
+              // If navigate returned null (some browsers), just focus
+              return client.focus();
+            }).catch(function() {
+              // navigate() failed — fall back to focus + postMessage
+              return client.focus().then(function() {
+                client.postMessage({
+                  type: "NOTIFICATION_CLICK",
+                  url: relativeUrl,
+                });
+              });
+            });
           }
         }
+        // No existing window — open a new one with the full URL
         return self.clients.openWindow(urlToOpen);
       })
     );

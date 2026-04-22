@@ -59,6 +59,7 @@ const REPORT_TYPE_LABELS: Record<string, { label: string; description: string }>
   revenueAttribution: { label: "Revenue Attribution", description: "Revenue by source, deal and invoice totals" },
   daily_activity: { label: "Daily Activity Report", description: "Inbound calls, outbound SMS/email, contact updates, dispositions. Delivered Tue–Fri; Monday covers Fri–Sun." },
   pipeline_summary: { label: "Pipeline Summary", description: "Snapshot of all stages, period activity, conversion funnel, stale deals, and top performers" },
+  daily_marketing: { label: "Daily Marketing Report", description: "New leads, lead source breakdown, application emails sent, appointments booked. Delivered Tue–Fri; Monday covers weekend." },
 };
 
 const FREQUENCY_LABELS: Record<string, string> = {
@@ -66,6 +67,7 @@ const FREQUENCY_LABELS: Record<string, string> = {
   weekly: "Weekly",
   monthly: "Monthly",
   daily_activity: "Daily Activity (Weekdays)",
+  daily_marketing: "Daily Marketing (Weekdays)",
 };
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -102,7 +104,7 @@ export function ScheduledReportsCard({ accountId }: Props) {
 
   // Form state
   const [formName, setFormName] = useState("");
-  const [formFrequency, setFormFrequency] = useState<"daily" | "weekly" | "monthly" | "daily_activity">("weekly");
+  const [formFrequency, setFormFrequency] = useState<"daily" | "weekly" | "monthly" | "daily_activity" | "daily_marketing">("weekly");
   const [formDayOfWeek, setFormDayOfWeek] = useState(1);
   const [formDayOfMonth, setFormDayOfMonth] = useState(1);
   const [formSendHour, setFormSendHour] = useState(8);
@@ -216,9 +218,10 @@ export function ScheduledReportsCard({ accountId }: Props) {
     if (formReportTypes.length === 0) return toast.error("Select at least one report type");
     if (validRecipients.length === 0) return toast.error("Add at least one valid recipient email");
 
-    // For daily_activity, force the report type and default hour
-    const effectiveReportTypes = formFrequency === "daily_activity" ? ["daily_activity"] : formReportTypes;
-    const effectiveSendHour = formFrequency === "daily_activity" && formSendHour === 8 ? 7 : formSendHour;
+    // For daily_activity/daily_marketing, force the report type and default hour
+    const isSpecialFreq = formFrequency === "daily_activity" || formFrequency === "daily_marketing";
+    const effectiveReportTypes = isSpecialFreq ? [formFrequency] : formReportTypes;
+    const effectiveSendHour = isSpecialFreq && formSendHour === 8 ? 7 : formSendHour;
 
     const payload = {
       accountId,
@@ -230,7 +233,7 @@ export function ScheduledReportsCard({ accountId }: Props) {
       timezone: formTimezone,
       reportTypes: effectiveReportTypes,
       recipients: validRecipients,
-      periodDays: formFrequency === "daily_activity" ? 1 : formPeriodDays,
+      periodDays: isSpecialFreq ? 1 : formPeriodDays,
     };
 
     if (editingReport) {
@@ -306,6 +309,7 @@ export function ScheduledReportsCard({ accountId }: Props) {
                 <SelectItem value="weekly">Weekly</SelectItem>
                 <SelectItem value="monthly">Monthly</SelectItem>
                 <SelectItem value="daily_activity">Daily Activity (Weekdays)</SelectItem>
+                <SelectItem value="daily_marketing">Daily Marketing (Weekdays)</SelectItem>
               </SelectContent>
             </Select>
           </div>

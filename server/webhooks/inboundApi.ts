@@ -118,7 +118,7 @@ inboundApiRouter.post("/api/inbound/contacts", async (req, res) => {
   }
 
   try {
-    const { firstName, lastName, email, phone, source, tags } = req.body;
+    const { firstName, lastName, email, phone, source, tags, state, city, zip, address } = req.body;
 
     if (!firstName && !email && !phone) {
       const errMsg = "At least one of firstName, email, or phone is required";
@@ -141,6 +141,10 @@ inboundApiRouter.post("/api/inbound/contacts", async (req, res) => {
       phone: phone || null,
       leadSource: source || "api",
       status: "new",
+      state: state || null,
+      city: city || null,
+      zip: zip || null,
+      address: address || null,
     });
 
     const contactId = result.insertId;

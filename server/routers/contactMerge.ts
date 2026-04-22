@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, or, sql, inArray } from "drizzle-orm";
+import { eq, and, or, sql, inArray, isNull } from "drizzle-orm";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import {
@@ -19,6 +19,15 @@ import {
   reviewRequests,
   reviews,
   dialerSessions,
+  jarvisTaskQueue,
+  sequenceEnrollments,
+  leadScoreHistory,
+  invoices,
+  smsOptOuts,
+  smsComplianceLogs,
+  queuedMessages,
+  emailDrafts,
+  auditLogs,
 } from "../../drizzle/schema";
 
 // ─────────────────────────────────────────────
@@ -62,6 +71,7 @@ export const contactMergeRouter = router({
   /**
    * Scan for duplicate contacts within the active account.
    * Groups contacts by matching email or phone.
+   * Excludes soft-deleted contacts.
    */
   findDuplicates: protectedProcedure
     .input(
@@ -79,7 +89,7 @@ export const contactMergeRouter = router({
 
       const matchBy = input?.matchBy ?? "both";
 
-      // Get all contacts for this account
+      // Get all non-deleted contacts for this account
       const allContacts = await db
         .select({
           id: contacts.id,
@@ -102,7 +112,12 @@ export const contactMergeRouter = router({
           updatedAt: contacts.updatedAt,
         })
         .from(contacts)
-        .where(eq(contacts.accountId, accountId));
+        .where(
+          and(
+            eq(contacts.accountId, accountId),
+            isNull(contacts.deletedAt)
+          )
+        );
 
       const groups: Map<string, DuplicateGroup> = new Map();
 
@@ -213,7 +228,8 @@ export const contactMergeRouter = router({
         .where(
           and(
             eq(contacts.accountId, accountId),
-            inArray(contacts.id, input.contactIds)
+            inArray(contacts.id, input.contactIds),
+            isNull(contacts.deletedAt)
           )
         );
 
@@ -296,7 +312,8 @@ export const contactMergeRouter = router({
     }),
 
   /**
-   * Merge contacts: keep the winner, reassign all related records from losers, delete losers.
+   * Merge contacts: keep the winner, reassign all related records from losers,
+   * SOFT-DELETE losers (set deletedAt), and create an audit log entry.
    * Field overrides let the user pick which value to keep for each field.
    */
   merge: protectedProcedure
@@ -312,10 +329,7 @@ export const contactMergeRouter = router({
             email: z.string().nullable().optional(),
             phone: z.string().nullable().optional(),
             leadSource: z.string().nullable().optional(),
-            status: z.enum([
-              "new", "contacted", "qualified", "proposal",
-              "negotiation", "won", "lost", "nurture",
-            ]).optional(),
+            status: z.string().optional(),
             company: z.string().nullable().optional(),
             title: z.string().nullable().optional(),
             address: z.string().nullable().optional(),
@@ -333,23 +347,25 @@ export const contactMergeRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
       const { winnerId, loserIds, fieldOverrides } = input;
+      const userId = ctx.user?.id ?? null;
 
-      // Validate winner and losers belong to the account
+      // Validate winner and losers belong to the account and are not deleted
       const allIds = [winnerId, ...loserIds];
       const found = await db
-        .select({ id: contacts.id, customFields: contacts.customFields })
+        .select({ id: contacts.id, customFields: contacts.customFields, firstName: contacts.firstName, lastName: contacts.lastName })
         .from(contacts)
         .where(
           and(
             eq(contacts.accountId, accountId),
-            inArray(contacts.id, allIds)
+            inArray(contacts.id, allIds),
+            isNull(contacts.deletedAt)
           )
         );
 
       if (found.length !== allIds.length) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Some contacts not found or not in your account",
+          message: "Some contacts not found, already deleted, or not in your account",
         });
       }
 
@@ -361,13 +377,15 @@ export const contactMergeRouter = router({
         });
       }
 
+      const winnerRecord = found.find((c) => c.id === winnerId);
+      const loserRecords = found.filter((c) => c.id !== winnerId);
+
       // ── 1. Merge custom fields (winner priority, fill gaps from losers) ──
-      const winnerCf = found.find((c: { id: number; customFields: string | null }) => c.id === winnerId);
       let mergedCustomFields: Record<string, unknown> = {};
       try {
         // Start with loser fields (oldest first so newer losers override older)
         for (const loserId of loserIds) {
-          const loser = found.find((c: { id: number; customFields: string | null }) => c.id === loserId);
+          const loser = found.find((c) => c.id === loserId);
           if (loser?.customFields) {
             const parsed = JSON.parse(loser.customFields);
             if (typeof parsed === "object" && parsed !== null) {
@@ -376,8 +394,8 @@ export const contactMergeRouter = router({
           }
         }
         // Winner fields override everything
-        if (winnerCf?.customFields) {
-          const parsed = JSON.parse(winnerCf.customFields);
+        if (winnerRecord?.customFields) {
+          const parsed = JSON.parse(winnerRecord.customFields);
           if (typeof parsed === "object" && parsed !== null) {
             mergedCustomFields = { ...mergedCustomFields, ...parsed };
           }
@@ -405,8 +423,10 @@ export const contactMergeRouter = router({
       }
 
       // ── 3. Reassign all related records from losers to winner ──
+      const reassignedCounts: Record<string, number> = {};
+
       for (const loserId of loserIds) {
-        // Contact Tags — deduplicate: get winner's existing tags, only move non-duplicate
+        // ─── Contact Tags — deduplicate: get winner's existing tags, only move non-duplicate ───
         const winnerTags = await db
           .select({ tag: contactTags.tag })
           .from(contactTags)
@@ -431,80 +451,133 @@ export const contactMergeRouter = router({
             winnerTagSet.add(lt.tag);
           }
         }
+        reassignedCounts.tags = (reassignedCounts.tags ?? 0) + loserTags.length;
 
-        // Contact Notes
-        await db
+        // ─── Contact Notes ───
+        const notesResult = await db
           .update(contactNotes)
           .set({ contactId: winnerId })
           .where(eq(contactNotes.contactId, loserId));
+        reassignedCounts.notes = (reassignedCounts.notes ?? 0) + (notesResult[0]?.affectedRows ?? 0);
 
-        // Messages
-        await db
+        // ─── Messages ───
+        const msgsResult = await db
           .update(messages)
           .set({ contactId: winnerId })
           .where(eq(messages.contactId, loserId));
+        reassignedCounts.messages = (reassignedCounts.messages ?? 0) + (msgsResult[0]?.affectedRows ?? 0);
 
-        // Campaign Recipients
+        // ─── Campaign Recipients ───
         await db
           .update(campaignRecipients)
           .set({ contactId: winnerId })
           .where(eq(campaignRecipients.contactId, loserId));
 
-        // AI Calls
-        await db
+        // ─── AI Calls ───
+        const callsResult = await db
           .update(aiCalls)
           .set({ contactId: winnerId })
           .where(eq(aiCalls.contactId, loserId));
+        reassignedCounts.calls = (reassignedCounts.calls ?? 0) + (callsResult[0]?.affectedRows ?? 0);
 
-        // Workflow Executions
+        // ─── Workflow Executions ───
         await db
           .update(workflowExecutions)
           .set({ contactId: winnerId })
           .where(eq(workflowExecutions.contactId, loserId));
 
-        // Tasks
+        // ─── Tasks ───
         await db
           .update(tasks)
           .set({ contactId: winnerId })
           .where(eq(tasks.contactId, loserId));
 
-        // Deals
-        await db
+        // ─── Deals ───
+        const dealsResult = await db
           .update(deals)
           .set({ contactId: winnerId })
           .where(eq(deals.contactId, loserId));
+        reassignedCounts.deals = (reassignedCounts.deals ?? 0) + (dealsResult[0]?.affectedRows ?? 0);
 
-        // Appointments
+        // ─── Appointments ───
         await db
           .update(appointments)
           .set({ contactId: winnerId })
           .where(eq(appointments.contactId, loserId));
 
-        // Contact Activities
+        // ─── Contact Activities ───
         await db
           .update(contactActivities)
           .set({ contactId: winnerId })
           .where(eq(contactActivities.contactId, loserId));
 
-        // Form Submissions
+        // ─── Form Submissions ───
         await db
           .update(formSubmissions)
           .set({ contactId: winnerId })
           .where(eq(formSubmissions.contactId, loserId));
 
-        // Review Requests
+        // ─── Review Requests ───
         await db
           .update(reviewRequests)
           .set({ contactId: winnerId })
           .where(eq(reviewRequests.contactId, loserId));
 
-        // Reviews
+        // ─── Reviews ───
         await db
           .update(reviews)
           .set({ contactId: winnerId })
           .where(eq(reviews.contactId, loserId));
 
-        // Dialer Sessions — update contactIds JSON array
+        // ─── Jarvis Task Queue ───
+        await db
+          .update(jarvisTaskQueue)
+          .set({ contactId: winnerId })
+          .where(eq(jarvisTaskQueue.contactId, loserId));
+
+        // ─── Sequence Enrollments ───
+        await db
+          .update(sequenceEnrollments)
+          .set({ contactId: winnerId })
+          .where(eq(sequenceEnrollments.contactId, loserId));
+
+        // ─── Lead Score History ───
+        await db
+          .update(leadScoreHistory)
+          .set({ contactId: winnerId })
+          .where(eq(leadScoreHistory.contactId, loserId));
+
+        // ─── Invoices ───
+        await db
+          .update(invoices)
+          .set({ contactId: winnerId })
+          .where(eq(invoices.contactId, loserId));
+
+        // ─── SMS Opt-Outs (nullable contactId) ───
+        await db
+          .update(smsOptOuts)
+          .set({ contactId: winnerId })
+          .where(eq(smsOptOuts.contactId, loserId));
+
+        // ─── SMS Compliance Logs (nullable contactId) ───
+        await db
+          .update(smsComplianceLogs)
+          .set({ contactId: winnerId })
+          .where(eq(smsComplianceLogs.contactId, loserId));
+
+        // ─── Queued Messages (nullable contactId) ───
+        await db
+          .update(queuedMessages)
+          .set({ contactId: winnerId })
+          .where(eq(queuedMessages.contactId, loserId));
+
+        // ─── Email Drafts (nullable contactId) ───
+        await db
+          .update(emailDrafts)
+          .set({ contactId: winnerId })
+          .where(eq(emailDrafts.contactId, loserId));
+
+        // ─── Dialer Sessions — update contactIds JSON array ───
         const allSessions = await db
           .select({ id: dialerSessions.id, contactIds: dialerSessions.contactIds })
           .from(dialerSessions)
@@ -527,24 +600,47 @@ export const contactMergeRouter = router({
           }
         }
 
-        // ── 4. Log merge activity ──
+        // ── 4. Log merge activity on the winner's timeline ──
+        const loserInfo = loserRecords.find((r) => r.id === loserId);
         await db.insert(contactActivities).values({
           contactId: winnerId,
           accountId,
           activityType: "note_added",
-          description: `Contact merged: merged with contact #${loserId} (all records reassigned)`,
+          description: `Contact merged: #${loserId} (${loserInfo?.firstName ?? ""} ${loserInfo?.lastName ?? ""}) merged into this contact. All records reassigned.`,
           createdAt: new Date(),
         });
 
-        // ── 5. Delete loser contact ──
-        await db.delete(contacts).where(eq(contacts.id, loserId));
+        // ── 5. SOFT-DELETE loser contact (set deletedAt instead of hard delete) ──
+        await db
+          .update(contacts)
+          .set({ deletedAt: new Date() })
+          .where(eq(contacts.id, loserId));
       }
+
+      // ── 6. Create audit log entry for the merge ──
+      const loserNames = loserRecords.map((r) => `#${r.id} (${r.firstName} ${r.lastName})`).join(", ");
+      await db.insert(auditLogs).values({
+        accountId,
+        userId,
+        action: "contact_merge",
+        resourceType: "contact",
+        resourceId: winnerId,
+        metadata: JSON.stringify({
+          winnerId,
+          loserIds,
+          loserNames,
+          fieldOverrides: fieldOverrides ?? {},
+          reassignedCounts,
+          mergedAt: new Date().toISOString(),
+        }),
+        createdAt: new Date(),
+      });
 
       return {
         success: true,
         winnerId,
         mergedCount: loserIds.length,
-        message: `Successfully merged ${loserIds.length} contact(s) into contact #${winnerId}`,
+        message: `Successfully merged ${loserIds.length} contact(s) into #${winnerId} (${winnerRecord?.firstName} ${winnerRecord?.lastName}). Source contacts soft-deleted.`,
       };
     }),
 });

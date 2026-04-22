@@ -13,6 +13,14 @@ if ("serviceWorker" in navigator) {
   navigator.serviceWorker.getRegistrations().then(registrations => {
     registrations.forEach(reg => reg.update());
   });
+
+  // Listen for NOTIFICATION_CLICK messages from the service worker
+  // This is a fallback when client.navigate() fails in PWA standalone mode
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.type === "NOTIFICATION_CLICK" && event.data?.url) {
+      window.location.href = event.data.url;
+    }
+  });
 }
 
 // Hardcoded build timestamp — updated at build time via Vite define

@@ -232,8 +232,10 @@ inboundMessageRouter.post(
       sendPushNotificationToAccount(accountId, {
         title: `New SMS from ${contact.firstName || From}`,
         body: Body.substring(0, 100),
-        url: `/inbox`,
+        url: `/contacts/${contact.id}`,
         tag: `inbound-sms-${contact.id}`,
+        eventType: "inbound_sms",
+        contactName: contact.firstName ? `${contact.firstName} ${contact.lastName || ""}`.trim() : From,
       }).catch((err) => console.error("[Twilio Inbound] Push notification error:", err));
 
       // Fire inbound_message_received automation trigger (non-blocking)
@@ -361,8 +363,10 @@ inboundMessageRouter.post(
       sendPushNotificationToAccount(accountId, {
         title: `New email from ${contact.firstName || senderEmail}`,
         body: subject ? subject.substring(0, 100) : messageBody.substring(0, 100),
-        url: `/inbox`,
+        url: `/contacts/${contact.id}`,
         tag: `inbound-email-${contact.id}`,
+        eventType: "inbound_email",
+        contactName: contact.firstName ? `${contact.firstName} ${contact.lastName || ""}`.trim() : senderEmail,
       }).catch((err) => console.error("[SendGrid Inbound] Push notification error:", err));
 
       // Fire inbound_message_received automation trigger (non-blocking)

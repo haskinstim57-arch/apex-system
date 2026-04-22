@@ -44,6 +44,10 @@ const CONTACT_FIELDS = [
   { value: "lastName", label: "Last Name" },
   { value: "email", label: "Email" },
   { value: "phone", label: "Phone" },
+  { value: "state", label: "State" },
+  { value: "city", label: "City" },
+  { value: "zip", label: "ZIP" },
+  { value: "address", label: "Address" },
   { value: "tags", label: "Tags" },
   { value: "notes", label: "Notes" },
 ] as const;
@@ -67,6 +71,22 @@ const FIELD_ALIASES: Record<string, string> = {
   "notes": "notes",
   "note": "notes",
   "comments": "notes",
+  "state": "state",
+  "st": "state",
+  "province": "state",
+  "city": "city",
+  "town": "city",
+  "zip": "zip",
+  "zipcode": "zip",
+  "zip code": "zip",
+  "zip_code": "zip",
+  "postal code": "zip",
+  "postal_code": "zip",
+  "postalcode": "zip",
+  "address": "address",
+  "street": "address",
+  "street address": "address",
+  "street_address": "address",
 };
 
 const CSV_TEMPLATE = `First Name,Last Name,Email,Phone,Tags,Notes

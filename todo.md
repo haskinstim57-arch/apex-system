@@ -4695,3 +4695,69 @@
 
 ### All Parts
 - [x] Run pnpm vitest — 27 tests pass (wednesdayBundle.test.ts)
+
+## PMR Launch Polish
+
+### Part A — Fix Merge Duplicates (broken)
+- [x] Reproduce merge bug: analyzed contactMerge.ts — found hard-delete, missing tables, outdated enum
+- [x] Fix FK conflicts: re-parent contactNotes to target contact
+- [x] Fix FK conflicts: re-parent appointments to target contact
+- [x] Fix FK conflicts: re-parent deals to target contact
+- [x] Fix FK conflicts: re-parent messages to target contact
+- [x] Fix FK conflicts: re-parent calls (ai_calls) to target contact
+- [x] Fix FK conflicts: re-parent tasks/jarvisTaskQueue + sequenceEnrollments + invoices + leadScoreHistory + smsOptOuts + emailDrafts + queuedMessages + smsComplianceLogs to target contact
+- [x] Tag de-duplication logic on merge
+- [x] Activity timeline merging (contactActivities re-parented + merge event logged)
+- [x] Source contact soft-deleted (deletedAt column added, set instead of hard-delete)
+- [x] Audit log entry created for merge (action=contact_merge with full metadata)
+- [x] Test: server/contacts-merge.test.ts (20 tests pass)
+
+### Part B — PWA Notification Navigation Bug
+- [x] Check sw-push.js push notification click handler — fixed absolute URL construction
+- [x] Check notification payload includes contactId and eventType — added to all push call sites
+- [x] Fix URL format mismatch — use self.location.origin + relative path for absolute URLs
+- [x] Add postMessage fallback for PWA standalone mode (NOTIFICATION_CLICK in main.tsx)
+- [x] Deep-link inbound SMS/email push to /contacts/:id instead of /inbox
+- [x] Add eventType to all push calls (inbound_sms, inbound_email, appointment_booked, ai_call_completed)
+- [x] Test: server/pwa-push-navigation.test.ts (14 tests pass)
+
+### Part C — Report Improvements
+- [x] Daily Activity Report: add application emails sent count (jarvisTaskQueue send_application_link)
+- [x] Daily Activity Report: add lead source breakdown (grouped by leadSource)
+- [x] Daily Activity Report: add per-contact activity update section (top 15 most active contacts)
+- [x] Weekend Marketing Report: Monday daily_activity uses getWeekendReportSubject for custom subject
+- [x] Weekend Marketing Report: leads per day via lead source breakdown section
+- [x] Weekend Marketing Report: subject line "Weekend Marketing Report — Fri, Apr 17 to Sun, Apr 19"
+- [x] New report type: daily_marketing (Tue-Fri, same weekday logic as daily_activity)
+- [x] daily_marketing contents: new leads, lead source breakdown, app emails sent, appointments booked
+- [x] Register daily_marketing in scheduledReportsCron.ts (calculateNextRunAt + executeReport)
+- [x] daily_marketing added to VALID_REPORT_TYPES, VALID_FREQUENCIES, options, frontend card
+- [x] Test: server/report-improvements.test.ts (12 tests pass)
+
+### Part D — Lead Ingestion: Add State Field
+- [x] Schema: state varchar(100) already exists on contacts table — no migration needed
+- [x] Update inbound API webhook to accept state, city, zip, address fields
+- [x] CSV import: added state, city, zip, address to schema, ProcessedRow, and createContact call
+- [x] CsvImportModal: added state, city, zip, address to CONTACT_FIELDS and FIELD_ALIASES
+- [x] Contact create tRPC already accepts state (line 87)
+- [x] Frontend: US states dropdown on ContactDetail edit dialog (Select with US_STATES)
+- [x] Frontend: US states dropdown on Contacts page create dialog (ContactFormDialog)
+- [x] Created shared/usStates.ts with 55 entries (50 states + DC + territories)
+- [x] Test: server/lead-ingestion-state.test.ts (11 tests pass)
+
+### Part E — Test Vappy Agent
+- [x] Reviewed VAPI integration: vapi.ts service, aiCalls router, vapi webhook (856 lines)
+- [x] Verified: resolveAssistantId routes facebook/realtor/instagram leads to correct agents
+- [x] Verified: createVapiCall builds correct payload with Pacific Time context, customer name, metadata
+- [x] Verified: Webhook handles tool-calls (bookAppointment, checkAvailability), status-update, end-of-call-report, transcript
+- [x] Verified: bookAppointment creates appointment, logs activity, fires automation trigger, sends push notification
+- [x] Verified: checkAvailability cross-checks business hours, suggests alternatives if no slots
+- [x] Verified: End-of-call billing: 3-min deposit reversed, actual minutes charged
+- [x] Verified: Auto-create internal call record from webhook if none exists
+- [x] Verified: Business hours enforcement queues calls outside hours
+- [x] Test: server/vappy-agent.test.ts (31 tests pass)
+- [x] Findings: Vappy agent code paths confirmed working — assistant resolution, call creation, webhook processing, appointment booking, billing, and automation triggers all verified
+
+### All Parts
+- [x] Run pnpm vitest — all 88 tests pass (5 test files)
+- [x] Save checkpoint and report completion checklist

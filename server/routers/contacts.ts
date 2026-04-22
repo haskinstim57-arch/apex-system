@@ -760,6 +760,10 @@ export const contactsRouter = router({
             phone: z.string().max(30).optional().default(""),
             tags: z.string().optional().default(""),
             notes: z.string().optional().default(""),
+            state: z.string().max(100).optional().default(""),
+            city: z.string().max(100).optional().default(""),
+            zip: z.string().max(20).optional().default(""),
+            address: z.string().optional().default(""),
             customFields: z.record(z.string(), z.string()).optional(),
           })
         ).min(1).max(50000),
@@ -786,6 +790,10 @@ export const contactsRouter = router({
         normalizedPhone: string | null;
         tagsStr: string;
         notes: string;
+        state: string;
+        city: string;
+        zip: string;
+        address: string;
         customFields: Record<string, string> | null;
       };
       const validRows: ProcessedRow[] = [];
@@ -799,6 +807,10 @@ export const contactsRouter = router({
         const rawPhone = row.phone?.trim() || "";
         const tagsStr = row.tags?.trim() || "";
         const notes = row.notes?.trim() || "";
+        const state = row.state?.trim() || "";
+        const city = row.city?.trim() || "";
+        const zip = row.zip?.trim() || "";
+        const address = row.address?.trim() || "";
 
         if (!firstName && !lastName && !rawPhone) {
           failed++;
@@ -834,7 +846,7 @@ export const contactsRouter = router({
           }
         }
 
-        validRows.push({ rowNum, firstName, lastName, email, normalizedPhone, tagsStr, notes, customFields: rowCustomFields });
+        validRows.push({ rowNum, firstName, lastName, email, normalizedPhone, tagsStr, notes, state, city, zip, address, customFields: rowCustomFields });
       }
 
       // ── Phase 2: Bulk duplicate check (batch queries instead of N individual queries) ──
@@ -879,6 +891,10 @@ export const contactsRouter = router({
               email: row.email || null,
               phone: row.normalizedPhone,
               status: "new",
+              state: row.state || null,
+              city: row.city || null,
+              zip: row.zip || null,
+              address: row.address || null,
               customFields: row.customFields ? JSON.stringify(row.customFields) : null,
             });
 

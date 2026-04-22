@@ -87,6 +87,7 @@ import { toast } from "sonner";
 import { useAccount } from "@/contexts/AccountContext";
 import { NoAccountSelected } from "@/components/NoAccountSelected";
 import { CsvImportModal } from "@/components/CsvImportModal";
+import { US_STATES } from "@shared/usStates";
 
 const STATUSES = [
   "new",
@@ -2098,6 +2099,7 @@ function ContactFormDialog({
   const [assignedUserId, setAssignedUserId] = useState(
     defaultValues?.assignedUserId ? String(defaultValues.assignedUserId) : ""
   );
+  const [contactState, setContactState] = useState(defaultValues?.state || "");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2138,6 +2140,9 @@ function ContactFormDialog({
     };
     if (assignedUserId) {
       data.assignedUserId = parseInt(assignedUserId);
+    }
+    if (contactState) {
+      data.state = contactState;
     }
     onSubmit(data);
   };
@@ -2276,6 +2281,20 @@ function ContactFormDialog({
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">State</Label>
+            <Select value={contactState || "none"} onValueChange={(v) => setContactState(v === "none" ? "" : v)}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Select state" />
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                <SelectItem value="none">None</SelectItem>
+                {US_STATES.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button

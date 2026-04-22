@@ -224,6 +224,8 @@ export const contacts = mysqlTable("contacts", {
   isDemoData: boolean("isDemoData").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  /** Soft-delete timestamp — set when contact is merged into another */
+  deletedAt: timestamp("deletedAt"),
 });
 
 export type Contact = typeof contacts.$inferSelect;
