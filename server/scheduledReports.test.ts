@@ -64,7 +64,7 @@ describe("Scheduled Reports", () => {
     const scheduleSchema = z.object({
       accountId: z.number(),
       name: z.string().min(1).max(255),
-      frequency: z.enum(["daily", "weekly", "monthly"]),
+      frequency: z.enum(["daily", "weekly", "monthly", "daily_activity", "daily_marketing"]),
       dayOfWeek: z.number().min(0).max(6).optional(),
       dayOfMonth: z.number().min(1).max(28).optional(),
       sendHour: z.number().min(0).max(23),
@@ -258,10 +258,10 @@ describe("Scheduled Reports", () => {
   });
 
   describe("Frequency Options", () => {
-    const VALID_FREQUENCIES = ["daily", "weekly", "monthly"];
+    const VALID_FREQUENCIES = ["daily", "weekly", "monthly", "daily_activity", "daily_marketing"];
 
-    it("has exactly 3 frequency options", () => {
-      expect(VALID_FREQUENCIES).toHaveLength(3);
+    it("has exactly 5 frequency options", () => {
+      expect(VALID_FREQUENCIES).toHaveLength(5);
     });
 
     it("includes daily", () => {
@@ -274,6 +274,14 @@ describe("Scheduled Reports", () => {
 
     it("includes monthly", () => {
       expect(VALID_FREQUENCIES).toContain("monthly");
+    });
+
+    it("includes daily_activity", () => {
+      expect(VALID_FREQUENCIES).toContain("daily_activity");
+    });
+
+    it("includes daily_marketing", () => {
+      expect(VALID_FREQUENCIES).toContain("daily_marketing");
     });
   });
 

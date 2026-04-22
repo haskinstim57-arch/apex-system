@@ -2241,7 +2241,7 @@ export const scheduledReports = mysqlTable("scheduled_reports", {
   /** Display name for this report schedule */
   name: varchar("name", { length: 255 }).notNull(),
   /** Frequency: daily | weekly | monthly */
-  frequency: mysqlEnum("frequency", ["daily", "weekly", "monthly"]).default("weekly").notNull(),
+  frequency: mysqlEnum("frequency", ["daily", "weekly", "monthly", "daily_activity", "daily_marketing"]).default("weekly").notNull(),
   /** Day of week for weekly reports (0=Sun, 1=Mon, ..., 6=Sat) */
   dayOfWeek: int("day_of_week").default(1),
   /** Day of month for monthly reports (1-28) */

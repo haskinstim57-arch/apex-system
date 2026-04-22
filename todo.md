@@ -4856,3 +4856,22 @@
 - [x] Bug 2: SMS sent to +14379743613 via Blooio, enrollment completed, 0 failures
 - [x] All 2879 tests pass (15 pre-existing failures in unrelated test files)
 - [x] Save checkpoint
+
+## Production Bugs — Sequence Performance + Scheduled Reports
+
+### Bug 1 — Sequence Performance Tab Empty
+- [x] 334 contacts enrolled in "Purchase - Did Not Book" sequence but performance tab shows nothing
+- [x] Check sequence performance tRPC procedure and what data it queries
+- [x] Root cause: TiDB sql_mode=only_full_group_by rejects DATE() in SELECT when GROUP BY uses different expression form in prepared statements
+- [x] Fix: Replaced Drizzle .groupBy(sql`DATE(...)`) with db.execute() using alias-based GROUP BY
+- [x] Performance tab now shows: Total Enrolled 338, Active 338, Step-by-Step Analytics visible
+
+### Bug 2 — Scheduled Reports INSERT Failure
+- [x] INSERT INTO scheduled_reports fails when creating "Daily Marketing Report"
+- [x] Root cause: scheduledReports table frequency enum only had [daily, weekly, monthly] but router VALID_FREQUENCIES included daily_activity and daily_marketing
+- [x] Fix: Added daily_activity and daily_marketing to schema enum, pushed migration
+- [x] Updated existing test to validate all 5 frequency values
+
+### Both Bugs
+- [x] All 37 tests pass (6 new bugfix tests + 31 updated scheduledReports tests)
+- [x] Save checkpoint

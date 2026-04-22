@@ -1,0 +1,1 @@
+ALTER TABLE `scheduled_reports` MODIFY COLUMN `frequency` enum('daily','weekly','monthly','daily_activity','daily_marketing') NOT NULL DEFAULT 'weekly';

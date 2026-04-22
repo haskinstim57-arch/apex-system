@@ -470,24 +470,21 @@ export const sequencesRouter = router({
 
       // 5. Enrollment trend — last 30 days
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const trendRows = await db
-        .select({
-          date: sql<string>`DATE(${sequenceEnrollments.enrolledAt})`.as("date"),
-          cnt: count(),
-        })
-        .from(sequenceEnrollments)
-        .where(
-          and(
-            eq(sequenceEnrollments.sequenceId, input.sequenceId),
-            eq(sequenceEnrollments.accountId, input.accountId),
-            gte(sequenceEnrollments.enrolledAt, thirtyDaysAgo)
-          )
-        )
-        .groupBy(sql`DATE(${sequenceEnrollments.enrolledAt})`);
+      const trendResult = await db.execute(
+        sql`SELECT DATE(${sequenceEnrollments.enrolledAt}) as enrollment_date, COUNT(*) as cnt
+            FROM ${sequenceEnrollments}
+            WHERE ${sequenceEnrollments.sequenceId} = ${input.sequenceId}
+              AND ${sequenceEnrollments.accountId} = ${input.accountId}
+              AND ${sequenceEnrollments.enrolledAt} >= ${thirtyDaysAgo}
+            GROUP BY enrollment_date
+            ORDER BY enrollment_date`
+      );
 
-      const enrollmentTrend = trendRows.map((r) => ({
-        date: r.date,
-        count: r.cnt,
+      const enrollmentTrend = (trendResult[0] as any[]).map((r: any) => ({
+        date: r.enrollment_date instanceof Date
+          ? r.enrollment_date.toISOString().split('T')[0]
+          : String(r.enrollment_date),
+        count: Number(r.cnt),
       }));
 
       // 6. Average time to complete (hours)
