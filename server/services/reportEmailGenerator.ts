@@ -1097,6 +1097,57 @@ export async function generateDailyActivityReport(
       </table>`;
   }
 
+  // ─── 12b. Lead Type Breakdown (from customFields.loan_type / fb_form_loan_type) ───
+  const newContactsForType = await db
+    .select({
+      customFields: contacts.customFields,
+    })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.accountId, accountId),
+        gte(contacts.createdAt, startDate),
+        lte(contacts.createdAt, endDate),
+        isNull(contacts.deletedAt)
+      )
+    );
+
+  const leadTypeCounts: Record<string, number> = {};
+  for (const row of newContactsForType) {
+    let cf: Record<string, unknown> = {};
+    try {
+      cf = row.customFields ? JSON.parse(row.customFields as string) : {};
+    } catch { /* ignore */ }
+    const loanType = (cf.loan_type || cf.fb_form_loan_type || cf.loanType || "Unknown") as string;
+    const normalized = loanType.trim() || "Unknown";
+    leadTypeCounts[normalized] = (leadTypeCounts[normalized] || 0) + 1;
+  }
+
+  const leadTypeEntries = Object.entries(leadTypeCounts).sort((a, b) => b[1] - a[1]);
+  const totalLeadTypes = leadTypeEntries.reduce((s, [, c]) => s + c, 0);
+  let leadTypeHtml = "";
+  if (totalLeadTypes === 0) {
+    leadTypeHtml = `<p style="color:#6b7280;font-size:14px;">No new leads during this period.</p>`;
+  } else {
+    let ltRows = "";
+    for (let i = 0; i < leadTypeEntries.length; i++) {
+      const [type, cnt] = leadTypeEntries[i];
+      const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+      const pct = Math.round((cnt / totalLeadTypes) * 100);
+      ltRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${type}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${fmtNum(cnt)}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;">${pct}%</td></tr>`;
+    }
+    leadTypeHtml = `
+      <p style="color:#6b7280;font-size:13px;margin-bottom:8px;">${fmtNum(totalLeadTypes)} lead${totalLeadTypes !== 1 ? "s" : ""} by loan type</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+        <thead><tr style="background:#f8f9fa;">
+          <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Loan Type</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Count</th>
+          <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">%</th>
+        </tr></thead>
+        <tbody>${ltRows}</tbody>
+      </table>`;
+  }
+
   // ─── 13. Per-Contact Activity Summary ───
   const contactActivityRows = await db
     .select({
@@ -1212,9 +1263,11 @@ export async function generateDailyActivityReport(
         ${sequencesHtml}
         <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4E9} Application Emails Sent</h2>
         ${appLinksHtml}
-        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4C8} Lead Source Breakdown</h2>
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\uD83D\uDCC8 Lead Source Breakdown</h2>
         ${leadSourceHtml}
-        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F464} Per-Contact Activity</h2>
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\uD83C\uDFE0 Lead Type Breakdown</h2>
+        ${leadTypeHtml}
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\uD83D\uDC64 Per-Contact Activity</h2>
         ${perContactHtml}
       </td>
     </tr>
@@ -1272,6 +1325,10 @@ export async function generateDailyActivityReport(
   csv += `Lead Source,Total New Leads,${totalNewLeads}\n`;
   for (const r of newContactsInPeriod) {
     csv += `Lead Source,${r.leadSource || "Unknown"},${r.cnt ?? 0}\n`;
+  }
+  // Lead Type Breakdown
+  for (const [type, cnt] of leadTypeEntries) {
+    csv += `Lead Type,${type},${cnt}\n`;
   }
   // Per-Contact Activity
   for (const [, c] of topActiveContacts) {
@@ -1385,6 +1442,29 @@ export async function generateDailyMarketingReport(
   const appTotal = appLinkTasks?.count ?? 0;
   const appSent = appLinkDone?.count ?? 0;
 
+  // ─── 3b. Lead Type Breakdown (from customFields) ───
+  const mktContactsForType = await db
+    .select({ customFields: contacts.customFields })
+    .from(contacts)
+    .where(and(eq(contacts.accountId, accountId), gte(contacts.createdAt, startDate), lte(contacts.createdAt, endDate), isNull(contacts.deletedAt)));
+
+  const mktLeadTypeCounts: Record<string, number> = {};
+  for (const row of mktContactsForType) {
+    let cf: Record<string, unknown> = {};
+    try { cf = row.customFields ? JSON.parse(row.customFields as string) : {}; } catch { /* ignore */ }
+    const loanType = (cf.loan_type || cf.fb_form_loan_type || cf.loanType || "Unknown") as string;
+    mktLeadTypeCounts[loanType.trim() || "Unknown"] = (mktLeadTypeCounts[loanType.trim() || "Unknown"] || 0) + 1;
+  }
+  const mktLeadTypeEntries = Object.entries(mktLeadTypeCounts).sort((a, b) => b[1] - a[1]);
+  const mktTotalLeadTypes = mktLeadTypeEntries.reduce((s, [, c]) => s + c, 0);
+  let mktLeadTypeRows = "";
+  for (let i = 0; i < mktLeadTypeEntries.length; i++) {
+    const [type, cnt] = mktLeadTypeEntries[i];
+    const bg = i % 2 === 0 ? "" : ' style="background:#f8f9fa;"';
+    const pct = mktTotalLeadTypes > 0 ? Math.round((cnt / mktTotalLeadTypes) * 100) : 0;
+    mktLeadTypeRows += `<tr${bg}><td style="padding:8px 12px;border:1px solid #e5e7eb;">${type}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-weight:600;">${fmtNum(cnt)}</td><td style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;">${pct}%</td></tr>`;
+  }
+
   // ─── 4. Appointments Booked ───
   const apptRows = await db
     .select({
@@ -1467,6 +1547,19 @@ export async function generateDailyMarketingReport(
               <tbody>${leadSourceRows}</tbody>
             </table>`}
 
+        <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F3E0} Lead Type Breakdown</h2>
+        ${mktTotalLeadTypes === 0
+          ? '<p style="color:#6b7280;font-size:14px;">No new leads during this period.</p>'
+          : `<p style="color:#6b7280;font-size:13px;margin-bottom:8px;">${fmtNum(mktTotalLeadTypes)} lead${mktTotalLeadTypes !== 1 ? "s" : ""} by loan type</p>
+            <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              <thead><tr style="background:#f8f9fa;">
+                <th style="text-align:left;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Loan Type</th>
+                <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">Count</th>
+                <th style="text-align:right;padding:8px 12px;border:1px solid #e5e7eb;font-size:13px;color:#6b7280;">%</th>
+              </tr></thead>
+              <tbody>${mktLeadTypeRows}</tbody>
+            </table>`}
+
         <h2 style="color:#1a1a2e;margin:24px 0 12px;font-size:18px;border-bottom:2px solid #e5e7eb;padding-bottom:8px;">\u{1F4E9} Application Emails</h2>
         <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
           <tr>
@@ -1506,6 +1599,9 @@ export async function generateDailyMarketingReport(
   csv += `Application Emails,Queued,${appTotal}\n`;
   csv += `Application Emails,Sent,${appSent}\n`;
   csv += `Appointments,Total,${apptRows.length}\n`;
+  for (const [type, cnt] of mktLeadTypeEntries) {
+    csv += `Lead Type,${type},${cnt}\n`;
+  }
 
   return { html, csv };
 }

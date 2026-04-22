@@ -132,8 +132,8 @@ const DISPOSITION_BUTTONS = [
   { value: "borrower_doing_app", label: "Borrower Doing App", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
   { value: "credit_repair", label: "Credit Repair", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
   { value: "nurture", label: "Nurture", color: "bg-sky-500/10 text-sky-400 border-sky-500/20" },
-  { value: "borrower_requested_callback", label: "Callback Requested", color: "bg-teal-500/10 text-teal-400 border-teal-500/20" },
-  { value: "spoke_needs_loan_app_link", label: "Send App Link", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  { value: "borrower_requested_callback", label: "Borrower Requested Call Back", color: "bg-teal-500/10 text-teal-400 border-teal-500/20" },
+  { value: "spoke_needs_loan_app_link", label: "Spoke to borrower need loan app link sent", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
 ] as const;
 
 const LEAD_SOURCES = [
@@ -197,6 +197,7 @@ export default function ContactDetail({
   const [internalNoteMode, setInternalNoteMode] = useState(false);
   const [spokeToLeadNote, setSpokeToLeadNote] = useState("");
   const [showSpokeNoteInput, setShowSpokeNoteInput] = useState(false);
+  const [internalNoteText, setInternalNoteText] = useState("");
 
   // Membership query for role-based internal notes visibility
   const { data: membership } = trpc.members.myMembership.useQuery(
@@ -242,7 +243,18 @@ export default function ContactDetail({
     onSuccess: () => {
       toast.success("Note added");
       utils.contacts.listNotes.invalidate({ contactId: id, accountId });
+      utils.contacts.get.invalidate({ id, accountId });
       setNewNote("");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const addInternalNoteMutation = trpc.contacts.addNote.useMutation({
+    onSuccess: () => {
+      toast.success("Internal note added");
+      utils.contacts.listNotes.invalidate({ contactId: id, accountId });
+      utils.contacts.get.invalidate({ id, accountId });
+      setInternalNoteText("");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -791,13 +803,111 @@ export default function ContactDetail({
             </CardContent>
           </Card>
 
+          {/* Internal Notes Section — Owner/Manager Only */}
+          {isOwnerOrManager && (
+            <Card className="bg-yellow-500/5 border border-yellow-500/20 card-shadow">
+              <CardHeader className="pb-2 pt-3 px-4">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-yellow-500" />
+                  <CardTitle className="text-sm font-semibold text-yellow-500">Internal Notes</CardTitle>
+                  <Badge variant="outline" className="text-[9px] border-yellow-500/30 text-yellow-400 bg-yellow-500/10 ml-auto">
+                    Hidden from employees & Jarvis
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="pb-3 px-4">
+                <div className="space-y-2">
+                  <Textarea
+                    value={internalNoteText}
+                    onChange={(e) => setInternalNoteText(e.target.value)}
+                    placeholder="Write an internal note (hidden from employees & Jarvis)..."
+                    className="min-h-[60px] text-sm resize-none bg-yellow-500/5 border-yellow-500/20 placeholder:text-yellow-600/40"
+                  />
+                  {/* Quick-key buttons */}
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { label: "Application taken", text: "Application taken" },
+                      { label: "Application sent", text: "Application sent" },
+                      { label: "Credit repair", text: "Credit repair" },
+                    ].map((qk) => (
+                      <button
+                        key={qk.label}
+                        type="button"
+                        onClick={() => {
+                          addInternalNoteMutation.mutate({
+                            contactId: id,
+                            accountId,
+                            content: qk.text,
+                            isInternal: true,
+                          });
+                        }}
+                        className="px-2.5 py-1 rounded-full text-[10px] font-medium border bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20 transition-all"
+                      >
+                        {qk.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 gap-1.5 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10"
+                      disabled={!internalNoteText.trim() || addInternalNoteMutation.isPending}
+                      onClick={() => {
+                        if (internalNoteText.trim()) {
+                          addInternalNoteMutation.mutate({
+                            contactId: id,
+                            accountId,
+                            content: internalNoteText.trim(),
+                            isInternal: true,
+                          });
+                        }
+                      }}
+                    >
+                      {addInternalNoteMutation.isPending && (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      )}
+                      <Lock className="h-3 w-3" />
+                      Add Internal Note
+                    </Button>
+                  </div>
+                  {/* Internal notes list */}
+                  {notes && notes.filter((n: any) => n.isInternal).length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-yellow-500/10">
+                      {notes.filter((n: any) => n.isInternal).map((note) => (
+                        <div key={note.id} className="flex items-start justify-between gap-2 py-1.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-yellow-100 whitespace-pre-wrap">{note.content}</p>
+                            <p className="text-[10px] text-yellow-600/60 mt-1">
+                              {note.authorName || "Unknown"} &middot; {new Date(note.createdAt).toLocaleString()}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 text-yellow-600/40 hover:text-destructive"
+                              onClick={() => deleteNoteMutation.mutate({ noteId: note.id, accountId })}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Notes List */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground">
-              Notes ({(notes || []).filter(n => isOwnerOrManager || !n.isInternal).length})
+              Notes ({(notes || []).filter(n => !n.isInternal).length})
             </h3>
-            {notes && notes.filter(n => isOwnerOrManager || !n.isInternal).length > 0 ? (
-              notes.filter(n => isOwnerOrManager || !n.isInternal).map((note) => (
+            {notes && notes.filter(n => !n.isInternal).length > 0 ? (
+              notes.filter(n => !n.isInternal).map((note) => (
                 <Card
                   key={note.id}
                   className={`bg-card border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""} ${(note as any).isInternal ? "border-l-2 border-l-yellow-500/50" : ""}`}

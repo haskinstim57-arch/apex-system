@@ -4761,3 +4761,47 @@
 ### All Parts
 - [x] Run pnpm vitest — all 88 tests pass (5 test files)
 - [x] Save checkpoint and report completion checklist
+
+## Critical Fixes — Live Browser Testing (Apr 22)
+
+### Fix 1 — Internal Notes UI Not Rendered on ContactDetail
+- [x] Add separate "Internal Notes" section below public Notes on ContactDetail.tsx
+- [x] Lock icon + amber background styling
+- [x] 3 quick-key buttons: Application taken, Application sent, Credit repair
+- [x] Route to same backend with isInternal=true flag (addInternalNoteMutation)
+- [x] Jarvis exclusion works via existing get_contact_detail filter
+
+### Fix 2 — Jarvis Task Queue Dashboard Panel Missing
+- [x] JarvisTaskQueue component already exists at client/src/components/JarvisTaskQueue.tsx (294 lines)
+- [x] Already imported and rendered on Home.tsx line 185 with currentAccountId guard
+- [x] Queries jarvis.listPendingTasks with 30s refetch, renders task cards with Execute/Dismiss
+- [x] Added send_application_link to TASK_TYPE_CONFIG (was missing, causing fallback icon)
+- [x] Component returns null when no pending tasks (line 154-156), so it's invisible when queue is empty
+
+### Fix 3 — Merge Duplicates accountId Bug
+- [x] Root cause: contactMerge.ts used ctx.user.activeAccountId which doesn't exist on User type
+- [x] Refactored all 3 procedures (findDuplicates, mergePreview, merge) to accept input.accountId
+- [x] Replaced local requireAccountMember with imported one from contacts.ts
+- [x] Updated ContactMerge.tsx frontend to pass accountId to all 3 tRPC calls
+- [x] MergeDialog now uses useAccount() to get accountId
+
+### Fix 4 — Disposition Button Labels Don't Match
+- [x] Change "Callback Requested" → "Borrower Requested Call Back"
+- [x] Change "Send App Link" → "Spoke to borrower need loan app link sent"
+- [x] Only changed display labels, enum values unchanged
+
+### Fix 5 — Add Lead Type Breakdown to Report
+- [x] Add "Lead Type Breakdown" section to daily activity report (section 12b, parses customFields JSON)
+- [x] Parse loan_type / fb_form_loan_type / loanType from customFields
+- [x] Keep existing Lead Source section (they're different fields)
+- [x] Added to daily_marketing report too (section 3b)
+- [x] Added to CSV output in both reports
+
+### Fix 6 — Status Badge Not Live-Updating
+- [x] Invalidate contact query cache after addNote mutation completes (utils.contacts.get.invalidate)
+- [x] Both addNoteMutation and addInternalNoteMutation invalidate contact cache
+- [x] Status badge at top of ContactDetail updates without page reload
+
+### All Fixes
+- [x] Run pnpm vitest — all 88 tests pass (5 files)
+- [x] Save checkpoint

@@ -89,7 +89,7 @@ export default function ContactMerge() {
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   const duplicatesQuery = trpc.contactMerge.findDuplicates.useQuery(
-    { matchBy },
+    { accountId: accountId!, matchBy },
     { enabled: !!accountId }
   );
 
@@ -354,6 +354,7 @@ function MergeDialog({
   onClose: () => void;
   onMerged: () => void;
 }) {
+  const { currentAccountId: accountId } = useAccount();
   const [winnerId, setWinnerId] = useState<number>(group.contacts[0]?.id ?? 0);
   const [fieldOverrides, setFieldOverrides] = useState<Record<string, any>>({});
   const [step, setStep] = useState<"select" | "review">("select");
@@ -361,8 +362,8 @@ function MergeDialog({
   const contactIds = useMemo(() => group.contacts.map((c: DuplicateContact) => c.id), [group]);
 
   const previewQuery = trpc.contactMerge.mergePreview.useQuery(
-    { contactIds },
-    { enabled: open && contactIds.length >= 2 }
+    { accountId: accountId!, contactIds },
+    { enabled: open && contactIds.length >= 2 && !!accountId }
   );
 
   const mergeMut = trpc.contactMerge.merge.useMutation({
@@ -390,6 +391,7 @@ function MergeDialog({
 
   const handleMerge = () => {
     mergeMut.mutate({
+      accountId: accountId!,
       winnerId,
       loserIds,
       fieldOverrides: Object.keys(fieldOverrides).length > 0 ? fieldOverrides : undefined,

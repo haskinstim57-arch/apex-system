@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { eq, and, or, sql, inArray, isNull } from "drizzle-orm";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
+import { requireAccountMember } from "./contacts";
 import {
   contacts,
   contactTags,
@@ -33,16 +34,6 @@ import {
 // ─────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────
-
-function requireAccountMember(ctx: any) {
-  if (!ctx.user?.activeAccountId) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "No active account selected",
-    });
-  }
-  return ctx.user.activeAccountId as number;
-}
 
 interface DuplicateGroup {
   key: string; // e.g. "email:john@example.com" or "phone:+15551234567"
@@ -76,14 +67,16 @@ export const contactMergeRouter = router({
   findDuplicates: protectedProcedure
     .input(
       z.object({
+        accountId: z.number().int().positive(),
         matchBy: z
           .enum(["email", "phone", "both"])
           .default("both")
           .optional(),
-      }).optional()
+      })
     )
     .query(async ({ ctx, input }) => {
-      const accountId = requireAccountMember(ctx);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const accountId = input.accountId;
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -214,11 +207,13 @@ export const contactMergeRouter = router({
   mergePreview: protectedProcedure
     .input(
       z.object({
+        accountId: z.number().int().positive(),
         contactIds: z.array(z.number()).min(2).max(10),
       })
     )
     .query(async ({ ctx, input }) => {
-      const accountId = requireAccountMember(ctx);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const accountId = input.accountId;
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
@@ -319,6 +314,7 @@ export const contactMergeRouter = router({
   merge: protectedProcedure
     .input(
       z.object({
+        accountId: z.number().int().positive(),
         winnerId: z.number(),
         loserIds: z.array(z.number()).min(1).max(9),
         /** Optional field overrides: pick specific values from any contact */
@@ -342,7 +338,8 @@ export const contactMergeRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const accountId = requireAccountMember(ctx);
+      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const accountId = input.accountId;
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 

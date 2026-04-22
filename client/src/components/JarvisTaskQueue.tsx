@@ -48,6 +48,12 @@ const TASK_TYPE_CONFIG: Record<
     bgColor: "bg-purple-500/10",
     label: "Send Application",
   },
+  send_application_link: {
+    icon: Link2,
+    color: "text-purple-500",
+    bgColor: "bg-purple-500/10",
+    label: "Send Application Link",
+  },
   review_notes: {
     icon: FileText,
     color: "text-amber-500",
