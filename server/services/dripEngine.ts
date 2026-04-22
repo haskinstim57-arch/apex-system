@@ -1,8 +1,13 @@
 /**
  * Drip Engine — processes due sequence enrollments, sends messages, advances steps.
- * Called periodically by a cron/interval job.
+ * Called periodically by the drip worker (every 60 seconds).
  *
- * Now includes per-account email warming: groups enrollments by accountId,
+ * Flow:
+ * 1. getDueEnrollments() finds enrollments where nextStepAt <= NOW()
+ * 2. For each: interpolate content, create a message record (timeline), enqueue for dispatch
+ * 3. Advance the enrollment to the next step or mark completed
+ *
+ * Per-account email warming: groups enrollments by accountId,
  * applies daily send limits with gradual ramp-up, and skips emails that
  * exceed the current warming limit.
  */
@@ -18,6 +23,7 @@ import {
   incrementDailySendCount,
 } from "../db";
 import { logContactActivity } from "../db";
+import { enqueueMessage } from "./messageQueue";
 
 /** Simple merge-tag interpolation: replaces {{fieldName}} with contact values */
 function interpolate(template: string, contact: Record<string, unknown>): string {
@@ -102,17 +108,32 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             result.failed++;
             continue;
           }
+
+          // 1. Create message record for contact timeline
           await createMessage({
             accountId: enrollment.accountId,
             contactId: enrollment.contactId,
             userId: 0,
             type: "sms",
             direction: "outbound",
-            status: "pending",
+            status: "queued",
             body,
             toAddress: contact.phone,
             sequenceStepId: step.id,
             sequenceStepPosition: step.position,
+          });
+
+          // 2. Enqueue for actual dispatch via message queue worker (handles billing, DND, retries)
+          await enqueueMessage({
+            accountId: enrollment.accountId,
+            contactId: enrollment.contactId,
+            type: "sms",
+            payload: {
+              to: contact.phone,
+              body,
+              contactId: enrollment.contactId,
+            },
+            source: "sequence_drip",
           });
         } else if (step.messageType === "email") {
           // Check warming limit before sending email
@@ -133,13 +154,15 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             result.failed++;
             continue;
           }
+
+          // 1. Create message record for contact timeline
           await createMessage({
             accountId: enrollment.accountId,
             contactId: enrollment.contactId,
             userId: 0,
             type: "email",
             direction: "outbound",
-            status: "pending",
+            status: "queued",
             body,
             subject: subject || "(No subject)",
             toAddress: contact.email,
@@ -147,7 +170,20 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             sequenceStepPosition: step.position,
           });
 
-          // Increment warming counter after successful email creation
+          // 2. Enqueue for actual dispatch via message queue worker (handles billing, retries)
+          await enqueueMessage({
+            accountId: enrollment.accountId,
+            contactId: enrollment.contactId,
+            type: "email",
+            payload: {
+              to: contact.email,
+              subject: subject || "(No subject)",
+              body,
+            },
+            source: "sequence_drip",
+          });
+
+          // Increment warming counter after successful email enqueue
           warmingConfig.todaySendCount++;
           await incrementDailySendCount(warmingConfig.id);
         }
@@ -159,7 +195,7 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
           contactId: enrollment.contactId,
           accountId: enrollment.accountId,
           activityType: "automation_triggered",
-          description: `Sequence "${sequence.name}" — Step ${step.position}: ${step.messageType.toUpperCase()} sent`,
+          description: `Sequence "${sequence.name}" — Step ${step.position}: ${step.messageType.toUpperCase()} queued for delivery`,
           metadata: JSON.stringify({
             sequenceId: sequence.id,
             sequenceName: sequence.name,
@@ -196,4 +232,48 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
 export function computeFirstStepAt(firstStepDelayDays: number, firstStepDelayHours: number): Date {
   const delayMs = firstStepDelayDays * 86400000 + firstStepDelayHours * 3600000;
   return new Date(Date.now() + (delayMs || 60000)); // Default 1 minute if no delay
+}
+
+// ─────────────────────────────────────────────
+// Drip Worker — periodic runner
+// ─────────────────────────────────────────────
+
+const DRIP_INTERVAL_MS = 60_000; // 60 seconds
+let dripTimer: ReturnType<typeof setInterval> | null = null;
+
+async function runDripCycle(): Promise<void> {
+  try {
+    const result = await processNextSteps(100);
+    if (result.processed > 0) {
+      console.log(
+        `[DripEngine] Cycle complete: processed=${result.processed} sent=${result.sent} ` +
+        `failed=${result.failed} completed=${result.completed} skippedWarming=${result.skippedWarming}`
+      );
+      if (result.errors.length > 0) {
+        for (const err of result.errors.slice(0, 5)) {
+          console.warn(`[DripEngine]   enrollment=${err.enrollmentId}: ${err.error}`);
+        }
+      }
+    }
+  } catch (err: any) {
+    console.error("[DripEngine] Cycle error:", err.message || err);
+  }
+}
+
+export function startDripWorker(): void {
+  if (dripTimer) {
+    clearInterval(dripTimer);
+  }
+  dripTimer = setInterval(runDripCycle, DRIP_INTERVAL_MS);
+  // Run immediately on startup
+  runDripCycle();
+  console.log(`[DripEngine] Worker started (interval: ${DRIP_INTERVAL_MS / 1000}s)`);
+}
+
+export function stopDripWorker(): void {
+  if (dripTimer) {
+    clearInterval(dripTimer);
+    dripTimer = null;
+    console.log("[DripEngine] Worker stopped");
+  }
 }

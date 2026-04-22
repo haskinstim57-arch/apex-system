@@ -156,6 +156,12 @@ function convertMessagesToGemini(messages: Message[]): ConvertedMessages {
         responseData = { result: textContent };
       }
 
+      // Gemini requires functionResponse.response to be an object, not an array.
+      // Auto-wrap any array responses to prevent 400 Bad Request errors.
+      if (Array.isArray(responseData)) {
+        responseData = { results: responseData, total: responseData.length };
+      }
+
       // Find the function name from the tool_call_id by looking back in messages
       const toolCallId = msg.tool_call_id;
       let functionName = "unknown_function";

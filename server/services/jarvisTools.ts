@@ -1449,11 +1449,12 @@ export async function executeTool(
 
     case "get_contact_messages": {
       const msgs = await listMessagesByContact(args.contactId as number, accountId);
-      return msgs.slice(0, 20).map(m => ({
+      const mapped = msgs.slice(0, 20).map(m => ({
         id: m.id, type: m.type, direction: m.direction,
         subject: m.subject, body: m.body?.substring(0, 300),
         status: m.status, createdAt: m.createdAt,
       }));
+      return { messages: mapped, total: mapped.length };
     }
 
     // ── Campaigns ──
@@ -1501,10 +1502,10 @@ export async function executeTool(
     // ── Workflows ──
     case "list_workflows": {
       const wfs = await listWorkflows(accountId);
-      return wfs.map(w => ({
+      return { workflows: wfs.map(w => ({
         id: w.id, name: w.name, isActive: w.isActive,
         triggerType: w.triggerType, description: w.description,
-      }));
+      })), total: wfs.length };
     }
 
     case "trigger_workflow": {
@@ -1518,20 +1519,20 @@ export async function executeTool(
     // ── Segments ──
     case "list_segments": {
       const segs = await listSegments(accountId);
-      return segs.map(s => ({
+      return { segments: segs.map(s => ({
         id: s.id, name: s.name, description: s.description,
         icon: s.icon, color: s.color,
-      }));
+      })), total: segs.length };
     }
 
     // ── Sequences ──
     case "list_sequences": {
       const seqs = await listSequences(accountId);
-      return seqs.map(s => ({
+      return { sequences: seqs.map(s => ({
         id: s.id, name: s.name, status: s.status,
         stepCount: s.stepCount, activeEnrollments: s.activeEnrollments,
         completedCount: s.completedCount,
-      }));
+      })), total: seqs.length };
     }
 
     case "enroll_in_sequence": {
@@ -1551,17 +1552,17 @@ export async function executeTool(
     // ── Calendar & Appointments ──
     case "list_calendars": {
       const cals = await getCalendars(accountId);
-      return cals.map(c => ({
+      return { calendars: cals.map(c => ({
         id: c.id, name: c.name, slug: c.slug,
-      }));
+      })), total: cals.length };
     }
 
     case "get_contact_appointments": {
       const appts = await getAppointmentsByContact(args.contactId as number, accountId);
-      return appts.map(a => ({
+      return { appointments: appts.map(a => ({
         id: a.id, guestName: a.guestName, startTime: a.startTime,
         endTime: a.endTime, status: a.status, notes: a.notes,
-      }));
+      })), total: appts.length };
     }
 
     // ── Advanced Contact Filter ──
@@ -2265,7 +2266,7 @@ Return your response as valid JSON.`;
     case "get_contact_conversation": {
       const limit = Math.min((args.limit as number) || 20, 50);
       const allMsgs = await listMessagesByContact(args.contactId as number, accountId);
-      return allMsgs.slice(0, limit).map((m) => ({
+      const mapped = allMsgs.slice(0, limit).map((m) => ({
         id: m.id,
         type: m.type,
         direction: m.direction,
@@ -2274,6 +2275,7 @@ Return your response as valid JSON.`;
         status: m.status,
         createdAt: m.createdAt,
       }));
+      return { messages: mapped, total: mapped.length };
     }
 
     // ── Custom Fields ──
@@ -2284,12 +2286,12 @@ Return your response as valid JSON.`;
       const cfData: Record<string, unknown> = contact.customFields
         ? JSON.parse(contact.customFields)
         : {};
-      return defs.map((def) => ({
+      return { fields: defs.map((def) => ({
         fieldName: def.name,
         fieldKey: def.slug,
         value: cfData[def.slug] ?? null,
         fieldType: def.type,
-      }));
+      })), total: defs.length };
     }
 
     case "update_contact_custom_field": {

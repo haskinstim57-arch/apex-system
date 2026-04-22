@@ -37,6 +37,7 @@ import { startMessageQueueWorker } from "../services/messageQueue";
 import { startPushBatchWorker } from "../services/pushBatcher";
 import { startJarvisTaskWorker } from "../services/jarvisTaskWorker";
 import { startSequenceActivationWorker } from "../services/sequenceActivationWorker";
+import { startDripWorker } from "../services/dripEngine";
 import { startMessageRetryWorker } from "../services/messageRetryWorker";
 import { startRecurringContentWorker } from "../services/recurringContentWorker";
 
@@ -438,6 +439,9 @@ async function startServer() {
 
     // Start sequence activation worker (checks every 5 min, activates due draft sequences)
     startSequenceActivationWorker();
+
+    // Start drip engine worker (checks every 60s, processes due sequence enrollments and sends messages)
+    startDripWorker();
 
     // Start message retry worker (checks every 15 min, retries failed messages with transient errors)
     startMessageRetryWorker();

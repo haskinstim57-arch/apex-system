@@ -4805,3 +4805,31 @@
 ### All Fixes
 - [x] Run pnpm vitest — all 88 tests pass (5 files)
 - [x] Save checkpoint
+
+## P0 Production Bugs — Blocking PMR
+
+### Bug 1 — Jarvis 400 Bad Request on tool responses
+- [x] Audited all tool handlers in jarvisTools.ts — found 8 returning bare arrays
+- [x] Wrapped: get_contact_messages → { messages, total }
+- [x] Wrapped: list_workflows → { workflows, total }
+- [x] Wrapped: list_segments → { segments, total }
+- [x] Wrapped: list_sequences → { sequences, total }
+- [x] Wrapped: list_calendars → { calendars, total }
+- [x] Wrapped: get_contact_appointments → { appointments, total }
+- [x] Wrapped: get_contact_conversation → { messages, total }
+- [x] Wrapped: get_contact_custom_fields → { fields, total }
+- [x] Added safety net in gemini.ts: auto-wrap any array responses in { results, total }
+- [x] Test: server/p0-bugs.test.ts (covers both Bug 1 and Bug 2, 21 tests pass)
+
+### Bug 2 — Sequences enroll but steps never fire
+- [x] Root cause: processNextSteps() in dripEngine.ts was NEVER called by any cron/interval
+- [x] Root cause #2: dripEngine used createMessage (messages table, status:pending) but messageQueue dispatches from queuedMessages table
+- [x] Fix: Created startDripWorker() with 60s interval, registered in server/_core/index.ts
+- [x] Fix: Switched to createMessage(status:queued) + enqueueMessage(source:sequence_drip)
+- [x] Messages now flow: dripEngine → enqueueMessage → messageQueue worker → billedDispatch → actual send
+- [x] Verified: DripEngine Worker started (interval: 60s) in server logs
+- [x] Test: server/p0-bugs.test.ts (21 tests pass)
+
+### Both Bugs
+- [x] Run pnpm vitest — all 109 tests pass across 6 test files
+- [x] Save checkpoint
