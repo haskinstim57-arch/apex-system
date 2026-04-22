@@ -51,6 +51,7 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
   const result: DripResult = { processed: 0, sent: 0, failed: 0, completed: 0, skippedWarming: 0, errors: [] };
 
   const dueRows = await getDueEnrollments(batchSize);
+  console.log(`[DripEngine] tick, candidates: ${dueRows.length}`);
   if (dueRows.length === 0) return result;
 
   // Group due enrollments by accountId for per-account warming
@@ -109,6 +110,8 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             continue;
           }
 
+          console.log(`[DripEngine] Processing enrollment=${enrollment.id} contact=${enrollment.contactId} step=${step.position} type=sms to=${contact.phone}`);
+
           // 1. Create message record for contact timeline
           await createMessage({
             accountId: enrollment.accountId,
@@ -116,12 +119,13 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             userId: 0,
             type: "sms",
             direction: "outbound",
-            status: "queued",
+            status: "pending",
             body,
             toAddress: contact.phone,
             sequenceStepId: step.id,
             sequenceStepPosition: step.position,
           });
+          console.log(`[DripEngine] Message record created for enrollment=${enrollment.id}`);
 
           // 2. Enqueue for actual dispatch via message queue worker (handles billing, DND, retries)
           await enqueueMessage({
@@ -135,6 +139,7 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             },
             source: "sequence_drip",
           });
+          console.log(`[DripEngine] SMS enqueued for enrollment=${enrollment.id} contact=${enrollment.contactId}`);
         } else if (step.messageType === "email") {
           // Check warming limit before sending email
           if (warmingConfig.enabled) {
@@ -155,6 +160,8 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             continue;
           }
 
+          console.log(`[DripEngine] Processing enrollment=${enrollment.id} contact=${enrollment.contactId} step=${step.position} type=email to=${contact.email}`);
+
           // 1. Create message record for contact timeline
           await createMessage({
             accountId: enrollment.accountId,
@@ -162,13 +169,14 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
             userId: 0,
             type: "email",
             direction: "outbound",
-            status: "queued",
+            status: "pending",
             body,
             subject: subject || "(No subject)",
             toAddress: contact.email,
             sequenceStepId: step.id,
             sequenceStepPosition: step.position,
           });
+          console.log(`[DripEngine] Email message record created for enrollment=${enrollment.id}`);
 
           // 2. Enqueue for actual dispatch via message queue worker (handles billing, retries)
           await enqueueMessage({

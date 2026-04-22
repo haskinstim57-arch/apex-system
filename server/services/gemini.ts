@@ -318,6 +318,22 @@ export async function invokeGemini(params: GeminiInvokeParams): Promise<InvokeRe
     contents.push({ role: "user", parts: [{ text: "Hello" }] });
   }
 
+  // ── Final sanitizer (invokeGemini): ensure every functionResponse.response is an object ──
+  for (const content of contents) {
+    for (const part of (content as any).parts ?? []) {
+      if (part.functionResponse) {
+        const resp = part.functionResponse.response;
+        if (Array.isArray(resp)) {
+          part.functionResponse.response = { results: resp, total: resp.length };
+        } else if (resp === null || resp === undefined) {
+          part.functionResponse.response = { result: "no data" };
+        } else if (typeof resp !== "object") {
+          part.functionResponse.response = { result: resp };
+        }
+      }
+    }
+  }
+
   const startTime = Date.now();
   try {
     const result = await model.generateContent({ contents });
@@ -393,6 +409,56 @@ async function invokeGeminiWithModel(params: GeminiInvokeParams, modelName: stri
   const safeContents = contents.length === 0
     ? [{ role: "user" as const, parts: [{ text: "Hello" }] }]
     : contents;
+
+  // ── Final sanitizer: ensure every functionResponse.response is an object, never an array ──
+  // Gemini's proto requires functionResponse.response to be a JSON object.
+  // If any tool handler returns a bare array, the SDK will send it as-is and Gemini returns 400.
+  for (const content of safeContents) {
+    for (const part of (content as any).parts ?? []) {
+      if (part.functionResponse) {
+        const resp = part.functionResponse.response;
+        if (Array.isArray(resp)) {
+          console.warn(
+            `[gemini] Sanitizer: wrapped array response for tool "${part.functionResponse.name}" (length=${resp.length})`
+          );
+          part.functionResponse.response = { results: resp, total: resp.length };
+        } else if (resp === null || resp === undefined) {
+          part.functionResponse.response = { result: "no data" };
+        } else if (typeof resp !== "object") {
+          // Primitives (string, number, boolean) also need wrapping
+          part.functionResponse.response = { result: resp };
+        }
+        // Deep check: ensure no nested values at the top level are bare arrays
+        // that could confuse Gemini's proto parser
+        const r = part.functionResponse.response;
+        if (r && typeof r === "object" && !Array.isArray(r)) {
+          for (const [key, val] of Object.entries(r)) {
+            if (Array.isArray(val) && val.length > 0 && typeof val[0] !== "object") {
+              // Array of primitives is fine for Gemini, skip
+            }
+            // Arrays of objects are fine as long as the top-level response is an object
+          }
+        }
+      }
+    }
+  }
+
+  // Log the request shape for debugging (truncated)
+  if (process.env.NODE_ENV !== "test") {
+    const contentsSummary = safeContents.map((c: any, i: number) => {
+      const partTypes = (c.parts ?? []).map((p: any) => {
+        if (p.text) return "text";
+        if (p.functionCall) return `call:${p.functionCall.name}`;
+        if (p.functionResponse) {
+          const respType = Array.isArray(p.functionResponse.response) ? "ARRAY!" : "object";
+          return `resp:${p.functionResponse.name}(${respType})`;
+        }
+        return "unknown";
+      });
+      return `[${i}]${c.role}:${partTypes.join(",")}`;
+    });
+    console.log(`[gemini] req contents: ${contentsSummary.join(" | ")}`);
+  }
 
   const result = await model.generateContent({ contents: safeContents });
   return convertGeminiResultToInvokeResult(result);
