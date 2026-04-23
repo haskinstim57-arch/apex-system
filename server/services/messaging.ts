@@ -1,10 +1,11 @@
 import { sendSMSViaBlooio, isBlooioConfigured } from "./blooio";
+import { sendSMSViaTwilio } from "./twilioSms";
 import { sendEmail, isSendGridConfigured } from "./sendgrid";
 import { isPhoneOptedOut, logMessageBlocked } from "./smsCompliance";
 
 // ─────────────────────────────────────────────
 // Unified Messaging Dispatcher
-// Routes SMS through Blooio, Email through SendGrid.
+// Routes SMS through Blooio (default) or Twilio, Email through SendGrid.
 // Falls back to logging when providers are not set up.
 // ─────────────────────────────────────────────
 
@@ -12,12 +13,13 @@ export interface MessageSendResult {
   success: boolean;
   externalId?: string;
   error?: string;
-  provider: "blooio" | "sendgrid" | "placeholder";
+  provider: "blooio" | "twilio" | "sendgrid" | "placeholder";
 }
 
 /**
- * Send an SMS message through the configured provider (Blooio).
- * Uses per-account Blooio API key if available, falls back to global.
+ * Send an SMS message through the configured provider.
+ * Supports provider routing: "blooio" (default) or "twilio".
+ * Uses per-account credentials for the selected provider.
  * Falls back to placeholder logging if neither is configured.
  */
 export async function dispatchSMS(params: {
@@ -28,6 +30,8 @@ export async function dispatchSMS(params: {
   contactId?: number;
   /** Set to true to bypass DND check (e.g. for compliance auto-replies) */
   skipDndCheck?: boolean;
+  /** SMS provider to use. Defaults to "blooio" if unspecified. */
+  provider?: "twilio" | "blooio";
 }): Promise<MessageSendResult> {
   // ─── DND / Opt-Out Enforcement ───
   if (!params.skipDndCheck && params.accountId) {
@@ -48,7 +52,7 @@ export async function dispatchSMS(params: {
         return {
           success: false,
           error: "Message blocked: recipient has opted out of SMS (DND)",
-          provider: "blooio",
+          provider: params.provider || "blooio",
         };
       }
     } catch (err) {
@@ -57,7 +61,20 @@ export async function dispatchSMS(params: {
     }
   }
 
-  // Send via Blooio — it handles per-account → global fallback internally
+  // ─── Route to requested provider ───
+  if (params.provider === "twilio") {
+    if (!params.accountId) {
+      return {
+        success: false,
+        error: "Twilio SMS requires an accountId to fetch credentials",
+        provider: "twilio",
+      };
+    }
+    const result = await sendSMSViaTwilio(params.to, params.body, params.accountId, params.from);
+    return { ...result, provider: "twilio" };
+  }
+
+  // Default: Send via Blooio — it handles per-account → global fallback internally
   const result = await sendSMSViaBlooio(params.to, params.body, params.accountId);
   if (result.success || result.error !== "Blooio not configured") {
     return { ...result, provider: "blooio" };

@@ -4929,3 +4929,25 @@
 - [x] Remove showSpokeNoteInput and spokeToLeadNote state and UI
 - [x] Relax Add Note disabled gate to allow disposition-only saves
 - [x] Simplify save content derivation (drop spokeToLeadNote concatenation)
+
+## Prompt #2: Phone Popover — Call/SMS/Email Quick Actions
+
+### Backend
+- [x] Twilio SMS provider (server/services/twilioSms.ts) — sendSMSViaTwilio function
+- [x] Modify dispatchSMS in messaging.ts to accept provider param (twilio/blooio), route accordingly
+- [x] Propagate provider through billedDispatchSMS
+- [x] Twilio click-to-call router (server/routers/twilioCalls.ts) — clickToCall mutation + TwiML endpoint
+- [x] Wire twilioCalls router into appRouter
+- [x] SMS templates schema (sms_templates table) + migration
+- [x] SMS templates CRUD router (server/routers/smsTemplates.ts)
+- [x] Extend inbox.sendReply to accept optional provider param for SMS
+
+### Frontend
+- [x] Phone number popover on ContactDetail.tsx with Call/SMS/Email actions
+- [x] Call submenu: AI Call (Vappy) + Call My Phone (Twilio Bridge)
+- [x] SMS modal: provider radio (Twilio/Blooio), template dropdown, textarea with 160-char counter, send
+- [x] Email modal: template dropdown, subject + body, send
+- [x] SMS Templates CRUD section in Settings.tsx (SmsTemplatesCard in Messaging tab)
+
+### Out of Scope
+- [ ] FLAG: Ringless voicemail drops — deferred, requires prerecorded audio storage + Twilio Play TwiML

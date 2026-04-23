@@ -99,6 +99,8 @@ import {
   AlertTriangle,
   History,
   Filter,
+  MessageCircle,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -461,6 +463,7 @@ export default function SettingsPage() {
           </Card>
           <MissedCallTextBackCard accountId={currentAccountId} />
           <WebchatWidgetsCard accountId={currentAccountId} />
+          <SmsTemplatesCard accountId={currentAccountId} />
         </div>
       )}
 
@@ -4000,6 +4003,190 @@ function OutboundWebhooksCard({ accountId }: { accountId: number }) {
   );
 }
 
+
+/** SMS Templates CRUD card for the Messaging tab */
+function SmsTemplatesCard({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+  const { data: templates = [], isLoading } = trpc.smsTemplates.list.useQuery({ accountId });
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<{ id: number; name: string; body: string } | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [formName, setFormName] = useState("");
+  const [formBody, setFormBody] = useState("");
+
+  const createMutation = trpc.smsTemplates.create.useMutation({
+    onSuccess: () => {
+      toast.success("SMS template created");
+      setShowCreate(false);
+      setFormName("");
+      setFormBody("");
+      utils.smsTemplates.list.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const updateMutation = trpc.smsTemplates.update.useMutation({
+    onSuccess: () => {
+      toast.success("SMS template updated");
+      setEditingTemplate(null);
+      setFormName("");
+      setFormBody("");
+      utils.smsTemplates.list.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = trpc.smsTemplates.delete.useMutation({
+    onSuccess: () => {
+      toast.success("SMS template deleted");
+      setDeleteId(null);
+      utils.smsTemplates.list.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  return (
+    <>
+      <Card className="bg-card border-0 card-shadow">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-blue-500" />
+                SMS Templates
+              </CardTitle>
+              <CardDescription className="text-xs mt-1">
+                Reusable SMS templates for quick messaging from the contact popover.
+              </CardDescription>
+            </div>
+            <Button size="sm" className="h-8 gap-1.5" onClick={() => { setShowCreate(true); setFormName(""); setFormBody(""); }}>
+              <Plus className="h-3.5 w-3.5" />
+              New
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center py-6">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : templates.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No SMS templates yet. Create one to speed up messaging.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {templates.map((t: any) => (
+                <div key={t.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{t.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{t.body}</p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0"
+                      onClick={() => { setEditingTemplate({ id: t.id, name: t.name, body: t.body }); setFormName(t.name); setFormBody(t.body); }}
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                      onClick={() => setDeleteId(t.id)}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Create / Edit Dialog */}
+      <Dialog
+        open={showCreate || !!editingTemplate}
+        onOpenChange={(open) => { if (!open) { setShowCreate(false); setEditingTemplate(null); } }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingTemplate ? "Edit SMS Template" : "New SMS Template"}</DialogTitle>
+            <DialogDescription>
+              {editingTemplate ? "Update the template name and body." : "Create a reusable SMS template."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-xs">Template Name</Label>
+              <Input
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                placeholder="e.g., Follow-up after call"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Message Body</Label>
+                <span className={`text-[10px] ${formBody.length > 160 ? "text-orange-400" : "text-muted-foreground"}`}>
+                  {formBody.length}/160
+                </span>
+              </div>
+              <Textarea
+                value={formBody}
+                onChange={(e) => setFormBody(e.target.value)}
+                placeholder="Hi {{first_name}}, just following up..."
+                rows={4}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => { setShowCreate(false); setEditingTemplate(null); }}>Cancel</Button>
+            <Button
+              size="sm"
+              disabled={!formName.trim() || !formBody.trim() || createMutation.isPending || updateMutation.isPending}
+              onClick={() => {
+                if (editingTemplate) {
+                  updateMutation.mutate({ id: editingTemplate.id, accountId, name: formName.trim(), body: formBody.trim() });
+                } else {
+                  createMutation.mutate({ accountId, name: formName.trim(), body: formBody.trim() });
+                }
+              }}
+            >
+              {(createMutation.isPending || updateMutation.isPending) && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+              {editingTemplate ? "Save Changes" : "Create Template"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete SMS Template?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The template will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { if (deleteId) deleteMutation.mutate({ id: deleteId, accountId }); }}
+            >
+              {deleteMutation.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1.5" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+}
 
 /** Wrapper that fetches branding and passes it to ThemePreview */
 function ThemePreviewWrapper({ accountId }: { accountId: number }) {

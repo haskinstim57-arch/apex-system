@@ -23,6 +23,8 @@ interface BilledSMSParams {
   userId?: number;
   skipDndCheck?: boolean;
   metadata?: Record<string, unknown>;
+  /** SMS provider to use: "twilio" or "blooio". Defaults to blooio. */
+  provider?: "twilio" | "blooio";
 }
 
 export interface BilledSendResult extends MessageSendResult {
@@ -54,6 +56,7 @@ export async function billedDispatchSMS(params: BilledSMSParams): Promise<Billed
     accountId,
     contactId,
     skipDndCheck,
+    provider: params.provider,
   });
 
   // 3. Reverse charge on failure

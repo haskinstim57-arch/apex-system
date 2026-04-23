@@ -96,6 +96,7 @@ export const inboxRouter = router({
         type: z.enum(["email", "sms"]),
         subject: z.string().max(500).optional(),
         body: z.string().min(1).max(50000),
+        provider: z.enum(["twilio", "blooio"]).optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {
@@ -160,6 +161,7 @@ export const inboxRouter = router({
               to: toAddress,
               body: input.body,
               accountId: input.accountId,
+              provider: input.provider,
             });
           } else {
             result = await dispatchEmail({

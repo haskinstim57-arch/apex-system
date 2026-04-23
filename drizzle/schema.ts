@@ -3017,3 +3017,18 @@ export const jarvisTaskQueue = mysqlTable("jarvis_task_queue", {
 
 export type JarvisTaskQueueRow = typeof jarvisTaskQueue.$inferSelect;
 export type InsertJarvisTaskQueue = typeof jarvisTaskQueue.$inferInsert;
+
+
+// ─────────────────────────────────────────────
+// SMS TEMPLATES — Reusable SMS message templates
+// ─────────────────────────────────────────────
+export const smsTemplates = mysqlTable("sms_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  accountId: int("account_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type SmsTemplate = typeof smsTemplates.$inferSelect;
+export type InsertSmsTemplate = typeof smsTemplates.$inferInsert;

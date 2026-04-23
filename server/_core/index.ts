@@ -31,6 +31,7 @@ import { webchatWidgetRouter } from "../webhooks/webchatWidget";
 import { jarvisStreamRouter } from "../webhooks/jarvisStream";
 import { squareWebhookRouter } from "../webhooks/square";
 import { deliveryStatusRouter } from "../webhooks/deliveryStatus";
+import { clickToCallTwimlRouter } from "../webhooks/clickToCallTwiml";
 import { gmbOAuthCallbackRouter } from "../webhooks/gmbOAuthCallback";
 import { startScheduledReportsCron } from "../services/scheduledReportsCron";
 import { startMessageQueueWorker } from "../services/messageQueue";
@@ -97,6 +98,8 @@ async function startServer() {
   app.use(gmbOAuthCallbackRouter);
   // Delivery status webhooks (SendGrid + Twilio)
   app.use(deliveryStatusRouter);
+  // Click-to-call TwiML bridge endpoint
+  app.use(clickToCallTwimlRouter);
   // Public landing page serving
   app.use(publicPagesRouter);
   // Build version endpoint — returns server start timestamp for frontend cache-busting

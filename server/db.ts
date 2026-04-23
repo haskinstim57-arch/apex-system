@@ -111,6 +111,8 @@ import {
   type InsertGeminiUsageLog,
   emailWarmingConfig,
   type EmailWarmingConfig,
+  smsTemplates,
+  type InsertSmsTemplate,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -5988,9 +5990,58 @@ export async function updateCurrentDailyLimit(configId: number, newLimit: number
 export async function incrementDailySendCount(configId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-
   await db
     .update(emailWarmingConfig)
     .set({ todaySendCount: sql`${emailWarmingConfig.todaySendCount} + 1` })
     .where(eq(emailWarmingConfig.id, configId));
+}
+
+// ─────────────────────────────────────────────
+// SMS TEMPLATE HELPERS
+// ─────────────────────────────────────────────
+
+export async function createSmsTemplate(data: InsertSmsTemplate) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const [result] = await db.insert(smsTemplates).values(data);
+  return { id: (result as any).insertId as number };
+}
+
+export async function listSmsTemplates(accountId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(smsTemplates)
+    .where(eq(smsTemplates.accountId, accountId))
+    .orderBy(desc(smsTemplates.updatedAt));
+}
+
+export async function getSmsTemplate(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(smsTemplates)
+    .where(eq(smsTemplates.id, id))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function updateSmsTemplate(
+  id: number,
+  data: Partial<Omit<InsertSmsTemplate, "id" | "accountId" | "createdAt">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db
+    .update(smsTemplates)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(smsTemplates.id, id));
+}
+
+export async function deleteSmsTemplate(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(smsTemplates).where(eq(smsTemplates.id, id));
 }

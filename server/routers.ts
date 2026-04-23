@@ -55,6 +55,8 @@ import { recurringContentPlansRouter } from "./routers/recurringContentPlans";
 import { dashboardRouter } from "./routers/dashboard";
 import { searchRouter } from "./routers/search";
 import { supportRouter } from "./routers/support";
+import { twilioCallsRouter } from "./routers/twilioCalls";
+import { smsTemplatesRouter } from "./routers/smsTemplates";
 
 export const appRouter = router({
   system: systemRouter,
@@ -121,6 +123,8 @@ export const appRouter = router({
   dashboard: dashboardRouter,
   search: searchRouter,
   support: supportRouter,
+  twilioCalls: twilioCallsRouter,
+  smsTemplates: smsTemplatesRouter,
 });
 
 export type AppRouter = typeof appRouter;
