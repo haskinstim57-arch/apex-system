@@ -129,7 +129,7 @@ const STATUS_LABELS: Record<string, string> = {
 const DISPOSITION_BUTTONS = [
   { value: "vm_full", label: "VM Full", color: "bg-gray-500/10 text-gray-400 border-gray-500/20" },
   { value: "left_vm", label: "Left VM", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  { value: "spoke_to_lead", label: "Spoke to Lead", color: "bg-green-500/10 text-green-400 border-green-500/20", requiresNote: true },
+  { value: "spoke_to_lead", label: "Spoke to Lead", color: "bg-green-500/10 text-green-400 border-green-500/20" },
   { value: "took_application", label: "Took Application", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
   { value: "borrower_doing_app", label: "Borrower Doing App", color: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" },
   { value: "credit_repair", label: "Credit Repair", color: "bg-orange-500/10 text-orange-400 border-orange-500/20" },
@@ -197,8 +197,7 @@ export default function ContactDetail({
   const [newNote, setNewNote] = useState("");
   const [selectedDisposition, setSelectedDisposition] = useState<string | null>(null);
   const [internalNoteMode, setInternalNoteMode] = useState(false);
-  const [spokeToLeadNote, setSpokeToLeadNote] = useState("");
-  const [showSpokeNoteInput, setShowSpokeNoteInput] = useState(false);
+
   const [internalNoteText, setInternalNoteText] = useState("");
 
   // Membership query for role-based internal notes visibility
@@ -715,14 +714,20 @@ export default function ContactDetail({
                       onClick={() => {
                         if (selectedDisposition === d.value) {
                           setSelectedDisposition(null);
-                          setShowSpokeNoteInput(false);
+                        } else if (!newNote.trim()) {
+                          // One-click: empty textarea → immediately log disposition as note
+                          addNoteMutation.mutate({
+                            contactId: id,
+                            accountId,
+                            content: d.label,
+                            disposition: d.value,
+                            ...(internalNoteMode ? { isInternal: true } : {}),
+                          });
+                          setSelectedDisposition(null);
+                          setInternalNoteMode(false);
                         } else {
+                          // Toggle: non-empty textarea → set disposition for combined save
                           setSelectedDisposition(d.value);
-                          if ('requiresNote' in d && d.requiresNote) {
-                            setShowSpokeNoteInput(true);
-                          } else {
-                            setShowSpokeNoteInput(false);
-                          }
                         }
                       }}
                       className={`px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all ${
@@ -735,17 +740,7 @@ export default function ContactDetail({
                     </button>
                   ))}
                 </div>
-                {showSpokeNoteInput && selectedDisposition === "spoke_to_lead" && (
-                  <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-2">
-                    <p className="text-[10px] text-green-400 mb-1 font-medium">What did you discuss? (required for Spoke to Lead)</p>
-                    <textarea
-                      value={spokeToLeadNote}
-                      onChange={(e) => setSpokeToLeadNote(e.target.value)}
-                      placeholder="Brief summary of the conversation..."
-                      className="w-full min-h-[50px] text-xs resize-none bg-transparent border-0 focus:ring-0 p-0 text-foreground placeholder:text-muted-foreground"
-                    />
-                  </div>
-                )}
+
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {selectedDisposition && (
@@ -775,15 +770,9 @@ export default function ContactDetail({
                   <Button
                     size="sm"
                     className="h-8 gap-1.5"
-                    disabled={
-                      (!newNote.trim() && !(selectedDisposition === "spoke_to_lead" && spokeToLeadNote.trim())) ||
-                      addNoteMutation.isPending ||
-                      (selectedDisposition === "spoke_to_lead" && !spokeToLeadNote.trim())
-                    }
+                    disabled={(!newNote.trim() && !selectedDisposition) || addNoteMutation.isPending}
                     onClick={() => {
-                      const content = selectedDisposition === "spoke_to_lead" && spokeToLeadNote.trim()
-                        ? (newNote.trim() ? newNote.trim() + "\n\n" + spokeToLeadNote.trim() : spokeToLeadNote.trim())
-                        : newNote.trim();
+                      const content = newNote.trim() || DISPOSITION_BUTTONS.find(d => d.value === selectedDisposition)?.label || "";
                       if (content) {
                         addNoteMutation.mutate({
                           contactId: id,
@@ -794,8 +783,6 @@ export default function ContactDetail({
                         });
                         setSelectedDisposition(null);
                         setInternalNoteMode(false);
-                        setSpokeToLeadNote("");
-                        setShowSpokeNoteInput(false);
                       }
                     }}
                   >

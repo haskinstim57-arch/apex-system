@@ -4922,3 +4922,10 @@
 ## UI Fix: Internal Notes Quick-Key Button Colors
 - [x] Change 3 disposition quick-key buttons (Application taken, Application sent, Credit repair) from yellow to blue
 - [x] Only change the pill buttons inside Internal Notes card, not the card theme or Add Internal Note button
+
+## Feature: One-Click Dispositions
+- [x] Remove requiresNote from spoke_to_lead in DISPOSITION_BUTTONS
+- [x] Change onClick: empty textarea → immediate note save; non-empty → toggle for combined save
+- [x] Remove showSpokeNoteInput and spokeToLeadNote state and UI
+- [x] Relax Add Note disabled gate to allow disposition-only saves
+- [x] Simplify save content derivation (drop spokeToLeadNote concatenation)
