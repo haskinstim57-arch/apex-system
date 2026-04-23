@@ -4918,3 +4918,7 @@
 - [x] Status filter dropdown updated with all 13 disposition statuses
 - [x] STATUSES array expanded from 8 to 13 values
 - [x] 15 tests pass for all bug fixes
+
+## UI Fix: Internal Notes Quick-Key Button Colors
+- [x] Change 3 disposition quick-key buttons (Application taken, Application sent, Credit repair) from yellow to blue
+- [x] Only change the pill buttons inside Internal Notes card, not the card theme or Add Internal Note button

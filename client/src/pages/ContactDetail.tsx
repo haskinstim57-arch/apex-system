@@ -847,7 +847,7 @@ export default function ContactDetail({
                             isInternal: true,
                           });
                         }}
-                        className="px-2.5 py-1 rounded-full text-[10px] font-medium border bg-yellow-500/10 text-yellow-500 border-yellow-500/20 hover:bg-yellow-500/20 transition-all"
+                        className="px-2.5 py-1 rounded-full text-[10px] font-medium border bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 transition-all"
                       >
                         {qk.label}
                       </button>
