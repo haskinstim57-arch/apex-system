@@ -4875,3 +4875,46 @@
 ### Both Bugs
 - [x] All 37 tests pass (6 new bugfix tests + 31 updated scheduledReports tests)
 - [x] Save checkpoint
+
+## Production Bugs — Scheduled Reports INSERT + Contact Notes Status (Apr 22 #2)
+
+### Bug 1 — Scheduled Report INSERT still failing
+- [ ] INSERT query for scheduled_reports still fails when creating "Daily Marketing Report" with daily_activity frequency
+- [ ] Error shows column/value count mismatch in INSERT — investigate the create procedure
+- [ ] Fix root cause
+
+### Bug 2 — Contact notes showing incorrect 'new' status
+- [ ] Contact Nichole Goggins has notes with "new" status that shouldn't be there
+- [ ] Investigate where 'new' status comes from in contact notes
+- [ ] Fix root cause
+
+### Both Bugs
+- [x] All 37 tests pass (6 new bugfix tests + 31 updated scheduledReports tests)
+- [x] Checkpoint saved (120ab4f3)
+
+## P0 Bugs — PMR Pilot Account 420001 (Apr 22 Batch)
+
+### Bug A — 334 stuck enrollments on sequence 30009 (not 60002)
+- [x] Root cause: facebookLeadPoller/facebookLeads/jarvisTools enroll without nextStepAt
+- [x] Fix: enrollContactInSequence now auto-computes nextStepAt = Date.now() if not provided
+- [x] Repair script: dry-run found 339 stuck enrollments, live run fixed all 339
+- [x] Drip worker processed 100 in first tick, 146 messages queued
+- [x] Added per-tick instrumentation logging to drip engine
+- [x] Blooio SMS rate-limited (429) — daily conversation limit reached, not a code issue
+
+### Bug B — Performance tab empty
+- [x] Already fixed in previous checkpoint (TiDB only_full_group_by)
+- [x] Verified: shows 338 enrolled, step analytics visible
+
+### Bug C — Scheduled Reports INSERT failing (frequency binding)
+- [x] Already fixed in previous checkpoint (frequency enum expanded)
+- [x] Verified: test INSERT with daily_marketing succeeds
+- [x] Frontend code sends correct frequency value from dropdown
+
+### Bug D — Status badge doesn't live-update after disposition save
+- [x] addNote mutation now invalidates contacts.list and contacts.stats
+- [x] STATUS_COLORS/STATUS_LABELS now include "new" and all disposition statuses
+- [x] Contacts list page uses STATUS_LABELS for badge display
+- [x] Status filter dropdown updated with all 13 disposition statuses
+- [x] STATUSES array expanded from 8 to 13 values
+- [x] 15 tests pass for all bug fixes

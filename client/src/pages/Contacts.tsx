@@ -91,13 +91,18 @@ import { US_STATES } from "@shared/usStates";
 
 const STATUSES = [
   "new",
+  "uncontacted",
   "contacted",
+  "engaged",
   "qualified",
-  "proposal",
-  "negotiation",
+  "application_taken",
+  "application_in_progress",
+  "credit_repair",
+  "callback_scheduled",
+  "app_link_pending",
+  "nurture",
   "won",
   "lost",
-  "nurture",
 ] as const;
 
 // ─── Lead Score Tier Helpers ───
@@ -128,14 +133,39 @@ function LeadScoreBadge({ score }: { score: number }) {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  new: "bg-blue-50 text-blue-700 border-blue-200",
+  new: "bg-lime-50 text-lime-700 border-lime-200",
+  uncontacted: "bg-slate-50 text-slate-700 border-slate-200",
   contacted: "bg-amber-50 text-amber-700 border-amber-200",
+  engaged: "bg-blue-50 text-blue-700 border-blue-200",
   qualified: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  application_taken: "bg-purple-50 text-purple-700 border-purple-200",
+  application_in_progress: "bg-indigo-50 text-indigo-700 border-indigo-200",
+  credit_repair: "bg-orange-50 text-orange-700 border-orange-200",
+  callback_scheduled: "bg-teal-50 text-teal-700 border-teal-200",
+  app_link_pending: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  nurture: "bg-sky-50 text-sky-700 border-sky-200",
   proposal: "bg-purple-50 text-purple-700 border-purple-200",
   negotiation: "bg-orange-50 text-orange-700 border-orange-200",
   won: "bg-green-50 text-green-700 border-green-200",
   lost: "bg-red-50 text-red-700 border-red-200",
-  nurture: "bg-cyan-50 text-cyan-700 border-cyan-200",
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  new: "New",
+  uncontacted: "Uncontacted",
+  contacted: "Contacted",
+  engaged: "Engaged",
+  qualified: "Qualified",
+  application_taken: "Application Taken",
+  application_in_progress: "App In Progress",
+  credit_repair: "Credit Repair",
+  callback_scheduled: "Callback Scheduled",
+  app_link_pending: "App Link Pending",
+  nurture: "Nurture",
+  proposal: "Proposal",
+  negotiation: "Negotiation",
+  won: "Won",
+  lost: "Lost",
 };
 
 const LEAD_SOURCES = [
@@ -1163,7 +1193,7 @@ export default function Contacts() {
               <SelectItem value="all">All Statuses</SelectItem>
               {STATUSES.map((s) => (
                 <SelectItem key={s} value={s}>
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                  {STATUS_LABELS[s] || s.charAt(0).toUpperCase() + s.slice(1)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1457,7 +1487,7 @@ export default function Contacts() {
                             variant="outline"
                             className={`text-[10px] font-medium ${STATUS_COLORS[contact.status] || ""}`}
                           >
-                            {contact.status}
+                            {STATUS_LABELS[contact.status] || contact.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
@@ -2235,7 +2265,7 @@ function ContactFormDialog({
                 <SelectContent>
                   {STATUSES.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                      {STATUS_LABELS[s] || s.charAt(0).toUpperCase() + s.slice(1)}
                     </SelectItem>
                   ))}
                 </SelectContent>

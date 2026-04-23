@@ -94,6 +94,7 @@ const STATUSES = [
 ] as const;
 
 const STATUS_COLORS: Record<string, string> = {
+  new: "bg-lime-50 text-lime-600 border-lime-200",
   uncontacted: "bg-slate-50 text-slate-600 border-slate-200",
   contacted: "bg-amber-50 text-amber-600 border-amber-200",
   engaged: "bg-blue-50 text-blue-600 border-blue-200",
@@ -109,6 +110,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_LABELS: Record<string, string> = {
+  new: "New",
   uncontacted: "Uncontacted",
   contacted: "Contacted",
   engaged: "Engaged",
@@ -244,6 +246,8 @@ export default function ContactDetail({
       toast.success("Note added");
       utils.contacts.listNotes.invalidate({ contactId: id, accountId });
       utils.contacts.get.invalidate({ id, accountId });
+      utils.contacts.list.invalidate(); // Refresh list page status badges
+      utils.contacts.stats.invalidate(); // Refresh status counts
       setNewNote("");
     },
     onError: (err) => toast.error(err.message),
@@ -254,6 +258,8 @@ export default function ContactDetail({
       toast.success("Internal note added");
       utils.contacts.listNotes.invalidate({ contactId: id, accountId });
       utils.contacts.get.invalidate({ id, accountId });
+      utils.contacts.list.invalidate(); // Refresh list page status badges
+      utils.contacts.stats.invalidate(); // Refresh status counts
       setInternalNoteText("");
     },
     onError: (err) => toast.error(err.message),

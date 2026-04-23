@@ -5039,6 +5039,28 @@ export async function enrollContactInSequence(data: InsertSequenceEnrollment) {
   if (existing.length > 0) {
     return { id: existing[0].id, alreadyEnrolled: true };
   }
+
+  // Auto-compute nextStepAt if not provided — prevents stuck enrollments
+  if (!data.nextStepAt) {
+    const [firstStep] = await db
+      .select()
+      .from(sequenceSteps)
+      .where(
+        and(
+          eq(sequenceSteps.sequenceId, data.sequenceId),
+          eq(sequenceSteps.position, 1)
+        )
+      )
+      .limit(1);
+    if (firstStep) {
+      const delayMs = (firstStep.delayDays || 0) * 86400000 + (firstStep.delayHours || 0) * 3600000;
+      data.nextStepAt = new Date(Date.now() + (delayMs || 60000));
+    } else {
+      data.nextStepAt = new Date(Date.now() + 60000); // Default 1 minute
+    }
+    console.log(`[Enrollment] Auto-computed nextStepAt=${data.nextStepAt.toISOString()} for contact=${data.contactId} seq=${data.sequenceId}`);
+  }
+
   const result = await db.insert(sequenceEnrollments).values(data);
   // Increment active enrollments count
   await db

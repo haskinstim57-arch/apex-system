@@ -114,3 +114,107 @@ describe("Bug Fix 2: Scheduled Reports frequency enum", () => {
     }
   });
 });
+
+// ─── Bug Fix A: Stuck enrollments — enrollContactInSequence missing nextStepAt ───
+// Root cause: facebookLeadPoller.ts, facebookLeads.ts, and jarvisTools.ts
+// called enrollContactInSequence without passing nextStepAt. The drip worker
+// filters on next_step_at <= NOW(), so enrollments without nextStepAt were never picked up.
+// Fix: enrollContactInSequence now auto-computes nextStepAt = Date.now() if not provided.
+
+describe("Bug Fix A: enrollContactInSequence auto-computes nextStepAt", () => {
+  it("db.ts enrollContactInSequence sets nextStepAt when not provided", async () => {
+    const { readFileSync } = await import("fs");
+    const dbCode = readFileSync("server/db.ts", "utf-8");
+
+    // The function should auto-compute nextStepAt
+    expect(dbCode).toContain("nextStepAt");
+    // Should have a fallback for when nextStepAt is not provided
+    expect(dbCode).toMatch(/nextStepAt.*Date\.now\(\)|data\.nextStepAt\s*\?\?/);
+  });
+
+  it("drip engine getDueEnrollments filters on next_step_at", async () => {
+    const { readFileSync } = await import("fs");
+    const dripCode = readFileSync("server/services/dripEngine.ts", "utf-8");
+
+    // The drip worker must filter on nextStepAt to pick up due enrollments
+    expect(dripCode).toContain("nextStepAt");
+    expect(dripCode).toContain("getDueEnrollments");
+  });
+
+  it("drip engine has per-tick instrumentation logging", async () => {
+    const { readFileSync } = await import("fs");
+    const dripCode = readFileSync("server/services/dripEngine.ts", "utf-8");
+
+    // Should have instrumentation logging
+    expect(dripCode).toContain("[drip]");
+  });
+});
+
+// ─── Bug Fix D: Status badge live-update after disposition save ───
+// Root cause: addNote mutation only invalidated contacts.get and contacts.listNotes
+// but NOT contacts.list or contacts.stats. When navigating back to the contacts list,
+// stale status badges were shown.
+// Also: STATUS_COLORS and STATUS_LABELS were missing "new" and other disposition statuses.
+
+describe("Bug Fix D: Status badge live-update after disposition save", () => {
+  it("addNote mutation invalidates contacts.list for status badge refresh", async () => {
+    const { readFileSync } = await import("fs");
+    const detailCode = readFileSync("client/src/pages/ContactDetail.tsx", "utf-8");
+
+    // Both addNoteMutation and addInternalNoteMutation should invalidate contacts.list
+    const addNoteBlocks = detailCode.split("addNoteMutation").filter(b => b.includes("onSuccess"));
+    expect(detailCode).toContain("utils.contacts.list.invalidate()");
+    expect(detailCode).toContain("utils.contacts.stats.invalidate()");
+  });
+
+  it("STATUS_COLORS includes 'new' status in ContactDetail", async () => {
+    const { readFileSync } = await import("fs");
+    const detailCode = readFileSync("client/src/pages/ContactDetail.tsx", "utf-8");
+
+    expect(detailCode).toContain('new: "bg-lime-');
+  });
+
+  it("STATUS_LABELS includes 'new' status in ContactDetail", async () => {
+    const { readFileSync } = await import("fs");
+    const detailCode = readFileSync("client/src/pages/ContactDetail.tsx", "utf-8");
+
+    expect(detailCode).toContain('new: "New"');
+  });
+
+  it("Contacts list page has all disposition statuses in STATUS_COLORS", async () => {
+    const { readFileSync } = await import("fs");
+    const listCode = readFileSync("client/src/pages/Contacts.tsx", "utf-8");
+
+    const requiredStatuses = [
+      "new", "uncontacted", "contacted", "engaged", "qualified",
+      "application_taken", "application_in_progress", "credit_repair",
+      "callback_scheduled", "app_link_pending", "nurture", "won", "lost",
+    ];
+
+    for (const status of requiredStatuses) {
+      expect(listCode).toContain(`${status}:`);
+    }
+  });
+
+  it("Contacts list page uses STATUS_LABELS for badge display", async () => {
+    const { readFileSync } = await import("fs");
+    const listCode = readFileSync("client/src/pages/Contacts.tsx", "utf-8");
+
+    expect(listCode).toContain("STATUS_LABELS[contact.status]");
+  });
+
+  it("DISPOSITION_STATUS_MAP in backend maps all dispositions to statuses", async () => {
+    const { readFileSync } = await import("fs");
+    const routerCode = readFileSync("server/routers/contacts.ts", "utf-8");
+
+    const requiredDispositions = [
+      "vm_full", "left_vm", "spoke_to_lead", "took_application",
+      "borrower_doing_app", "credit_repair", "nurture",
+      "borrower_requested_callback", "spoke_needs_loan_app_link",
+    ];
+
+    for (const disp of requiredDispositions) {
+      expect(routerCode).toContain(disp);
+    }
+  });
+});

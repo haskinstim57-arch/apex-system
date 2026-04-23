@@ -51,8 +51,10 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
   const result: DripResult = { processed: 0, sent: 0, failed: 0, completed: 0, skippedWarming: 0, errors: [] };
 
   const dueRows = await getDueEnrollments(batchSize);
-  console.log(`[DripEngine] tick, candidates: ${dueRows.length}`);
-  if (dueRows.length === 0) return result;
+  if (dueRows.length === 0) {
+    console.log(`[drip] tick candidates=0 processed=0 sent=0 failed=0 skipped=0`);
+    return result;
+  }
 
   // Group due enrollments by accountId for per-account warming
   const byAccount = new Map<number, typeof dueRows>();
@@ -92,6 +94,7 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
         // Fetch the contact
         const contact = await getContactById(enrollment.contactId, enrollment.accountId);
         if (!contact) {
+          console.log(`[drip] skip enrollmentId=${enrollment.id} reason=contact_not_found contactId=${enrollment.contactId}`);
           result.errors.push({ enrollmentId: enrollment.id, error: "Contact not found" });
           result.failed++;
           continue;
@@ -105,6 +108,7 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
 
         if (step.messageType === "sms") {
           if (!contact.phone) {
+            console.log(`[drip] skip enrollmentId=${enrollment.id} reason=no_phone contactId=${enrollment.contactId}`);
             result.errors.push({ enrollmentId: enrollment.id, error: "Contact has no phone" });
             result.failed++;
             continue;
@@ -144,6 +148,7 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
           // Check warming limit before sending email
           if (warmingConfig.enabled) {
             if (warmingConfig.todaySendCount >= warmingConfig.currentDailyLimit) {
+              console.log(`[drip] skip enrollmentId=${enrollment.id} reason=warming_cap accountId=${accountId} limit=${warmingConfig.currentDailyLimit}`);
               // Skip this enrollment — will be retried next cycle
               result.errors.push({
                 enrollmentId: enrollment.id,
@@ -155,6 +160,7 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
           }
 
           if (!contact.email) {
+            console.log(`[drip] skip enrollmentId=${enrollment.id} reason=no_email contactId=${enrollment.contactId}`);
             result.errors.push({ enrollmentId: enrollment.id, error: "Contact has no email" });
             result.failed++;
             continue;
@@ -224,11 +230,15 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
           result.completed++;
         }
       } catch (err: any) {
+        console.log(`[drip] skip enrollmentId=${enrollment.id} reason=error error=${err.message}`);
         result.errors.push({ enrollmentId: enrollment.id, error: err.message || "Unknown error" });
         result.failed++;
       }
     }
   }
+
+  // Per-tick summary log
+  console.log(`[drip] tick candidates=${dueRows.length} processed=${result.processed} sent=${result.sent} failed=${result.failed} skipped=${result.skippedWarming}`);
 
   return result;
 }
