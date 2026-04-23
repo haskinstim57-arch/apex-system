@@ -1,0 +1,2 @@
+ALTER TABLE `account_messaging_settings` ADD `appointment_from_number` varchar(50);--> statement-breakpoint
+ALTER TABLE `account_messaging_settings` ADD `appointment_sms_provider` varchar(20) DEFAULT 'blooio';

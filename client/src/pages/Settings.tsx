@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Dialog,
@@ -45,6 +46,7 @@ import {
   Shield,
   User,
   Bell,
+  CalendarClock,
   Key,
   Palette,
   Facebook,
@@ -464,6 +466,7 @@ export default function SettingsPage() {
           <MissedCallTextBackCard accountId={currentAccountId} />
           <WebchatWidgetsCard accountId={currentAccountId} />
           <SmsTemplatesCard accountId={currentAccountId} />
+          <AppointmentNotificationsCard accountId={currentAccountId} />
         </div>
       )}
 
@@ -4185,6 +4188,113 @@ function SmsTemplatesCard({ accountId }: { accountId: number }) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+}
+
+/** Appointment Notifications card for the Messaging tab */
+function AppointmentNotificationsCard({ accountId }: { accountId: number }) {
+  const { data: settings, isLoading } = trpc.messagingSettings.get.useQuery({ accountId });
+  const utils = trpc.useUtils();
+  const [fromNumber, setFromNumber] = useState("");
+  const [provider, setProvider] = useState<"twilio" | "blooio">("blooio");
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (settings && !initialized) {
+      setFromNumber(settings.appointmentFromNumber ?? "");
+      setProvider((settings.appointmentSmsProvider as "twilio" | "blooio") ?? "blooio");
+      setInitialized(true);
+    }
+  }, [settings, initialized]);
+
+  const saveMutation = trpc.messagingSettings.save.useMutation({
+    onSuccess: () => {
+      utils.messagingSettings.get.invalidate({ accountId });
+      toast.success("Appointment notification settings saved");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate({
+      accountId,
+      appointmentFromNumber: fromNumber.trim() || null,
+      appointmentSmsProvider: provider,
+    });
+  };
+
+  const isDirty =
+    fromNumber !== (settings?.appointmentFromNumber ?? "") ||
+    provider !== ((settings?.appointmentSmsProvider as "twilio" | "blooio") ?? "blooio");
+
+  if (isLoading) {
+    return (
+      <Card className="bg-card border-0 card-shadow">
+        <CardContent className="py-8 text-center text-muted-foreground text-sm">
+          Loading...
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="bg-card border-0 card-shadow">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <CalendarClock className="h-4 w-4 text-violet-500" />
+          Appointment Notifications
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Set a dedicated phone number for appointment reminder and confirmation SMS.
+          If left blank, the default Twilio number from Messaging Credentials is used.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label className="text-xs">Appointment From Number</Label>
+          <Input
+            placeholder="+15551234567 (E.164 format)"
+            value={fromNumber}
+            onChange={(e) => setFromNumber(e.target.value)}
+            className="h-8 text-sm"
+          />
+          <p className="text-[10px] text-muted-foreground">
+            This number will be used as the sender for appointment reminders and booking confirmations.
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-xs">SMS Provider</Label>
+          <RadioGroup
+            value={provider}
+            onValueChange={(v) => setProvider(v as "twilio" | "blooio")}
+            className="flex gap-4"
+          >
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="blooio" id="appt-blooio" />
+              <Label htmlFor="appt-blooio" className="text-xs font-normal cursor-pointer">
+                Blooio (iMessage)
+              </Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="twilio" id="appt-twilio" />
+              <Label htmlFor="appt-twilio" className="text-xs font-normal cursor-pointer">
+                Twilio
+              </Label>
+            </div>
+          </RadioGroup>
+        </div>
+
+        <Button
+          size="sm"
+          onClick={handleSave}
+          disabled={!isDirty || saveMutation.isPending}
+          className="h-7 text-xs"
+        >
+          {saveMutation.isPending ? "Saving..." : "Save"}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

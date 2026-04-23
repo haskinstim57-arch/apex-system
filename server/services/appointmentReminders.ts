@@ -2,6 +2,7 @@ import { getDb } from "../db";
 import { appointments, calendars } from "../../drizzle/schema";
 import { and, lte, gte, eq, inArray } from "drizzle-orm";
 import { billedDispatchSMS, billedDispatchEmail } from "./billedDispatch";
+import { resolveAppointmentSmsConfig } from "./appointmentNumber";
 
 const INTERVAL_MS = 5 * 60 * 1000; // Check every 5 minutes
 
@@ -146,11 +147,14 @@ async function sendReminderForAppointment(
 
   // SMS reminder to guest (if phone available, billed to account)
   if (appt.guestPhone) {
+    const apptSmsConfig = await resolveAppointmentSmsConfig(appt.accountId);
     await billedDispatchSMS({
       accountId: appt.accountId,
       to: appt.guestPhone,
       body: `Reminder: Your appointment "${calName}" is ${urgency} at ${timeStr}. ${dateStr}.`,
       userId: 0,
+      from: apptSmsConfig.from,
+      provider: apptSmsConfig.provider,
     }).catch((err) =>
       console.error(`[AppointmentReminders] SMS failed for appt ${appt.id}:`, err)
     );

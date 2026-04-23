@@ -802,6 +802,10 @@ export const accountMessagingSettings = mysqlTable("account_messaging_settings",
   sendgridFromName: varchar("sendgrid_from_name", { length: 255 }),
   /** Blooio credentials (SMS/iMessage provider) */
   blooioApiKey: varchar("blooio_api_key", { length: 255 }),
+  /** Optional separate from-number for appointment SMS (confirmations/reminders). Falls back to twilioFromNumber if null. */
+  appointmentFromNumber: varchar("appointment_from_number", { length: 50 }),
+  /** Which provider to use for appointment SMS: "twilio" | "blooio". Defaults to "blooio". */
+  appointmentSmsProvider: varchar("appointment_sms_provider", { length: 20 }).default("blooio"),
   /** Business hours configuration (JSON) — per-day schedule with timezone */
   businessHours: text("business_hours"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

@@ -67,6 +67,8 @@ export const messagingSettingsRouter = router({
           sendgridFromEmail: null,
           sendgridFromName: null,
           blooioApiKey: null,
+          appointmentFromNumber: null,
+          appointmentSmsProvider: "blooio" as const,
           businessHours: DEFAULT_BUSINESS_HOURS_SCHEDULE,
         };
       }
@@ -89,6 +91,8 @@ export const messagingSettingsRouter = router({
         blooioApiKey: settings.blooioApiKey
           ? "••••" + settings.blooioApiKey.slice(-4)
           : null,
+        appointmentFromNumber: settings.appointmentFromNumber ?? null,
+        appointmentSmsProvider: (settings.appointmentSmsProvider as "twilio" | "blooio") ?? "blooio",
         businessHours,
       };
     }),
@@ -105,6 +109,8 @@ export const messagingSettingsRouter = router({
         sendgridFromEmail: z.string().email().nullable().optional(),
         sendgridFromName: z.string().nullable().optional(),
         blooioApiKey: z.string().nullable().optional(),
+        appointmentFromNumber: z.string().nullable().optional(),
+        appointmentSmsProvider: z.enum(["twilio", "blooio"]).optional(),
         businessHours: businessHoursSchema.optional(),
       })
     )

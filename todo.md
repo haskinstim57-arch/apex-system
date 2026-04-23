@@ -4951,3 +4951,27 @@
 
 ### Out of Scope
 - [ ] FLAG: Ringless voicemail drops — deferred, requires prerecorded audio storage + Twilio Play TwiML
+
+## Prompt #5: Per-Sub-Account Appointment Notification Number
+
+### Schema
+- [x] Add appointmentFromNumber (varchar 50) to accountMessagingSettings
+- [x] Add appointmentSmsProvider (varchar 20, default "blooio") to accountMessagingSettings
+- [x] Push migration (0108_magenta_freak.sql)
+
+### Backend
+- [x] Create server/services/appointmentNumber.ts — resolveAppointmentSmsConfig(accountId)
+- [x] Update appointmentReminders.ts sendReminderForAppointment to use resolveAppointmentSmsConfig
+- [x] calendar.ts only sends emails for booking confirmations (no SMS) — no changes needed
+- [x] Extend messagingSettings.ts save + get procedures to accept/persist/return new fields
+
+### Frontend
+- [x] Add "Appointment Notifications" subsection in Settings → Messaging tab
+- [x] Text input: Appointment From Number (E.164 placeholder)
+- [x] Radio: Provider → Twilio / Blooio
+- [x] Help text explaining the purpose
+- [x] Save via trpc.messagingSettings.save
+
+### Tests
+- [x] Write tests for resolveAppointmentSmsConfig helper (6 tests pass)
+- [x] Write tests for messagingSettings update accepting new fields
