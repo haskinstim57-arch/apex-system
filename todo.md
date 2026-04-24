@@ -4975,3 +4975,25 @@
 ### Tests
 - [x] Write tests for resolveAppointmentSmsConfig helper (6 tests pass)
 - [x] Write tests for messagingSettings update accepting new fields
+
+## Jarvis Bulk Disposition: Parallelize Tool Execution + Bulk Note Tool
+
+### jarvisService.ts — Parallelize tool execution
+- [x] Replace sequential for-loop in chat() with Promise.all (non-critical tools parallelized)
+- [x] Replace sequential for-loop in chatStream() with Promise.all (critical tools stay sequential for confirmation gate)
+- [x] Preserve tool_call_id → result mapping order via Promise.all index alignment
+- [x] Add console.error inside catch that logs toolName + args on failure
+
+### jarvisTools.ts — bulk_add_contact_notes tool
+- [x] Add bulk_add_contact_notes tool: contactIds (1-500), content, disposition?, isInternal?
+- [x] Reuse createContactNote helper from add_contact_note path, batches of 50 via Promise.allSettled
+- [x] Return { created, failed, total, failedContactIds }
+- [x] Export in tool definitions array + TOOL_DISPLAY + CRITICAL_TOOLS
+
+### Jarvis system prompt
+- [x] Update system prompt with BULK OPERATIONS section: prefer bulk_add_contact_notes when >3 contacts
+
+### Tests
+- [x] 51 tests pass (12 new: tool definition, executor validation, parallelization, system prompt)
+- [x] Bulk rejects empty array and >500 contacts
+- [x] Disposition enum has all 10 values

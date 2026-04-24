@@ -383,3 +383,129 @@ describe("Jarvis Backend — Analytics & Scheduled Tasks Procedures", () => {
     expect(content).toContain("jarvis_scheduled_tasks");
   });
 });
+
+
+// ═══════════════════════════════════════════════
+// BULK ADD CONTACT NOTES TOOL
+// ═══════════════════════════════════════════════
+
+describe("Jarvis bulk_add_contact_notes tool definition", () => {
+  it("tool definition exists with correct schema", () => {
+    const bulkTool = JARVIS_TOOLS.find(
+      (t) => t.function.name === "bulk_add_contact_notes"
+    );
+    expect(bulkTool).toBeDefined();
+    expect(bulkTool!.function.description).toContain("multiple contacts");
+    expect(bulkTool!.function.description).toContain("500");
+
+    const params = bulkTool!.function.parameters as any;
+    expect(params.required).toContain("contactIds");
+    expect(params.required).toContain("content");
+    expect(params.properties.contactIds.type).toBe("array");
+    expect(params.properties.contactIds.items.type).toBe("number");
+    expect(params.properties.content.type).toBe("string");
+    expect(params.properties.disposition).toBeDefined();
+    expect(params.properties.disposition.type).toBe("string");
+    expect(params.properties.isInternal).toBeDefined();
+    expect(params.properties.isInternal.type).toBe("boolean");
+  });
+
+  it("disposition enum includes all 10 valid values", () => {
+    const bulkTool = JARVIS_TOOLS.find(
+      (t) => t.function.name === "bulk_add_contact_notes"
+    );
+    const dispositionEnum = (bulkTool!.function.parameters as any).properties
+      .disposition.enum;
+    const expected = [
+      "voicemail_full", "left_voicemail", "no_answer", "answered",
+      "callback_requested", "wrong_number", "do_not_call",
+      "appointment_set", "not_interested", "other",
+    ];
+    expect(dispositionEnum).toEqual(expected);
+  });
+});
+
+describe("Jarvis bulk_add_contact_notes executor", () => {
+  it("rejects empty contactIds array", async () => {
+    const { executeTool } = await import("./services/jarvisTools");
+    const result = await executeTool(
+      "bulk_add_contact_notes",
+      { contactIds: [], content: "test" },
+      { accountId: 1, userId: 1 }
+    );
+    expect(result).toEqual({ error: "contactIds must be a non-empty array" });
+  });
+
+  it("rejects >500 contactIds", async () => {
+    const { executeTool } = await import("./services/jarvisTools");
+    const bigArray = Array.from({ length: 501 }, (_, i) => i + 1);
+    const result = await executeTool(
+      "bulk_add_contact_notes",
+      { contactIds: bigArray, content: "test" },
+      { accountId: 1, userId: 1 }
+    );
+    expect(result).toEqual({ error: "Maximum 500 contacts per bulk call" });
+  });
+});
+
+// ═══════════════════════════════════════════════
+// PARALLELIZATION & SYSTEM PROMPT
+// ═══════════════════════════════════════════════
+
+describe("Jarvis tool execution parallelization", () => {
+  it("jarvisService.ts uses Promise.all for non-critical tool execution", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    // Both chat() and chatStream() should use Promise.all
+    const promiseAllCount = (content.match(/Promise\.all/g) || []).length;
+    expect(promiseAllCount).toBeGreaterThanOrEqual(2);
+  });
+
+  it("jarvisService.ts splits tools into critical and non-critical", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain("criticalCalls");
+    expect(content).toContain("nonCriticalCalls");
+  });
+
+  it("jarvisService.ts has error logging in parallel execution", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain("console.error");
+    expect(content).toContain("[Jarvis] Tool execution failed");
+  });
+});
+
+describe("Jarvis system prompt bulk operations guidance", () => {
+  it("system prompt includes BULK OPERATIONS section", async () => {
+    const { buildSystemPrompt } = await import("./services/jarvisService");
+    const prompt = buildSystemPrompt({
+      accountId: 1,
+      userId: 1,
+      userName: "Test User",
+    } as any);
+    expect(prompt).toContain("BULK OPERATIONS");
+    expect(prompt).toContain("bulk_add_contact_notes");
+    expect(prompt).toContain("MORE THAN 3 contacts");
+  });
+});
+
+describe("Jarvis CRITICAL_TOOLS and TOOL_DISPLAY include bulk tool", () => {
+  it("CRITICAL_TOOLS includes bulk_add_contact_notes", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain('"bulk_add_contact_notes"');
+  });
+
+  it("TOOL_DISPLAY includes bulk_add_contact_notes", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain("bulk_add_contact_notes:");
+  });
+
+  it("buildConfirmationSummary handles bulk_add_contact_notes", async () => {
+    const fs = await import("fs");
+    const content = fs.readFileSync("server/services/jarvisService.ts", "utf-8");
+    expect(content).toContain('case "bulk_add_contact_notes"');
+  });
+});

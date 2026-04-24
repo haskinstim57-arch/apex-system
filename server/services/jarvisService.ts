@@ -128,6 +128,12 @@ NOTES & DISPOSITION AWARENESS:
 - On inbound call context, always check the contact's notes first to understand prior interactions.
 - When creating notes via add_note tool, include a disposition when the note is about a call or contact attempt outcome.
 
+BULK OPERATIONS:
+- When dispositioning or adding notes to MORE THAN 3 contacts, ALWAYS use bulk_add_contact_notes instead of calling add_contact_note repeatedly. This is critical for performance.
+- bulk_add_contact_notes accepts up to 500 contactIds in a single call and processes them in parallel batches.
+- Example: if the user says "mark all these contacts as no_answer", gather the contact IDs and use one bulk_add_contact_notes call.
+- The tool returns { created, failed, total, failedContactIds } so you can report partial failures.
+
 CRITICAL: You MUST use your tools to answer questions. Never describe what you would do — just do it. If asked to find contacts, call search_contacts or get_contacts_by_filter immediately. If asked to send an SMS, call send_sms immediately. If asked for analytics, call get_analytics immediately. You have real tools connected to a live CRM database. Use them. NEVER say "I would need to..." or "I can help you by..." — instead, CALL THE TOOL and return the real results.
 
 Guidelines:
@@ -326,35 +332,39 @@ export async function chat(
       tool_calls: toolCalls,
     } as any);
 
-    for (const tc of toolCalls) {
-      const toolName = tc.function.name;
+    // ── Parallel tool execution ──
+    const toolResults = await Promise.all(
+      toolCalls.map(async (tc) => {
+        const toolName = tc.function.name;
+        let toolResult: unknown;
+        try {
+          const args = JSON.parse(tc.function.arguments || "{}");
+          toolResult = await executeTool(toolName, args, {
+            accountId: ctx.accountId,
+            userId: ctx.userId,
+          });
+        } catch (err: any) {
+          console.error(`[Jarvis] Tool execution failed: ${toolName}`, tc.function.arguments, err);
+          toolResult = { error: err.message || "Tool execution failed" };
+        }
+        return { tc, toolName, resultStr: JSON.stringify(toolResult) };
+      })
+    );
+
+    // Push results in original order to preserve tool_call_id mapping
+    for (const { tc, toolName, resultStr } of toolResults) {
       toolsUsed.push(toolName);
-
-      let toolResult: unknown;
-      try {
-        const args = JSON.parse(tc.function.arguments || "{}");
-        toolResult = await executeTool(toolName, args, {
-          accountId: ctx.accountId,
-          userId: ctx.userId,
-        });
-      } catch (err: any) {
-        toolResult = { error: err.message || "Tool execution failed" };
-      }
-
-      const toolResultStr = JSON.stringify(toolResult);
-
       history.push({
         role: "tool",
-        content: toolResultStr,
+        content: resultStr,
         tool_call_id: tc.id,
         timestamp: Date.now(),
       });
       llmMessages.push({
         role: "tool",
-        content: toolResultStr,
+        content: resultStr,
         tool_call_id: tc.id,
       } as any);
-
       // Track tool usage for analytics (fire-and-forget)
       trackToolUsageInternal(ctx.accountId, toolName).catch(() => {});
     }
@@ -423,6 +433,7 @@ const TOOL_DISPLAY: Record<string, string> = {
   create_contact: "Created a contact",
   update_contact: "Updated contact info",
   add_contact_note: "Added a note",
+  bulk_add_contact_notes: "Added notes to multiple contacts",
   add_contact_tag: "Tagged a contact",
   manage_contact_tags: "Managed contact tags",
   get_contact_messages: "Fetched contact messages",
@@ -504,6 +515,7 @@ const CRITICAL_TOOLS = new Set([
   "update_contact",
   "manage_contact_tags",
   "add_contact_note",
+  "bulk_add_contact_notes",
   "update_contact_custom_field",
   // Pipeline
   "move_deal_stage",
@@ -552,6 +564,8 @@ function buildConfirmationSummary(toolName: string, args: Record<string, unknown
       return `${args.action === "add" ? "Add" : "Remove"} tag "${args.tag}" ${args.action === "add" ? "to" : "from"} contact #${args.contactId}`;
     case "add_contact_note":
       return `Add note to contact #${args.contactId}: "${String(args.content || "").substring(0, 60)}${String(args.content || "").length > 60 ? "..." : ""}"`;
+    case "bulk_add_contact_notes":
+      return `Add note to ${(args.contactIds as number[])?.length ?? 0} contacts${args.disposition ? ` (disposition: ${args.disposition})` : ""}: "${String(args.content || "").substring(0, 60)}${String(args.content || "").length > 60 ? "..." : ""}"`;
     case "book_appointment":
       return `Book appointment for contact #${args.contactId}${args.startTime ? ` at ${args.startTime}` : ""}`;
     case "send_email_draft":
@@ -702,37 +716,82 @@ export async function* chatStream(
     history.push({ role: "assistant", content: contentStr, tool_calls: toolCalls, timestamp: Date.now() });
     llmMessages.push({ role: "assistant", content: contentStr, tool_calls: toolCalls } as any);
 
+    // ── Split tool calls into critical (need confirmation yield) and non-critical (parallelizable) ──
+    const criticalCalls: typeof toolCalls = [];
+    const nonCriticalCalls: typeof toolCalls = [];
     for (const tc of toolCalls) {
+      if (CRITICAL_TOOLS.has(tc.function.name)) {
+        criticalCalls.push(tc);
+      } else {
+        nonCriticalCalls.push(tc);
+      }
+    }
+
+    // ── Execute non-critical tools in parallel ──
+    if (nonCriticalCalls.length > 0) {
+      for (const tc of nonCriticalCalls) {
+        const displayName = TOOL_DISPLAY[tc.function.name] || tc.function.name;
+        yield { type: "tool_start", data: { name: tc.function.name, displayName } };
+      }
+
+      const parallelResults = await Promise.all(
+        nonCriticalCalls.map(async (tc) => {
+          const toolName = tc.function.name;
+          let toolResult: unknown;
+          let success = true;
+          try {
+            const args = JSON.parse(tc.function.arguments || "{}");
+            toolResult = await executeTool(toolName, args, {
+              accountId: ctx.accountId,
+              userId: ctx.userId,
+            });
+          } catch (err: any) {
+            console.error(`[Jarvis] Tool execution failed: ${toolName}`, tc.function.arguments, err);
+            toolResult = { error: err.message || "Tool execution failed" };
+            success = false;
+          }
+          return { tc, toolName, resultStr: JSON.stringify(toolResult), success };
+        })
+      );
+
+      for (const { tc, toolName, resultStr, success } of parallelResults) {
+        const displayName = TOOL_DISPLAY[toolName] || toolName;
+        toolsUsed.push(toolName);
+        history.push({ role: "tool", content: resultStr, tool_call_id: tc.id, timestamp: Date.now() });
+        llmMessages.push({ role: "tool", content: resultStr, tool_call_id: tc.id } as any);
+        yield { type: "tool_result", data: { name: toolName, displayName, success } };
+        if (success) trackToolUsageInternal(ctx.accountId, toolName).catch(() => {});
+      }
+    }
+
+    // ── Execute critical tools sequentially (need confirmation gate) ──
+    for (const tc of criticalCalls) {
       const toolName = tc.function.name;
       const displayName = TOOL_DISPLAY[toolName] || toolName;
       toolsUsed.push(toolName);
 
       const args = JSON.parse(tc.function.arguments || "{}");
 
-      // ── Confirmation gate for critical tools ──
-      if (CRITICAL_TOOLS.has(toolName)) {
-        const requestId = nextRequestId();
-        const summary = buildConfirmationSummary(toolName, args);
+      const requestId = nextRequestId();
+      const summary = buildConfirmationSummary(toolName, args);
 
-        yield {
-          type: "confirmation_required",
-          data: { requestId, name: toolName, displayName, summary, args },
-        };
+      yield {
+        type: "confirmation_required",
+        data: { requestId, name: toolName, displayName, summary, args },
+      };
 
-        // Pause the generator until user approves or rejects (or 120s timeout)
-        const approved = await waitForConfirmation(requestId);
+      const approved = await waitForConfirmation(requestId);
 
-        yield {
-          type: "confirmation_result",
-          data: { requestId, approved, name: toolName, displayName },
-        };
+      yield {
+        type: "confirmation_result",
+        data: { requestId, approved, name: toolName, displayName },
+      };
 
-        if (!approved) {
-          const rejectedResult = JSON.stringify({ cancelled: true, reason: "User rejected this action" });
-          history.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id, timestamp: Date.now() });
-          llmMessages.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id } as any);
-          continue;
-        }
+      if (!approved) {
+        const rejectedResult = JSON.stringify({ cancelled: true, reason: "User rejected this action" });
+        history.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id, timestamp: Date.now() });
+        llmMessages.push({ role: "tool", content: rejectedResult, tool_call_id: tc.id } as any);
+        continue;
       }
 
       yield { type: "tool_start", data: { name: toolName, displayName } };
@@ -745,6 +804,7 @@ export async function* chatStream(
           userId: ctx.userId,
         });
       } catch (err: any) {
+        console.error(`[Jarvis] Tool execution failed: ${toolName}`, tc.function.arguments, err);
         toolResult = { error: err.message || "Tool execution failed" };
         success = false;
       }
@@ -755,10 +815,7 @@ export async function* chatStream(
 
       yield { type: "tool_result", data: { name: toolName, displayName, success } };
 
-      // Track tool usage for analytics (fire-and-forget)
-      if (success) {
-        trackToolUsageInternal(ctx.accountId, toolName).catch(() => {});
-      }
+      if (success) trackToolUsageInternal(ctx.accountId, toolName).catch(() => {});
     }
 
     // If this was the last round, force a final text response

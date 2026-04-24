@@ -1099,6 +1099,35 @@ export const JARVIS_TOOLS: Tool[] = [
   {
     type: "function" as const,
     function: {
+      name: "bulk_add_contact_notes",
+      description: "Add the same note (with optional disposition) to multiple contacts at once. Use this instead of calling add_contact_note repeatedly when dispositioning more than 3 contacts. Supports up to 500 contacts per call.",
+      parameters: {
+        type: "object",
+        properties: {
+          contactIds: {
+            type: "array",
+            items: { type: "number" },
+            description: "Array of contact IDs to add the note to (1-500)",
+          },
+          content: { type: "string", description: "Note text to add to each contact" },
+          disposition: {
+            type: "string",
+            description: "Call/contact disposition to set on each contact",
+            enum: ["voicemail_full", "left_voicemail", "no_answer", "answered", "callback_requested", "wrong_number", "do_not_call", "appointment_set", "not_interested", "other"],
+          },
+          isInternal: {
+            type: "boolean",
+            description: "If true, notes are internal (hidden from employees). Defaults to false.",
+          },
+        },
+        required: ["contactIds", "content"],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "complete_task",
       description:
         "Mark a Jarvis task queue item as completed after executing it.",
@@ -2947,6 +2976,58 @@ Return your response as valid JSON.`;
         .set({ status: "completed", completedAt: new Date() })
         .where(eq(jarvisTaskQueue.id, task.id));
       return { success: true, taskId: task.id, taskType: task.taskType };
+    }
+
+    case "bulk_add_contact_notes": {
+      const contactIds = args.contactIds as number[];
+      if (!Array.isArray(contactIds) || contactIds.length === 0) {
+        return { error: "contactIds must be a non-empty array" };
+      }
+      if (contactIds.length > 500) {
+        return { error: "Maximum 500 contacts per bulk call" };
+      }
+      const content = args.content as string;
+      const disposition = args.disposition as string | undefined;
+      const isInternal = args.isInternal as boolean | undefined;
+      let created = 0;
+      const failedContactIds: number[] = [];
+
+      // Process in parallel batches of 50 to avoid overwhelming the DB
+      const BATCH_SIZE = 50;
+      for (let i = 0; i < contactIds.length; i += BATCH_SIZE) {
+        const batch = contactIds.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map(async (contactId) => {
+            await createContactNote({
+              contactId,
+              authorId: userId,
+              content,
+              ...(disposition ? { disposition } : {}),
+              ...(isInternal ? { isInternal: true } : {}),
+            });
+            logContactActivity({
+              contactId,
+              accountId,
+              activityType: "note_added",
+              description: "Note added by Jarvis AI (bulk)",
+            });
+          })
+        );
+        for (let j = 0; j < results.length; j++) {
+          if (results[j].status === "fulfilled") {
+            created++;
+          } else {
+            failedContactIds.push(batch[j]);
+          }
+        }
+      }
+
+      return {
+        created,
+        failed: failedContactIds.length,
+        total: contactIds.length,
+        failedContactIds,
+      };
     }
 
     default:
