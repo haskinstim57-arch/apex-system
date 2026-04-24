@@ -12,7 +12,7 @@ import {
   createAuditLog,
   logContactActivity,
 } from "../db";
-import { dispatchSMS, dispatchEmail } from "../services/messaging";
+import { chargeBeforeSend } from "../services/usageTracker";
 
 // ─── Tenant guard ───
 async function requireAccountMember(
@@ -137,6 +137,32 @@ export const inboxRouter = router({
         });
       }
 
+      // Pre-check balance before creating the message row.
+      // chargeBeforeSend throws PAYMENT_REQUIRED if insufficient funds.
+      // We charge here (deducting balance), then skip the charge inside
+      // billedDispatch by using raw dispatch. If the pre-check passes,
+      // we know the account can afford this send.
+      const rateType = input.type === "sms" ? "sms_sent" as const : "email_sent" as const;
+      let preCharge: { usageEventId: number; totalCost: number };
+      try {
+        preCharge = await chargeBeforeSend(
+          input.accountId,
+          rateType,
+          1,
+          { contactId: input.contactId, to: toAddress, source: "inbox" },
+          ctx.user.id
+        );
+      } catch (err: any) {
+        // Re-throw billing errors as TRPCError so the client gets a clean error
+        if (err?.code === "PAYMENT_REQUIRED" || err?.message?.includes("Insufficient balance") || err?.message?.includes("PAYMENT_METHOD_REQUIRED")) {
+          throw new TRPCError({
+            code: "PAYMENT_REQUIRED" as any,
+            message: err.message || "Insufficient balance to send this message. Please add funds.",
+          });
+        }
+        throw err;
+      }
+
       // Create the message record (outbound = isRead true by default)
       const { id } = await createMessage({
         accountId: input.accountId,
@@ -152,7 +178,12 @@ export const inboxRouter = router({
         isRead: true,
       });
 
-      // Dispatch through provider (async, non-blocking)
+      // Dispatch through provider (async, non-blocking).
+      // Balance was already deducted by chargeBeforeSend above, so we use
+      // raw dispatchSMS/dispatchEmail here. If the provider fails, we
+      // reverse the charge.
+      const { dispatchSMS, dispatchEmail } = await import("../services/messaging");
+      const { reverseCharge } = await import("../services/usageTracker");
       (async () => {
         try {
           let result;
@@ -179,12 +210,17 @@ export const inboxRouter = router({
               sentAt: new Date(),
             });
           } else {
+            // Provider returned failure — reverse the charge
+            await reverseCharge(preCharge.usageEventId);
+            console.warn(`[Inbox] Send failed, charge reversed: messageId=${id} error=${result.error}`);
             const { updateMessageStatus } = await import("../db");
             await updateMessageStatus(id, "failed", {
               errorMessage: result.error,
             });
           }
         } catch (err: any) {
+          // Provider threw — reverse the charge
+          await reverseCharge(preCharge.usageEventId).catch(() => {});
           console.error(`[Inbox] Provider dispatch failed for message ${id}:`, err);
           const { updateMessageStatus } = await import("../db");
           await updateMessageStatus(id, "failed", {

@@ -15,6 +15,8 @@ vi.mock("./db", async () => {
     getContactById: vi.fn(),
     createMessage: vi.fn(),
     createAuditLog: vi.fn(),
+    logContactActivity: vi.fn(),
+    updateMessageStatus: vi.fn().mockResolvedValue(undefined),
   };
 });
 
@@ -22,6 +24,17 @@ vi.mock("./db", async () => {
 vi.mock("./services/messaging", () => ({
   dispatchSMS: vi.fn().mockResolvedValue({ success: true, externalId: "sms-123" }),
   dispatchEmail: vi.fn().mockResolvedValue({ success: true, externalId: "email-456" }),
+}));
+
+// ─── Mock usageTracker ───
+vi.mock("./services/usageTracker", () => ({
+  chargeBeforeSend: vi.fn().mockResolvedValue({
+    usageEventId: 999,
+    unitCost: 0.01,
+    totalCost: 0.01,
+    newBalance: 4.99,
+  }),
+  reverseCharge: vi.fn().mockResolvedValue(undefined),
 }));
 
 import {
@@ -33,7 +46,11 @@ import {
   getContactById,
   createMessage,
   createAuditLog,
+  updateMessageStatus,
 } from "./db";
+
+import { dispatchSMS, dispatchEmail } from "./services/messaging";
+import { chargeBeforeSend, reverseCharge } from "./services/usageTracker";
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
 
@@ -179,6 +196,16 @@ beforeEach(() => {
     role: "owner",
     isActive: true,
   });
+  // Reset chargeBeforeSend to default success
+  (chargeBeforeSend as any).mockResolvedValue({
+    usageEventId: 999,
+    unitCost: 0.01,
+    totalCost: 0.01,
+    newBalance: 4.99,
+  });
+  (reverseCharge as any).mockResolvedValue(undefined);
+  (dispatchSMS as any).mockResolvedValue({ success: true, externalId: "sms-123" });
+  (dispatchEmail as any).mockResolvedValue({ success: true, externalId: "email-456" });
 });
 
 describe("inbox.getConversations", () => {
@@ -332,7 +359,7 @@ describe("inbox.sendReply", () => {
     (createAuditLog as any).mockResolvedValue(undefined);
   });
 
-  it("sends an SMS reply", async () => {
+  it("sends an SMS reply and charges balance", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -345,6 +372,14 @@ describe("inbox.sendReply", () => {
 
     expect(result.id).toBe(200);
     expect(result.status).toBe("pending");
+    // chargeBeforeSend must be called BEFORE createMessage
+    expect(chargeBeforeSend).toHaveBeenCalledWith(
+      1,
+      "sms_sent",
+      1,
+      expect.objectContaining({ contactId: 10, to: "+15551234567", source: "inbox" }),
+      1
+    );
     expect(createMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "sms",
@@ -363,7 +398,7 @@ describe("inbox.sendReply", () => {
     );
   });
 
-  it("sends an email reply with subject", async () => {
+  it("sends an email reply with subject and charges balance", async () => {
     const ctx = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
@@ -376,6 +411,13 @@ describe("inbox.sendReply", () => {
     });
 
     expect(result.id).toBe(200);
+    expect(chargeBeforeSend).toHaveBeenCalledWith(
+      1,
+      "email_sent",
+      1,
+      expect.objectContaining({ contactId: 10, to: "john@example.com", source: "inbox" }),
+      1
+    );
     expect(createMessage).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "email",
@@ -473,6 +515,109 @@ describe("inbox.sendReply", () => {
         body: "Hello",
       })
     ).rejects.toThrow(/access/i);
+  });
+
+  // ─── Billed dispatch test cases ───
+
+  it("deducts balance on successful SMS send", async () => {
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+
+    const result = await caller.inbox.sendReply({
+      accountId: 1,
+      contactId: 10,
+      type: "sms",
+      body: "Hello from billed dispatch!",
+    });
+
+    expect(result.id).toBe(200);
+    expect(result.status).toBe("pending");
+
+    // chargeBeforeSend was called
+    expect(chargeBeforeSend).toHaveBeenCalledTimes(1);
+    expect(chargeBeforeSend).toHaveBeenCalledWith(
+      1,
+      "sms_sent",
+      1,
+      expect.objectContaining({ contactId: 10, to: "+15551234567", source: "inbox" }),
+      1
+    );
+
+    // Wait for the async fire-and-forget to complete
+    await vi.waitFor(() => {
+      expect(dispatchSMS).toHaveBeenCalledTimes(1);
+    });
+
+    // reverseCharge should NOT be called on success
+    expect(reverseCharge).not.toHaveBeenCalled();
+  });
+
+  it("throws PAYMENT_REQUIRED when balance too low", async () => {
+    // Make chargeBeforeSend throw insufficient balance
+    const { TRPCError } = await import("@trpc/server");
+    (chargeBeforeSend as any).mockRejectedValue(
+      new TRPCError({
+        code: "PAYMENT_REQUIRED" as any,
+        message: "Insufficient balance to send SMS. Please add funds.",
+      })
+    );
+
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+
+    await expect(
+      caller.inbox.sendReply({
+        accountId: 1,
+        contactId: 10,
+        type: "sms",
+        body: "This should fail",
+      })
+    ).rejects.toThrow(/insufficient balance|PAYMENT_REQUIRED|payment/i);
+
+    // createMessage should NOT be called when balance check fails
+    expect(createMessage).not.toHaveBeenCalled();
+    // dispatchSMS should NOT be called either
+    expect(dispatchSMS).not.toHaveBeenCalled();
+  });
+
+  it("reverses charge when provider dispatch fails", async () => {
+    // Make dispatchSMS return failure
+    (dispatchSMS as any).mockResolvedValue({
+      success: false,
+      error: "Provider timeout",
+    });
+
+    const ctx = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+
+    const result = await caller.inbox.sendReply({
+      accountId: 1,
+      contactId: 10,
+      type: "sms",
+      body: "This will fail at provider",
+    });
+
+    // The mutation itself succeeds (returns pending message)
+    expect(result.id).toBe(200);
+    expect(result.status).toBe("pending");
+
+    // chargeBeforeSend was called
+    expect(chargeBeforeSend).toHaveBeenCalledTimes(1);
+
+    // Wait for the async fire-and-forget block to complete
+    await vi.waitFor(() => {
+      expect(reverseCharge).toHaveBeenCalledTimes(1);
+    });
+
+    // reverseCharge called with the usageEventId from chargeBeforeSend
+    expect(reverseCharge).toHaveBeenCalledWith(999);
+
+    // updateMessageStatus should be called with "failed"
+    expect(updateMessageStatus).toHaveBeenCalledWith(
+      200,
+      "failed",
+      expect.objectContaining({ errorMessage: "Provider timeout" })
+    );
   });
 });
 

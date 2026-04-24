@@ -4997,3 +4997,12 @@
 - [x] 51 tests pass (12 new: tool definition, executor validation, parallelization, system prompt)
 - [x] Bulk rejects empty array and >500 contacts
 - [x] Disposition enum has all 10 values
+
+## Inbox Billed Dispatch: Switch sendReply to billedDispatchSMS/Email
+
+- [x] Pre-check balance via chargeBeforeSend before creating message row
+- [x] Throw TRPCError PAYMENT_REQUIRED if insufficient funds
+- [x] chargeBeforeSend deducts balance upfront; raw dispatch used in async block
+- [x] reverseCharge called on provider failure (both result.success=false and catch paths)
+- [x] Confirmed billedDispatch.ts reversal pattern; replicated in inbox sendReply
+- [x] Write tests: balance deducted on success, PAYMENT_REQUIRED on low balance, reverseCharge on provider failure (26 tests pass)
