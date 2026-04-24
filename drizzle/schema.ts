@@ -2592,6 +2592,7 @@ export const usageEvents = mysqlTable("usage_events", {
     "voice_call_minute",
     "llm_request",
     "power_dialer_call",
+    "balance_correction",
   ]).notNull(),
   quantity: decimal("quantity", { precision: 10, scale: 4 }).notNull(),
   unitCost: decimal("unit_cost", { precision: 10, scale: 6 }).notNull(),

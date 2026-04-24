@@ -5025,3 +5025,15 @@
 - [x] Test: duration reconciliation (0m / 1m / 2m / 5m cases)
 - [x] Test: completed/failed/busy/no-answer/canceled/intermediate status paths
 - [x] Verify: pnpm vitest run server/twilioVoiceStatus.test.ts — all 19 pass
+
+## Balance Reconciliation Script (trackUsage sign-flip fix)
+
+- [x] Add 'balance_correction' to usageEvents eventType enum
+- [x] Push schema migration
+- [x] Create server/scripts/reconcileBalances.ts
+- [x] Scope debits to trackUsage-path only: llm_request, power_dialer_call, email_sent with $.feature
+- [x] Formula: correctBalance = currentBalance - 2 * trackUsageDebits
+- [x] Print dry-run report: accountId, name, currentBalance, trackUsageDebits, correctBalance, delta
+- [x] Support --apply flag to update balances and log correction events
+- [x] Ensure idempotency: skip accounts that already have a balance_correction event
+- [x] Run dry-run and verify output (4 affected accounts, $11.55 total delta)

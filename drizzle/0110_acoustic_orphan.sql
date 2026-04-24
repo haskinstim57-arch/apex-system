@@ -1,0 +1,1 @@
+ALTER TABLE `usage_events` MODIFY COLUMN `event_type` enum('sms_sent','email_sent','ai_call_minute','voice_call_minute','llm_request','power_dialer_call','balance_correction') NOT NULL;
