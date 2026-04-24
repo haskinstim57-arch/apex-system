@@ -5006,3 +5006,22 @@
 - [x] reverseCharge called on provider failure (both result.success=false and catch paths)
 - [x] Confirmed billedDispatch.ts reversal pattern; replicated in inbox sendReply
 - [x] Write tests: balance deducted on success, PAYMENT_REQUIRED on low balance, reverseCharge on provider failure (26 tests pass)
+
+## Twilio Voice Status Webhook: Click-to-Call Duration Reconciliation
+
+- [x] Add "call" to messages type enum in schema
+- [x] Add callSid + metadata columns to messages table for efficient lookup
+- [x] Push schema migration (pnpm db:push)
+- [x] Extend twilioVoiceStatus.ts with click-to-call reconciliation handler
+- [x] Parse Twilio form-encoded body: CallSid, CallStatus, CallDuration, From, To, RecordingUrl, RecordingSid
+- [x] On CallStatus=completed: find original usage_event, compute actualMinutes, charge extra or reverse
+- [x] On CallStatus=failed/no-answer/busy: reverse 1-min deposit, update message to "failed"
+- [x] Verify Twilio webhook signature (X-Twilio-Signature + authToken from account messaging settings)
+- [x] Reject with 403 if signature invalid
+- [x] Store RecordingUrl in message metadata if present
+- [x] Mount webhook in server/_core/index.ts (already mounted — extend existing handler)
+- [x] Write tests: server/twilioVoiceStatus.test.ts (19 tests pass)
+- [x] Test: signature verification (valid/invalid/missing auth token/missing callSid)
+- [x] Test: duration reconciliation (0m / 1m / 2m / 5m cases)
+- [x] Test: completed/failed/busy/no-answer/canceled/intermediate status paths
+- [x] Verify: pnpm vitest run server/twilioVoiceStatus.test.ts — all 19 pass

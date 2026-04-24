@@ -291,8 +291,8 @@ export const messages = mysqlTable("messages", {
   contactId: int("contactId").notNull(),
   /** User who sent/received the message */
   userId: int("userId").notNull(),
-  /** email or sms */
-  type: mysqlEnum("type", ["email", "sms"]).notNull(),
+  /** email, sms, or call */
+  type: mysqlEnum("type", ["email", "sms", "call"]).notNull(),
   /** outbound = sent by user, inbound = received from contact */
   direction: mysqlEnum("direction", ["outbound", "inbound"])
     .default("outbound")
@@ -311,6 +311,8 @@ export const messages = mysqlTable("messages", {
   fromAddress: varchar("fromAddress", { length: 320 }),
   /** External provider message ID (for tracking) */
   externalId: varchar("externalId", { length: 255 }),
+  /** Twilio Call SID — set for click-to-call messages, used for status reconciliation */
+  callSid: varchar("callSid", { length: 64 }),
   /** Error message if delivery failed */
   errorMessage: text("errorMessage"),
   /** When the message was actually sent */
@@ -321,6 +323,8 @@ export const messages = mysqlTable("messages", {
   isRead: boolean("isRead").default(true).notNull(),
   /** When the message was read/opened */
   readAt: timestamp("readAt"),
+  /** JSON metadata — recording URL, call duration, etc. */
+  metadata: text("metadata"),
   /** Sequence step that generated this message (nullable — only set for drip-engine messages) */
   sequenceStepId: int("sequence_step_id"),
   /** Position of the step within the sequence (nullable) */

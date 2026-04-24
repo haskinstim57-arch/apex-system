@@ -152,6 +152,8 @@ export const twilioCallsRouter = router({
           body: `Outbound call initiated via Twilio bridge. Call SID: ${data.sid}`,
           toAddress: contact.phone,
           fromAddress: settings.twilioFromNumber,
+          callSid: data.sid,
+          metadata: JSON.stringify({ usageEventId: charge.usageEventId }),
           isRead: true,
         });
 

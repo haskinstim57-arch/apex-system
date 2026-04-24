@@ -1147,6 +1147,28 @@ export async function getMessageById(id: number, accountId: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+/** Find a message by its Twilio Call SID */
+export async function getMessageByCallSid(callSid: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(messages)
+    .where(eq(messages.callSid, callSid))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/** Update a message row by its id — supports status, metadata, sentAt, errorMessage */
+export async function updateMessage(
+  id: number,
+  data: Partial<Pick<typeof messages.$inferInsert, "status" | "metadata" | "sentAt" | "deliveredAt" | "errorMessage">>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(messages).set(data).where(eq(messages.id, id));
+}
+
 export async function listMessages(params: {
   accountId: number;
   contactId?: number;
