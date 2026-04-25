@@ -586,7 +586,7 @@ export async function trackUsage(params: TrackUsageParams) {
     await db
       .update(accountBilling)
       .set({
-        currentBalance: sql`${accountBilling.currentBalance} + ${totalCost.toFixed(4)}`,
+        currentBalance: sql`${accountBilling.currentBalance} - ${totalCost.toFixed(4)}`,
       })
       .where(eq(accountBilling.accountId, accountId));
 

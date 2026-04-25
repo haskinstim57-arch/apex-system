@@ -5058,3 +5058,8 @@
 - [x] Task 4: Refactor ContactDetail.tsx to import from shared module (removed local declarations)
 - [x] Task 5: Add guard test server/contactStatus.test.ts (3 tests pass)
 - [x] Verify: pnpm vitest run server/contactStatus.test.ts — all 3 pass
+
+## CRITICAL: trackUsage Balance Inflation Fix
+
+- [x] Fix usageTracker.ts line 589: change + to - in currentBalance update (trackUsage path)
+- [x] Verify: pnpm vitest — 2956 passed, 19 pre-existing failures (none related to this fix)
