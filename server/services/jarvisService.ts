@@ -229,7 +229,7 @@ export async function deleteSession(
 // CHAT — Gemini + Tool Orchestration
 // ═══════════════════════════════════════════════
 
-const MAX_TOOL_ROUNDS = 10;
+const MAX_TOOL_ROUNDS = 50;
 
 export async function chat(
   sessionId: number,

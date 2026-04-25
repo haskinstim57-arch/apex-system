@@ -5063,3 +5063,7 @@
 
 - [x] Fix usageTracker.ts line 589: change + to - in currentBalance update (trackUsage path)
 - [x] Verify: pnpm vitest — 2956 passed, 19 pre-existing failures (none related to this fix)
+
+## Jarvis Tool-Call Cap Fix
+
+- [x] Raise MAX_TOOL_ROUNDS from 10 to 50 in jarvisService.ts (fixes 27-contact ceiling)
