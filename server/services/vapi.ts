@@ -132,19 +132,16 @@ export async function createVapiCall(params: {
       apex_call_id: String(metadata.apexCallId),
       lead_source: metadata.leadSource ?? "unknown",
     },
-    // Override the assistant's first message context with current date/time
+    // Override the assistant's variable values with current date/time context.
+    // NOTE: We intentionally do NOT pass assistantOverrides.model here.
+    // VAPI requires a valid provider field when model is present, and the
+    // assistant's pre-configured model + system prompt should be used as-is.
+    // Date/time context is injected via variableValues which the assistant
+    // template can reference with {{currentDateTime}} and {{customerName}}.
     assistantOverrides: {
       variableValues: {
         currentDateTime: currentDateTimeStr,
         customerName: customerName,
-      },
-      model: {
-        messages: [
-          {
-            role: "system" as const,
-            content: `IMPORTANT CONTEXT: Today's date and time is ${currentDateTimeStr} (Pacific Time). The customer's name is ${customerName}. When booking appointments or discussing dates, ALWAYS use dates relative to today. Never suggest dates in the past. Available appointment days are Monday through Friday, 9:00 AM to 5:00 PM Pacific Time.`,
-          },
-        ],
       },
     },
   };

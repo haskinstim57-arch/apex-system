@@ -5102,3 +5102,17 @@
 - [x] Replace inline popover/dialog in ContactDetail.tsx with ContactQuickActions size="md"
 - [x] Clean up unused state/mutations/imports from ContactDetail.tsx
 - [x] Verify: dev server compiles cleanly, no errors
+
+## VAPI assistantOverrides.model.provider 400 Fix
+
+- [x] Remove assistantOverrides.model block from createVapiCall in vapi.ts
+- [x] Keep variableValues for date/time context injection via {{currentDateTime}} and {{customerName}}
+- [x] Run aiCalls tests to verify no regressions — 19/19 pass
+- [x] Save checkpoint
+
+## Balance Reconciliation Report
+
+- [x] Run dry-run reconciliation script
+- [x] Generate per-account report showing PMR balance status
+- [ ] Present report to user for review before --apply
+- [ ] User approval → run --apply
