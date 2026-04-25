@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, type ContactStatus } from "@/lib/contactStatus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,37 +101,7 @@ const STATUSES = [
   "lost",
 ] as const;
 
-const STATUS_COLORS: Record<string, string> = {
-  new: "bg-lime-50 text-lime-600 border-lime-200",
-  uncontacted: "bg-slate-50 text-slate-600 border-slate-200",
-  contacted: "bg-amber-50 text-amber-600 border-amber-200",
-  engaged: "bg-blue-50 text-blue-600 border-blue-200",
-  qualified: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  application_taken: "bg-purple-50 text-purple-600 border-purple-200",
-  application_in_progress: "bg-indigo-50 text-indigo-600 border-indigo-200",
-  credit_repair: "bg-orange-50 text-orange-600 border-orange-200",
-  callback_scheduled: "bg-teal-50 text-teal-600 border-teal-200",
-  app_link_pending: "bg-cyan-50 text-cyan-600 border-cyan-200",
-  nurture: "bg-sky-50 text-sky-600 border-sky-200",
-  won: "bg-green-50 text-green-600 border-green-200",
-  lost: "bg-red-50 text-red-500 border-red-200",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  new: "New",
-  uncontacted: "Uncontacted",
-  contacted: "Contacted",
-  engaged: "Engaged",
-  qualified: "Qualified",
-  application_taken: "Application Taken",
-  application_in_progress: "App In Progress",
-  credit_repair: "Credit Repair",
-  callback_scheduled: "Callback Scheduled",
-  app_link_pending: "App Link Pending",
-  nurture: "Nurture",
-  won: "Won",
-  lost: "Lost",
-};
+// STATUS_COLORS, STATUS_LABELS, and CONTACT_STATUSES imported from @/lib/contactStatus
 
 // Disposition buttons matching Tariq's exact wording
 const DISPOSITION_BUTTONS = [

@@ -5049,3 +5049,12 @@
 - [x] Settings.tsx: add VapiConfigCard with API Key, Phone Number ID, Assistant ID Override fields
 - [x] Tests: server/aiCalls.test.ts — 19 tests pass (account config, env fallback, PRECONDITION_FAILED, bulkStart, assistant override, lead-source routing)
 - [x] Verify: pnpm vitest run server/aiCalls.test.ts — all 19 pass
+
+## Contact Status Enum Sync & Centralization
+
+- [x] Task 1: Fix Jarvis tool enums in jarvisTools.ts (4 locations replaced with full 15-value enum)
+- [x] Task 2: Create shared client/src/lib/contactStatus.ts module (CONTACT_STATUSES, STATUS_LABELS, STATUS_COLORS, ContactStatus type)
+- [x] Task 3: Refactor Contacts.tsx to import from shared module (removed local declarations)
+- [x] Task 4: Refactor ContactDetail.tsx to import from shared module (removed local declarations)
+- [x] Task 5: Add guard test server/contactStatus.test.ts (3 tests pass)
+- [x] Verify: pnpm vitest run server/contactStatus.test.ts — all 3 pass
