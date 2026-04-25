@@ -871,12 +871,12 @@ export default function ContactDetail({
 
           {/* Internal Notes Section — Owner/Manager Only */}
           {isOwnerOrManager && (
-            <Card className="bg-yellow-500/5 border border-yellow-500/20 card-shadow">
+            <Card className="bg-blue-500/5 border border-blue-500/20 card-shadow">
               <CardHeader className="pb-2 pt-3 px-4">
                 <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-yellow-500" />
-                  <CardTitle className="text-sm font-semibold text-yellow-500">Internal Notes</CardTitle>
-                  <Badge variant="outline" className="text-[9px] border-yellow-500/30 text-yellow-400 bg-yellow-500/10 ml-auto">
+                  <Lock className="h-4 w-4 text-blue-500" />
+                  <CardTitle className="text-sm font-semibold text-blue-500">Internal Notes</CardTitle>
+                  <Badge variant="outline" className="text-[9px] border-blue-500/30 text-blue-400 bg-blue-500/10 ml-auto">
                     Hidden from employees & Jarvis
                   </Badge>
                 </div>
@@ -887,7 +887,7 @@ export default function ContactDetail({
                     value={internalNoteText}
                     onChange={(e) => setInternalNoteText(e.target.value)}
                     placeholder="Write an internal note (hidden from employees & Jarvis)..."
-                    className="min-h-[60px] text-sm resize-none bg-yellow-500/5 border-yellow-500/20 placeholder:text-yellow-600/40"
+                    className="min-h-[60px] text-sm resize-none bg-blue-500/5 border-blue-500/20 placeholder:text-blue-600/40"
                   />
                   {/* Quick-key buttons */}
                   <div className="flex flex-wrap gap-1.5">
@@ -917,7 +917,7 @@ export default function ContactDetail({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-7 gap-1.5 border-yellow-500/30 text-yellow-500 hover:bg-yellow-500/10"
+                      className="h-7 gap-1.5 border-blue-500/30 text-blue-500 hover:bg-blue-500/10"
                       disabled={!internalNoteText.trim() || addInternalNoteMutation.isPending}
                       onClick={() => {
                         if (internalNoteText.trim()) {
@@ -937,31 +937,7 @@ export default function ContactDetail({
                       Add Internal Note
                     </Button>
                   </div>
-                  {/* Internal notes list */}
-                  {notes && notes.filter((n: any) => n.isInternal).length > 0 && (
-                    <div className="space-y-2 pt-2 border-t border-yellow-500/10">
-                      {notes.filter((n: any) => n.isInternal).map((note) => (
-                        <div key={note.id} className="flex items-start justify-between gap-2 py-1.5">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm text-yellow-100 whitespace-pre-wrap">{note.content}</p>
-                            <p className="text-[10px] text-yellow-600/60 mt-1">
-                              {note.authorName || "Unknown"} &middot; {new Date(note.createdAt).toLocaleString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-0.5 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 text-yellow-600/40 hover:text-destructive"
-                              onClick={() => deleteNoteMutation.mutate({ noteId: note.id, accountId })}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {/* Internal notes now shown in main timeline only */}
                 </div>
               </CardContent>
             </Card>
@@ -970,13 +946,13 @@ export default function ContactDetail({
           {/* Notes List */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium text-muted-foreground">
-              Notes ({(notes || []).filter(n => !n.isInternal).length})
+              Notes ({(notes || []).filter(n => isOwnerOrManager || !n.isInternal).length})
             </h3>
-            {notes && notes.filter(n => !n.isInternal).length > 0 ? (
-              notes.filter(n => !n.isInternal).map((note) => (
+            {notes && notes.filter(n => isOwnerOrManager || !n.isInternal).length > 0 ? (
+              notes.filter(n => isOwnerOrManager || !n.isInternal).map((note) => (
                 <Card
                   key={note.id}
-                  className={`bg-card border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""} ${(note as any).isInternal ? "border-l-2 border-l-yellow-500/50" : ""}`}
+                  className={`bg-card border-0 card-shadow ${note.isPinned ? "border-primary/30" : ""} ${(note as any).isInternal ? "border-l-2 border-l-blue-500/50" : ""}`}
                 >
                   <CardContent className="pt-3 pb-3">
                     <div className="flex items-start justify-between gap-3">
@@ -985,7 +961,7 @@ export default function ContactDetail({
                           {(note as any).isInternal && (
                             <Badge
                               variant="outline"
-                              className="text-[9px] border-yellow-500/30 text-yellow-400 bg-yellow-500/5"
+                              className="text-[9px] border-blue-500/30 text-blue-400 bg-blue-500/5"
                             >
                               <Lock className="h-2.5 w-2.5 mr-0.5" />
                               Internal

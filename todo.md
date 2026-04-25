@@ -5071,3 +5071,10 @@
 ## Jarvis Notes Context Window
 
 - [x] Raise publicNotes.slice from 10 to 50 in jarvisTools.ts line 1369
+
+## Internal Notes: Yellow → Blue + Timeline Integration
+
+- [x] 4A: Recolor Internal Notes card from yellow to blue (card bg, lock icon, title, badge, textarea, submit button)
+- [x] 4B: Remove duplicate internal notes list inside the dedicated card (replaced with comment)
+- [x] 4C: Show internal notes in main Notes timeline for owner/manager only (filter: isOwnerOrManager || !n.isInternal)
+- [x] 4D: Recolor internal note styling in timeline from yellow to blue (border-l, badge)
