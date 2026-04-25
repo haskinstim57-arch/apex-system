@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, type ContactStatus } from "@/lib/contactStatus";
+import { ContactQuickActions } from "@/components/ContactQuickActions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,11 +38,9 @@ import {
   MoreHorizontal,
   Pencil,
   Phone,
-  PhoneForwarded,
   Pin,
   PinOff,
   Plus,
-  Send,
   Tag,
   Trash2,
   User,
@@ -72,14 +71,8 @@ import {
   Lock,
   Eye,
   EyeOff,
-  MessageCircle,
 } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -257,13 +250,6 @@ export default function ContactDetail({
     onError: (err) => toast.error(err.message),
   });
 
-  const startAICallMutation = trpc.aiCalls.start.useMutation({
-    onSuccess: () => {
-      toast.success("AI call initiated successfully");
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
   const updateDndMutation = trpc.smsCompliance.updateContactDnd.useMutation({
     onSuccess: () => {
       toast.success("DND status updated");
@@ -272,52 +258,7 @@ export default function ContactDetail({
     onError: (err) => toast.error(err.message),
   });
 
-  // ── Phone Popover state ──
-  const [phonePopoverOpen, setPhonePopoverOpen] = useState(false);
-  const [callSubmenuOpen, setCallSubmenuOpen] = useState(false);
-  const [smsDialogOpen, setSmsDialogOpen] = useState(false);
-  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
-  const [smsBody, setSmsBody] = useState("");
-  const [smsProvider, setSmsProvider] = useState<"blooio" | "twilio">("blooio");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailBody, setEmailBody] = useState("");
-  const [selectedSmsTemplateId, setSelectedSmsTemplateId] = useState<string>("");
-  const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>("");
-
-  // SMS & Email template queries
-  const { data: smsTemplates = [] } = trpc.smsTemplates.list.useQuery(
-    { accountId },
-    { enabled: !!contact }
-  );
-  const { data: emailTemplates = [] } = trpc.emailTemplates.list.useQuery(
-    { accountId },
-    { enabled: !!contact }
-  );
-
-  // Twilio click-to-call mutation
-  const clickToCallMutation = trpc.twilioCalls.clickToCall.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Call initiated — your phone will ring shortly`);
-      setPhonePopoverOpen(false);
-    },
-    onError: (err) => toast.error(err.message),
-  });
-
-  // Inbox sendReply mutation for SMS/Email from popover
-  const sendReplyMutation = trpc.inbox.sendReply.useMutation({
-    onSuccess: (_, vars) => {
-      toast.success(vars.type === "sms" ? "SMS sent" : "Email sent");
-      setSmsDialogOpen(false);
-      setEmailDialogOpen(false);
-      setSmsBody("");
-      setEmailSubject("");
-      setEmailBody("");
-      setSelectedSmsTemplateId("");
-      setSelectedEmailTemplateId("");
-      utils.inbox.thread.invalidate();
-    },
-    onError: (err) => toast.error(err.message),
-  });
+  // Phone/SMS/Email quick actions are now handled by ContactQuickActions component
 
   if (isLoading) {
     return (
@@ -380,74 +321,12 @@ export default function ContactDetail({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {contact.phone && (
-            <Popover open={phonePopoverOpen} onOpenChange={(open) => { setPhonePopoverOpen(open); if (!open) setCallSubmenuOpen(false); }}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                >
-                  <Phone className="h-3 w-3" />
-                  {contact.phone}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-56 p-2" align="end">
-                <div className="space-y-1">
-                  {/* Call section */}
-                  <button
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors text-left"
-                    onClick={() => setCallSubmenuOpen(!callSubmenuOpen)}
-                  >
-                    <PhoneCall className="h-4 w-4 text-green-500" />
-                    <span className="flex-1">Call</span>
-                    <ChevronDown className={`h-3 w-3 text-muted-foreground transition-transform ${callSubmenuOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  {callSubmenuOpen && (
-                    <div className="ml-6 space-y-1 border-l border-border/50 pl-2">
-                      <button
-                        className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-accent transition-colors text-left"
-                        disabled={startAICallMutation.isPending}
-                        onClick={() => {
-                          startAICallMutation.mutate({ accountId, contactId: contact.id });
-                          setPhonePopoverOpen(false);
-                        }}
-                      >
-                        {startAICallMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <PhoneForwarded className="h-3 w-3 text-blue-500" />}
-                        AI Call (Vappy)
-                      </button>
-                      <button
-                        className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-accent transition-colors text-left"
-                        disabled={clickToCallMutation.isPending}
-                        onClick={() => {
-                          clickToCallMutation.mutate({ accountId, contactId: contact.id });
-                        }}
-                      >
-                        {clickToCallMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Phone className="h-3 w-3 text-emerald-500" />}
-                        Call My Phone (Twilio)
-                      </button>
-                    </div>
-                  )}
-                  {/* SMS */}
-                  <button
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors text-left"
-                    onClick={() => { setSmsDialogOpen(true); setPhonePopoverOpen(false); }}
-                  >
-                    <MessageCircle className="h-4 w-4 text-blue-500" />
-                    <span>SMS</span>
-                  </button>
-                  {/* Email */}
-                  <button
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-accent transition-colors text-left"
-                    onClick={() => { setEmailDialogOpen(true); setPhonePopoverOpen(false); }}
-                  >
-                    <Mail className="h-4 w-4 text-purple-500" />
-                    <span>Email</span>
-                  </button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          )}
+          <ContactQuickActions
+            contact={contact}
+            accountId={accountId}
+            size="md"
+            onStopPropagation={false}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -1062,174 +941,7 @@ export default function ContactDetail({
         loading={updateMutation.isPending}
       />
 
-      {/* SMS Dialog */}
-      <Dialog open={smsDialogOpen} onOpenChange={(open) => { setSmsDialogOpen(open); if (!open) { setSmsBody(""); setSelectedSmsTemplateId(""); } }}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-blue-500" />
-              Send SMS to {contact.firstName}
-            </DialogTitle>
-            <DialogDescription>
-              {contact.phone}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* Provider */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Provider</Label>
-              <RadioGroup
-                value={smsProvider}
-                onValueChange={(v) => setSmsProvider(v as "blooio" | "twilio")}
-                className="flex gap-4"
-              >
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="blooio" id="sms-blooio" />
-                  <Label htmlFor="sms-blooio" className="text-sm cursor-pointer">Blooio</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="twilio" id="sms-twilio" />
-                  <Label htmlFor="sms-twilio" className="text-sm cursor-pointer">Twilio</Label>
-                </div>
-              </RadioGroup>
-            </div>
-            {/* Template */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Template (optional)</Label>
-              <Select
-                value={selectedSmsTemplateId}
-                onValueChange={(v) => {
-                  setSelectedSmsTemplateId(v);
-                  const tpl = smsTemplates.find((t: any) => String(t.id) === v);
-                  if (tpl) setSmsBody((tpl as any).body);
-                }}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select a template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {smsTemplates.map((t: any) => (
-                    <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Body */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">Message</Label>
-                <span className={`text-[10px] ${smsBody.length > 160 ? "text-orange-400" : "text-muted-foreground"}`}>
-                  {smsBody.length}/160
-                </span>
-              </div>
-              <Textarea
-                value={smsBody}
-                onChange={(e) => setSmsBody(e.target.value)}
-                placeholder="Type your message..."
-                rows={4}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setSmsDialogOpen(false)}>Cancel</Button>
-            <Button
-              size="sm"
-              disabled={!smsBody.trim() || sendReplyMutation.isPending}
-              onClick={() => {
-                sendReplyMutation.mutate({
-                  accountId,
-                  contactId: contact.id,
-                  type: "sms",
-                  body: smsBody.trim(),
-                  provider: smsProvider,
-                });
-              }}
-            >
-              {sendReplyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <Send className="h-3 w-3 mr-1.5" />}
-              Send SMS
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Email Dialog */}
-      <Dialog open={emailDialogOpen} onOpenChange={(open) => { setEmailDialogOpen(open); if (!open) { setEmailSubject(""); setEmailBody(""); setSelectedEmailTemplateId(""); } }}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Mail className="h-4 w-4 text-purple-500" />
-              Send Email to {contact.firstName}
-            </DialogTitle>
-            <DialogDescription>
-              {contact.email || "No email on file"}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* Template */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Template (optional)</Label>
-              <Select
-                value={selectedEmailTemplateId}
-                onValueChange={(v) => {
-                  setSelectedEmailTemplateId(v);
-                  const tpl = emailTemplates.find((t: any) => String(t.id) === v);
-                  if (tpl) {
-                    setEmailSubject((tpl as any).subject || "");
-                    setEmailBody((tpl as any).body || "");
-                  }
-                }}
-              >
-                <SelectTrigger className="h-9">
-                  <SelectValue placeholder="Select a template..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {emailTemplates.map((t: any) => (
-                    <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {/* Subject */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Subject</Label>
-              <Input
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-                placeholder="Email subject..."
-              />
-            </div>
-            {/* Body */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">Body</Label>
-              <Textarea
-                value={emailBody}
-                onChange={(e) => setEmailBody(e.target.value)}
-                placeholder="Type your email..."
-                rows={6}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setEmailDialogOpen(false)}>Cancel</Button>
-            <Button
-              size="sm"
-              disabled={!emailSubject.trim() || !emailBody.trim() || !contact.email || sendReplyMutation.isPending}
-              onClick={() => {
-                sendReplyMutation.mutate({
-                  accountId,
-                  contactId: contact.id,
-                  type: "email",
-                  subject: emailSubject.trim(),
-                  body: emailBody.trim(),
-                });
-              }}
-            >
-              {sendReplyMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <Send className="h-3 w-3 mr-1.5" />}
-              Send Email
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* SMS and Email dialogs are now handled by ContactQuickActions component */}
     </div>
   );
 }

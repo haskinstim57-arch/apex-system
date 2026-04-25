@@ -5089,3 +5089,16 @@
 - [x] Calendar.tsx: add TimeBlocksDialog with datetime-range picker, reason, add/delete + greyed-out bars on grid
 - [x] Tests: server/calendar.test.ts — slot filtered out when overlapping manual block, blocks merge with external busy times (36 tests pass)
 - [x] Verify: pnpm vitest run server/calendar.test.ts — all 36 pass
+
+## ContactQuickActions Component
+
+- [x] Create client/src/components/ContactQuickActions.tsx with Phone/SMS/Email icon buttons
+- [x] Phone button: popover with AI Call (Vappy) + Call My Phone (Twilio) options
+- [x] SMS button: dialog with provider selector + template picker + message textarea
+- [x] Email button: dialog with subject + body + template picker
+- [x] Disabled states with tooltips when contact lacks phone/email
+- [x] stopPropagation support for list row usage
+- [x] Add ContactQuickActions to Contacts.tsx table rows (new Quick Actions column)
+- [x] Replace inline popover/dialog in ContactDetail.tsx with ContactQuickActions size="md"
+- [x] Clean up unused state/mutations/imports from ContactDetail.tsx
+- [x] Verify: dev server compiles cleanly, no errors

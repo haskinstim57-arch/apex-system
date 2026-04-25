@@ -1,6 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { CONTACT_STATUSES, STATUS_COLORS, STATUS_LABELS, type ContactStatus } from "@/lib/contactStatus";
+import { ContactQuickActions } from "@/components/ContactQuickActions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1383,8 +1384,11 @@ export default function Contacts() {
                     </TableHead>
                   );
                 })}
+                <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
+                  Quick Actions
+                </TableHead>
                 <TableHead className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[50px]">
-                  Actions
+                  
                 </TableHead>
               </tr>
             </thead>
@@ -1483,6 +1487,12 @@ export default function Contacts() {
                             </TableCell>
                           );
                         })}
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          <ContactQuickActions
+                            contact={contact}
+                            accountId={accountId!}
+                          />
+                        </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger
