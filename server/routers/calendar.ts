@@ -25,10 +25,27 @@ import {
   logContactActivity,
   createNotification,
   getExternalCalendarEventsByAccount,
+  createCalendarBlock,
+  deleteCalendarBlock,
+  listCalendarBlocks,
 } from "../db";
 import { dispatchEmail, dispatchSMS } from "../services/messaging";
 import { generateICSBase64 } from "../utils/icsGenerator";
 import { getGoogleBusyTimes, refreshGoogleToken, createGoogleEvent } from "../services/googleCalendar";
+
+/** Fetch manual calendar blocks for a given calendar and date, returning ms-based ranges */
+async function getManualBlocks(
+  calendarId: number,
+  dateStr: string
+): Promise<{ start: number; end: number }[]> {
+  const dayStart = new Date(`${dateStr}T00:00:00Z`);
+  const dayEnd = new Date(`${dateStr}T23:59:59Z`);
+  const blocks = await listCalendarBlocks(calendarId, dayStart, dayEnd);
+  return blocks.map((b) => ({
+    start: new Date(b.startTime).getTime(),
+    end: new Date(b.endTime).getTime(),
+  }));
+}
 import { getOutlookBusyTimes, refreshOutlookToken, createOutlookEvent } from "../services/outlookCalendar";
 
 // ─── External calendar busy time helper ───
@@ -527,12 +544,16 @@ export const calendarRouter = router({
           getExternalBusyTimes(input.accountId, `${dateStr}T00:00:00Z`, `${dateStr}T23:59:59Z`),
           getCachedExternalBusyBlocks(input.accountId, dateStr, bufferMinutes),
         ]);
+        // Also fetch manual calendar blocks
+        const manualBusy = await getManualBlocks(appt.calendarId, dateStr);
+
         const allBusy: { start: number; end: number }[] = [
           ...liveBusy.map((b) => ({
             start: new Date(b.start).getTime() - bufferMinutes * 60 * 1000,
             end: new Date(b.end).getTime() + bufferMinutes * 60 * 1000,
           })),
           ...cachedBusy,
+          ...manualBusy,
         ];
         if (hasTimeConflict(input.startTime.getTime(), input.endTime.getTime(), allBusy)) {
           throw new TRPCError({
@@ -708,6 +729,9 @@ export const calendarRouter = router({
         calendar.bufferMinutes
       );
 
+      // Fetch manual calendar blocks
+      const manualBlocks = await getManualBlocks(calendar.id, input.date);
+
       // Merge all busy blocks into a unified list
       const allBusyBlocks: { start: number; end: number }[] = [
         ...busyBlocks.map((b) => ({
@@ -715,6 +739,7 @@ export const calendarRouter = router({
           end: new Date(b.end).getTime() + calendar.bufferMinutes * 60 * 1000,
         })),
         ...cachedBusyBlocks,
+        ...manualBlocks,
       ];
 
       if (allBusyBlocks.length === 0) return filteredSlots;
@@ -724,6 +749,69 @@ export const calendarRouter = router({
         const slotEnd = new Date(`${input.date}T${slot.end}:00Z`).getTime();
         return !hasTimeConflict(slotStart, slotEnd, allBusyBlocks);
       });
+    }),
+
+  /** Book an appointment (public, no auth) */
+  // ─── Calendar Blocks (owner/manager only) ───
+
+  addBlock: protectedProcedure
+    .input(
+      z.object({
+        calendarId: z.number(),
+        accountId: z.number(),
+        startTime: z.date(),
+        endTime: z.date(),
+        reason: z.string().max(255).optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const member = await getMember(ctx.user.id, input.accountId);
+      if (!member || (member.role !== "owner" && member.role !== "manager")) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and managers can block time." });
+      }
+      if (input.endTime <= input.startTime) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "End time must be after start time." });
+      }
+      return createCalendarBlock({
+        calendarId: input.calendarId,
+        accountId: input.accountId,
+        startTime: input.startTime,
+        endTime: input.endTime,
+        reason: input.reason ?? null,
+        createdByUserId: ctx.user.id,
+      });
+    }),
+
+  removeBlock: protectedProcedure
+    .input(z.object({ id: z.number(), accountId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await getMember(ctx.user.id, input.accountId);
+      if (!member || (member.role !== "owner" && member.role !== "manager")) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and managers can remove blocks." });
+      }
+      await deleteCalendarBlock(input.id, input.accountId);
+      return { success: true };
+    }),
+
+  listBlocks: protectedProcedure
+    .input(
+      z.object({
+        calendarId: z.number(),
+        accountId: z.number(),
+        startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const member = await getMember(ctx.user.id, input.accountId);
+      if (!member) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not a member of this account." });
+      }
+      return listCalendarBlocks(
+        input.calendarId,
+        new Date(`${input.startDate}T00:00:00Z`),
+        new Date(`${input.endDate}T23:59:59Z`)
+      );
     }),
 
   /** Book an appointment (public, no auth) */
@@ -783,12 +871,16 @@ export const calendarRouter = router({
         ),
       ]);
 
+      // Also fetch manual calendar blocks
+      const manualBlocks = await getManualBlocks(calendar.id, input.date);
+
       const allBusyBlocks: { start: number; end: number }[] = [
         ...liveBusyBlocks.map((b) => ({
           start: new Date(b.start).getTime() - calendar.bufferMinutes * 60 * 1000,
           end: new Date(b.end).getTime() + calendar.bufferMinutes * 60 * 1000,
         })),
         ...cachedBusyBlocks,
+        ...manualBlocks,
       ];
 
       if (hasTimeConflict(startTimeDate.getTime(), endTimeDate.getTime(), allBusyBlocks)) {

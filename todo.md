@@ -5078,3 +5078,14 @@
 - [x] 4B: Remove duplicate internal notes list inside the dedicated card (replaced with comment)
 - [x] 4C: Show internal notes in main Notes timeline for owner/manager only (filter: isOwnerOrManager || !n.isInternal)
 - [x] 4D: Recolor internal note styling in timeline from yellow to blue (border-l, badge)
+
+## Calendar Manual Time Blocks
+
+- [x] Schema: create calendar_blocks table with idx_cal_range index
+- [x] Push schema migration (pnpm db:push)
+- [x] db.ts: add createCalendarBlock, deleteCalendarBlock, listCalendarBlocks helpers
+- [x] calendar.ts router: add addBlock, removeBlock, listBlocks procedures (owner/manager only)
+- [x] calendar.ts router: add getManualBlocks helper and merge into allBusyBlocks in 3 places (getPublicSlots, bookAppointment, updateAppointment)
+- [x] Calendar.tsx: add TimeBlocksDialog with datetime-range picker, reason, add/delete + greyed-out bars on grid
+- [x] Tests: server/calendar.test.ts — slot filtered out when overlapping manual block, blocks merge with external busy times (36 tests pass)
+- [x] Verify: pnpm vitest run server/calendar.test.ts — all 36 pass

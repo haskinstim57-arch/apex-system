@@ -2,6 +2,7 @@ import {
   boolean,
   date,
   decimal,
+  index,
   int,
   json,
   mysqlEnum,
@@ -938,6 +939,31 @@ export const calendars = mysqlTable("calendars", {
 
 export type Calendar = typeof calendars.$inferSelect;
 export type InsertCalendar = typeof calendars.$inferInsert;
+
+// ─────────────────────────────────────────────
+// CALENDAR BLOCKS — Manual time blocks on a calendar
+// ─────────────────────────────────────────────
+export const calendarBlocks = mysqlTable("calendar_blocks", {
+  id: int("id").autoincrement().primaryKey(),
+  /** Calendar this block belongs to */
+  calendarId: int("calendarId").notNull(),
+  /** Sub-account this block belongs to */
+  accountId: int("accountId").notNull(),
+  /** Block start time (UTC) */
+  startTime: timestamp("startTime").notNull(),
+  /** Block end time (UTC) */
+  endTime: timestamp("endTime").notNull(),
+  /** Optional reason for the block */
+  reason: varchar("reason", { length: 255 }),
+  /** User who created this block */
+  createdByUserId: int("createdByUserId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ([
+  index("idx_cal_range").on(table.calendarId, table.startTime, table.endTime),
+]));
+
+export type CalendarBlock = typeof calendarBlocks.$inferSelect;
+export type InsertCalendarBlock = typeof calendarBlocks.$inferInsert;
 
 // ─────────────────────────────────────────────
 // APPOINTMENTS — Bookings on a calendar

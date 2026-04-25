@@ -55,8 +55,40 @@ vi.mock("./db", async () => {
     getAvailableSlots: vi.fn(),
     getAppointmentsByContact: vi.fn(),
     createAuditLog: vi.fn(),
+    createCalendarBlock: vi.fn(),
+    deleteCalendarBlock: vi.fn(),
+    listCalendarBlocks: vi.fn(),
+    getAccountById: vi.fn(),
+    getActiveCalendarIntegrations: vi.fn(),
+    getCalendarIntegrations: vi.fn(),
+    decryptCalendarTokens: vi.fn(),
+    updateCalendarIntegration: vi.fn(),
+    logContactActivity: vi.fn(),
+    createNotification: vi.fn(),
+    getExternalCalendarEventsByAccount: vi.fn(),
   };
 });
+
+vi.mock("./services/messaging", () => ({
+  dispatchEmail: vi.fn().mockResolvedValue({ success: true }),
+  dispatchSMS: vi.fn().mockResolvedValue({ success: true }),
+}));
+
+vi.mock("./services/googleCalendar", () => ({
+  getGoogleBusyTimes: vi.fn().mockResolvedValue([]),
+  refreshGoogleToken: vi.fn(),
+  createGoogleEvent: vi.fn(),
+}));
+
+vi.mock("./services/outlookCalendar", () => ({
+  getOutlookBusyTimes: vi.fn().mockResolvedValue([]),
+  refreshOutlookToken: vi.fn(),
+  createOutlookEvent: vi.fn(),
+}));
+
+vi.mock("./utils/icsGenerator", () => ({
+  generateICSBase64: vi.fn().mockReturnValue("base64ics"),
+}));
 
 const mockDb = db as unknown as {
   getMember: ReturnType<typeof vi.fn>;
@@ -74,6 +106,17 @@ const mockDb = db as unknown as {
   getAvailableSlots: ReturnType<typeof vi.fn>;
   getAppointmentsByContact: ReturnType<typeof vi.fn>;
   createAuditLog: ReturnType<typeof vi.fn>;
+  createCalendarBlock: ReturnType<typeof vi.fn>;
+  deleteCalendarBlock: ReturnType<typeof vi.fn>;
+  listCalendarBlocks: ReturnType<typeof vi.fn>;
+  getAccountById: ReturnType<typeof vi.fn>;
+  getActiveCalendarIntegrations: ReturnType<typeof vi.fn>;
+  getCalendarIntegrations: ReturnType<typeof vi.fn>;
+  decryptCalendarTokens: ReturnType<typeof vi.fn>;
+  updateCalendarIntegration: ReturnType<typeof vi.fn>;
+  logContactActivity: ReturnType<typeof vi.fn>;
+  createNotification: ReturnType<typeof vi.fn>;
+  getExternalCalendarEventsByAccount: ReturnType<typeof vi.fn>;
 };
 
 const ACCOUNT_ID = 10;
@@ -128,6 +171,13 @@ beforeEach(() => {
     isActive: true,
   });
   mockDb.createAuditLog.mockResolvedValue(undefined);
+  // Default: no external calendar integrations, no manual blocks, no cached events
+  mockDb.getActiveCalendarIntegrations.mockResolvedValue([]);
+  mockDb.getExternalCalendarEventsByAccount.mockResolvedValue([]);
+  mockDb.listCalendarBlocks.mockResolvedValue([]);
+  mockDb.logContactActivity.mockResolvedValue(undefined);
+  mockDb.createNotification.mockResolvedValue(undefined);
+  mockDb.getAccountById.mockResolvedValue({ id: ACCOUNT_ID, name: "Test Account" });
 });
 
 // ═══════════════════════════════════════════
@@ -562,5 +612,175 @@ describe("calendar admin access", () => {
       slug: "admin-cal",
     });
     expect(result.id).toBe(3);
+  });
+});
+
+// ═══════════════════════════════════════════
+// CALENDAR BLOCKS
+// ═══════════════════════════════════════════
+
+describe("calendar.addBlock", () => {
+  it("creates a calendar block for an owner", async () => {
+    mockDb.getCalendar.mockResolvedValue(mockCalendar);
+    mockDb.createCalendarBlock.mockResolvedValue({ id: 1 });
+    const caller = appRouter.createCaller(createAuthContext());
+
+    const start = new Date("2026-04-10T13:00:00Z");
+    const end = new Date("2026-04-10T14:00:00Z");
+
+    const result = await caller.calendar.addBlock({
+      calendarId: CALENDAR_ID,
+      accountId: ACCOUNT_ID,
+      startTime: start,
+      endTime: end,
+      reason: "Lunch break",
+    });
+
+    expect(result.id).toBe(1);
+    expect(mockDb.createCalendarBlock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        calendarId: CALENDAR_ID,
+        accountId: ACCOUNT_ID,
+        reason: "Lunch break",
+      })
+    );
+  });
+
+  it("rejects non-members", async () => {
+    mockDb.getMember.mockResolvedValue(null);
+    const caller = appRouter.createCaller(createAuthContext());
+    await expect(
+      caller.calendar.addBlock({
+        calendarId: CALENDAR_ID,
+        accountId: ACCOUNT_ID,
+        startTime: new Date("2026-04-10T13:00:00Z"),
+        endTime: new Date("2026-04-10T14:00:00Z"),
+      })
+    ).rejects.toThrow();
+  });
+});
+
+describe("calendar.removeBlock", () => {
+  it("deletes a calendar block", async () => {
+    mockDb.deleteCalendarBlock.mockResolvedValue(true);
+    const caller = appRouter.createCaller(createAuthContext());
+
+    await caller.calendar.removeBlock({ id: 5, accountId: ACCOUNT_ID });
+    expect(mockDb.deleteCalendarBlock).toHaveBeenCalledWith(5, ACCOUNT_ID);
+  });
+});
+
+describe("calendar.listBlocks", () => {
+  it("returns blocks for a date range", async () => {
+    const blocks = [
+      {
+        id: 1,
+        calendarId: CALENDAR_ID,
+        accountId: ACCOUNT_ID,
+        startTime: new Date("2026-04-10T13:00:00Z"),
+        endTime: new Date("2026-04-10T14:00:00Z"),
+        reason: "Lunch",
+        createdByUserId: 1,
+        createdAt: new Date(),
+      },
+    ];
+    mockDb.listCalendarBlocks.mockResolvedValue(blocks);
+    const caller = appRouter.createCaller(createAuthContext());
+
+    const result = await caller.calendar.listBlocks({
+      calendarId: CALENDAR_ID,
+      accountId: ACCOUNT_ID,
+      startDate: "2026-04-10",
+      endDate: "2026-04-10",
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].reason).toBe("Lunch");
+  });
+});
+
+describe("calendar blocks + booking conflict", () => {
+  // Use a date 3 days in the future to pass minNoticeHours and maxDaysAhead checks
+  function getFutureDate(): string {
+    const d = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+    return d.toISOString().split("T")[0];
+  }
+
+  it("booking that overlaps a manual block gets rejected", async () => {
+    const dateStr = getFutureDate();
+    // Calendar is available 9-17 on weekdays
+    mockDb.getCalendarBySlug.mockResolvedValue({
+      ...mockCalendar,
+      minNoticeHours: 0,
+    });
+    // The slot 14:00-14:30 is available per weekly schedule
+    mockDb.getAvailableSlots.mockResolvedValue([
+      { start: "14:00", end: "14:30" },
+    ]);
+    // But there's a manual block from 13:30-15:00 that day
+    mockDb.listCalendarBlocks.mockResolvedValue([
+      {
+        id: 1,
+        calendarId: CALENDAR_ID,
+        accountId: ACCOUNT_ID,
+        startTime: new Date(`${dateStr}T13:30:00Z`),
+        endTime: new Date(`${dateStr}T15:00:00Z`),
+        reason: "Team meeting",
+        createdByUserId: 1,
+        createdAt: new Date(),
+      },
+    ]);
+
+    const caller = appRouter.createCaller(createPublicContext());
+
+    // The public booking should be rejected because the slot overlaps the manual block
+    const result = await caller.calendar.getPublicSlots({
+      slug: "30-min-consult",
+      date: dateStr,
+    });
+
+    // The 14:00 slot should be filtered out because it overlaps the 13:30-15:00 block
+    const has14 = result.some((s: any) => s.start === "14:00");
+    expect(has14).toBe(false);
+  });
+
+  it("blocks merge correctly with external busy times", async () => {
+    const dateStr = getFutureDate();
+    mockDb.getCalendarBySlug.mockResolvedValue({
+      ...mockCalendar,
+      minNoticeHours: 0,
+      bufferMinutes: 0,
+    });
+    // Available slots: 09:00-09:30, 10:00-10:30, 14:00-14:30
+    mockDb.getAvailableSlots.mockResolvedValue([
+      { start: "09:00", end: "09:30" },
+      { start: "10:00", end: "10:30" },
+      { start: "14:00", end: "14:30" },
+    ]);
+    // Manual block covers 09:00-09:30
+    mockDb.listCalendarBlocks.mockResolvedValue([
+      {
+        id: 2,
+        calendarId: CALENDAR_ID,
+        accountId: ACCOUNT_ID,
+        startTime: new Date(`${dateStr}T09:00:00Z`),
+        endTime: new Date(`${dateStr}T09:30:00Z`),
+        reason: "Morning standup",
+        createdByUserId: 1,
+        createdAt: new Date(),
+      },
+    ]);
+
+    const caller = appRouter.createCaller(createPublicContext());
+    const result = await caller.calendar.getPublicSlots({
+      slug: "30-min-consult",
+      date: dateStr,
+    });
+
+    // 09:00 should be blocked, but 10:00 and 14:00 should remain
+    const starts = result.map((s: any) => s.start);
+    expect(starts).not.toContain("09:00");
+    expect(starts).toContain("10:00");
+    expect(starts).toContain("14:00");
   });
 });

@@ -57,6 +57,8 @@ import {
   type InsertAccountFacebookPage,
   calendars,
   type InsertCalendar,
+  calendarBlocks,
+  type InsertCalendarBlock,
   appointments,
   type InsertAppointment,
   calendarIntegrations,
@@ -3124,6 +3126,43 @@ export async function getAppointmentsByContact(contactId: number, accountId: num
     .from(appointments)
     .where(and(eq(appointments.contactId, contactId), eq(appointments.accountId, accountId)))
     .orderBy(desc(appointments.startTime));
+}
+
+// ─── Calendar Blocks ───
+
+export async function createCalendarBlock(data: InsertCalendarBlock) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const [result] = await db.insert(calendarBlocks).values(data);
+  return { id: result.insertId };
+}
+
+export async function deleteCalendarBlock(id: number, accountId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(calendarBlocks).where(
+    and(eq(calendarBlocks.id, id), eq(calendarBlocks.accountId, accountId))
+  );
+}
+
+export async function listCalendarBlocks(
+  calendarId: number,
+  dayStart: Date,
+  dayEnd: Date
+) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(calendarBlocks)
+    .where(
+      and(
+        eq(calendarBlocks.calendarId, calendarId),
+        lte(calendarBlocks.startTime, dayEnd),
+        gte(calendarBlocks.endTime, dayStart)
+      )
+    )
+    .orderBy(asc(calendarBlocks.startTime));
 }
 
 /**

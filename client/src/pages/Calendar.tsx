@@ -31,6 +31,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
+  Ban,
   CalendarDays,
   Check,
   ChevronLeft,
@@ -165,6 +166,7 @@ export default function CalendarPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<any>(null);
   const [selectedCalendarId, setSelectedCalendarId] = useState<number | null>(null);
+  const [managingBlocksCal, setManagingBlocksCal] = useState<{ id: number; name: string } | null>(null);
 
   if (!currentAccountId) return <NoAccountSelected />;
 
@@ -212,6 +214,7 @@ export default function CalendarPage() {
             accountId={currentAccountId}
             onCreateNew={() => setShowCreateDialog(true)}
             onEdit={(cal: any) => setEditingCalendar(cal)}
+            onManageBlocks={(cal: any) => setManagingBlocksCal({ id: cal.id, name: cal.name })}
           />
         </TabsContent>
       </Tabs>
@@ -228,6 +231,15 @@ export default function CalendarPage() {
           accountId={currentAccountId}
           calendar={editingCalendar}
           onClose={() => setEditingCalendar(null)}
+        />
+      )}
+
+      {managingBlocksCal && (
+        <TimeBlocksDialog
+          accountId={currentAccountId}
+          calendarId={managingBlocksCal.id}
+          calendarName={managingBlocksCal.name}
+          onClose={() => setManagingBlocksCal(null)}
         />
       )}
     </div>
@@ -287,7 +299,41 @@ function CalendarGridView({ accountId }: { accountId: number }) {
     return map;
   }, [externalEvents]);
 
+  // Fetch manual time blocks for all calendars in the visible range
   const { data: calendars = [] } = trpc.calendar.list.useQuery({ accountId });
+  const calendarIds = useMemo(() => calendars.map((c) => c.id), [calendars]);
+  const blockStartDate = useMemo(() => weekStart.toISOString().split("T")[0], [weekStart]);
+  const blockEndDate = useMemo(() => weekEnd.toISOString().split("T")[0], [weekEnd]);
+
+  // Fetch blocks for all calendars — use the first calendar for now (most common case)
+  // For multi-calendar, we'd need parallel queries
+  const { data: allBlocks = [] } = trpc.calendar.listBlocks.useQuery(
+    {
+      calendarId: calendarIds[0] || 0,
+      accountId,
+      startDate: blockStartDate,
+      endDate: blockEndDate,
+    },
+    { enabled: calendarIds.length > 0 }
+  );
+
+  // Map blocks to grid positions (same pattern as external events)
+  const blocksByDayHour = useMemo(() => {
+    const map: Record<string, { start: Date; end: Date; reason: string | null }[]> = {};
+    allBlocks.forEach((block) => {
+      const start = new Date(block.startTime);
+      const end = new Date(block.endTime);
+      // A block can span multiple hours — add it to each hour it covers
+      const startHour = start.getHours();
+      const endHour = end.getHours() + (end.getMinutes() > 0 ? 1 : 0);
+      for (let h = startHour; h < endHour; h++) {
+        const key = `${start.getDay()}-${h}`;
+        if (!map[key]) map[key] = [];
+        map[key].push({ start, end, reason: block.reason });
+      }
+    });
+    return map;
+  }, [allBlocks]);
   const calendarMap = useMemo(() => {
     const map: Record<number, { name: string; color: string }> = {};
     const colors = [
@@ -468,6 +514,7 @@ function CalendarGridView({ accountId }: { accountId: number }) {
                   visibleDays={visibleDays}
                   apptsByDayHour={apptsByDayHour}
                   externalByDayHour={externalByDayHour}
+                  blocksByDayHour={blocksByDayHour}
                   calendarMap={calendarMap}
                   onSlotClick={handleSlotClick}
                   onApptClick={setSelectedAppt}
@@ -550,11 +597,14 @@ function CurrentTimeLine({ visibleDays }: { visibleDays: Date[] }) {
 // ─── Hour Row ───
 type ExternalEvent = { provider: string; id: string; title: string; start: string; end: string; allDay: boolean };
 
+type BlockEntry = { start: Date; end: Date; reason: string | null };
+
 function HourRow({
   hour,
   visibleDays,
   apptsByDayHour,
   externalByDayHour,
+  blocksByDayHour,
   calendarMap,
   onSlotClick,
   onApptClick,
@@ -563,6 +613,7 @@ function HourRow({
   visibleDays: Date[];
   apptsByDayHour: Record<string, any[]>;
   externalByDayHour?: Record<string, ExternalEvent[]>;
+  blocksByDayHour?: Record<string, BlockEntry[]>;
   calendarMap: Record<number, { name: string; color: string }>;
   onSlotClick: (date: Date, hour: number) => void;
   onApptClick: (appt: any) => void;
@@ -639,6 +690,44 @@ function HourRow({
                   </div>
                 );
               })}
+
+            {/* Manual time blocks overlay */}
+            {(blocksByDayHour?.[key] || []).map((block, blockIdx) => {
+              const blockStart = new Date(block.start);
+              const blockEnd = new Date(block.end);
+              // Calculate position within this hour cell
+              const cellHourStart = new Date(blockStart);
+              cellHourStart.setMinutes(0, 0, 0);
+              cellHourStart.setHours(hour);
+              const cellHourEnd = new Date(cellHourStart);
+              cellHourEnd.setHours(hour + 1);
+
+              const effectiveStart = blockStart > cellHourStart ? blockStart : cellHourStart;
+              const effectiveEnd = blockEnd < cellHourEnd ? blockEnd : cellHourEnd;
+              const startMin = effectiveStart.getMinutes();
+              const durationMin = (effectiveEnd.getTime() - effectiveStart.getTime()) / 60000;
+              const topOffset = (startMin / 60) * 100;
+              const heightPct = Math.min((durationMin / 60) * 100, 100);
+
+              return (
+                <div
+                  key={`block-${blockIdx}`}
+                  className="absolute left-0 right-0 bg-zinc-500/20 border-l-[3px] border-l-zinc-400 z-[3] pointer-events-none"
+                  style={{
+                    top: `${topOffset}%`,
+                    height: `${heightPct}%`,
+                    minHeight: "4px",
+                  }}
+                  title={block.reason ? `Blocked: ${block.reason}` : "Blocked"}
+                >
+                  {durationMin >= 20 && (
+                    <div className="px-1.5 py-0.5 text-[10px] text-zinc-400 font-medium truncate">
+                      {block.reason || "Blocked"}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* External calendar events overlay */}
             {(externalByDayHour?.[key] || []).map((evt) => {
@@ -1047,10 +1136,12 @@ function CalendarsList({
   accountId,
   onCreateNew,
   onEdit,
+  onManageBlocks,
 }: {
   accountId: number;
   onCreateNew: () => void;
   onEdit: (cal: any) => void;
+  onManageBlocks: (cal: any) => void;
 }) {
   const utils = trpc.useUtils();
   const { data: calendars, isLoading } = trpc.calendar.list.useQuery({ accountId });
@@ -1148,6 +1239,10 @@ function CalendarsList({
                       >
                         <ExternalLink className="h-3.5 w-3.5 mr-2" />
                         Preview Booking Page
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onManageBlocks(cal)}>
+                        <Ban className="h-3.5 w-3.5 mr-2" />
+                        Manage Time Blocks
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
@@ -1673,6 +1768,241 @@ function CalendarFormDialog({
           >
             {isPending && <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />}
             {isEditing ? "Save Changes" : "Create Calendar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
+// ═══════════════════════════════════════════════
+// TIME BLOCKS DIALOG
+// ═══════════════════════════════════════════════
+function TimeBlocksDialog({
+  accountId,
+  calendarId,
+  calendarName,
+  onClose,
+}: {
+  accountId: number;
+  calendarId: number;
+  calendarName: string;
+  onClose: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const [startDate, setStartDate] = useState("");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endDate, setEndDate] = useState("");
+  const [endTime, setEndTime] = useState("10:00");
+  const [reason, setReason] = useState("");
+
+  // Default dates to today
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    setStartDate(today);
+    setEndDate(today);
+  }, []);
+
+  // Query range: current month ± 1 month
+  const [queryRange] = useState(() => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+    return {
+      startDate: start.toISOString().split("T")[0],
+      endDate: end.toISOString().split("T")[0],
+    };
+  });
+
+  const { data: blocks = [], isLoading } = trpc.calendar.listBlocks.useQuery({
+    calendarId,
+    accountId,
+    startDate: queryRange.startDate,
+    endDate: queryRange.endDate,
+  });
+
+  const addMut = trpc.calendar.addBlock.useMutation({
+    onSuccess: () => {
+      utils.calendar.listBlocks.invalidate();
+      toast.success("Time block added");
+      setReason("");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const removeMut = trpc.calendar.removeBlock.useMutation({
+    onSuccess: () => {
+      utils.calendar.listBlocks.invalidate();
+      toast.success("Time block removed");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  const handleAdd = () => {
+    if (!startDate || !startTime || !endDate || !endTime) {
+      toast.error("Please fill in start and end date/time");
+      return;
+    }
+    const startISO = new Date(`${startDate}T${startTime}:00Z`);
+    const endISO = new Date(`${endDate}T${endTime}:00Z`);
+    if (endISO <= startISO) {
+      toast.error("End time must be after start time");
+      return;
+    }
+    addMut.mutate({
+      calendarId,
+      accountId,
+      startTime: startISO,
+      endTime: endISO,
+      reason: reason.trim() || undefined,
+    });
+  };
+
+  const formatBlockTime = (d: string | Date) => {
+    const date = new Date(d);
+    return date.toLocaleString([], {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // Sort blocks by start time descending (newest first)
+  const sortedBlocks = useMemo(
+    () => [...blocks].sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()),
+    [blocks]
+  );
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Ban className="h-5 w-5 text-muted-foreground" />
+            Time Blocks — {calendarName}
+          </DialogTitle>
+          <DialogDescription>
+            Block out specific date/time ranges to prevent bookings during those times.
+          </DialogDescription>
+        </DialogHeader>
+
+        {/* Add new block form */}
+        <div className="space-y-3 border rounded-lg p-4 bg-muted/30">
+          <h4 className="text-sm font-medium">Add New Block</h4>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Start Date</Label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Start Time (UTC)</Label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">End Date</Label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">End Time (UTC)</Label>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Reason (optional)</Label>
+            <Input
+              placeholder="e.g. Team meeting, Lunch break, PTO"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={handleAdd}
+            disabled={addMut.isPending}
+            className="w-full bg-apex-gold hover:bg-apex-gold-dim text-black"
+            size="sm"
+          >
+            {addMut.isPending && <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />}
+            <Ban className="h-3.5 w-3.5 mr-1.5" />
+            Add Time Block
+          </Button>
+        </div>
+
+        {/* Existing blocks list */}
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">
+            Current Blocks
+            {blocks.length > 0 && (
+              <Badge variant="outline" className="ml-2 text-xs">
+                {blocks.length}
+              </Badge>
+            )}
+          </h4>
+
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : sortedBlocks.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground text-sm">
+              No time blocks set. Add one above to block out busy times.
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {sortedBlocks.map((block) => (
+                <div
+                  key={block.id}
+                  className="flex items-center justify-between border rounded-lg px-3 py-2.5 bg-zinc-500/5"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium">
+                      {formatBlockTime(block.startTime)} — {formatBlockTime(block.endTime)}
+                    </div>
+                    {block.reason && (
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">
+                        {block.reason}
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-red-500 hover:text-red-600 hover:bg-red-500/10 shrink-0 ml-2"
+                    onClick={() => {
+                      if (confirm("Remove this time block?")) {
+                        removeMut.mutate({ id: block.id, accountId });
+                      }
+                    }}
+                    disabled={removeMut.isPending}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Close
           </Button>
         </DialogFooter>
       </DialogContent>
