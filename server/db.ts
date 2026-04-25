@@ -2749,6 +2749,7 @@ export async function getAccountMessagingSettings(accountId: number) {
     twilioAuthToken: safeDecrypt(row.twilioAuthToken),
     sendgridApiKey: safeDecrypt(row.sendgridApiKey),
     blooioApiKey: safeDecrypt(row.blooioApiKey),
+    vapiApiKey: safeDecrypt(row.vapiApiKey),
   };
 }
 
@@ -2769,6 +2770,9 @@ export async function upsertAccountMessagingSettings(
   }
   if (encryptedData.blooioApiKey !== undefined) {
     encryptedData.blooioApiKey = safeEncrypt(encryptedData.blooioApiKey);
+  }
+  if (encryptedData.vapiApiKey !== undefined) {
+    encryptedData.vapiApiKey = safeEncrypt(encryptedData.vapiApiKey);
   }
 
   // Use raw getDb query to avoid double-decrypt in the existing check

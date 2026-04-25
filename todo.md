@@ -5037,3 +5037,15 @@
 - [x] Support --apply flag to update balances and log correction events
 - [x] Ensure idempotency: skip accounts that already have a balance_correction event
 - [x] Run dry-run and verify output (4 affected accounts, $11.55 total delta)
+
+## Per-Account VAPI Outbound Configuration
+
+- [x] Schema: add vapi_api_key, vapi_phone_number_id, vapi_assistant_id_override to accountMessagingSettings
+- [x] Push schema migration (pnpm db:push)
+- [x] vapi.ts: remove hardcoded VAPI_PHONE_NUMBER_ID, accept per-account config in createVapiCall
+- [x] aiCalls.ts: fetch account VAPI config, fallback to ENV, throw PRECONDITION_FAILED if neither set
+- [x] db.ts: encrypt/decrypt vapiApiKey in get/upsert helpers
+- [x] messagingSettings.ts: persist 3 new fields in save, mask vapiApiKey in get (last 4 only)
+- [x] Settings.tsx: add VapiConfigCard with API Key, Phone Number ID, Assistant ID Override fields
+- [x] Tests: server/aiCalls.test.ts — 19 tests pass (account config, env fallback, PRECONDITION_FAILED, bulkStart, assistant override, lead-source routing)
+- [x] Verify: pnpm vitest run server/aiCalls.test.ts — all 19 pass

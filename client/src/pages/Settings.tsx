@@ -103,6 +103,7 @@ import {
   Filter,
   MessageCircle,
   Pencil,
+  Bot,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -485,6 +486,7 @@ export default function SettingsPage() {
       {activeTab === "ai-voice" && currentAccountId && (
         <div className="space-y-6">
           <AIVoiceCallingCard accountId={currentAccountId} />
+          <VapiConfigCard accountId={currentAccountId} />
           <CallScriptsCard accountId={currentAccountId} />
         </div>
       )}
@@ -3496,7 +3498,133 @@ function AIVoiceCallingCard({ accountId }: { accountId: number }) {
 }
 
 
-// ─── Outbound Webhooks Card ──────────────────────────────────
+// ─── VAPI Configuration Card ──────────────────────────────────────────────────────────
+function VapiConfigCard({ accountId }: { accountId: number }) {
+  const utils = trpc.useUtils();
+  const { data: settings, isLoading } = trpc.messagingSettings.get.useQuery(
+    { accountId },
+    { refetchOnWindowFocus: false }
+  );
+
+  const [vapiApiKey, setVapiApiKey] = useState("");
+  const [vapiPhoneNumberId, setVapiPhoneNumberId] = useState("");
+  const [vapiAssistantIdOverride, setVapiAssistantIdOverride] = useState("");
+  const [initialized, setInitialized] = useState(false);
+
+  // Populate form when settings load
+  React.useEffect(() => {
+    if (settings && !initialized) {
+      setVapiApiKey(settings.vapiApiKey ?? "");
+      setVapiPhoneNumberId(settings.vapiPhoneNumberId ?? "");
+      setVapiAssistantIdOverride(settings.vapiAssistantIdOverride ?? "");
+      setInitialized(true);
+    }
+  }, [settings, initialized]);
+
+  const saveMutation = trpc.messagingSettings.save.useMutation({
+    onSuccess: () => {
+      toast.success("VAPI configuration saved.");
+      setInitialized(false);
+      utils.messagingSettings.get.invalidate({ accountId });
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleSave = () => {
+    saveMutation.mutate({
+      accountId,
+      vapiApiKey: vapiApiKey.startsWith("••••") ? undefined : vapiApiKey || null,
+      vapiPhoneNumberId: vapiPhoneNumberId || null,
+      vapiAssistantIdOverride: vapiAssistantIdOverride || null,
+    });
+  };
+
+  return (
+    <Card className="bg-card border-0 card-shadow">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium flex items-center gap-2">
+          <Bot className="h-4 w-4 text-muted-foreground" />
+          AI Voice (VAPI / Vappy)
+        </CardTitle>
+        <CardDescription className="text-xs">
+          Configure per-account VAPI credentials for outbound AI calls. Leave blank to use system defaults.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {isLoading ? (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Loading VAPI settings...</span>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="vapiApiKey" className="text-xs font-medium">API Key</Label>
+              <Input
+                id="vapiApiKey"
+                type="password"
+                placeholder="Enter VAPI API key"
+                value={vapiApiKey}
+                onChange={(e) => setVapiApiKey(e.target.value)}
+                onFocus={() => {
+                  if (vapiApiKey.startsWith("••••")) setVapiApiKey("");
+                }}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Your VAPI API key from the VAPI dashboard. Encrypted at rest.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="vapiPhoneNumberId" className="text-xs font-medium">Phone Number ID</Label>
+              <Input
+                id="vapiPhoneNumberId"
+                placeholder="e.g. c9eaefc4-9227-439d-bb16-..."
+                value={vapiPhoneNumberId}
+                onChange={(e) => setVapiPhoneNumberId(e.target.value)}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                The VAPI phone number ID to use for outbound calls.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="vapiAssistantIdOverride" className="text-xs font-medium">Assistant ID Override (optional)</Label>
+              <Input
+                id="vapiAssistantIdOverride"
+                placeholder="Leave blank to use lead-source-based routing"
+                value={vapiAssistantIdOverride}
+                onChange={(e) => setVapiAssistantIdOverride(e.target.value)}
+                className="text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Override the default assistant. When set, all calls for this account use this assistant regardless of lead source.
+              </p>
+            </div>
+
+            <Button
+              onClick={handleSave}
+              disabled={saveMutation.isPending}
+              size="sm"
+              className="mt-2"
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+              ) : (
+                <Save className="h-4 w-4 mr-1" />
+              )}
+              Save VAPI Settings
+            </Button>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Outbound Webhooks Card ──────────────────────────────────────────────────────────
 const TRIGGER_EVENTS = [
   { value: "contact_created", label: "Contact Created" },
   { value: "contact_updated", label: "Contact Updated" },

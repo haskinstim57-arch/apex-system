@@ -13,6 +13,7 @@ import {
   getContactById,
   getAccountById,
   logContactActivity,
+  getAccountMessagingSettings,
 } from "../db";
 import {
   createVapiCall,
@@ -83,8 +84,21 @@ export const aiCallsRouter = router({
         });
       }
 
-      // Resolve which VAPI assistant to use based on lead source
-      const assistantId = resolveAssistantId(contact.leadSource);
+      // ── Resolve per-account VAPI config (fallback to ENV globals) ──
+      const msgSettings = await getAccountMessagingSettings(input.accountId);
+      const vapiApiKey = msgSettings?.vapiApiKey || ENV.vapiApiKey;
+      const vapiPhoneNumberId = msgSettings?.vapiPhoneNumberId || undefined;
+      const vapiAssistantOverride = msgSettings?.vapiAssistantIdOverride || undefined;
+
+      if (!vapiApiKey) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "VAPI API key is not configured for this account. Please set it in Settings → AI & Voice.",
+        });
+      }
+
+      // Resolve which VAPI assistant to use: account override > lead-source-based > ENV default
+      const assistantId = vapiAssistantOverride || resolveAssistantId(contact.leadSource);
       const contactName = `${contact.firstName} ${contact.lastName}`.trim();
 
       // ── Business hours enforcement — queue if outside hours ──
@@ -145,7 +159,7 @@ export const aiCallsRouter = router({
       });
 
       try {
-        // Call the real VAPI API
+        // Call the real VAPI API with per-account config
         const vapiResponse = await createVapiCall({
           phoneNumber: contact.phone,
           customerName: contactName,
@@ -156,6 +170,8 @@ export const aiCallsRouter = router({
             apexCallId: id,
             leadSource: contact.leadSource ?? undefined,
           },
+          apiKey: vapiApiKey,
+          phoneNumberId: vapiPhoneNumberId,
         });
 
         // Update our record with the VAPI call ID and status
@@ -224,6 +240,19 @@ export const aiCallsRouter = router({
       }
       const bhConfig = account.businessHoursConfig as BusinessHoursConfig | null;
 
+      // ── Resolve per-account VAPI config (fallback to ENV globals) ──
+      const msgSettings = await getAccountMessagingSettings(input.accountId);
+      const vapiApiKey = msgSettings?.vapiApiKey || ENV.vapiApiKey;
+      const vapiPhoneNumberId = msgSettings?.vapiPhoneNumberId || undefined;
+      const vapiAssistantOverride = msgSettings?.vapiAssistantIdOverride || undefined;
+
+      if (!vapiApiKey) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "VAPI API key is not configured for this account. Please set it in Settings → AI & Voice.",
+        });
+      }
+
       // ── Business hours enforcement — queue all contacts if outside hours ──
       if (!isWithinBusinessHours(bhConfig)) {
         const queueResults: Array<{ contactId: number; queueId: number; success: boolean; error?: string }> = [];
@@ -233,7 +262,7 @@ export const aiCallsRouter = router({
             queueResults.push({ contactId, queueId: 0, success: false, error: !contact ? "Contact not found" : "No phone number" });
             continue;
           }
-          const assistantId = resolveAssistantId(contact.leadSource);
+          const assistantId = vapiAssistantOverride || resolveAssistantId(contact.leadSource);
           const contactName = `${contact.firstName} ${contact.lastName}`.trim();
           const { id: queueId } = await enqueueMessage({
             accountId: input.accountId,
@@ -278,7 +307,7 @@ export const aiCallsRouter = router({
           continue;
         }
 
-        const assistantId = resolveAssistantId(contact.leadSource);
+        const assistantId = vapiAssistantOverride || resolveAssistantId(contact.leadSource);
         const contactName = `${contact.firstName} ${contact.lastName}`.trim();
 
         // Billing: pre-charge 3-minute deposit per call
@@ -324,6 +353,8 @@ export const aiCallsRouter = router({
               apexCallId: id,
               leadSource: contact.leadSource ?? undefined,
             },
+            apiKey: vapiApiKey,
+            phoneNumberId: vapiPhoneNumberId,
           });
 
           const mappedStatus = mapVapiStatus(vapiResponse.status);

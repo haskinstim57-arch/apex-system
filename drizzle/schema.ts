@@ -812,6 +812,10 @@ export const accountMessagingSettings = mysqlTable("account_messaging_settings",
   appointmentSmsProvider: varchar("appointment_sms_provider", { length: 20 }).default("blooio"),
   /** Business hours configuration (JSON) — per-day schedule with timezone */
   businessHours: text("business_hours"),
+  /** VAPI per-account credentials (overrides global ENV when set) */
+  vapiApiKey: varchar("vapi_api_key", { length: 255 }),
+  vapiPhoneNumberId: varchar("vapi_phone_number_id", { length: 100 }),
+  vapiAssistantIdOverride: varchar("vapi_assistant_id_override", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });

@@ -70,6 +70,9 @@ export const messagingSettingsRouter = router({
           appointmentFromNumber: null,
           appointmentSmsProvider: "blooio" as const,
           businessHours: DEFAULT_BUSINESS_HOURS_SCHEDULE,
+          vapiApiKey: null,
+          vapiPhoneNumberId: null,
+          vapiAssistantIdOverride: null,
         };
       }
       // Parse business hours JSON
@@ -94,6 +97,11 @@ export const messagingSettingsRouter = router({
         appointmentFromNumber: settings.appointmentFromNumber ?? null,
         appointmentSmsProvider: (settings.appointmentSmsProvider as "twilio" | "blooio") ?? "blooio",
         businessHours,
+        vapiApiKey: settings.vapiApiKey
+          ? "••••" + settings.vapiApiKey.slice(-4)
+          : null,
+        vapiPhoneNumberId: settings.vapiPhoneNumberId ?? null,
+        vapiAssistantIdOverride: settings.vapiAssistantIdOverride ?? null,
       };
     }),
 
@@ -112,6 +120,9 @@ export const messagingSettingsRouter = router({
         appointmentFromNumber: z.string().nullable().optional(),
         appointmentSmsProvider: z.enum(["twilio", "blooio"]).optional(),
         businessHours: businessHoursSchema.optional(),
+        vapiApiKey: z.string().nullable().optional(),
+        vapiPhoneNumberId: z.string().nullable().optional(),
+        vapiAssistantIdOverride: z.string().nullable().optional(),
       })
     )
     .mutation(async ({ ctx, input }) => {

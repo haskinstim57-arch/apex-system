@@ -6,7 +6,8 @@ import { ENV } from "../_core/env";
 // ─────────────────────────────────────────────
 
 const VAPI_BASE_URL = "https://api.vapi.ai";
-const VAPI_PHONE_NUMBER_ID = "c9eaefc4-9227-439d-bb16-a79c2797ab58";
+/** @deprecated Hardcoded fallback — use per-account vapiPhoneNumberId instead */
+const VAPI_PHONE_NUMBER_ID_FALLBACK = "c9eaefc4-9227-439d-bb16-a79c2797ab58";
 
 /** Map lead sources to the correct VAPI assistant ID */
 export function resolveAssistantId(leadSource?: string | null): string {
@@ -95,8 +96,13 @@ export async function createVapiCall(params: {
   customerName: string;
   assistantId: string;
   metadata: VapiCallMetadata;
+  /** Per-account overrides — when set, these take priority over ENV globals */
+  apiKey?: string;
+  phoneNumberId?: string;
 }): Promise<VapiCreateCallResponse> {
-  const { phoneNumber, customerName, assistantId, metadata } = params;
+  const { phoneNumber, customerName, assistantId, metadata, apiKey, phoneNumberId } = params;
+  const effectiveApiKey = apiKey || ENV.vapiApiKey;
+  const effectivePhoneNumberId = phoneNumberId || VAPI_PHONE_NUMBER_ID_FALLBACK;
 
   // Build current date/time string in Pacific Time for the AI's awareness
   const now = new Date();
@@ -114,7 +120,7 @@ export async function createVapiCall(params: {
 
   const body: Record<string, unknown> = {
     assistantId,
-    phoneNumberId: VAPI_PHONE_NUMBER_ID,
+    phoneNumberId: effectivePhoneNumberId,
     customer: {
       number: phoneNumber,
       name: customerName,
@@ -146,7 +152,7 @@ export async function createVapiCall(params: {
   const res = await fetch(`${VAPI_BASE_URL}/call`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${ENV.vapiApiKey}`,
+      Authorization: `Bearer ${effectiveApiKey}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -167,11 +173,12 @@ export async function createVapiCall(params: {
  * Fetch the current state of a VAPI call.
  * GET https://api.vapi.ai/call/{id}
  */
-export async function getVapiCall(callId: string): Promise<VapiGetCallResponse> {
+export async function getVapiCall(callId: string, apiKey?: string): Promise<VapiGetCallResponse> {
+  const effectiveApiKey = apiKey || ENV.vapiApiKey;
   const res = await fetch(`${VAPI_BASE_URL}/call/${callId}`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${ENV.vapiApiKey}`,
+      Authorization: `Bearer ${effectiveApiKey}`,
       "Content-Type": "application/json",
     },
   });
