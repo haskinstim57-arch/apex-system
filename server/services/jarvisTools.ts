@@ -1366,7 +1366,7 @@ export async function executeTool(
           subject: m.subject, body: m.body?.substring(0, 200),
           status: m.status, createdAt: m.createdAt,
         })),
-        notes: publicNotes.slice(0, 10).map(n => ({
+        notes: publicNotes.slice(0, 50).map(n => ({
           id: n.id,
           body: n.content,
           disposition: (n as any).disposition ?? null,

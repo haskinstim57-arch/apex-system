@@ -5067,3 +5067,7 @@
 ## Jarvis Tool-Call Cap Fix
 
 - [x] Raise MAX_TOOL_ROUNDS from 10 to 50 in jarvisService.ts (fixes 27-contact ceiling)
+
+## Jarvis Notes Context Window
+
+- [x] Raise publicNotes.slice from 10 to 50 in jarvisTools.ts line 1369
