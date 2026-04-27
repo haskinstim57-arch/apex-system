@@ -3580,10 +3580,25 @@ export async function deleteEmailTemplate(id: number) {
 // NOTIFICATION HELPERS
 // ─────────────────────────────────────────────
 
+const VALID_NOTIFICATION_TYPES = ["inbound_message","appointment_booked","appointment_cancelled","ai_call_completed","campaign_finished","workflow_failed","new_contact_facebook","new_contact_booking","missed_call","report_sent","system_alert","new_lead"] as const;
+
 export async function createNotification(data: Omit<InsertNotification, "id" | "createdAt" | "isRead" | "dismissed">) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  const result = await db.insert(notifications).values(data);
+
+  // Sanitize userId: ensure it's null (not empty string, 0, or undefined)
+  const sanitizedUserId = data.userId ? Number(data.userId) : null;
+
+  // Validate notification type — fall back to system_alert if invalid
+  const sanitizedType = VALID_NOTIFICATION_TYPES.includes(data.type as any)
+    ? data.type
+    : "system_alert";
+
+  const result = await db.insert(notifications).values({
+    ...data,
+    userId: sanitizedUserId,
+    type: sanitizedType,
+  });
   return { id: Number(result[0].insertId) };
 }
 

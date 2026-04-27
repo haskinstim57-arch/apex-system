@@ -592,14 +592,20 @@ async function executeAction(
       // Send an in-app notification to the assigned user or all account users
       const title = interpolateTemplate(config.title || "New lead requires attention", contact);
       const body = interpolateTemplate(
-        config.body || `Contact {{firstName}} {{lastName}} needs follow-up`,
+        config.body || config.message || `Contact {{firstName}} {{lastName}} needs follow-up`,
         contact
       );
-      const userId = contact.assignedUserId || null;
+      // Prefer config.userId (explicit target), then contact.assignedUserId, then null (account-wide)
+      const rawUserId = config.userId || contact.assignedUserId;
+      const userId = rawUserId ? Number(rawUserId) : null;
+      // Map custom notification types to valid enum values
+      const validTypes = ["inbound_message","appointment_booked","appointment_cancelled","ai_call_completed","campaign_finished","workflow_failed","new_contact_facebook","new_contact_booking","missed_call","report_sent","system_alert","new_lead"] as const;
+      const requestedType = config.notificationType || "new_lead";
+      const notifType = validTypes.includes(requestedType) ? requestedType : "system_alert";
       await createNotification({
         accountId,
         userId,
-        type: config.notificationType || "lead_action_required",
+        type: notifType as any,
         title,
         body,
         link: config.link || `/contacts/${contactId}`,

@@ -5202,3 +5202,11 @@
 - [x] Verified: 4 slots returned for April 28 (14:15, 15:00, 15:45, 16:30 PDT)
 - [x] Write vitest tests — 15/15 pass
 - [x] Save checkpoint
+
+## Prompt S — Fix Automation Step: Notification Insert Fails (NULL user_id)
+- [x] Found root cause: invalid enum value 'lead_action_required' + empty string userId (not NULL constraint)
+- [x] Fixed createNotification in db.ts: sanitizes userId (null not empty string) + validates type enum (falls back to system_alert)
+- [x] Fixed workflowEngine.ts notify_user: reads config.message as body fallback, config.userId as target user
+- [x] Re-ran execution #1230002 — completed successfully; #1230004 was already completed
+- [x] Write vitest tests — 15/15 pass
+- [x] Save checkpoint
