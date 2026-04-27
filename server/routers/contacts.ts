@@ -554,7 +554,7 @@ export const contactsRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+      const member = await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
       const contact = await getContactById(input.contactId, input.accountId);
       if (!contact) {
         throw new TRPCError({
@@ -562,7 +562,9 @@ export const contactsRouter = router({
           message: "Contact not found",
         });
       }
-      return listContactNotes(input.contactId);
+      // Employees cannot see internal notes — defense-in-depth
+      const isEmployee = member.role === "employee";
+      return listContactNotes(input.contactId, { excludeInternal: isEmployee });
     }),
 
   addNote: protectedProcedure

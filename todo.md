@@ -5210,3 +5210,10 @@
 - [x] Re-ran execution #1230002 — completed successfully; #1230004 was already completed
 - [x] Write vitest tests — 15/15 pass
 - [x] Save checkpoint
+
+## Prompt T — Hide isInternal Notes from Employees (Server-Side)
+- [x] Added excludeInternal option to listContactNotes in db.ts
+- [x] Updated listNotes procedure in contacts.ts — checks member.role, passes excludeInternal=true for employees
+- [x] Owners/managers see all notes; employees see only isInternal=false
+- [x] Write vitest tests — 13/13 pass
+- [x] Save checkpoint

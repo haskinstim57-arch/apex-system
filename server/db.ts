@@ -1109,9 +1109,13 @@ export async function createContactNote(data: InsertContactNote) {
   return { id: result[0].insertId };
 }
 
-export async function listContactNotes(contactId: number) {
+export async function listContactNotes(contactId: number, opts?: { excludeInternal?: boolean }) {
   const db = await getDb();
   if (!db) return [];
+  const conditions = [eq(contactNotes.contactId, contactId)];
+  if (opts?.excludeInternal) {
+    conditions.push(eq(contactNotes.isInternal, false));
+  }
   return db
     .select({
       id: contactNotes.id,
@@ -1128,7 +1132,7 @@ export async function listContactNotes(contactId: number) {
     })
     .from(contactNotes)
     .leftJoin(users, eq(contactNotes.authorId, users.id))
-    .where(eq(contactNotes.contactId, contactId))
+    .where(and(...conditions))
     .orderBy(desc(contactNotes.isPinned), desc(contactNotes.createdAt));
 }
 
