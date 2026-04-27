@@ -5176,3 +5176,17 @@
 - [x] Verify server-side mutation handles null cleanly — Zod schema validates, JSON.stringify only runs when defined
 - [x] Write/run tests — 10/10 pass
 - [x] Save checkpoint
+
+## Fix VAPI Outbound Call 400 Provider Error (re-verification)
+- [x] Verified createVapiCall() already fixed — no model.provider in assistantOverrides
+- [x] Verified all 6 callers pass clean params without model overrides
+- [x] Verified webhooks/vapi.ts has no model.provider references
+- [x] All 19 aiCalls tests pass
+- [x] Fix is in latest checkpoint ef4ecbfc — needs publish to go live
+
+## Prompt Q — Bypass Payment Method Check When billingEnabled = false
+- [x] Found 7 callers of chargeBeforeSend (billedDispatch SMS/Email, aiCalls x2, inbox, twilioCalls, twilioVoiceStatus, vapi webhook)
+- [x] Added billingEnabled bypass inside chargeBeforeSend itself — covers ALL callers with one change
+- [x] When billingEnabled=false: inserts $0 tracking event, skips payment method check + balance deduction
+- [x] Tests pass: 12/12 billingKillSwitch, 19/19 aiCalls
+- [x] Save checkpoint

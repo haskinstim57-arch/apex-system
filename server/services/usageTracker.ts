@@ -164,12 +164,37 @@ export async function chargeBeforeSend(
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-  // ── 1. Check account is not billing_locked ──────────────────────
+  // ── 0. Billing kill switch — skip all billing when disabled ────
   const accountRows = await db
-    .select({ status: accounts.status })
+    .select({ status: accounts.status, billingEnabled: accounts.billingEnabled })
     .from(accounts)
     .where(eq(accounts.id, accountId));
   const account = accountRows[0];
+  if (account && !account.billingEnabled) {
+    // Billing paused — insert a $0 tracking event and return immediately.
+    // No payment method check, no balance deduction.
+    const [insertResult] = await db.insert(usageEvents).values({
+      accountId,
+      userId: userId ?? null,
+      eventType,
+      quantity: quantity.toFixed(4),
+      unitCost: "0.000000",
+      totalCost: "0.0000",
+      metadata: metadata ? JSON.stringify({ ...metadata, billingPaused: true }) : JSON.stringify({ billingPaused: true }),
+      invoiced: false,
+      invoiceId: null,
+      refunded: false,
+    } as InsertUsageEvent) as any;
+    console.log(`[usageTracker] Billing disabled for account ${accountId} — $0 tracking event created`);
+    return {
+      usageEventId: insertResult.insertId,
+      unitCost: 0,
+      totalCost: 0,
+      newBalance: 0,
+    };
+  }
+
+  // ── 1. Check account is not billing_locked ──────────────────────
   if (account?.status === "billing_locked") {
     throw new TRPCError({
       code: "FORBIDDEN",
