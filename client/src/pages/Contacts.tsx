@@ -662,15 +662,15 @@ export default function Contacts() {
 
       {/* Stats Row */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <MiniStat label="Total" value={stats.total} />
-          <MiniStat label="New" value={stats.new} color="text-blue-600" />
+          <MiniStat label="New" value={stats.byStatus?.new ?? 0} color="text-blue-600" />
           <MiniStat
             label="Qualified"
-            value={stats.qualified}
+            value={stats.byStatus?.qualified ?? 0}
             color="text-emerald-600"
           />
-          <MiniStat label="Won" value={stats.won} color="text-green-600" />
+          <MiniStat label="Won" value={stats.byStatus?.won ?? 0} color="text-green-600" />
         </div>
       )}
 

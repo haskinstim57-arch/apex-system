@@ -115,7 +115,12 @@ export const jarvisRouter = router({
 
         const parts: string[] = [];
         if (ds) parts.push(`Dashboard: ${JSON.stringify(ds)}`);
-        if (cs) parts.push(`Contacts: total=${cs.total}, new=${cs.new}, qualified=${cs.qualified}, won=${cs.won}`);
+        if (cs) {
+          const statusParts = cs.byStatus
+            ? Object.entries(cs.byStatus).filter(([, v]) => v > 0).map(([k, v]) => `${k}=${v}`).join(", ")
+            : "";
+          parts.push(`Contacts: total=${cs.total}${statusParts ? `, byStatus: ${statusParts}` : ""}`);
+        }
         if (ms) parts.push(`Messages: total=${ms.total}, sent=${ms.sent}, delivered=${ms.delivered}, failed=${ms.failed}, emails=${ms.emails}, sms=${ms.sms}`);
 
         if (cp) {

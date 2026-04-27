@@ -965,9 +965,23 @@ export async function assignContact(
     .where(and(eq(contacts.id, id), eq(contacts.accountId, accountId)));
 }
 
+/** All 15 pipeline statuses from drizzle/schema.ts contacts.status enum */
+const CONTACT_STATUSES = [
+  "new", "uncontacted", "contacted", "engaged",
+  "application_taken", "application_in_progress", "credit_repair",
+  "callback_scheduled", "app_link_pending",
+  "qualified", "proposal", "negotiation",
+  "won", "lost", "nurture",
+] as const;
+
 export async function getContactStats(accountId: number, assignedUserId?: number) {
   const db = await getDb();
-  if (!db) return { total: 0, new: 0, qualified: 0, won: 0 };
+  if (!db) {
+    const byStatus: Record<string, number> = Object.fromEntries(
+      CONTACT_STATUSES.map((s) => [s, 0])
+    );
+    return { total: 0, byStatus };
+  }
 
   // Base conditions: always filter by account; optionally filter by assigned user (for employees)
   const baseConditions = [eq(contacts.accountId, accountId)];
@@ -975,41 +989,26 @@ export async function getContactStats(accountId: number, assignedUserId?: number
     baseConditions.push(eq(contacts.assignedUserId, assignedUserId));
   }
 
-  const [totalResult] = await db
-    .select({ count: sql<number>`count(*)` })
+  const rows = await db
+    .select({
+      status: contacts.status,
+      count: sql<number>`COUNT(*)`,
+    })
     .from(contacts)
-    .where(and(...baseConditions));
+    .where(and(...baseConditions))
+    .groupBy(contacts.status);
 
-  const [newResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(contacts)
-    .where(
-      and(...baseConditions, eq(contacts.status, "new"))
-    );
+  // Build a complete record with all 15 keys defaulting to 0
+  const byStatus: Record<string, number> = Object.fromEntries(
+    CONTACT_STATUSES.map((s) => [s, 0])
+  );
+  let total = 0;
+  for (const row of rows) {
+    if (row.status) byStatus[row.status] = Number(row.count);
+    total += Number(row.count);
+  }
 
-  const [qualifiedResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(contacts)
-    .where(
-      and(
-        ...baseConditions,
-        eq(contacts.status, "qualified")
-      )
-    );
-
-  const [wonResult] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(contacts)
-    .where(
-      and(...baseConditions, eq(contacts.status, "won"))
-    );
-
-  return {
-    total: totalResult?.count ?? 0,
-    new: newResult?.count ?? 0,
-    qualified: qualifiedResult?.count ?? 0,
-    won: wonResult?.count ?? 0,
-  };
+  return { total, byStatus };
 }
 
 // ─────────────────────────────────────────────

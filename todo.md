@@ -5125,3 +5125,13 @@
 - [x] Audit and wire remaining send paths: inbox, campaigns, workflow engine, Jarvis tools, power dialer
 - [x] Write vitest tests for auto-promote logic — 9/9 pass
 - [x] Save checkpoint
+
+## Fix Jarvis Stats Tool — All 15 Status Breakdowns
+
+- [x] Find and update the stats tool definition in jarvisTools.ts
+- [x] Update DB query to GROUP BY status for all 15 pipeline statuses
+- [x] Update tool description so LLM knows it can answer per-status questions
+- [x] Update jarvis.ts context builder for new byStatus shape
+- [x] Update Contacts.tsx frontend for new byStatus shape
+- [x] Write/update vitest tests — 5/5 pass
+- [x] Save checkpoint

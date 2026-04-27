@@ -108,7 +108,7 @@ export const JARVIS_TOOLS: Tool[] = [
     type: "function",
     function: {
       name: "get_contact_stats",
-      description: "Get contact pipeline stats: total, new, qualified, won counts.",
+      description: "Get total contact count plus a breakdown by each of the 15 pipeline statuses (new, uncontacted, contacted, engaged, application_taken, application_in_progress, credit_repair, callback_scheduled, app_link_pending, qualified, proposal, negotiation, won, lost, nurture). Use this to answer any question about how many contacts are in a specific status.",
       parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
     },
   },
