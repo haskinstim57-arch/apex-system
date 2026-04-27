@@ -5217,3 +5217,13 @@
 - [x] Owners/managers see all notes; employees see only isInternal=false
 - [x] Write vitest tests — 13/13 pass
 - [x] Save checkpoint
+
+## Prompt U — Fix Automation Notification Insert (user_id NOT NULL constraint)
+- [x] Investigate notifications schema — user_id is nullable in both Drizzle schema and DB (Null: YES)
+- [x] Added getAccountOwnerUserId() helper in db.ts — queries account_members for role=owner
+- [x] Updated notify_user: userId resolution chain: config.userId → assignedUserId → account owner → null
+- [x] Wrapped createNotification in try/catch — notification failures are non-fatal (logged, not rethrown)
+- [x] Owner fallback lookup also wrapped in try/catch — errors don't propagate
+- [x] Write vitest tests — 22/22 pass
+- [x] Re-run execution #1230002 — completed successfully, notification created (id=1980006, userId=1110216)
+- [x] Save checkpoint

@@ -15,6 +15,7 @@ import {
   logContactActivity,
   getEmailTemplate,
   createNotification,
+  getAccountOwnerUserId,
   getContactTags,
   getSegmentById,
   contactMatchesSegment,
@@ -595,21 +596,40 @@ async function executeAction(
         config.body || config.message || `Contact {{firstName}} {{lastName}} needs follow-up`,
         contact
       );
-      // Prefer config.userId (explicit target), then contact.assignedUserId, then null (account-wide)
-      const rawUserId = config.userId || contact.assignedUserId;
-      const userId = rawUserId ? Number(rawUserId) : null;
+      // Resolve userId: config.userId → contact.assignedUserId → account owner → null (account-wide)
+      let rawUserId = config.userId || contact.assignedUserId;
+      let userId = rawUserId ? Number(rawUserId) : null;
+      // If still null, fall back to the account owner's userId
+      if (!userId) {
+        try {
+          const ownerUserId = await getAccountOwnerUserId(accountId);
+          if (ownerUserId) {
+            userId = ownerUserId;
+            console.log(`[WorkflowEngine] notify_user: resolved account owner userId=${ownerUserId} for account ${accountId}`);
+          }
+        } catch (ownerErr) {
+          console.warn(`[WorkflowEngine] notify_user: failed to resolve account owner for account ${accountId}:`, ownerErr);
+        }
+      }
       // Map custom notification types to valid enum values
       const validTypes = ["inbound_message","appointment_booked","appointment_cancelled","ai_call_completed","campaign_finished","workflow_failed","new_contact_facebook","new_contact_booking","missed_call","report_sent","system_alert","new_lead"] as const;
       const requestedType = config.notificationType || "new_lead";
       const notifType = validTypes.includes(requestedType) ? requestedType : "system_alert";
-      await createNotification({
-        accountId,
-        userId,
-        type: notifType as any,
-        title,
-        body,
-        link: config.link || `/contacts/${contactId}`,
-      });
+      // Wrap notification insert in try/catch — notification failures must NEVER crash the workflow step
+      try {
+        await createNotification({
+          accountId,
+          userId,
+          type: notifType as any,
+          title,
+          body,
+          link: config.link || `/contacts/${contactId}`,
+        });
+        console.log(`[WorkflowEngine] notify_user: notification created for account ${accountId}, userId=${userId}`);
+      } catch (notifErr) {
+        // Log the error but do NOT rethrow — step should still succeed
+        console.error(`[WorkflowEngine] notify_user: notification insert failed (non-fatal):`, notifErr);
+      }
       return { action: "notify_user", userId, title };
     }
 

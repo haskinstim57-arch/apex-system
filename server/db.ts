@@ -3584,6 +3584,28 @@ export async function deleteEmailTemplate(id: number) {
 // NOTIFICATION HELPERS
 // ─────────────────────────────────────────────
 
+/**
+ * Get the owner user ID for a given account.
+ * Looks up the first active member with role="owner" in the account_members table.
+ * Returns the userId or null if no owner is found.
+ */
+export async function getAccountOwnerUserId(accountId: number): Promise<number | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select({ userId: accountMembers.userId })
+    .from(accountMembers)
+    .where(
+      and(
+        eq(accountMembers.accountId, accountId),
+        eq(accountMembers.role, "owner"),
+        eq(accountMembers.isActive, true)
+      )
+    )
+    .limit(1);
+  return result.length > 0 ? result[0].userId : null;
+}
+
 const VALID_NOTIFICATION_TYPES = ["inbound_message","appointment_booked","appointment_cancelled","ai_call_completed","campaign_finished","workflow_failed","new_contact_facebook","new_contact_booking","missed_call","report_sent","system_alert","new_lead"] as const;
 
 export async function createNotification(data: Omit<InsertNotification, "id" | "createdAt" | "isRead" | "dismissed">) {
