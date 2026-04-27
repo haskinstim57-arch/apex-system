@@ -169,6 +169,7 @@ export const JARVIS_TOOLS: Tool[] = [
           createdAfterDays: { type: "number", description: "Contacts created in the last N days" },
           createdBeforeDays: { type: "number", description: "Contacts created more than N days ago" },
           hasNoMessages: { type: "boolean", description: "Only contacts with zero messages" },
+          hasMessages: { type: "boolean", description: "Only contacts that have at least one message (inbound or outbound)" },
           hasNoCallActivity: { type: "boolean", description: "Only contacts with zero AI calls" },
           hasTag: { type: "string", description: "Must have this tag" },
           doesNotHaveTag: { type: "string", description: "Must NOT have this tag" },
@@ -1666,14 +1667,19 @@ export async function executeTool(
         .limit(limit);
 
       // Post-query filters that require subqueries
-      if (args.hasNoMessages) {
+      if (args.hasNoMessages || args.hasMessages) {
         const contactsWithMsgs = await db
           .select({ contactId: messages.contactId })
           .from(messages)
           .where(eq(messages.accountId, accountId))
           .groupBy(messages.contactId);
         const withMsgIds = new Set(contactsWithMsgs.map(r => r.contactId));
-        rows = rows.filter(c => !withMsgIds.has(c.id));
+        if (args.hasNoMessages) {
+          rows = rows.filter(c => !withMsgIds.has(c.id));
+        }
+        if (args.hasMessages) {
+          rows = rows.filter(c => withMsgIds.has(c.id));
+        }
       }
 
       if (args.hasNoCallActivity) {

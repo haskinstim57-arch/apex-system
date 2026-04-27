@@ -5154,3 +5154,10 @@
 - [x] Part 4: Set PMR billingEnabled=false (confirmed: billingEnabled=0, balance=$0.0000)
 - [x] Write vitest tests — 12/12 pass
 - [x] Save checkpoint
+
+## Prompt M — Contact Status Backfill + Jarvis hasMessages Filter
+
+- [x] Part 1: Run one-time backfill SQL — 254 contacts promoted from new/uncontacted → contacted
+- [x] Part 2: Add hasMessages filter to Jarvis get_contacts_by_filter tool
+- [x] Write vitest tests — 7/7 pass
+- [x] Save checkpoint
