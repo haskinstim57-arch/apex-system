@@ -5161,3 +5161,12 @@
 - [x] Part 2: Add hasMessages filter to Jarvis get_contacts_by_filter tool
 - [x] Write vitest tests — 7/7 pass
 - [x] Save checkpoint
+
+## Prompt N — Calendar Working Hours + VAPI Appointment Booking
+
+- [x] Part 1a: availabilityJson column already exists in calendars schema
+- [x] Part 1b: Working Hours UI already exists in calendar edit modal (toggle + time pickers per day)
+- [x] Part 1c: getAvailableSlots already checks availabilityJson for day-of-week + time windows
+- [x] Part 2: Wire VAPI bookAppointment handler — already fully wired; added working hours check before booking
+- [x] Write vitest tests — 13/13 pass
+- [x] Save checkpoint

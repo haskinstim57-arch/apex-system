@@ -287,12 +287,31 @@ async function handleBookAppointment(
       return JSON.stringify({ success: false, reason: "That time has already passed. Could you suggest a future date and time?" });
     }
 
+    // ── Working hours check ──
+    // Verify the requested slot falls within the calendar's weekly availability
+    const availableSlots = await getAvailableSlots(calendarId, date);
+    const requestedTimeStr = `${String(startTime.getUTCHours()).padStart(2, "0")}:${String(startTime.getUTCMinutes()).padStart(2, "0")}`;
+    const slotMatch = availableSlots.some((s: { start: string; end: string }) => s.start === requestedTimeStr);
+    if (!slotMatch && availableSlots.length > 0) {
+      // Slot not in available windows — suggest alternatives
+      const displaySlots = availableSlots.slice(0, 5).map((s: { start: string }) => formatTime12h(s.start));
+      return JSON.stringify({
+        success: false,
+        reason: `That time isn't available. Here are open slots on ${formatDateOnly(date)}: ${displaySlots.join(", ")}.`,
+      });
+    }
+    if (availableSlots.length === 0) {
+      return JSON.stringify({
+        success: false,
+        reason: `There are no available times on ${formatDateOnly(date)}. Would you like to try a different date?`,
+      });
+    }
+
     // ── Double-booking check ──
     const conflicts = await findConflictingAppointments(calendarId, accountId, startTime, endTime, bufferMinutes);
     if (conflicts.length > 0) {
       console.log(`[VAPI Webhook] Double-booking detected: ${conflicts.length} conflict(s) for ${date} ${time}`);
-      // Get next 3 available slots to suggest alternatives
-      const availableSlots = await getAvailableSlots(calendarId, date);
+      // Reuse already-fetched availableSlots to suggest alternatives
       const requestedMinutes = parseInt(time.split(":")[0]) * 60 + parseInt(time.split(":")[1]);
       // Filter to slots after the requested time
       const laterSlots = availableSlots.filter((s: { start: string }) => {
