@@ -5116,3 +5116,12 @@
 - [x] Generate per-account report showing PMR balance status
 - [ ] Present report to user for review before --apply
 - [ ] User approval → run --apply
+
+## Auto-Promote Contact Status on Outbound SMS/Email
+
+- [x] Create server/services/contactStatusAutoUpdater.ts helper
+- [x] Wire into billedDispatchSMS (chokepoint)
+- [x] Wire into billedDispatchEmail (chokepoint)
+- [x] Audit and wire remaining send paths: inbox, campaigns, workflow engine, Jarvis tools, power dialer
+- [x] Write vitest tests for auto-promote logic — 9/9 pass
+- [x] Save checkpoint

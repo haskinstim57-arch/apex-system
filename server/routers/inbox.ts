@@ -209,6 +209,9 @@ export const inboxRouter = router({
               externalId: result.externalId,
               sentAt: new Date(),
             });
+            // Auto-promote contact status from new/uncontacted → contacted
+            const { autoPromoteOnOutbound } = await import("../services/contactStatusAutoUpdater");
+            autoPromoteOnOutbound(input.contactId).catch(() => {});
           } else {
             // Provider returned failure — reverse the charge
             await reverseCharge(preCharge.usageEventId);

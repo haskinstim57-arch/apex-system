@@ -9,6 +9,7 @@
  */
 import { dispatchSMS, dispatchEmail, type MessageSendResult } from "./messaging";
 import { chargeBeforeSend, reverseCharge } from "./usageTracker";
+import { autoPromoteOnOutbound } from "./contactStatusAutoUpdater";
 
 // ─────────────────────────────────────────────
 // BILLED SMS
@@ -65,6 +66,11 @@ export async function billedDispatchSMS(params: BilledSMSParams): Promise<Billed
     console.warn(
       `[billedDispatch] SMS send failed, charge reversed: accountId=${accountId} to=${to} error=${result.error}`
     );
+  }
+
+  // Auto-promote contact status from new/uncontacted → contacted on successful send
+  if (result.success && contactId) {
+    autoPromoteOnOutbound(contactId).catch(() => {});
   }
 
   return {
@@ -129,6 +135,11 @@ export async function billedDispatchEmail(params: BilledEmailParams): Promise<Bi
     console.warn(
       `[billedDispatch] Email send failed, charge reversed: accountId=${accountId} to=${to} error=${result.error}`
     );
+  }
+
+  // Auto-promote contact status from new/uncontacted → contacted on successful send
+  if (result.success && contactId) {
+    autoPromoteOnOutbound(contactId).catch(() => {});
   }
 
   return {

@@ -940,6 +940,12 @@ export const emailContentRouter = router({
             continue;
           }
 
+          // Auto-promote contact status from new/uncontacted → contacted
+          if (draft.contactId) {
+            const { autoPromoteOnOutbound } = await import("../services/contactStatusAutoUpdater");
+            autoPromoteOnOutbound(draft.contactId).catch(() => {});
+          }
+
           // Update draft status
           await db
             .update(emailDrafts)
@@ -1236,6 +1242,12 @@ export const emailContentRouter = router({
           code: "INTERNAL_SERVER_ERROR",
           message: `Failed to send email: ${result.error || "Unknown error"}`,
         });
+      }
+
+      // Auto-promote contact status from new/uncontacted → contacted
+      if (draft.contactId) {
+        const { autoPromoteOnOutbound } = await import("../services/contactStatusAutoUpdater");
+        autoPromoteOnOutbound(draft.contactId).catch(() => {});
       }
 
       // Update draft status
