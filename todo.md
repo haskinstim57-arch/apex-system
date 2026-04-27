@@ -5170,3 +5170,9 @@
 - [x] Part 2: Wire VAPI bookAppointment handler — already fully wired; added working hours check before booking
 - [x] Write vitest tests — 13/13 pass
 - [x] Save checkpoint
+
+## Fix Calendar Edit Crash — null workingHours fallback
+- [x] Add null coalescing fallback + sanitizeAvailability() helper in Calendar edit modal
+- [x] Verify server-side mutation handles null cleanly — Zod schema validates, JSON.stringify only runs when defined
+- [x] Write/run tests — 10/10 pass
+- [x] Save checkpoint

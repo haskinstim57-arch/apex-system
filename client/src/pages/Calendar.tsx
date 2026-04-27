@@ -118,6 +118,36 @@ const DEFAULT_AVAILABILITY: WeeklyAvailability = {
   sunday: [],
 };
 
+/**
+ * Sanitize availability data from the DB into the expected WeeklyAvailability format.
+ * Handles: null, undefined, malformed JSON, missing days, and alternative formats
+ * like { enabled: boolean, start: string, end: string } objects.
+ */
+function sanitizeAvailability(raw: unknown): WeeklyAvailability {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_AVAILABILITY };
+  const obj = raw as Record<string, unknown>;
+  const result: WeeklyAvailability = { ...DEFAULT_AVAILABILITY };
+  for (const day of DAY_NAMES) {
+    const val = obj[day];
+    if (Array.isArray(val)) {
+      // Expected format: array of { start, end }
+      result[day] = val.filter(
+        (b: any) => b && typeof b.start === "string" && typeof b.end === "string"
+      ).map((b: any) => ({ start: b.start, end: b.end }));
+    } else if (val && typeof val === "object") {
+      // Alternative format: { enabled: boolean, start: string, end: string }
+      const v = val as Record<string, unknown>;
+      if (v.enabled && typeof v.start === "string" && typeof v.end === "string") {
+        result[day] = [{ start: v.start as string, end: v.end as string }];
+      } else {
+        result[day] = [];
+      }
+    }
+    // If val is undefined/null, the default from spread is kept
+  }
+  return result;
+}
+
 // ─── Date helpers ───
 function getWeekStart(date: Date): Date {
   const d = new Date(date);
@@ -1504,12 +1534,13 @@ function CalendarFormDialog({
   const [availability, setAvailability] = useState<WeeklyAvailability>(() => {
     if (calendar?.availabilityJson) {
       try {
-        return JSON.parse(calendar.availabilityJson);
+        const parsed = JSON.parse(calendar.availabilityJson);
+        return sanitizeAvailability(parsed);
       } catch {
-        return DEFAULT_AVAILABILITY;
+        return { ...DEFAULT_AVAILABILITY };
       }
     }
-    return DEFAULT_AVAILABILITY;
+    return { ...DEFAULT_AVAILABILITY };
   });
 
   const createMut = trpc.calendar.create.useMutation({
