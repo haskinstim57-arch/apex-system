@@ -3197,9 +3197,47 @@ export async function listCalendarBlocks(
 }
 
 /**
- * Get available time slots for a calendar on a given date.
- * Checks the calendar's weekly availability JSON and existing appointments.
+ * Compute the UTC offset in minutes for a given IANA timezone on a specific date.
+ * Positive = ahead of UTC (e.g. +540 for Asia/Tokyo), negative = behind (e.g. -420 for America/Los_Angeles PDT).
  */
+function getTimezoneOffsetMinutes(timezone: string, date: string): number {
+  try {
+    // Create a date at noon local to avoid DST edge cases
+    const refDate = new Date(`${date}T12:00:00Z`);
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(refDate);
+    const get = (type: string) => parts.find((p) => p.type === type)?.value || "0";
+    const localDate = new Date(
+      `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}Z`
+    );
+    // Difference: localDate (interpreted as UTC) minus refDate (actual UTC)
+    return Math.round((localDate.getTime() - refDate.getTime()) / 60000);
+  } catch {
+    return 0; // Fallback: treat as UTC
+  }
+}
+
+/**
+ * Convert a local time string (HH:MM) on a given date in a given timezone to a UTC Date.
+ */
+function localTimeToUTC(date: string, time: string, tzOffsetMinutes: number): Date {
+  const [h, m] = time.split(":").map(Number);
+  const localMinutes = h * 60 + m;
+  const utcMinutes = localMinutes - tzOffsetMinutes;
+  // Build from midnight UTC of that date
+  const base = new Date(`${date}T00:00:00Z`);
+  return new Date(base.getTime() + utcMinutes * 60000);
+}
+
 export async function getAvailableSlots(
   calendarId: number,
   date: string // ISO date string YYYY-MM-DD
@@ -3216,30 +3254,35 @@ export async function getAvailableSlots(
   const calendar = calRows[0];
   if (!calendar || !calendar.isActive) return [];
 
+  const timezone = calendar.timezone || "America/New_York";
+  const tzOffset = getTimezoneOffsetMinutes(timezone, date);
+
   // Parse availability JSON
   const availability = calendar.availabilityJson
     ? JSON.parse(calendar.availabilityJson)
     : null;
   if (!availability) return [];
 
-  // Determine day of week
-  const dateObj = new Date(date + "T12:00:00Z"); // noon UTC to avoid timezone edge cases
+  // Determine day of week in the calendar's timezone
+  // Use the timezone offset to figure out what day it is locally
+  const dateObj = new Date(date + "T12:00:00Z"); // noon UTC to avoid edge cases
   const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   const dayName = dayNames[dateObj.getUTCDay()];
   const daySlots = availability[dayName];
   if (!daySlots || !Array.isArray(daySlots) || daySlots.length === 0) return [];
 
   // Get existing appointments for this calendar on this date
-  const dayStart = new Date(date + "T00:00:00Z");
-  const dayEnd = new Date(date + "T23:59:59Z");
+  // Widen the window to account for timezone offset (local day may span two UTC days)
+  const dayStartUTC = localTimeToUTC(date, "00:00", tzOffset);
+  const dayEndUTC = new Date(dayStartUTC.getTime() + 24 * 60 * 60 * 1000 - 1);
   const existingAppts = await db
     .select()
     .from(appointments)
     .where(
       and(
         eq(appointments.calendarId, calendarId),
-        sql`${appointments.startTime} >= ${dayStart}`,
-        sql`${appointments.startTime} <= ${dayEnd}`,
+        sql`${appointments.startTime} >= ${dayStartUTC}`,
+        sql`${appointments.startTime} <= ${dayEndUTC}`,
         sql`${appointments.status} != 'cancelled'`
       )
     );
@@ -3247,7 +3290,7 @@ export async function getAvailableSlots(
   // Generate time slots
   const slotDuration = calendar.slotDurationMinutes;
   const bufferMinutes = calendar.bufferMinutes;
-  const slots: { start: string; end: string }[] = [];
+  const slots: { start: string; end: string; startUTC: number; endUTC: number }[] = [];
 
   for (const block of daySlots) {
     const [startH, startM] = block.start.split(":").map(Number);
@@ -3265,18 +3308,24 @@ export async function getAvailableSlots(
       const slotStart = `${String(slotStartH).padStart(2, "0")}:${String(slotStartM).padStart(2, "0")}`;
       const slotEnd = `${String(slotEndH).padStart(2, "0")}:${String(slotEndM).padStart(2, "0")}`;
 
-      // Check for conflicts with existing appointments (including buffer)
-      const slotStartDate = new Date(`${date}T${slotStart}:00Z`);
-      const slotEndDate = new Date(`${date}T${slotEnd}:00Z`);
+      // Convert local slot times to UTC for conflict detection
+      const slotStartUTC = localTimeToUTC(date, slotStart, tzOffset);
+      const slotEndUTC = localTimeToUTC(date, slotEnd, tzOffset);
 
+      // Check for conflicts with existing appointments (including buffer)
       const hasConflict = existingAppts.some((appt) => {
         const apptStart = new Date(appt.startTime).getTime() - bufferMinutes * 60 * 1000;
         const apptEnd = new Date(appt.endTime).getTime() + bufferMinutes * 60 * 1000;
-        return slotStartDate.getTime() < apptEnd && slotEndDate.getTime() > apptStart;
+        return slotStartUTC.getTime() < apptEnd && slotEndUTC.getTime() > apptStart;
       });
 
       if (!hasConflict) {
-        slots.push({ start: slotStart, end: slotEnd });
+        slots.push({
+          start: slotStart,
+          end: slotEnd,
+          startUTC: slotStartUTC.getTime(),
+          endUTC: slotEndUTC.getTime(),
+        });
       }
 
       currentMinutes += slotDuration + bufferMinutes;

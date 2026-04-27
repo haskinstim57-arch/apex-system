@@ -5190,3 +5190,15 @@
 - [x] When billingEnabled=false: inserts $0 tracking event, skips payment method check + balance deduction
 - [x] Tests pass: 12/12 billingKillSwitch, 19/19 aiCalls
 - [x] Save checkpoint
+
+## Prompt R — Fix Calendar Slot Generation (No Available Times)
+- [x] Investigated getAvailableSlots — availability format was correct (arrays of blocks)
+- [x] Root cause: local times treated as UTC in min-notice filter (09:00 PDT parsed as 09:00 UTC)
+- [x] Added getTimezoneOffsetMinutes() and localTimeToUTC() helpers to db.ts
+- [x] getAvailableSlots now returns { start, end, startUTC, endUTC } with proper UTC timestamps
+- [x] Fixed getPublicSlots min-notice filter to use startUTC
+- [x] Fixed bookAppointment to use startUTC/endUTC for min-notice and appointment creation
+- [x] Fixed VAPI bookAppointment to compare local time strings (not UTC hours)
+- [x] Verified: 4 slots returned for April 28 (14:15, 15:00, 15:45, 16:30 PDT)
+- [x] Write vitest tests — 15/15 pass
+- [x] Save checkpoint

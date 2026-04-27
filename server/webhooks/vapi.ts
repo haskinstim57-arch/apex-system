@@ -290,8 +290,10 @@ async function handleBookAppointment(
     // ── Working hours check ──
     // Verify the requested slot falls within the calendar's weekly availability
     const availableSlots = await getAvailableSlots(calendarId, date);
-    const requestedTimeStr = `${String(startTime.getUTCHours()).padStart(2, "0")}:${String(startTime.getUTCMinutes()).padStart(2, "0")}`;
-    const slotMatch = availableSlots.some((s: { start: string; end: string }) => s.start === requestedTimeStr);
+    // Compare against local time strings (slots use local HH:MM format)
+    // time is already in local format from the VAPI call (e.g. "14:00")
+    const normalizedTime = time.includes(":") ? time.split(":").slice(0, 2).map((p: string) => p.padStart(2, "0")).join(":") : time;
+    const slotMatch = availableSlots.some((s: { start: string; end: string }) => s.start === normalizedTime);
     if (!slotMatch && availableSlots.length > 0) {
       // Slot not in available windows — suggest alternatives
       const displaySlots = availableSlots.slice(0, 5).map((s: { start: string }) => formatTime12h(s.start));

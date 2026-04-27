@@ -707,12 +707,13 @@ export const calendarRouter = router({
         return []; // Too far ahead
       }
 
+      // getAvailableSlots now returns timezone-aware UTC timestamps per slot
       const slots = await getAvailableSlots(calendar.id, input.date);
 
       // Filter out slots that don't meet minNoticeHours
+      // Use the UTC timestamps from getAvailableSlots (timezone-aware)
       const filteredSlots = slots.filter((slot) => {
-        const slotTime = new Date(`${input.date}T${slot.start}:00Z`);
-        return slotTime.getTime() > now.getTime() + minNoticeMs;
+        return slot.startUTC > now.getTime() + minNoticeMs;
       });
 
       // Also filter out slots that conflict with external calendar busy times (live API)
@@ -742,13 +743,15 @@ export const calendarRouter = router({
         ...manualBlocks,
       ];
 
-      if (allBusyBlocks.length === 0) return filteredSlots;
+      if (allBusyBlocks.length === 0) {
+        // Strip UTC fields before returning to client
+        return filteredSlots.map(({ start, end }) => ({ start, end }));
+      }
 
       return filteredSlots.filter((slot) => {
-        const slotStart = new Date(`${input.date}T${slot.start}:00Z`).getTime();
-        const slotEnd = new Date(`${input.date}T${slot.end}:00Z`).getTime();
-        return !hasTimeConflict(slotStart, slotEnd, allBusyBlocks);
-      });
+        // Use timezone-aware UTC timestamps for conflict detection
+        return !hasTimeConflict(slot.startUTC, slot.endUTC, allBusyBlocks);
+      }).map(({ start, end }) => ({ start, end }));
     }),
 
   /** Book an appointment (public, no auth) */
@@ -843,19 +846,18 @@ export const calendarRouter = router({
         });
       }
 
-      // Enforce minNoticeHours
+      // Enforce minNoticeHours using timezone-aware UTC timestamps
       const now = new Date();
-      const slotTime = new Date(`${input.date}T${input.startTime}:00Z`);
       const minNoticeMs = calendar.minNoticeHours * 60 * 60 * 1000;
-      if (slotTime.getTime() < now.getTime() + minNoticeMs) {
+      if (selectedSlot.startUTC < now.getTime() + minNoticeMs) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Appointments must be booked at least ${calendar.minNoticeHours} hours in advance.`,
         });
       }
 
-      const startTimeDate = new Date(`${input.date}T${selectedSlot.start}:00Z`);
-      const endTimeDate = new Date(`${input.date}T${selectedSlot.end}:00Z`);
+      const startTimeDate = new Date(selectedSlot.startUTC);
+      const endTimeDate = new Date(selectedSlot.endUTC);
 
       // Double-check against external calendar events (live API + cached push events)
       const [liveBusyBlocks, cachedBusyBlocks] = await Promise.all([
