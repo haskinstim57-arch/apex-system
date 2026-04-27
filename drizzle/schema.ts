@@ -94,6 +94,8 @@ export const accounts = mysqlTable("accounts", {
   brandName: varchar("brandName", { length: 255 }),
   /** Favicon URL for white-label portal */
   faviconUrl: text("faviconUrl"),
+  /** Master billing kill switch — when false, usage events are not tracked and dispatch skips balance deduction */
+  billingEnabled: boolean("billingEnabled").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

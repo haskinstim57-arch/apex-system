@@ -10,6 +10,7 @@
 import { dispatchSMS, dispatchEmail, type MessageSendResult } from "./messaging";
 import { chargeBeforeSend, reverseCharge } from "./usageTracker";
 import { autoPromoteOnOutbound } from "./contactStatusAutoUpdater";
+import { getAccountById } from "../db";
 
 // ─────────────────────────────────────────────
 // BILLED SMS
@@ -40,16 +41,26 @@ export interface BilledSendResult extends MessageSendResult {
 export async function billedDispatchSMS(params: BilledSMSParams): Promise<BilledSendResult> {
   const { accountId, to, body, from, contactId, userId, skipDndCheck, metadata } = params;
 
-  // 1. Charge before send
-  const charge = await chargeBeforeSend(
-    accountId,
-    "sms_sent",
-    1,
-    { contactId, to, ...metadata },
-    userId
-  );
+  // ── Billing kill switch: send message but skip balance deduction ──
+  const account = await getAccountById(accountId);
+  const billingPaused = account && !account.billingEnabled;
+  if (billingPaused) {
+    console.log(`[billedDispatch] Billing disabled for account ${accountId} — sending SMS without charge`);
+  }
 
-  // 2. Dispatch the SMS
+  let charge: { usageEventId: number; totalCost: number } | null = null;
+  if (!billingPaused) {
+    // 1. Charge before send
+    charge = await chargeBeforeSend(
+      accountId,
+      "sms_sent",
+      1,
+      { contactId, to, ...metadata },
+      userId
+    );
+  }
+
+  // 2. Dispatch the SMS (always send regardless of billing state)
   const result = await dispatchSMS({
     to,
     body,
@@ -60,8 +71,8 @@ export async function billedDispatchSMS(params: BilledSMSParams): Promise<Billed
     provider: params.provider,
   });
 
-  // 3. Reverse charge on failure
-  if (!result.success) {
+  // 3. Reverse charge on failure (only if we charged)
+  if (!result.success && charge) {
     await reverseCharge(charge.usageEventId);
     console.warn(
       `[billedDispatch] SMS send failed, charge reversed: accountId=${accountId} to=${to} error=${result.error}`
@@ -75,8 +86,8 @@ export async function billedDispatchSMS(params: BilledSMSParams): Promise<Billed
 
   return {
     ...result,
-    usageEventId: charge.usageEventId,
-    totalCost: charge.totalCost,
+    usageEventId: charge?.usageEventId,
+    totalCost: charge?.totalCost,
   };
 }
 
@@ -109,16 +120,26 @@ interface BilledEmailParams {
 export async function billedDispatchEmail(params: BilledEmailParams): Promise<BilledSendResult> {
   const { accountId, to, subject, body, from, fromName, userId, contactId, metadata, attachments } = params;
 
-  // 1. Charge before send
-  const charge = await chargeBeforeSend(
-    accountId,
-    "email_sent",
-    1,
-    { contactId, to, subject, ...metadata },
-    userId
-  );
+  // ── Billing kill switch: send email but skip balance deduction ──
+  const account = await getAccountById(accountId);
+  const billingPaused = account && !account.billingEnabled;
+  if (billingPaused) {
+    console.log(`[billedDispatch] Billing disabled for account ${accountId} — sending email without charge`);
+  }
 
-  // 2. Dispatch the email
+  let charge: { usageEventId: number; totalCost: number } | null = null;
+  if (!billingPaused) {
+    // 1. Charge before send
+    charge = await chargeBeforeSend(
+      accountId,
+      "email_sent",
+      1,
+      { contactId, to, subject, ...metadata },
+      userId
+    );
+  }
+
+  // 2. Dispatch the email (always send regardless of billing state)
   const result = await dispatchEmail({
     to,
     subject,
@@ -129,8 +150,8 @@ export async function billedDispatchEmail(params: BilledEmailParams): Promise<Bi
     attachments,
   });
 
-  // 3. Reverse charge on failure
-  if (!result.success) {
+  // 3. Reverse charge on failure (only if we charged)
+  if (!result.success && charge) {
     await reverseCharge(charge.usageEventId);
     console.warn(
       `[billedDispatch] Email send failed, charge reversed: accountId=${accountId} to=${to} error=${result.error}`
@@ -144,8 +165,8 @@ export async function billedDispatchEmail(params: BilledEmailParams): Promise<Bi
 
   return {
     ...result,
-    usageEventId: charge.usageEventId,
-    totalCost: charge.totalCost,
+    usageEventId: charge?.usageEventId,
+    totalCost: charge?.totalCost,
   };
 }
 

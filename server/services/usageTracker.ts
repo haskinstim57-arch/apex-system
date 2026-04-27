@@ -542,6 +542,18 @@ export async function trackUsage(params: TrackUsageParams) {
     return null;
   }
 
+  // ── Billing kill switch: skip all usage tracking when billing is paused ──
+  try {
+    const acct = await db.select({ billingEnabled: accounts.billingEnabled }).from(accounts).where(eq(accounts.id, accountId)).limit(1);
+    if (acct[0] && !acct[0].billingEnabled) {
+      console.log(`[usageTracker] Billing disabled for account ${accountId} — skipping usage tracking`);
+      return null;
+    }
+  } catch (e) {
+    console.error("[usageTracker] Failed to check billingEnabled:", e);
+    // Continue with tracking if the check fails — fail-open for safety
+  }
+
   try {
     const billing = await ensureBillingRow(db, accountId);
     if (!billing) return null;

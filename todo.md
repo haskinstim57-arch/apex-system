@@ -5143,3 +5143,14 @@
 - [x] Add try/catch error handling to tool handler
 - [x] Run tests and verify — 14/14 pass (contactStats + autoUpdater)
 - [x] Save checkpoint
+
+## Clear PMR Balance + Billing Kill Switch
+
+- [x] Part 1: Clear PMR balance to $0.00 (was -$0.5270, now $0.0000)
+- [x] Part 2: Add billingEnabled column to accounts schema + migrate
+- [x] Part 2: Wire kill switch into usageTracker (skip DB writes when disabled)
+- [x] Part 2: Wire kill switch into billedDispatch (send but skip deduction when disabled)
+- [x] Part 3: Add billing toggle in agency sub-account UI + tRPC mutation
+- [x] Part 4: Set PMR billingEnabled=false (confirmed: billingEnabled=0, balance=$0.0000)
+- [x] Write vitest tests — 12/12 pass
+- [x] Save checkpoint

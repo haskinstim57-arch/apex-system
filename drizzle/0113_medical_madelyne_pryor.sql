@@ -1,0 +1,1 @@
+ALTER TABLE `accounts` ADD `billingEnabled` boolean DEFAULT true NOT NULL;

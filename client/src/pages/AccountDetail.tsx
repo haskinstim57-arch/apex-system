@@ -58,6 +58,7 @@ import {
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 const roleColors: Record<string, string> = {
   owner: "border-primary/30 text-primary bg-primary/10",
@@ -164,6 +165,21 @@ export default function AccountDetail({ id }: { id: number }) {
     },
   });
 
+  const setBillingMutation = trpc.accounts.setBillingEnabled.useMutation({
+    onSuccess: (data) => {
+      utils.accounts.get.invalidate({ id });
+      utils.accounts.list.invalidate();
+      toast.success(data.billingEnabled ? "Billing enabled" : "Billing paused", {
+        description: data.billingEnabled
+          ? "Usage events will now be tracked and charged."
+          : "Messages will still send but usage will not be charged.",
+      });
+    },
+    onError: (err) => {
+      toast.error("Failed to update billing", { description: err.message });
+    },
+  });
+
   if (accountLoading) {
     return (
       <div className="space-y-6">
@@ -215,6 +231,11 @@ export default function AccountDetail({ id }: { id: number }) {
             >
               {account.status}
             </Badge>
+            {account.billingEnabled === false && (
+              <Badge variant="destructive" className="text-[10px] h-5">
+                Billing Paused
+              </Badge>
+            )}
           </div>
           <p className="text-sm text-muted-foreground mt-0.5 capitalize">
             {account.industry?.replace("_", " ") || "Mortgage"} &middot;
@@ -635,6 +656,37 @@ export default function AccountDetail({ id }: { id: number }) {
               )}
             </CardContent>
           </Card>
+
+          {/* Billing Kill Switch — admin only */}
+          {isAdmin && (
+            <Card className="bg-card border-0 card-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Billing Settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Billing Enabled</p>
+                    <p className="text-xs text-muted-foreground">
+                      When disabled, messages still send but usage is not tracked or charged.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={account.billingEnabled !== false}
+                    onCheckedChange={(checked) => {
+                      setBillingMutation.mutate({ accountId: id, enabled: checked });
+                    }}
+                  />
+                </div>
+                {account.billingEnabled === false && (
+                  <div className="mt-3 p-2 rounded bg-destructive/10 text-destructive text-xs flex items-center gap-2">
+                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                    Billing is paused for this account. Usage events are not being tracked.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
 

@@ -979,4 +979,27 @@ export const accountsRouter = router({
       });
       return { success: true };
     }),
+
+  /** Toggle billing enabled/disabled for a sub-account (agency admin only) */
+  setBillingEnabled: adminProcedure
+    .input(z.object({
+      accountId: z.number().int().positive(),
+      enabled: z.boolean(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const database = (await db.getDb())!;
+      const { accounts } = await import("../../drizzle/schema");
+      await database
+        .update(accounts)
+        .set({ billingEnabled: input.enabled })
+        .where(eq(accounts.id, input.accountId));
+      await db.createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: input.enabled ? "billing.enabled" : "billing.disabled",
+        resourceType: "account",
+        resourceId: input.accountId,
+      });
+      return { success: true, billingEnabled: input.enabled };
+    }),
 });
