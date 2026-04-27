@@ -1203,8 +1203,16 @@ export async function executeTool(
     case "get_dashboard_stats":
       return getAccountDashboardStats(accountId);
 
-    case "get_contact_stats":
-      return getContactStats(accountId);
+    case "get_contact_stats": {
+      try {
+        const stats = await getContactStats(accountId);
+        console.log("[get_contact_stats] result:", JSON.stringify(stats));
+        return stats;
+      } catch (err) {
+        console.error("[get_contact_stats] failed:", err);
+        return { error: "Failed to fetch contact stats", detail: String(err) };
+      }
+    }
 
     case "get_message_stats":
       return getMessageStats(accountId);

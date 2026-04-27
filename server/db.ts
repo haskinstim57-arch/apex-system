@@ -989,26 +989,58 @@ export async function getContactStats(accountId: number, assignedUserId?: number
     baseConditions.push(eq(contacts.assignedUserId, assignedUserId));
   }
 
-  const rows = await db
-    .select({
-      status: contacts.status,
-      count: sql<number>`COUNT(*)`,
-    })
-    .from(contacts)
-    .where(and(...baseConditions))
-    .groupBy(contacts.status);
+  try {
+    const rows = await db
+      .select({
+        status: contacts.status,
+        count: sql<number>`COUNT(*)`,
+      })
+      .from(contacts)
+      .where(and(...baseConditions))
+      .groupBy(contacts.status);
 
-  // Build a complete record with all 15 keys defaulting to 0
-  const byStatus: Record<string, number> = Object.fromEntries(
-    CONTACT_STATUSES.map((s) => [s, 0])
-  );
-  let total = 0;
-  for (const row of rows) {
-    if (row.status) byStatus[row.status] = Number(row.count);
-    total += Number(row.count);
+    // Build a complete record with all 15 keys defaulting to 0
+    const byStatus: Record<string, number> = Object.fromEntries(
+      CONTACT_STATUSES.map((s) => [s, 0])
+    );
+    let total = 0;
+    for (const row of rows) {
+      if (row.status) byStatus[row.status] = Number(row.count);
+      total += Number(row.count);
+    }
+
+    return { total, byStatus };
+  } catch (err) {
+    console.error("[getContactStats] GROUP BY query failed, falling back to individual counts:", err);
+    // Fallback: individual COUNT queries per status
+    try {
+      const byStatus: Record<string, number> = Object.fromEntries(
+        CONTACT_STATUSES.map((s) => [s, 0])
+      );
+      let total = 0;
+      for (const status of CONTACT_STATUSES) {
+        const [row] = await db
+          .select({ count: sql<number>`COUNT(*)` })
+          .from(contacts)
+          .where(
+            and(
+              ...baseConditions,
+              eq(contacts.status, status)
+            )
+          );
+        const c = Number(row?.count ?? 0);
+        byStatus[status] = c;
+        total += c;
+      }
+      return { total, byStatus };
+    } catch (fallbackErr) {
+      console.error("[getContactStats] Fallback also failed:", fallbackErr);
+      const byStatus: Record<string, number> = Object.fromEntries(
+        CONTACT_STATUSES.map((s) => [s, 0])
+      );
+      return { total: 0, byStatus };
+    }
   }
-
-  return { total, byStatus };
 }
 
 // ─────────────────────────────────────────────

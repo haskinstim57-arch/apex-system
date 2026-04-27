@@ -5135,3 +5135,11 @@
 - [x] Update Contacts.tsx frontend for new byStatus shape
 - [x] Write/update vitest tests — 5/5 pass
 - [x] Save checkpoint
+
+## Fix Jarvis Stats Regression (Prompt K)
+
+- [x] Diagnose broken getContactStats GROUP BY query
+- [x] Fix SQL/schema column mismatch — query was correct, added defensive error handling + fallback
+- [x] Add try/catch error handling to tool handler
+- [x] Run tests and verify — 14/14 pass (contactStats + autoUpdater)
+- [x] Save checkpoint
