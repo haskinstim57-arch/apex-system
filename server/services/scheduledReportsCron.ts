@@ -47,7 +47,87 @@ export function stopScheduledReportsCron() {
   }
 }
 
-/** Calculate the next run time based on frequency */
+/**
+ * Get the UTC offset in minutes for a given IANA timezone at a specific date.
+ * Positive = behind UTC (e.g., America/New_York = +240 or +300)
+ * Uses Intl.DateTimeFormat to determine the local time in the target timezone.
+ */
+export function getTimezoneOffsetForDate(timezone: string, date: Date): number {
+  try {
+    // Get the time parts in the target timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(date);
+    const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || "0");
+    const localYear = get("year");
+    const localMonth = get("month") - 1;
+    const localDay = get("day");
+    let localHour = get("hour");
+    if (localHour === 24) localHour = 0; // midnight edge case
+    const localMinute = get("minute");
+    const localSecond = get("second");
+
+    // Build a UTC date from the local parts
+    const localAsUTC = Date.UTC(localYear, localMonth, localDay, localHour, localMinute, localSecond);
+    // The offset is the difference between the local interpretation and actual UTC
+    return (localAsUTC - date.getTime()) / 60000;
+  } catch {
+    // If timezone is invalid, default to UTC (offset 0)
+    console.warn(`[ScheduledReportsCron] Invalid timezone "${timezone}", defaulting to UTC`);
+    return 0;
+  }
+}
+
+/**
+ * Convert a desired local hour (in a given IANA timezone) to the equivalent UTC hour,
+ * accounting for DST. Returns the UTC Date for "today at sendHour in timezone".
+ */
+export function localHourToUTC(sendHour: number, timezone: string, baseDate: Date): Date {
+  // Get what "today" is in the target timezone
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(baseDate);
+  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || "0");
+  const localYear = get("year");
+  const localMonth = get("month") - 1;
+  const localDay = get("day");
+
+  // Build a date representing "localYear-localMonth-localDay at sendHour:00:00" in the timezone
+  // Then find the UTC equivalent by computing the offset at that approximate time
+  const approxUTC = new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0));
+  const offset = getTimezoneOffsetForDate(timezone, approxUTC);
+  // The actual UTC time = local time - offset
+  const utcTime = new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0) - offset * 60000);
+  return utcTime;
+}
+
+/**
+ * Get the day of week in the target timezone for a given UTC date.
+ */
+function getDayOfWeekInTimezone(date: Date, timezone: string): number {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    weekday: "short",
+  });
+  const dayStr = formatter.format(date);
+  const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  return dayMap[dayStr] ?? date.getUTCDay();
+}
+
+/** Calculate the next run time based on frequency, with proper timezone handling */
 export function calculateNextRunAt(
   frequency: "daily" | "weekly" | "monthly" | "daily_activity" | "daily_marketing",
   sendHour: number,
@@ -57,46 +137,77 @@ export function calculateNextRunAt(
 ): Date {
   const now = new Date();
 
-  // We'll calculate in UTC and adjust for timezone offset
-  // For simplicity, use a fixed offset approach
-  const next = new Date(now);
-
   if (frequency === "daily_activity" || frequency === "daily_marketing") {
-    // Daily activity/marketing reports only run Mon-Fri at sendHour (default 7 AM)
+    // Daily activity/marketing reports only run Mon-Fri at sendHour in the account's timezone
     const hour = sendHour ?? 7;
-    next.setUTCHours(hour, 0, 0, 0);
+    let next = localHourToUTC(hour, timezone, now);
     if (next <= now) {
-      next.setUTCDate(next.getUTCDate() + 1);
+      // Move to next day
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      next = localHourToUTC(hour, timezone, tomorrow);
     }
-    // Skip Saturday (6) and Sunday (0)
-    while (next.getUTCDay() === 0 || next.getUTCDay() === 6) {
-      next.setUTCDate(next.getUTCDate() + 1);
+    // Skip Saturday (6) and Sunday (0) in the local timezone
+    let localDay = getDayOfWeekInTimezone(next, timezone);
+    while (localDay === 0 || localDay === 6) {
+      next = new Date(next.getTime() + 24 * 60 * 60 * 1000);
+      // Recalculate to handle DST transitions on the new day
+      next = localHourToUTC(hour, timezone, next);
+      localDay = getDayOfWeekInTimezone(next, timezone);
     }
+    return next;
   } else if (frequency === "daily") {
-    // Next occurrence at sendHour
-    next.setUTCHours(sendHour, 0, 0, 0);
+    // Next occurrence at sendHour in the account's timezone
+    let next = localHourToUTC(sendHour, timezone, now);
     if (next <= now) {
-      next.setUTCDate(next.getUTCDate() + 1);
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+      next = localHourToUTC(sendHour, timezone, tomorrow);
     }
+    return next;
   } else if (frequency === "weekly") {
     const targetDay = dayOfWeek ?? 1; // Default Monday
-    next.setUTCHours(sendHour, 0, 0, 0);
-    const currentDay = next.getUTCDay();
-    let daysUntil = targetDay - currentDay;
-    if (daysUntil <= 0) daysUntil += 7;
+    let next = localHourToUTC(sendHour, timezone, now);
+    const currentLocalDay = getDayOfWeekInTimezone(next, timezone);
+    let daysUntil = targetDay - currentLocalDay;
+    if (daysUntil < 0) daysUntil += 7;
     if (daysUntil === 0 && next <= now) daysUntil = 7;
-    next.setUTCDate(next.getUTCDate() + daysUntil);
+    if (daysUntil > 0) {
+      const targetDate = new Date(now.getTime() + daysUntil * 24 * 60 * 60 * 1000);
+      next = localHourToUTC(sendHour, timezone, targetDate);
+    }
+    return next;
   } else if (frequency === "monthly") {
     const targetDate = Math.min(dayOfMonth ?? 1, 28); // Cap at 28 to avoid month-end issues
-    next.setUTCHours(sendHour, 0, 0, 0);
-    next.setUTCDate(targetDate);
+    // Get current local date in timezone
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(now);
+    const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || "0");
+    let localYear = get("year");
+    let localMonth = get("month") - 1;
+
+    // Build the target date in the local timezone
+    let candidate = new Date(Date.UTC(localYear, localMonth, targetDate, sendHour, 0, 0));
+    let next = localHourToUTC(sendHour, timezone, candidate);
     if (next <= now) {
-      next.setUTCMonth(next.getUTCMonth() + 1);
-      next.setUTCDate(targetDate);
+      // Move to next month
+      localMonth++;
+      if (localMonth > 11) {
+        localMonth = 0;
+        localYear++;
+      }
+      candidate = new Date(Date.UTC(localYear, localMonth, targetDate, sendHour, 0, 0));
+      next = localHourToUTC(sendHour, timezone, candidate);
     }
+    return next;
   }
 
-  return next;
+  // Fallback (shouldn't reach here)
+  return new Date(now.getTime() + 24 * 60 * 60 * 1000);
 }
 
 /** Process all due scheduled reports */

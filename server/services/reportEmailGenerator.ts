@@ -19,7 +19,7 @@ import {
   sequences,
   jarvisTaskQueue,
 } from "../../drizzle/schema";
-import { and, eq, gte, lte, sql, count, desc, asc, isNotNull, inArray } from "drizzle-orm";
+import { and, eq, gte, lte, sql, count, desc, asc, isNull, isNotNull, inArray } from "drizzle-orm";
 import { generatePipelineSummarySection } from "./pipelineSummaryReport";
 
 // ─────────────────────────────────────────────

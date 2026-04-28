@@ -5227,3 +5227,12 @@
 - [x] Write vitest tests — 22/22 pass
 - [x] Re-run execution #1230002 — completed successfully, notification created (id=1980006, userId=1110216)
 - [x] Save checkpoint
+
+## Prompt V — Fix Scheduled Reports: Timezone Bug + Surface Error in UI
+- [x] Fix 1: calculateNextRunAt timezone conversion — rewrote using Intl.DateTimeFormat to convert sendHour in IANA timezone to UTC (handles DST)
+- [x] Recalculate nextRunAt for all active scheduled reports — PMR report now correctly at 2026-04-29T14:00:00Z (7 AM Pacific)
+- [x] Fix 2: Show lastRunError in Reports UI — amber warning box below "Last sent" when status is failed/partial
+- [x] Fix 3: PMR report error was "isNull is not defined" — missing import in reportEmailGenerator.ts (added isNull to drizzle-orm imports)
+- [x] Write vitest tests — 27/27 timezone tests pass + 22/22 notify tests pass (49 total new tests)
+- [x] Run existing tests — 10 pre-existing test files fail (unrelated: vapiBooking, campaigns, messageQueue, etc.) — 144 files pass
+- [x] Save checkpoint

@@ -503,6 +503,14 @@ export function ScheduledReportsCard({ accountId }: Props) {
                         </div>
                       )}
 
+                      {/* Show error when last run failed or partial */}
+                      {report.lastRunError && (report.lastRunStatus === "failed" || report.lastRunStatus === "partial") && (
+                        <div className="flex items-start gap-1.5 mt-1 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded px-2 py-1">
+                          <span className="flex-shrink-0 mt-0.5">⚠</span>
+                          <span className="break-all">{report.lastRunError}</span>
+                        </div>
+                      )}
+
                       {report.nextRunAt && report.isActive && (
                         <div className="text-[11px] text-muted-foreground mt-1">
                           Next: {new Date(report.nextRunAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
