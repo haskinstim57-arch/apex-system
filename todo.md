@@ -5243,3 +5243,10 @@
 - [x] Recalculated nextRunAt for all active reports — PMR now at 2026-04-29T14:00:00Z (7 AM PDT)
 - [x] 32/32 timezone tests pass (including 5 new DST transition edge cases) + 22/22 notify tests pass
 - [x] Save checkpoint
+
+## DST Fix V2 — User-Provided calculateNextRunAt Implementation
+- [x] Replaced calculateNextRunAt with user-provided noon-UTC offset approach (localHourToUTCHour inner function)
+- [x] Recalculated nextRunAt — Report 5: 2026-04-29T14:00:00Z = 7:00 AM Pacific
+- [x] Updated tests to match new implementation (removed localHourToUTC export, 24 tests)
+- [x] All tests pass: 24/24 timezone + 22/22 notify
+- [x] Save checkpoint
