@@ -87,31 +87,68 @@ export function getTimezoneOffsetForDate(timezone: string, date: Date): number {
 }
 
 /**
- * Convert a desired local hour (in a given IANA timezone) to the equivalent UTC hour,
- * accounting for DST. Returns the UTC Date for "today at sendHour in timezone".
+ * Convert a desired local hour (in a given IANA timezone) to the equivalent UTC time,
+ * accounting for DST. Returns the UTC Date for "today at sendHour:00 in timezone".
+ *
+ * Uses an iterative correction approach: starts with a naive UTC guess, checks what
+ * local hour it maps to, and adjusts until the local hour matches. This is immune to
+ * offset calculation bugs and handles DST transitions correctly.
  */
 export function localHourToUTC(sendHour: number, timezone: string, baseDate: Date): Date {
   // Get what "today" is in the target timezone
-  const formatter = new Intl.DateTimeFormat("en-US", {
+  const dateFormatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour12: false,
   });
-  const parts = formatter.formatToParts(baseDate);
-  const get = (type: string) => parseInt(parts.find((p) => p.type === type)?.value || "0");
-  const localYear = get("year");
-  const localMonth = get("month") - 1;
-  const localDay = get("day");
+  const dateParts = dateFormatter.formatToParts(baseDate);
+  const getDate = (type: string) => parseInt(dateParts.find((p) => p.type === type)?.value || "0");
+  const localYear = getDate("year");
+  const localMonth = getDate("month") - 1;
+  const localDay = getDate("day");
 
-  // Build a date representing "localYear-localMonth-localDay at sendHour:00:00" in the timezone
-  // Then find the UTC equivalent by computing the offset at that approximate time
-  const approxUTC = new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0));
-  const offset = getTimezoneOffsetForDate(timezone, approxUTC);
-  // The actual UTC time = local time - offset
-  const utcTime = new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0) - offset * 60000);
-  return utcTime;
+  // Start with a naive guess: treat sendHour as if it were UTC
+  let guess = new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0));
+
+  // Formatter to check what local time our guess maps to
+  const checkFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  // Iterate up to 3 times to converge (usually converges in 1)
+  for (let i = 0; i < 3; i++) {
+    const localParts = checkFormatter.formatToParts(guess);
+    const getP = (type: string) => parseInt(localParts.find((p) => p.type === type)?.value || "0");
+    let localHour = getP("hour");
+    if (localHour === 24) localHour = 0; // midnight edge case
+    const localDayCheck = getP("day");
+
+    // Check both hour AND day match
+    if (localHour === sendHour && localDayCheck === localDay) break;
+
+    // Calculate adjustment needed
+    let adjustHours = sendHour - localHour;
+    if (adjustHours > 12) adjustHours -= 24;
+    if (adjustHours < -12) adjustHours += 24;
+
+    // Also correct for day mismatch (can happen near midnight with large offsets)
+    if (localDayCheck !== localDay) {
+      const dayDiff = localDay - localDayCheck;
+      adjustHours += dayDiff * 24;
+    }
+
+    guess = new Date(guess.getTime() + adjustHours * 3600000);
+  }
+
+  return guess;
 }
 
 /**

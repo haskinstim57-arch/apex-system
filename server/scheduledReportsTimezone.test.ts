@@ -229,6 +229,51 @@ describe("Prompt V — Scheduled Reports Timezone Fix", () => {
     });
   });
 
+  describe("DST transition edge cases", () => {
+    it("should use PDT offset on spring-forward day (March 8, 2026)", () => {
+      // US Spring Forward: March 8, 2026 at 2:00 AM → 3:00 AM
+      const baseDate = new Date("2026-03-08T12:00:00Z");
+      const result = localHourToUTC(7, "America/Los_Angeles", baseDate);
+      // 7 AM PDT = 14:00 UTC
+      expect(result.getUTCHours()).toBe(14);
+      // Verify local time is correct
+      const localStr = result.toLocaleString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", hour12: false });
+      expect(localStr).toContain("7");
+    });
+
+    it("should use PST offset on day before spring-forward (March 7, 2026)", () => {
+      const baseDate = new Date("2026-03-07T12:00:00Z");
+      const result = localHourToUTC(7, "America/Los_Angeles", baseDate);
+      // 7 AM PST = 15:00 UTC
+      expect(result.getUTCHours()).toBe(15);
+    });
+
+    it("should use PST offset on fall-back day (November 1, 2026)", () => {
+      // US Fall Back: November 1, 2026 at 2:00 AM → 1:00 AM
+      const baseDate = new Date("2026-11-01T12:00:00Z");
+      const result = localHourToUTC(7, "America/Los_Angeles", baseDate);
+      // 7 AM PST = 15:00 UTC
+      expect(result.getUTCHours()).toBe(15);
+    });
+
+    it("should use PDT offset on day before fall-back (October 31, 2026)", () => {
+      const baseDate = new Date("2026-10-31T12:00:00Z");
+      const result = localHourToUTC(7, "America/Los_Angeles", baseDate);
+      // 7 AM PDT = 14:00 UTC
+      expect(result.getUTCHours()).toBe(14);
+    });
+
+    it("should handle 11 PM PDT correctly (crosses day boundary in UTC)", () => {
+      const baseDate = new Date("2026-04-29T12:00:00Z");
+      const result = localHourToUTC(23, "America/Los_Angeles", baseDate);
+      // 11 PM PDT = 06:00 UTC next day
+      expect(result.getUTCHours()).toBe(6);
+      // Verify local time is 11 PM
+      const localStr = result.toLocaleString("en-US", { timeZone: "America/Los_Angeles", hour: "numeric", hour12: false });
+      expect(localStr).toContain("23");
+    });
+  });
+
   describe("regression — old bug: sendHour treated as UTC", () => {
     it("7 AM Pacific should NOT be 07:00 UTC", () => {
       const result = calculateNextRunAt("daily_activity", 7, "America/Los_Angeles", null, null);

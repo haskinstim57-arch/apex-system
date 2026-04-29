@@ -1,50 +1,61 @@
 import { createConnection } from "mysql2/promise";
 
-// Inline the timezone logic since we can't easily import TS in .mjs
-function getTimezoneOffsetForDate(timezone, date) {
-  try {
-    const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone: timezone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    });
-    const parts = formatter.formatToParts(date);
-    const get = (type) => parseInt(parts.find((p) => p.type === type)?.value || "0");
-    const localYear = get("year");
-    const localMonth = get("month") - 1;
-    const localDay = get("day");
-    let localHour = get("hour");
-    if (localHour === 24) localHour = 0;
-    const localMinute = get("minute");
-    const localSecond = get("second");
-    const localAsUTC = Date.UTC(localYear, localMonth, localDay, localHour, localMinute, localSecond);
-    return (localAsUTC - date.getTime()) / 60000;
-  } catch {
-    return 0;
-  }
-}
+/**
+ * Recalculate nextRunAt for all active scheduled reports using the
+ * robust iterative timezone conversion (matches the server code).
+ */
 
 function localHourToUTC(sendHour, timezone, baseDate) {
-  const formatter = new Intl.DateTimeFormat("en-US", {
+  const dateFormatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
     hour12: false,
   });
-  const parts = formatter.formatToParts(baseDate);
-  const get = (type) => parseInt(parts.find((p) => p.type === type)?.value || "0");
-  const localYear = get("year");
-  const localMonth = get("month") - 1;
-  const localDay = get("day");
-  const approxUTC = new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0));
-  const offset = getTimezoneOffsetForDate(timezone, approxUTC);
-  return new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0) - offset * 60000);
+  const dateParts = dateFormatter.formatToParts(baseDate);
+  const getDate = (type) => parseInt(dateParts.find((p) => p.type === type)?.value || "0");
+  const localYear = getDate("year");
+  const localMonth = getDate("month") - 1;
+  const localDay = getDate("day");
+
+  // Start with a naive guess: treat sendHour as if it were UTC
+  let guess = new Date(Date.UTC(localYear, localMonth, localDay, sendHour, 0, 0));
+
+  // Formatter to check what local time our guess maps to
+  const checkFormatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  // Iterate up to 3 times to converge (usually converges in 1)
+  for (let i = 0; i < 3; i++) {
+    const localParts = checkFormatter.formatToParts(guess);
+    const getP = (type) => parseInt(localParts.find((p) => p.type === type)?.value || "0");
+    let localHour = getP("hour");
+    if (localHour === 24) localHour = 0;
+    const localDayCheck = getP("day");
+
+    if (localHour === sendHour && localDayCheck === localDay) break;
+
+    let adjustHours = sendHour - localHour;
+    if (adjustHours > 12) adjustHours -= 24;
+    if (adjustHours < -12) adjustHours += 24;
+
+    if (localDayCheck !== localDay) {
+      const dayDiff = localDay - localDayCheck;
+      adjustHours += dayDiff * 24;
+    }
+
+    guess = new Date(guess.getTime() + adjustHours * 3600000);
+  }
+
+  return guess;
 }
 
 function getDayOfWeekInTimezone(date, timezone) {

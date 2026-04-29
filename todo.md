@@ -5236,3 +5236,10 @@
 - [x] Write vitest tests — 27/27 timezone tests pass + 22/22 notify tests pass (49 total new tests)
 - [x] Run existing tests — 10 pre-existing test files fail (unrelated: vapiBooking, campaigns, messageQueue, etc.) — 144 files pass
 - [x] Save checkpoint
+
+## Fix 1-Hour DST Offset in Scheduled Report nextRunAt
+- [x] Audit — old offset-arithmetic approach was fragile across environments; replaced with robust iterative correction
+- [x] Rewrote localHourToUTC: naive UTC guess → verify local hour via Intl → adjust iteratively (converges in 1 step)
+- [x] Recalculated nextRunAt for all active reports — PMR now at 2026-04-29T14:00:00Z (7 AM PDT)
+- [x] 32/32 timezone tests pass (including 5 new DST transition edge cases) + 22/22 notify tests pass
+- [x] Save checkpoint
