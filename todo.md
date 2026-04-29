@@ -5250,3 +5250,10 @@
 - [x] Updated tests to match new implementation (removed localHourToUTC export, 24 tests)
 - [x] All tests pass: 24/24 timezone + 22/22 notify
 - [x] Save checkpoint
+
+## Run Now Button for Scheduled Reports
+- [x] Added `runNow` tRPC mutation in scheduledReports router — calls exported `executeReport`, restricted to owners/managers/admins
+- [x] Added green Play button to ScheduledReportsCard UI with confirm dialog, loading spinner, and toast feedback
+- [x] Audit log entry created on manual run (action: `scheduled_report.manual_run`)
+- [x] 12/12 vitest tests pass (authorization, delegation, audit, status mapping)
+- [x] Save checkpoint

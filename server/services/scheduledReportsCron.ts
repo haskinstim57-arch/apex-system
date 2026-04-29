@@ -205,7 +205,7 @@ async function processScheduledReports() {
 }
 
 /** Execute a single scheduled report */
-async function executeReport(report: {
+export async function executeReport(report: {
   id: number;
   accountId: number;
   name: string;

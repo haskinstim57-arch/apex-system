@@ -10,7 +10,7 @@ import {
   createAuditLog,
   getMember,
 } from "../db";
-import { calculateNextRunAt } from "../services/scheduledReportsCron";
+import { calculateNextRunAt, executeReport } from "../services/scheduledReportsCron";
 import { generateReportEmailHTML, generateReportCSV, generateDailyActivityReport, getDailyActivityDateWindow, generateDailyMarketingReport, getDailyMarketingDateWindow } from "../services/reportEmailGenerator";
 import { sendEmail } from "../services/sendgrid";
 import { getDb } from "../db";
@@ -319,6 +319,59 @@ export const scheduledReportsRouter = router({
       });
 
       return { html };
+    }),
+
+  /** Run a scheduled report immediately (manual trigger) */
+  runNow: protectedProcedure
+    .input(z.object({ accountId: z.number(), id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await requireAccountMember(ctx.user.id, input.accountId, ctx.user.role);
+
+      // Only owners/managers/admins can trigger manual runs
+      if (member.role === "employee") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only owners and managers can trigger manual report runs" });
+      }
+
+      const report = await getScheduledReport(input.id, input.accountId);
+      if (!report) throw new TRPCError({ code: "NOT_FOUND", message: "Report schedule not found" });
+
+      try {
+        await executeReport({
+          id: report.id,
+          accountId: report.accountId,
+          name: report.name,
+          frequency: report.frequency as "daily" | "weekly" | "monthly" | "daily_activity" | "daily_marketing",
+          sendHour: report.sendHour,
+          timezone: report.timezone,
+          dayOfWeek: report.dayOfWeek,
+          dayOfMonth: report.dayOfMonth,
+          reportTypes: report.reportTypes as string[],
+          recipients: report.recipients as string[],
+          periodDays: report.periodDays,
+        });
+      } catch (err: any) {
+        // executeReport already updates lastRunStatus/lastRunError in the DB,
+        // but if it throws we still want to surface the error to the caller
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `Report execution failed: ${err?.message || String(err)}`,
+        });
+      }
+
+      await createAuditLog({
+        accountId: input.accountId,
+        userId: ctx.user.id,
+        action: "scheduled_report.manual_run",
+        metadata: JSON.stringify({ id: input.id, name: report.name }),
+      });
+
+      // Refresh the report to return updated status
+      const updated = await getScheduledReport(input.id, input.accountId);
+      return {
+        success: true,
+        lastRunStatus: updated?.lastRunStatus || "success",
+        lastRunError: updated?.lastRunError || null,
+      };
     }),
 
   /** Get available report types and timezones */

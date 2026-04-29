@@ -45,6 +45,7 @@ import {
   XCircle,
   Loader2,
   X,
+  Play,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -152,6 +153,20 @@ export function ScheduledReportsCard({ accountId }: Props) {
   const sendTestMutation = trpc.scheduledReports.sendTest.useMutation({
     onSuccess: (data) => {
       toast.success(`Test report sent to ${data.sentTo}`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const runNowMutation = trpc.scheduledReports.runNow.useMutation({
+    onSuccess: (data) => {
+      utils.scheduledReports.list.invalidate({ accountId });
+      if (data.lastRunStatus === "success") {
+        toast.success("Report sent successfully to all recipients");
+      } else if (data.lastRunStatus === "partial") {
+        toast.warning(`Report partially sent. ${data.lastRunError || ""}`);
+      } else {
+        toast.error(`Report failed: ${data.lastRunError || "Unknown error"}`);
+      }
     },
     onError: (err) => toast.error(err.message),
   });
@@ -526,6 +541,24 @@ export function ScheduledReportsCard({ accountId }: Props) {
                         }
                         className="mr-1"
                       />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                        title="Run now"
+                        disabled={runNowMutation.isPending}
+                        onClick={() => {
+                          if (confirm(`Send "${report.name}" to all recipients now?`)) {
+                            runNowMutation.mutate({ accountId, id: report.id });
+                          }
+                        }}
+                      >
+                        {runNowMutation.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Play className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
