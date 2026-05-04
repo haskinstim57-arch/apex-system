@@ -5265,3 +5265,12 @@
 - [x] 8/8 dedup vitest tests pass (including triple-trigger and multi-workflow scenarios)
 - [x] 66/66 total related tests pass (dedup + runNow + timezone + notify)
 - [x] Save checkpoint
+
+## Audit Trigger Sources — Canonical Trigger Types
+- [x] Audited 19 call sites across 10 files (5 routers, 5 webhooks)
+- [x] Found 2 issues in webchat.ts: (A) cross-fire of onContactCreated + onFormSubmitted, (B) wrong channel "email" for webchat messages
+- [x] Fix A: Removed onContactCreated from webchat — form_submitted("webchat-widget") is the canonical trigger
+- [x] Fix B: Changed webchat inbound message channel from "email" to "sms" (real-time messaging)
+- [x] All other 17 call sites verified clean — each fires only its canonical trigger type
+- [x] 133 tests pass (66 related + 52 facebook + 15 webchat)
+- [x] Save checkpoint

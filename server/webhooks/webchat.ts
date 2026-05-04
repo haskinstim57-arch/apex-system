@@ -13,7 +13,7 @@ import {
 import { contacts } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 import { invokeLLM } from "../_core/llm";
-import { onInboundMessageReceived, onFormSubmitted, onContactCreated } from "../services/workflowTriggers";
+import { onInboundMessageReceived, onFormSubmitted } from "../services/workflowTriggers";
 import crypto from "crypto";
 
 export const webchatWebhookRouter = Router();
@@ -64,12 +64,9 @@ async function findOrCreateContact(
     customFields: JSON.stringify({ webchatPageUrl: pageUrl || "" }),
   });
 
-  // Fire contact_created workflow trigger
-  onContactCreated(accountId, contactId).catch((err) =>
-    console.error("[Webchat] Failed to fire contact_created trigger:", err)
-  );
-
-  // Fire form_submitted workflow trigger (webchat visitor info = form submission)
+  // Fire form_submitted workflow trigger (webchat visitor info = form-like submission).
+  // Do NOT fire onContactCreated here — webchat is a form interaction, not a manual contact creation.
+  // Firing both would cause duplicate automations for the same lead.
   onFormSubmitted(accountId, contactId, "webchat-widget").catch((err) =>
     console.error("[Webchat] Failed to fire form_submitted trigger:", err)
   );
@@ -224,8 +221,10 @@ webchatWebhookRouter.post("/api/webchat/message", async (req, res) => {
     });
 
     // Fire inbound_message_received workflow trigger
+    // Use "sms" channel as a generic real-time messaging channel (webchat behaves like SMS, not email).
+    // This avoids incorrectly matching email-only workflow filters.
     if (session.contactId) {
-      onInboundMessageReceived(widget.accountId, session.contactId, "email").catch((err) =>
+      onInboundMessageReceived(widget.accountId, session.contactId, "sms").catch((err) =>
         console.error("[Webchat] Failed to fire inbound_message_received trigger:", err)
       );
 
