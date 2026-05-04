@@ -541,15 +541,14 @@ async function processLead(
 // Fire automation triggers (non-blocking)
 // ─────────────────────────────────────────────
 async function fireTriggers(accountId: number, contactId: number) {
-  const { onContactCreated, onFacebookLeadReceived, onFormSubmitted } = await import(
+  const { onFacebookLeadReceived } = await import(
     "../services/workflowTriggers"
   );
-
-  // Fire all applicable triggers
-  await onContactCreated(accountId, contactId);
+  // Only fire facebook_lead_received — this is the canonical trigger for Facebook leads.
+  // Do NOT call onContactCreated here; that trigger fires for contacts created through other channels
+  // (manual entry, API, inbound webhook) and must not double-fire for Facebook leads.
+  // Do NOT call onFormSubmitted; Facebook lead ads are not the same as website form submissions.
   await onFacebookLeadReceived(accountId, contactId);
-  // Facebook lead forms count as form submissions
-  await onFormSubmitted(accountId, contactId, "facebook_lead_form");
 }
 
 // ─────────────────────────────────────────────

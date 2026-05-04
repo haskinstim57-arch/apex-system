@@ -5257,3 +5257,11 @@
 - [x] Audit log entry created on manual run (action: `scheduled_report.manual_run`)
 - [x] 12/12 vitest tests pass (authorization, delegation, audit, status mapping)
 - [x] Save checkpoint
+
+## Fix Duplicate Emails for Facebook Leads
+- [x] Part 1: Removed onContactCreated and onFormSubmitted from fireTriggers() — Facebook leads now only fire facebook_lead_received
+- [x] Part 2: Created server/services/workflowDedup.ts with in-memory dedup guard (2-min window, auto-prune at 1000 keys)
+- [x] Part 2: Integrated checkAndMarkWorkflowExecution at top of triggerWorkflow() in workflowEngine.ts — returns -1 on dedup skip
+- [x] 8/8 dedup vitest tests pass (including triple-trigger and multi-workflow scenarios)
+- [x] 66/66 total related tests pass (dedup + runNow + timezone + notify)
+- [x] Save checkpoint

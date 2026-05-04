@@ -27,6 +27,7 @@ import { billedDispatchSMS, billedDispatchEmail } from "./billedDispatch";
 import { isWithinBusinessHours, type BusinessHoursConfig } from "../utils/businessHours";
 import { enqueueMessage } from "./messageQueue";
 import { renderEmailTemplate } from "../utils/emailTemplateRenderer";
+import { checkAndMarkWorkflowExecution } from "./workflowDedup";
 
 // ─────────────────────────────────────────────
 // Workflow Execution Engine
@@ -69,6 +70,12 @@ export async function triggerWorkflow(
   accountId: number,
   triggeredBy: string
 ): Promise<number> {
+  // Dedup guard: prevent same workflow from executing twice for same contact within 2 min
+  if (!checkAndMarkWorkflowExecution(workflow.id, contactId)) {
+    console.log(`[WorkflowEngine] Dedup: skipped workflow=${workflow.id} contact=${contactId} trigger=${triggeredBy}`);
+    return -1;
+  }
+
   const steps = await listWorkflowSteps(workflow.id);
   if (steps.length === 0) {
     throw new Error("Workflow has no steps");
