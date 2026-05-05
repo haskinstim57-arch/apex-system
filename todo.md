@@ -5283,3 +5283,7 @@
 ## Prompt Z — Fix Settings Messaging Tab Crash
 - [x] Added useEffect to React import in Settings.tsx (line 1)
 - [x] Save checkpoint
+
+## Prompt AA — Fix VAPI 400: Truncate Customer Name
+- [x] Truncated customerName to 40 chars via .slice(0, 40) in createVapiCall
+- [x] Save checkpoint

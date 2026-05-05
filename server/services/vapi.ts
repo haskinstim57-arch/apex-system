@@ -123,7 +123,7 @@ export async function createVapiCall(params: {
     phoneNumberId: effectivePhoneNumberId,
     customer: {
       number: phoneNumber,
-      name: customerName,
+      name: customerName.slice(0, 40),
     } as VapiCustomer,
     // Pass Apex metadata so we can correlate webhook callbacks
     metadata: {
