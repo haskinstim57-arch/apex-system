@@ -5279,3 +5279,7 @@
 - [x] Updated onSuccess in ContactQuickActions.tsx (shared component used by ContactDetail + Contacts) to check data.success/data.queued
 - [x] Updated onSuccess in AICalls.tsx to check data.success/data.queued (invalidations run unconditionally)
 - [x] Save checkpoint
+
+## Prompt Z — Fix Settings Messaging Tab Crash
+- [x] Added useEffect to React import in Settings.tsx (line 1)
+- [x] Save checkpoint
