@@ -5287,3 +5287,9 @@
 ## Prompt AA — Fix VAPI 400: Truncate Customer Name
 - [x] Truncated customerName to 40 chars via .slice(0, 40) in createVapiCall
 - [x] Save checkpoint
+
+## Prompt BB — Fix Multi-Tenancy Bug: Queue Worker VAPI Credentials
+- [x] Look up per-account VAPI config via getAccountMessagingSettings(msg.accountId) at dispatch time
+- [x] Pass apiKey and phoneNumberId to createVapiCall (falls back to undefined → ENV defaults inside createVapiCall)
+- [x] 18/18 vitest tests pass (3 new: per-account creds, null fallback, VAPI failure handling)
+- [x] Save checkpoint

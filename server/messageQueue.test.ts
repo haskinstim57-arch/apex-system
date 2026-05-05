@@ -16,12 +16,22 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 const mockCreateQueuedMessage = vi.fn();
 const mockListAllPendingQueuedMessages = vi.fn();
 const mockUpdateQueuedMessage = vi.fn();
+const mockGetAccountMessagingSettings = vi.fn();
+const mockCreateAICall = vi.fn();
+const mockUpdateAICall = vi.fn();
 
-vi.mock("../server/db", () => ({
-  createQueuedMessage: (...args: unknown[]) => mockCreateQueuedMessage(...args),
-  listAllPendingQueuedMessages: (...args: unknown[]) => mockListAllPendingQueuedMessages(...args),
-  updateQueuedMessage: (...args: unknown[]) => mockUpdateQueuedMessage(...args),
-}));
+vi.mock("../server/db", async (importOriginal) => {
+  const actual = await importOriginal() as Record<string, unknown>;
+  return {
+    ...actual,
+    createQueuedMessage: (...args: unknown[]) => mockCreateQueuedMessage(...args),
+    listAllPendingQueuedMessages: (...args: unknown[]) => mockListAllPendingQueuedMessages(...args),
+    updateQueuedMessage: (...args: unknown[]) => mockUpdateQueuedMessage(...args),
+    getAccountMessagingSettings: (...args: unknown[]) => mockGetAccountMessagingSettings(...args),
+    createAICall: (...args: unknown[]) => mockCreateAICall(...args),
+    updateAICall: (...args: unknown[]) => mockUpdateAICall(...args),
+  };
+});
 
 // ─────────────────────────────────────────────
 // Mock business hours
@@ -33,14 +43,14 @@ vi.mock("../server/utils/businessHours", () => ({
 }));
 
 // ─────────────────────────────────────────────
-// Mock messaging service
+// Mock billed dispatch service
 // ─────────────────────────────────────────────
-const mockDispatchSMS = vi.fn();
-const mockDispatchEmail = vi.fn();
+const mockBilledDispatchSMS = vi.fn();
+const mockBilledDispatchEmail = vi.fn();
 
-vi.mock("../server/services/messaging", () => ({
-  dispatchSMS: (...args: unknown[]) => mockDispatchSMS(...args),
-  dispatchEmail: (...args: unknown[]) => mockDispatchEmail(...args),
+vi.mock("../server/services/billedDispatch", () => ({
+  billedDispatchSMS: (...args: unknown[]) => mockBilledDispatchSMS(...args),
+  billedDispatchEmail: (...args: unknown[]) => mockBilledDispatchEmail(...args),
 }));
 
 // ─────────────────────────────────────────────
@@ -225,8 +235,8 @@ describe("Message Queue Service", () => {
       expect(result.skipped).toBe(2);
       expect(result.processed).toBe(0);
       expect(result.dispatched).toBe(0);
-      expect(mockDispatchSMS).not.toHaveBeenCalled();
-      expect(mockDispatchEmail).not.toHaveBeenCalled();
+      expect(mockBilledDispatchSMS).not.toHaveBeenCalled();
+      expect(mockBilledDispatchEmail).not.toHaveBeenCalled();
     });
 
     it("dispatches SMS when business hours are open", async () => {
@@ -242,13 +252,13 @@ describe("Message Queue Service", () => {
         },
       ]);
       mockIsWithinAccountBusinessHours.mockResolvedValue(true);
-      mockDispatchSMS.mockResolvedValue({ success: true, provider: "twilio" });
+      mockBilledDispatchSMS.mockResolvedValue({ success: true, provider: "twilio" });
 
       const result = await processQueue();
 
       expect(result.dispatched).toBe(1);
       expect(result.processed).toBe(1);
-      expect(mockDispatchSMS).toHaveBeenCalledWith(
+      expect(mockBilledDispatchSMS).toHaveBeenCalledWith(
         expect.objectContaining({
           to: "+15551234567",
           body: "Hello from queue",
@@ -280,12 +290,12 @@ describe("Message Queue Service", () => {
         },
       ]);
       mockIsWithinAccountBusinessHours.mockResolvedValue(true);
-      mockDispatchEmail.mockResolvedValue({ success: true, provider: "sendgrid" });
+      mockBilledDispatchEmail.mockResolvedValue({ success: true, provider: "sendgrid" });
 
       const result = await processQueue();
 
       expect(result.dispatched).toBe(1);
-      expect(mockDispatchEmail).toHaveBeenCalledWith(
+      expect(mockBilledDispatchEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           to: "test@example.com",
           subject: "Test",
@@ -308,7 +318,7 @@ describe("Message Queue Service", () => {
         },
       ]);
       mockIsWithinAccountBusinessHours.mockResolvedValue(true);
-      mockDispatchSMS.mockResolvedValue({ success: false, error: "Provider error" });
+      mockBilledDispatchSMS.mockResolvedValue({ success: false, error: "Provider error" });
 
       const result = await processQueue();
 
@@ -333,7 +343,7 @@ describe("Message Queue Service", () => {
         },
       ]);
       mockIsWithinAccountBusinessHours.mockResolvedValue(true);
-      mockDispatchSMS.mockResolvedValue({ success: false, error: "Temporary failure" });
+      mockBilledDispatchSMS.mockResolvedValue({ success: false, error: "Temporary failure" });
 
       const result = await processQueue();
 
@@ -382,14 +392,14 @@ describe("Message Queue Service", () => {
       mockIsWithinAccountBusinessHours.mockImplementation(async (accountId: number) => {
         return accountId === 100;
       });
-      mockDispatchSMS.mockResolvedValue({ success: true, provider: "twilio" });
+      mockBilledDispatchSMS.mockResolvedValue({ success: true, provider: "twilio" });
 
       const result = await processQueue();
 
       expect(result.dispatched).toBe(1);
       expect(result.skipped).toBe(1);
-      expect(mockDispatchSMS).toHaveBeenCalledTimes(1);
-      expect(mockDispatchSMS).toHaveBeenCalledWith(
+      expect(mockBilledDispatchSMS).toHaveBeenCalledTimes(1);
+      expect(mockBilledDispatchSMS).toHaveBeenCalledWith(
         expect.objectContaining({ to: "+15551111111" })
       );
     });
@@ -448,6 +458,133 @@ describe("Message Queue Service", () => {
         status: "failed",
         attempts: 3,
         lastError: "Invalid payload JSON",
+      });
+    });
+
+    it("dispatches AI call with per-account VAPI credentials", async () => {
+      const aiCallPayload = {
+        contactId: 500,
+        phoneNumber: "+15559876543",
+        customerName: "Jane Smith",
+        assistantId: "asst_abc",
+        initiatedById: 7,
+        metadata: { leadSource: "facebook" },
+      };
+
+      mockListAllPendingQueuedMessages.mockResolvedValue([
+        {
+          id: 50,
+          accountId: 420001,
+          type: "ai_call",
+          payload: JSON.stringify(aiCallPayload),
+          attempts: 0,
+          maxAttempts: 3,
+          status: "pending",
+        },
+      ]);
+      mockIsWithinAccountBusinessHours.mockResolvedValue(true);
+      mockGetAccountMessagingSettings.mockResolvedValue({
+        vapiApiKey: "per-account-key",
+        vapiPhoneNumberId: "per-account-phone-id",
+      });
+      mockCreateAICall.mockResolvedValue({ id: 9001 });
+      mockCreateVapiCall.mockResolvedValue({ id: "vapi_call_xyz" });
+
+      const result = await processQueue();
+
+      expect(result.dispatched).toBe(1);
+      expect(mockGetAccountMessagingSettings).toHaveBeenCalledWith(420001);
+      expect(mockCreateVapiCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          phoneNumber: "+15559876543",
+          customerName: "Jane Smith",
+          assistantId: "asst_abc",
+          apiKey: "per-account-key",
+          phoneNumberId: "per-account-phone-id",
+          metadata: expect.objectContaining({
+            apexAccountId: 420001,
+            apexContactId: 500,
+            apexCallId: 9001,
+            leadSource: "facebook",
+          }),
+        })
+      );
+      expect(mockUpdateAICall).toHaveBeenCalledWith(9001, {
+        externalCallId: "vapi_call_xyz",
+        status: "calling",
+      });
+    });
+
+    it("falls back to undefined credentials when account has no messaging settings", async () => {
+      const aiCallPayload = {
+        contactId: 600,
+        phoneNumber: "+15551112222",
+        customerName: "No Config User",
+        assistantId: "asst_def",
+        initiatedById: 8,
+      };
+
+      mockListAllPendingQueuedMessages.mockResolvedValue([
+        {
+          id: 51,
+          accountId: 999,
+          type: "ai_call",
+          payload: JSON.stringify(aiCallPayload),
+          attempts: 0,
+          maxAttempts: 3,
+          status: "pending",
+        },
+      ]);
+      mockIsWithinAccountBusinessHours.mockResolvedValue(true);
+      mockGetAccountMessagingSettings.mockResolvedValue(null);
+      mockCreateAICall.mockResolvedValue({ id: 9002 });
+      mockCreateVapiCall.mockResolvedValue({ id: "vapi_call_fallback" });
+
+      const result = await processQueue();
+
+      expect(result.dispatched).toBe(1);
+      expect(mockCreateVapiCall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          apiKey: undefined,
+          phoneNumberId: undefined,
+        })
+      );
+    });
+
+    it("handles VAPI call failure gracefully and marks AI call as failed", async () => {
+      const aiCallPayload = {
+        contactId: 700,
+        phoneNumber: "+15553334444",
+        customerName: "Fail User",
+        assistantId: "asst_ghi",
+        initiatedById: 9,
+      };
+
+      mockListAllPendingQueuedMessages.mockResolvedValue([
+        {
+          id: 52,
+          accountId: 420001,
+          type: "ai_call",
+          payload: JSON.stringify(aiCallPayload),
+          attempts: 2,
+          maxAttempts: 3,
+          status: "pending",
+        },
+      ]);
+      mockIsWithinAccountBusinessHours.mockResolvedValue(true);
+      mockGetAccountMessagingSettings.mockResolvedValue({
+        vapiApiKey: "key-123",
+        vapiPhoneNumberId: "phone-456",
+      });
+      mockCreateAICall.mockResolvedValue({ id: 9003 });
+      mockCreateVapiCall.mockRejectedValue(new Error("VAPI 400: Invalid number"));
+
+      const result = await processQueue();
+
+      expect(result.failed).toBe(1);
+      expect(mockUpdateAICall).toHaveBeenCalledWith(9003, {
+        status: "failed",
+        errorMessage: "VAPI 400: Invalid number",
       });
     });
   });

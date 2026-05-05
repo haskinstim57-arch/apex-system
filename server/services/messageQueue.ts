@@ -132,7 +132,12 @@ async function dispatchQueuedMessage(
         // AI calls are dispatched through the VAPI service
         const callPayload = payload as QueuedAICallPayload;
         const { createVapiCall } = await import("./vapi");
-        const { createAICall, updateAICall } = await import("../db");
+        const { createAICall, updateAICall, getAccountMessagingSettings } = await import("../db");
+
+        // Resolve per-account VAPI credentials (fall back to ENV/fallback inside createVapiCall)
+        const msgSettings = await getAccountMessagingSettings(msg.accountId);
+        const vapiApiKey = msgSettings?.vapiApiKey || undefined;
+        const vapiPhoneNumberId = msgSettings?.vapiPhoneNumberId || undefined;
 
         // Create the AI call record
         const { id: callId } = await createAICall({
@@ -156,6 +161,8 @@ async function dispatchQueuedMessage(
               apexCallId: callId,
               leadSource: (callPayload.metadata?.leadSource as string) ?? undefined,
             },
+            apiKey: vapiApiKey,
+            phoneNumberId: vapiPhoneNumberId,
           });
 
           await updateAICall(callId, {
