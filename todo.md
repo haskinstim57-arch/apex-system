@@ -5274,3 +5274,8 @@
 - [x] All other 17 call sites verified clean — each fires only its canonical trigger type
 - [x] 133 tests pass (66 related + 52 facebook + 15 webchat)
 - [x] Save checkpoint
+
+## Prompt Y — Fix AI Call Frontend: Surface VAPI Failures
+- [x] Updated onSuccess in ContactQuickActions.tsx (shared component used by ContactDetail + Contacts) to check data.success/data.queued
+- [x] Updated onSuccess in AICalls.tsx to check data.success/data.queued (invalidations run unconditionally)
+- [x] Save checkpoint

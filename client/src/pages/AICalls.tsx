@@ -138,12 +138,18 @@ export default function AICalls() {
 
   // Mutations
   const startCallMutation = trpc.aiCalls.start.useMutation({
-    onSuccess: () => {
-      toast.success("AI call initiated successfully");
+    onSuccess: (data) => {
       utils.aiCalls.list.invalidate();
       utils.aiCalls.stats.invalidate();
       setStartCallOpen(false);
       setSelectedContact(null);
+      if (!data.success) {
+        toast.error(data.error || "AI call failed. Check VAPI configuration.");
+      } else if (data.queued) {
+        toast.info("Call queued — will be dispatched when business hours resume.");
+      } else {
+        toast.success("AI call initiated successfully");
+      }
     },
     onError: (err) => toast.error(err.message),
   });
