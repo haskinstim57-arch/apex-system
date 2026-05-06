@@ -1255,12 +1255,15 @@ function EditContactDialog({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">State</Label>
-                <Select value={state || ""} onValueChange={(v) => setState(v)}>
+                <Select 
+                  value={state || "_none"} 
+                  onValueChange={(v) => setState(v === "_none" ? "" : v)}
+                >
                   <SelectTrigger className="h-9 text-sm">
                     <SelectValue placeholder="Select state" />
                   </SelectTrigger>
                   <SelectContent className="max-h-[300px]">
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="_none">None</SelectItem>
                     {US_STATES.map((s) => (
                       <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                     ))}

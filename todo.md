@@ -5293,3 +5293,9 @@
 - [x] Pass apiKey and phoneNumberId to createVapiCall (falls back to undefined → ENV defaults inside createVapiCall)
 - [x] 18/18 vitest tests pass (3 new: per-account creds, null fallback, VAPI failure handling)
 - [x] Save checkpoint
+
+## Prompt CC — Fix Edit Contact Crash (SelectItem Empty Value)
+- [x] Replaced empty-string SelectItem value with "_none" sentinel in ContactDetail.tsx State dropdown
+- [x] Added value conversion: "_none" → "" on change, "" → "_none" on display
+- [x] Scanned all client/src/**/*.tsx — no other empty SelectItem values found
+- [x] Save checkpoint
