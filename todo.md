@@ -5342,3 +5342,17 @@
 - [x] Add warning banner to AI Calls page when account is missing VAPI API key (already existed)
 - [x] Add business hours preview text on Settings → Messaging page (e.g., "Calls will be made between 9 AM and 5 PM in America/New_York")
 - [x] Save checkpoint
+
+## Prompt KK — Blooio Inbound Webhook (Replies into Unified Inbox)
+- [x] Add POST /api/webhooks/blooio/inbound/:accountId route in server/webhooks/inboundMessages.ts
+- [x] Handle flexible payload field names (from/sender/From, body/text/message/Body, etc.)
+- [x] Validate accountId, verify account exists, look up contact by normalized phone
+- [x] Create inbound message record with metadata { provider: "blooio", channel: "sms"|"imessage" }
+- [x] Log contact activity timeline entry
+- [x] Create in-app notification for assigned user
+- [x] Send push notification to account
+- [x] Fire inbound_message_received workflow trigger (non-blocking)
+- [x] Auto-stop nurture sequences on inbound reply (non-blocking)
+- [x] Return 200 on internal errors to prevent Blooio retries
+- [x] 10/10 vitest tests pass
+- [x] Save checkpoint

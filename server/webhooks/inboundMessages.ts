@@ -3,6 +3,7 @@ import {
   createMessage,
   findContactByPhone,
   findContactByEmail,
+  getAccountById,
   getAccountMessagingSettings,
   logContactActivity,
   createNotification,
@@ -391,6 +392,161 @@ inboundMessageRouter.post(
     } catch (err: any) {
       console.error("[SendGrid Inbound] Webhook error:", err);
       res.status(500).json({ error: "Internal server error" });
+    }
+  }
+);
+
+/**
+ * Blooio Inbound SMS/iMessage Webhook
+ *
+ * Configure in Blooio dashboard: webhook URL =
+ *   https://<host>/api/webhooks/blooio/inbound/<accountId>
+ *
+ * Blooio v2 webhook payload (verify against docs.blooio.com — adjust field names if different):
+ *   { from: "+1...", to: "+1...", body: "text", id: "blooio-msg-id", type: "sms"|"imessage" }
+ */
+inboundMessageRouter.post(
+  "/api/webhooks/blooio/inbound/:accountId",
+  async (req: Request, res: Response) => {
+    try {
+      const accountId = parseInt(req.params.accountId, 10);
+      if (!accountId || isNaN(accountId)) {
+        console.warn("[Blooio Inbound] Invalid accountId in URL");
+        res.status(400).json({ error: "Invalid accountId" });
+        return;
+      }
+
+      // Blooio's exact payload field names — verify against their docs and adjust if needed.
+      // Common variants: { from, to, body, id, type } or { sender, recipient, text, messageId }
+      const body = req.body ?? {};
+      const From = body.from || body.sender || body.From;
+      const To = body.to || body.recipient || body.To;
+      const Body = body.body || body.text || body.message || body.Body;
+      const MessageId = body.id || body.messageId || body.MessageSid;
+      const channel: "sms" | "imessage" = body.type === "imessage" ? "imessage" : "sms";
+
+      if (!From || !Body) {
+        console.warn("[Blooio Inbound] Missing from or body in payload", body);
+        res.status(200).json({ ok: false, reason: "missing fields" });
+        return;
+      }
+
+      console.log(
+        `[Blooio Inbound] account=${accountId} from=${From} to=${To} id=${MessageId} body="${String(Body).substring(0, 50)}..."`
+      );
+
+      // Verify account exists
+      const account = await getAccountById(accountId);
+      if (!account) {
+        console.warn(`[Blooio Inbound] Account ${accountId} not found`);
+        res.status(404).json({ error: "Account not found" });
+        return;
+      }
+
+      // Look up contact by phone within this account (mirrors Twilio handler)
+      const normalizedPhone = normalizePhone(From);
+      const contact = await findContactByPhone(normalizedPhone, accountId);
+      if (!contact) {
+        console.warn(
+          `[Blooio Inbound] No contact found for ${normalizedPhone} in account ${accountId}`
+        );
+        // Still 200 so Blooio doesn't retry — we just have nothing to attach the message to
+        res.status(200).json({ ok: true, contactFound: false });
+        return;
+      }
+
+      // Create the inbound message record
+      const { id } = await createMessage({
+        accountId,
+        contactId: contact.id,
+        userId: contact.assignedUserId || 0,
+        type: "sms",
+        direction: "inbound",
+        status: "delivered",
+        subject: null,
+        body: String(Body),
+        toAddress: To || "",
+        fromAddress: From,
+        externalId: MessageId ? String(MessageId) : null,
+        isRead: false,
+        deliveredAt: new Date(),
+        metadata: JSON.stringify({ provider: "blooio", channel }),
+      });
+
+      console.log(
+        `[Blooio Inbound] Created inbound ${channel} message id=${id} contact=${contact.id} account=${accountId}`
+      );
+
+      // Activity timeline
+      logContactActivity({
+        contactId: contact.id,
+        accountId,
+        activityType: "message_received",
+        description: `Inbound ${channel.toUpperCase()} from ${From}`,
+        metadata: JSON.stringify({
+          messageId: id,
+          channel,
+          direction: "inbound",
+          provider: "blooio",
+          preview: String(Body).substring(0, 150),
+        }),
+      });
+
+      // Notification (mirror Twilio handler)
+      console.log(
+        `[Blooio Inbound] Creating notification: accountId=${accountId} type=inbound_message contactId=${contact.id} assignedUserId=${contact.assignedUserId}`
+      );
+      createNotification({
+        accountId,
+        userId: contact.assignedUserId || null,
+        type: "inbound_message",
+        title: `New ${channel.toUpperCase()} from ${contact.firstName || From}`,
+        body: String(Body).substring(0, 200),
+        link: `/inbox`,
+      }).catch((err) =>
+        console.error("[Blooio Inbound] Notification error:", err)
+      );
+
+      // Send push notification
+      sendPushNotificationToAccount(accountId, {
+        title: `New ${channel.toUpperCase()} from ${contact.firstName || From}`,
+        body: String(Body).substring(0, 100),
+        url: `/contacts/${contact.id}`,
+        tag: `inbound-${channel}-${contact.id}`,
+        eventType: "inbound_sms",
+        contactName: contact.firstName
+          ? `${contact.firstName} ${contact.lastName || ""}`.trim()
+          : From,
+      }).catch((err) =>
+        console.error("[Blooio Inbound] Push notification error:", err)
+      );
+
+      // Fire workflow trigger (non-blocking)
+      import("../services/workflowTriggers")
+        .then(({ onInboundMessageReceived }) =>
+          onInboundMessageReceived(accountId, contact.id, "sms")
+        )
+        .catch((err) =>
+          console.error("[Blooio Inbound] Workflow trigger error:", err)
+        );
+
+      // Auto-stop nurture sequences on inbound reply (non-blocking)
+      import("../services/sequenceAutoStop")
+        .then(({ onInboundSmsAutoStop }) =>
+          onInboundSmsAutoStop(accountId, contact.id)
+        )
+        .catch((err) =>
+          console.error("[Blooio Inbound] Sequence auto-stop error:", err)
+        );
+
+      res.status(200).json({ ok: true, messageId: id });
+    } catch (err: any) {
+      console.error("[Blooio Inbound] Handler error:", err);
+      // Still 200 so Blooio doesn't retry on our internal errors
+      res.status(200).json({
+        ok: false,
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 );
