@@ -5313,3 +5313,14 @@
 - [x] 3/3 vitest tests pass (parallel race → only 1 sends, unclaimed → skip, claimed → send+advance)
 - [x] 67/67 total related tests pass
 - [x] Save checkpoint
+
+## Prompt FF — Add DOB and Closing Date Columns to Contacts
+- [x] Added closingDate timestamp column to contacts table (dateOfBirth already existed)
+- [x] Migration pushed successfully via pnpm db:push
+- [x] Surfaced both fields in ContactDetail edit dialog (date inputs in 2-col grid after ZIP)
+- [x] Surfaced both fields in Contacts create/edit dialog
+- [x] Added both fields to CSV import: CONTACT_FIELDS + FIELD_ALIASES (dob, birthday, closing date, etc.)
+- [x] Added dateOfBirth/closingDate to create, update, and importContacts input schemas with Date conversion
+- [x] API responses include both fields (Drizzle returns all columns by default)
+- [x] 49/49 related tests pass
+- [x] Save checkpoint

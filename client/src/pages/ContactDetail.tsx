@@ -999,6 +999,12 @@ function EditContactDialog({
   const [city, setCity] = useState(contact.city || "");
   const [state, setState] = useState(contact.state || "");
   const [zip, setZip] = useState(contact.zip || "");
+  const [dateOfBirth, setDateOfBirth] = useState(
+    contact.dateOfBirth ? new Date(contact.dateOfBirth).toISOString().split("T")[0] : ""
+  );
+  const [closingDate, setClosingDate] = useState(
+    contact.closingDate ? new Date(contact.closingDate).toISOString().split("T")[0] : ""
+  );
 
   // Custom fields state
   const existingCf = contact.customFields
@@ -1039,6 +1045,8 @@ function EditContactDialog({
       city: city.trim() || null,
       state: state.trim() || null,
       zip: zip.trim() || null,
+      dateOfBirth: dateOfBirth || null,
+      closingDate: closingDate || null,
       customFields: Object.keys(customFieldValues).length > 0 ? customFieldValues : undefined,
     });
   };
@@ -1275,6 +1283,26 @@ function EditContactDialog({
                 <Input
                   value={zip}
                   onChange={(e) => setZip(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Date of Birth</Label>
+                <Input
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  className="h-9 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Closing Date</Label>
+                <Input
+                  type="date"
+                  value={closingDate}
+                  onChange={(e) => setClosingDate(e.target.value)}
                   className="h-9 text-sm"
                 />
               </div>

@@ -227,6 +227,8 @@ export const contacts = mysqlTable("contacts", {
   isDemoData: boolean("isDemoData").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  /** Expected closing date for the loan */
+  closingDate: timestamp("closingDate"),
   /** Soft-delete timestamp — set when contact is merged into another */
   deletedAt: timestamp("deletedAt"),
 });

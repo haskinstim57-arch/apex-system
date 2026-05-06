@@ -50,6 +50,8 @@ const CONTACT_FIELDS = [
   { value: "address", label: "Address" },
   { value: "tags", label: "Tags" },
   { value: "notes", label: "Notes" },
+  { value: "dateOfBirth", label: "Date of Birth" },
+  { value: "closingDate", label: "Closing Date" },
 ] as const;
 
 const FIELD_ALIASES: Record<string, string> = {
@@ -87,6 +89,20 @@ const FIELD_ALIASES: Record<string, string> = {
   "street": "address",
   "street address": "address",
   "street_address": "address",
+  "dob": "dateOfBirth",
+  "date of birth": "dateOfBirth",
+  "dateofbirth": "dateOfBirth",
+  "date_of_birth": "dateOfBirth",
+  "birthday": "dateOfBirth",
+  "birth date": "dateOfBirth",
+  "birthdate": "dateOfBirth",
+  "closing date": "closingDate",
+  "closingdate": "closingDate",
+  "closing_date": "closingDate",
+  "close date": "closingDate",
+  "closedate": "closingDate",
+  "close_date": "closingDate",
+  "expected close": "closingDate",
 };
 
 const CSV_TEMPLATE = `First Name,Last Name,Email,Phone,Tags,Notes

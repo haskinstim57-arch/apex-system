@@ -2107,6 +2107,12 @@ function ContactFormDialog({
     defaultValues?.assignedUserId ? String(defaultValues.assignedUserId) : ""
   );
   const [contactState, setContactState] = useState(defaultValues?.state || "");
+  const [dateOfBirth, setDateOfBirth] = useState(
+    defaultValues?.dateOfBirth ? new Date(defaultValues.dateOfBirth).toISOString().split("T")[0] : ""
+  );
+  const [closingDate, setClosingDate] = useState(
+    defaultValues?.closingDate ? new Date(defaultValues.closingDate).toISOString().split("T")[0] : ""
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2150,6 +2156,12 @@ function ContactFormDialog({
     }
     if (contactState) {
       data.state = contactState;
+    }
+    if (dateOfBirth) {
+      data.dateOfBirth = dateOfBirth;
+    }
+    if (closingDate) {
+      data.closingDate = closingDate;
     }
     onSubmit(data);
   };
@@ -2302,6 +2314,26 @@ function ContactFormDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Date of Birth</Label>
+              <Input
+                type="date"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Closing Date</Label>
+              <Input
+                type="date"
+                value={closingDate}
+                onChange={(e) => setClosingDate(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </div>
           </div>
           <DialogFooter>
             <Button

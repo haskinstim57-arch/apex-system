@@ -86,6 +86,8 @@ export const contactsRouter = router({
         city: z.string().max(100).optional(),
         state: z.string().max(100).optional(),
         zip: z.string().max(20).optional(),
+        dateOfBirth: z.string().optional(),
+        closingDate: z.string().optional(),
         tags: z.array(z.string().max(100)).optional(),
         customFields: z.record(z.string(), z.unknown()).optional(),
       })
@@ -114,12 +116,19 @@ export const contactsRouter = router({
         }
         phone = normalized;
       }
-      const normalizedData = {
+      const normalizedData: Record<string, unknown> = {
         ...contactData,
         email: contactData.email || null,
         phone,
         customFields: validatedCustomFields ? JSON.stringify(validatedCustomFields) : null,
       };
+      // Convert date strings to Date objects
+      if (normalizedData.dateOfBirth && typeof normalizedData.dateOfBirth === "string") {
+        normalizedData.dateOfBirth = new Date(normalizedData.dateOfBirth as string);
+      }
+      if (normalizedData.closingDate && typeof normalizedData.closingDate === "string") {
+        normalizedData.closingDate = new Date(normalizedData.closingDate as string);
+      }
 
       const { id } = await createContact(normalizedData);
 
@@ -249,6 +258,8 @@ export const contactsRouter = router({
         city: z.string().max(100).optional().nullable(),
         state: z.string().max(100).optional().nullable(),
         zip: z.string().max(20).optional().nullable(),
+        dateOfBirth: z.string().optional().nullable(),
+        closingDate: z.string().optional().nullable(),
         customFields: z.record(z.string(), z.unknown()).optional(),
       })
     )
@@ -293,11 +304,17 @@ export const contactsRouter = router({
         normalized.phone = normalizedPhone;
       }
 
+       // Convert date strings to Date objects for timestamp columns
+      if (normalized.dateOfBirth && typeof normalized.dateOfBirth === "string") {
+        normalized.dateOfBirth = new Date(normalized.dateOfBirth);
+      }
+      if (normalized.closingDate && typeof normalized.closingDate === "string") {
+        normalized.closingDate = new Date(normalized.closingDate);
+      }
       // Add merged custom fields to update data
       if (mergedCustomFields !== undefined) {
         normalized.customFields = mergedCustomFields;
       }
-
       await updateContact(id, accountId, normalized);
 
       // Fire pipeline stage changed trigger if status changed
@@ -766,6 +783,8 @@ export const contactsRouter = router({
             city: z.string().max(100).optional().default(""),
             zip: z.string().max(20).optional().default(""),
             address: z.string().optional().default(""),
+            dateOfBirth: z.string().optional().default(""),
+            closingDate: z.string().optional().default(""),
             customFields: z.record(z.string(), z.string()).optional(),
           })
         ).min(1).max(50000),
@@ -796,6 +815,8 @@ export const contactsRouter = router({
         city: string;
         zip: string;
         address: string;
+        dateOfBirth: string;
+        closingDate: string;
         customFields: Record<string, string> | null;
       };
       const validRows: ProcessedRow[] = [];
@@ -848,7 +869,9 @@ export const contactsRouter = router({
           }
         }
 
-        validRows.push({ rowNum, firstName, lastName, email, normalizedPhone, tagsStr, notes, state, city, zip, address, customFields: rowCustomFields });
+        const dateOfBirth = row.dateOfBirth?.trim() || "";
+        const closingDate = row.closingDate?.trim() || "";
+        validRows.push({ rowNum, firstName, lastName, email, normalizedPhone, tagsStr, notes, state, city, zip, address, dateOfBirth, closingDate, customFields: rowCustomFields });
       }
 
       // ── Phase 2: Bulk duplicate check (batch queries instead of N individual queries) ──
@@ -897,6 +920,8 @@ export const contactsRouter = router({
               city: row.city || null,
               zip: row.zip || null,
               address: row.address || null,
+              dateOfBirth: row.dateOfBirth ? new Date(row.dateOfBirth) : null,
+              closingDate: row.closingDate ? new Date(row.closingDate) : null,
               customFields: row.customFields ? JSON.stringify(row.customFields) : null,
             });
 
