@@ -5356,3 +5356,7 @@
 - [x] Return 200 on internal errors to prevent Blooio retries
 - [x] 10/10 vitest tests pass
 - [x] Save checkpoint
+
+## Bug Fix: Business Hours Preview Unicode Escape
+- [x] Fix literal \\u2013 rendering in preview text — replaced with actual en-dash character (–)
+- [x] Save checkpoint

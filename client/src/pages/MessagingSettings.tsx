@@ -892,13 +892,13 @@ export default function MessagingSettings() {
             const daysSummary = dayNames.length === 7
               ? "every day"
               : dayNames.length === 5 && openDays.every((d) => ["monday","tuesday","wednesday","thursday","friday"].includes(d))
-                ? "Mon\u2013Fri"
+                ? "Mon–Fri"
                 : dayNames.join(", ");
             const tzLabel = TIMEZONES.find((tz) => tz.value === businessHours.timezone)?.label || businessHours.timezone;
             return (
               <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-3">
                 <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
-                  <strong>Preview:</strong> AI calls will be made {daysSummary}, {fmt(earliest)} \u2013 {fmt(latest)} in {tzLabel}.
+                  <strong>Preview:</strong> AI calls will be made {daysSummary}, {fmt(earliest)} – {fmt(latest)} in {tzLabel}.
                 </p>
               </div>
             );
