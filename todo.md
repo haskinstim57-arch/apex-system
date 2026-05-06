@@ -5324,3 +5324,8 @@
 - [x] API responses include both fields (Drizzle returns all columns by default)
 - [x] 49/49 related tests pass
 - [x] Save checkpoint
+
+## Prompt HH — Inline Messaging Credentials Discovery Fix
+- [x] Updated CardDescription to enumerate all providers: Twilio, Blooio, SendGrid, VAPI
+- [x] Updated IntegrationLink label to "Configure Messaging Credentials" and description to list all keys
+- [x] Save checkpoint

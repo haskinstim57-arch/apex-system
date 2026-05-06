@@ -451,14 +451,14 @@ export default function SettingsPage() {
                 Messaging Credentials
               </CardTitle>
               <CardDescription className="text-xs">
-                Configure Twilio and SendGrid for SMS and email delivery.
+                Configure Twilio, Blooio, SendGrid, and VAPI for SMS, iMessage, email, and AI voice calls.
               </CardDescription>
             </CardHeader>
             <CardContent className="-mt-2">
               <IntegrationLink
                 icon={MessageSquare}
-                label="Configure Messaging"
-                description="Set up Twilio SID/Auth Token and SendGrid API key"
+                label="Configure Messaging Credentials"
+                description="Twilio SID/Auth Token · Blooio API key · SendGrid · VAPI key + phone number ID"
                 href="/settings/messaging"
                 iconColor="text-emerald-500"
               />
