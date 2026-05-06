@@ -654,6 +654,44 @@ export const aiCallsRouter = router({
         await updateAICall(apexCallId, updateData);
       }
 
+      // Auto-update contact status based on call outcome
+      if (message.type === "end-of-call-report" && call.contactId && call.accountId) {
+        try {
+          const reason = (message.call?.endedReason ?? "").toLowerCase();
+          let nextContactStatus: string | null = null;
+          if (reason.includes("customer-did-not-answer") || reason.includes("no-answer")) {
+            nextContactStatus = "uncontacted";
+          } else if (reason.includes("voicemail") || reason.includes("machine")) {
+            nextContactStatus = "uncontacted";
+          } else if (reason.includes("busy")) {
+            nextContactStatus = "uncontacted";
+          } else if (reason.includes("customer-ended-call") || reason.includes("assistant-ended-call") || reason.includes("silence-timed-out")) {
+            nextContactStatus = "contacted";
+          }
+
+          const PROGRESS_RANK: Record<string, number> = {
+            new: 0, uncontacted: 1, contacted: 2, engaged: 3, application_taken: 4,
+            application_in_progress: 5, credit_repair: 5, callback_scheduled: 4,
+            app_link_pending: 4, qualified: 6, proposal: 7, negotiation: 8, won: 9, lost: 9, nurture: 4
+          };
+
+          if (nextContactStatus) {
+            const { getContactById, updateContact } = await import("../db");
+            const contact = await getContactById(call.contactId, call.accountId);
+            if (contact) {
+              const currentRank = PROGRESS_RANK[contact.status ?? "new"] ?? 0;
+              const nextRank = PROGRESS_RANK[nextContactStatus] ?? 0;
+              if (nextRank > currentRank) {
+                await updateContact(call.contactId, call.accountId, { status: nextContactStatus });
+                console.log(`[VAPI Webhook] Contact ${call.contactId} status updated: ${contact.status} → ${nextContactStatus}`);
+              }
+            }
+          }
+        } catch (err) {
+          console.error("[VAPI Webhook] Failed to update contact status:", err);
+        }
+      }
+
       return { success: true };
     }),
 

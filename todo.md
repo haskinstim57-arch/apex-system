@@ -5299,3 +5299,10 @@
 - [x] Added value conversion: "_none" → "" on change, "" → "_none" on display
 - [x] Scanned all client/src/**/*.tsx — no other empty SelectItem values found
 - [x] Save checkpoint
+
+## Prompt DD — VAPI Call Ends → Auto-Update Contact Status
+- [x] Added status mapping in end-of-call-report webhook handler (customer-ended-call/assistant-ended-call → contacted; no-answer/voicemail/busy → uncontacted)
+- [x] Implemented PROGRESS_RANK map with downgrade protection (won't regress contacts past their current funnel stage)
+- [x] Wrapped in try/catch so contact status errors never break the webhook response
+- [x] 6/6 vitest tests pass (contacted, uncontacted, voicemail, no-downgrade, upgrade from uncontacted, unknown reason)
+- [x] Save checkpoint
