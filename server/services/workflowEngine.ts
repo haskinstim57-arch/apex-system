@@ -378,7 +378,7 @@ function calculateDelayMs(delayType: string, delayValue: number): number {
 }
 
 /** Execute a single action step */
-async function executeAction(
+export async function executeAction(
   step: WorkflowStep,
   contactId: number,
   accountId: number
@@ -451,14 +451,20 @@ async function executeAction(
     case "start_ai_call": {
       if (!contact.phone) throw new Error("Contact has no phone number");
       // Fetch account for per-account business hours + kill switch
-      const { getAccountById } = await import("../db");
+      const { getAccountById, getAccountMessagingSettings } = await import("../db");
       const account = await getAccountById(accountId);
-      const bhConfig = (account?.businessHoursConfig as BusinessHoursConfig | null) ?? null;
+      const { isWithinAccountBusinessHours } = await import("../utils/businessHours");
       // Check business hours — queue call if outside configured hours
+      // Use accountMessagingSettings.businessHours (the field the UI writes to), not the legacy accounts.businessHoursConfig
       const skipBhCheck = !!(config as any).skipBusinessHoursCheck;
-      if (!skipBhCheck && !isWithinBusinessHours(bhConfig)) {
-        const accountAssistantIdEarly = (account as any)?.vapiAssistantId;
-        const assistantIdEarly = accountAssistantIdEarly || resolveAssistantId(contact.leadSource);
+      const bhOpen = await isWithinAccountBusinessHours(accountId);
+      // Look up per-account VAPI credentials
+      const msgSettings = await getAccountMessagingSettings(accountId);
+      const vapiApiKey = msgSettings?.vapiApiKey || undefined;
+      const vapiPhoneNumberId = msgSettings?.vapiPhoneNumberId || undefined;
+      const accountAssistantIdFromSettings = msgSettings?.vapiAssistantIdOverride || (account as any)?.vapiAssistantId;
+      if (!skipBhCheck && !bhOpen) {
+        const assistantIdEarly = accountAssistantIdFromSettings || resolveAssistantId(contact.leadSource);
         const { id: queueId } = await enqueueMessage({
           accountId,
           contactId,
@@ -481,8 +487,7 @@ async function executeAction(
         return { action: "start_ai_call", skipped: true, reason: "voice_agent_disabled" };
       }
       // Use per-account VAPI assistant ID if configured, otherwise fall back to global
-      const accountAssistantId = (account as any)?.vapiAssistantId;
-      const assistantId = accountAssistantId || resolveAssistantId(contact.leadSource);
+      const assistantId = accountAssistantIdFromSettings || resolveAssistantId(contact.leadSource);
       const { id: callId } = await createAICall({
         accountId,
         contactId,
@@ -503,6 +508,8 @@ async function executeAction(
             apexCallId: callId,
             leadSource: contact.leadSource ?? undefined,
           },
+          apiKey: vapiApiKey,
+          phoneNumberId: vapiPhoneNumberId,
         });
         // Update with VAPI external ID
         const { updateAICall } = await import("../db");

@@ -5329,3 +5329,11 @@
 - [x] Updated CardDescription to enumerate all providers: Twilio, Blooio, SendGrid, VAPI
 - [x] Updated IntegrationLink label to "Configure Messaging Credentials" and description to list all keys
 - [x] Save checkpoint
+
+## Prompt II — Fix Workflow Engine start_ai_call: Per-Account Business Hours + VAPI Creds
+- [x] Bug 1: Replaced legacy businessHoursConfig with isWithinAccountBusinessHours(accountId) — reads from accountMessagingSettings.businessHours
+- [x] Bug 2: Added getAccountMessagingSettings lookup for vapiApiKey, vapiPhoneNumberId, vapiAssistantIdOverride
+- [x] Pass apiKey + phoneNumberId to createVapiCall; use assistantIdOverride > account.vapiAssistantId > lead-source routing
+- [x] 5/5 vitest tests pass (BH open → call with creds, BH closed → queue, override priority, fallback, skipBH)
+- [x] 38/38 total related tests pass
+- [x] Save checkpoint
