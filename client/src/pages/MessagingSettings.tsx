@@ -874,6 +874,36 @@ export default function MessagingSettings() {
             )}
           </Card>
 
+          {/* Business Hours Preview */}
+          {businessHours.enabled && (() => {
+            const openDays = DAYS.filter((d) => businessHours.schedule[d]?.open);
+            if (openDays.length === 0) return null;
+            const starts = openDays.map((d) => businessHours.schedule[d]?.start || "09:00");
+            const ends = openDays.map((d) => businessHours.schedule[d]?.end || "17:00");
+            const earliest = starts.sort()[0];
+            const latest = ends.sort().reverse()[0];
+            const fmt = (t: string) => {
+              const [hh, mm] = t.split(":").map(Number);
+              const period = hh < 12 ? "AM" : "PM";
+              const displayH = hh === 0 ? 12 : hh > 12 ? hh - 12 : hh;
+              return `${displayH}:${String(mm).padStart(2, "0")} ${period}`;
+            };
+            const dayNames = openDays.map((d) => DAY_SHORT[d]);
+            const daysSummary = dayNames.length === 7
+              ? "every day"
+              : dayNames.length === 5 && openDays.every((d) => ["monday","tuesday","wednesday","thursday","friday"].includes(d))
+                ? "Mon\u2013Fri"
+                : dayNames.join(", ");
+            const tzLabel = TIMEZONES.find((tz) => tz.value === businessHours.timezone)?.label || businessHours.timezone;
+            return (
+              <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-3">
+                <p className="text-xs text-blue-700 dark:text-blue-400 leading-relaxed">
+                  <strong>Preview:</strong> AI calls will be made {daysSummary}, {fmt(earliest)} \u2013 {fmt(latest)} in {tzLabel}.
+                </p>
+              </div>
+            );
+          })()}
+
           {/* Save Business Hours Button */}
           <div className="flex justify-end">
             <Button

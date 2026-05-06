@@ -5337,3 +5337,8 @@
 - [x] 5/5 vitest tests pass (BH open → call with creds, BH closed → queue, override priority, fallback, skipBH)
 - [x] 38/38 total related tests pass
 - [x] Save checkpoint
+
+## Follow-Up: VAPI Warning Banner + Business Hours Preview
+- [x] Add warning banner to AI Calls page when account is missing VAPI API key (already existed)
+- [x] Add business hours preview text on Settings → Messaging page (e.g., "Calls will be made between 9 AM and 5 PM in America/New_York")
+- [x] Save checkpoint
