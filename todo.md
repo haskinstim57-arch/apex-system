@@ -5306,3 +5306,10 @@
 - [x] Wrapped in try/catch so contact status errors never break the webhook response
 - [x] 6/6 vitest tests pass (contacted, uncontacted, voicemail, no-downgrade, upgrade from uncontacted, unknown reason)
 - [x] Save checkpoint
+
+## Prompt EE — Fix Duplicate Emails: Atomic Claim in Drip Engine
+- [x] Added claimEnrollmentForProcessing() to server/db.ts — atomic UPDATE with WHERE nextStepAt <= NOW() + status=active
+- [x] Integrated at top of dripEngine.ts for-loop — skips enrollment if claim returns false
+- [x] 3/3 vitest tests pass (parallel race → only 1 sends, unclaimed → skip, claimed → send+advance)
+- [x] 67/67 total related tests pass
+- [x] Save checkpoint

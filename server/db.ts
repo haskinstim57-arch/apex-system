@@ -6231,3 +6231,27 @@ export async function deleteSmsTemplate(id: number) {
   if (!db) throw new Error("Database not available");
   await db.delete(smsTemplates).where(eq(smsTemplates.id, id));
 }
+
+
+/**
+ * Atomically claim an enrollment for processing.
+ * Returns true if claimed (this worker should process), false if another worker beat us.
+ * Pushes nextStepAt forward 1 hour so subsequent ticks won't re-pick the same row.
+ */
+export async function claimEnrollmentForProcessing(enrollmentId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db
+    .update(sequenceEnrollments)
+    .set({ nextStepAt: sql`DATE_ADD(NOW(), INTERVAL 1 HOUR)` })
+    .where(
+      and(
+        eq(sequenceEnrollments.id, enrollmentId),
+        eq(sequenceEnrollments.status, "active"),
+        sql`${sequenceEnrollments.nextStepAt} <= NOW()`
+      )
+    );
+  // mysql2 returns affectedRows on the result
+  const affected = (result as any)?.[0]?.affectedRows ?? (result as any)?.affectedRows ?? 0;
+  return affected > 0;
+}

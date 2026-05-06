@@ -21,6 +21,7 @@ import {
   resetDailySendCount,
   updateCurrentDailyLimit,
   incrementDailySendCount,
+  claimEnrollmentForProcessing,
 } from "../db";
 import { logContactActivity } from "../db";
 import { enqueueMessage } from "./messageQueue";
@@ -89,6 +90,13 @@ export async function processNextSteps(batchSize: number = 100): Promise<DripRes
     for (const row of rows) {
       result.processed++;
       const { enrollment, step, sequence } = row;
+
+      // Atomically claim this enrollment — prevents duplicate sends from overlapping ticks
+      const claimed = await claimEnrollmentForProcessing(enrollment.id);
+      if (!claimed) {
+        // Another worker tick already grabbed it — skip
+        continue;
+      }
 
       try {
         // Fetch the contact
