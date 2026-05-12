@@ -5360,3 +5360,11 @@
 ## Bug Fix: Business Hours Preview Unicode Escape
 - [x] Fix literal \\u2013 rendering in preview text — replaced with actual en-dash character (–)
 - [x] Save checkpoint
+
+## Prompt MM — Safety Net: Pre-Push Gate + ESLint Rules + Timezone Constant
+- [x] Create lefthook.yml with pre-push typecheck, lint, and test gates
+- [x] Update package.json with prepare script and eslint + lefthook dependencies
+- [x] Create eslint.config.js with no-restricted-syntax rules for env and timezone isolation
+- [x] Export SYSTEM_DEFAULT_TIMEZONE constant from server/utils/businessHours.ts
+- [x] Write server/lint-safety.test.ts to verify ESLint rules block violations
+- [x] Save checkpoint

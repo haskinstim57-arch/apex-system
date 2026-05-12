@@ -31,12 +31,13 @@ const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frid
 // System Defaults
 // ─────────────────────────────────────────────
 
-const EASTERN_TZ = "America/New_York";
+export const SYSTEM_DEFAULT_TIMEZONE = "America/New_York";
+const EASTERN_TZ = SYSTEM_DEFAULT_TIMEZONE;
 
 /** Default business hours schedule — used when account has no custom config */
 export const DEFAULT_BUSINESS_HOURS_SCHEDULE: BusinessHoursSchedule = {
   enabled: true,
-  timezone: EASTERN_TZ,
+  timezone: SYSTEM_DEFAULT_TIMEZONE,
   schedule: {
     monday:    { open: true, start: "07:00", end: "22:00" },
     tuesday:   { open: true, start: "07:00", end: "22:00" },

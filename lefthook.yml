@@ -1,0 +1,14 @@
+version: 2
+
+pre-push:
+  parallel: false
+  commands:
+    typecheck:
+      run: pnpm tsc --noEmit
+      stage_fixed: false
+    lint:
+      run: pnpm eslint . --max-warnings=0
+      stage_fixed: false
+    test:
+      run: pnpm vitest run --reporter=dot
+      stage_fixed: false

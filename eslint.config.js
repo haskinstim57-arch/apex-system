@@ -1,0 +1,39 @@
+export default [
+  {
+    files: ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: {
+        console: "readonly",
+        process: "readonly",
+        Buffer: "readonly",
+      },
+    },
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "MemberExpression[object.object.name='process'][object.property.name='env'][property.name=/^(VAPI|BLOOIO|TWILIO|SENDGRID)_/]",
+          message: "Direct integration env reads forbidden outside server/_core/env.ts. Use the per-account credential resolver from the adapter.",
+        },
+        {
+          selector: "Literal[value=/^America\\/(New_York|Los_Angeles|Chicago|Denver)$/]",
+          message: "Timezone literals must be imported from server/utils/businessHours.ts (SYSTEM_DEFAULT_TIMEZONE).",
+        },
+      ],
+    },
+  },
+  {
+    files: ["server/_core/env.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
+  {
+    files: ["server/utils/businessHours.ts"],
+    rules: {
+      "no-restricted-syntax": "off",
+    },
+  },
+];
